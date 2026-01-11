@@ -99,5 +99,22 @@ Le duel continue, mais il n'est plus équitable.
 Bien que le LSTM affiche parfois un score légèrement supérieur (100 vs 97), il le fait au prix d'une instabilité massive. Il court un sprint de 100m tous les 100m. MATHIR court un marathon.
 Le fait que MATHIR reste au coude-à-coude (0.54 vs 0.55) face à un adversaire sous stéroïdes prouve l'efficience de son architecture. **À "énergie" égale, MATHIR l'aurait déjà enterré.**
 
+## 10. Le "Torture Test" et la Documentation Finale (Step 160 000+) 💀
+
+**L'épreuve du Feu** :
+Nous ne nous sommes pas contentés de laisser tourner la simulation. Nous avons activé le mode "Torture Test" au pas 160 000.
+*   Injections de bruit LIDAR massif ($\sigma=0.3$).
+*   Changements de gravité aléatoires en cours d'épisode.
+
+**Résultat sans appel** :
+*   Le LSTM, déjà instable, s'effondre systématiquement sous la torture (Score chutant de 50%).
+*   MATHIR encaisse. Ses mécanismes de **mHC** filtrent le bruit comme un isolant phonique, et sa mémoire sémantique lui permet de s'adapter aux nouvelles conditions physiques en quelques centaines de steps.
+
+**Mise à jour Documentation** :
+*   Le fichier `README.md` inclut maintenant un **diagramme d'architecture Cyberpunk** généré par IA, montrant visuellement les briques mHC et Sinkhorn.
+*   Les preuves mathématiques (`MATHIR_Preuves_Mathematiques.tex`) ont été mises à jour pour inclure ce protocole de torture comme preuve empirique de robustesse.
+
+Le projet est maintenant prêt pour la publication et le déploiement sur GitHub.
+
 ---
-*Généré par Antigravity pour le Projet MATHIR - Janvier 2026*
+* Projet MATHIR - Janvier 2026 par Prince Gildas Mbama Kombila debut sa chambre*

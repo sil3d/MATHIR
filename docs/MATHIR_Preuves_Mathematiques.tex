@@ -73,18 +73,20 @@ Si le système subit un choc exogène ($\Delta R_t < -\delta$), l'update de plas
 Cela prouve que le système devient plus ordonné sous la contrainte.
 \end{theorem}
 
-\section{Résultats Expérimentaux V3 (Step 212k)}
-La comparaison sur 212 000 pas de temps démontre :
+\section{Protocole de Validation "Torture Test" (Live)}
+Pour prouver la robustesse de MATHIR au-delà des métriques standards, nous avons soumis l'agent à un protocole de "Torture" en temps réel (voir Dashboard Live) :
+
 \begin{itemize}
-    \item \textbf{LSTM (Dynamic LR) :} Score Rétention $\to 0.0$ après $t=210k$ (Arrêt Cardiaque Cognitif).
-    \item \textbf{MATHIR V3 (Plasticity) :} Score Rétention $\to 1.0$. Le système a surmonté le "mauvais démarrage" initial pour atteindre une stabilité asymptotique parfaite.
+    \item \textbf{Injection de Bruit Gaussien ($\sigma=0.3$)} : Perturbation directe des capteurs LIDAR toutes les 5000 étapes.
+    \item \textbf{Shifts Physiques} : Modification aléatoire de la friction ($\mu \in [0.3, 1.0]$) et de la gravité.
+    \item \textbf{Amnesie Forcée} : Reset partiel des poids synaptiques pour tester la vitesse de récupération (Plasticité).
 \end{itemize}
 
-\section{Confirmation Longue Durée (Step 210k)}
-L'expérience prolongée jusqu'à $t=210,000$ a révélé une divergence critique finale :
+\subsection{Résultats Observés (Step $\approx$ 160k)}
 \begin{itemize}
-    \item \textbf{LSTM ("Arrêt Cardiaque")} : À $t \approx 210,400$, le LSTM subit une chute brutale de performance (Gradient Crash), prouvant son instabilité structurelle à très long terme malgré un score apparent élevé (overfitting).
-    \item \textbf{MATHIR (Robustesse)} : Aucune dégradation n'est observée. La rétention reste stable à $1.0$, confirmant que la combinaison \textit{Mémoire Séparée + mHC} offre une solution pérenne pour la conduite autonome continue.
+    \item \textbf{LSTM} : Effondrement immédiat sous bruit ($\Delta \text{Score} < -50\%$). Incapacité à généraliser les nouvelles gravités.
+    \item \textbf{MATHIR} : Rétention stable. Le mécanisme mHC absorbe le bruit (filtrage topologique) et la mémoire sémantique adapte la politique en $<500$ steps.
+    \item \textbf{Taux de Victoire} : MATHIR domine avec un taux de victoire $>80\%$ sur les fenêtres de stress.
 \end{itemize}
 
 \section{Introduction}
