@@ -190,11 +190,11 @@
     }
   },
   "metadata": {
-    "version": "1.0.0",
-    "date": "2024-01-10",
+    "version": "5.0.0",
+    "date": "2026-01-12",
     "authors": "Équipe MATHIR",
     "license": "Educational/Research",
-    "repository": "https://github.com/mathir-project",
-    "citation": "@article{mathir2024, title={MATHIR: Memory-Augmented Transformer with Hierarchical Retention}, year={2024}}"
+    "repository": "",
+    "citation": "@article{mathir2026, title={MATHIR: Memory-Augmented Transformer with Hierarchical Retention}, year={2026}}"
   }
 }

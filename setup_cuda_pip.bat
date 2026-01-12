@@ -1,73 +1,73 @@
 @echo off
-REM Alternative sans conda - Installation directe avec pip
-REM MATHIR Benchmark - Configuration CUDA
+REM Alternative without conda - Direct installation with pip
+REM MATHIR Benchmark - CUDA Configuration
 
 echo ================================================
-echo   MATHIR + PyTorch CUDA - Installation pip
+echo   MATHIR + PyTorch CUDA - pip Installation
 echo ================================================
 echo.
-echo Cette methode N'UTILISE PAS conda
-echo Installation dans l'environnement Python actuel
+echo This method DOES NOT USE conda
+echo Installing in current Python environment
 echo.
 
-REM Verification Python
-echo [1/4] Verification Python...
+REM Python Verification
+echo [1/4] Checking Python...
 python --version 2>nul
 if errorlevel 1 (
-    echo ❌ ERREUR: Python non trouve
+    echo ❌ ERROR: Python not found
     echo.
-    echo Installez Python depuis: https://www.python.org/downloads/
+    echo Install Python from: https://www.python.org/downloads/
     pause
     exit /b 1
 )
 
-echo ✓ Python detecte
+echo ✓ Python detected
 python --version
 echo.
 
-REM Verification pip
-echo [2/4] Verification pip...
+REM pip Verification
+echo [2/4] Checking pip...
 pip --version 2>nul
 if errorlevel 1 (
-    echo ❌ ERREUR: pip non trouve
+    echo ❌ ERROR: pip not found
     pause
     exit /b 1
 )
 
-echo ✓ pip detecte
+echo ✓ pip detected
 echo.
 
-REM Verification GPU
-echo [3/4] Verification GPU NVIDIA...
+REM GPU Verification
+echo [3/4] Checking NVIDIA GPU...
 nvidia-smi >nul 2>nul
 if errorlevel 1 (
-    echo ⚠️  nvidia-smi non disponible
-    echo    Verifiez que les drivers NVIDIA sont installes
+    echo ⚠️  nvidia-smi not available
+    echo    Check that NVIDIA drivers are installed
     echo.
 ) else (
-    echo ✓ GPU NVIDIA detecte:
+    echo ✓ NVIDIA GPU detected:
     nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader
     echo.
 )
 
 REM Installation
-echo [4/4] Installation packages...
+echo [4/4] Installing packages...
 echo.
-echo ⏳ Installation PyTorch avec CUDA 12.1...
-echo    ^(peut prendre 5-10 minutes^)
+echo ⏳ Installing PyTorch with CUDA 12.1...
+echo    ^(may take 5-10 minutes^)
 echo.
 
-REM Desinstalle torch CPU si present
+REM Uninstall torch CPU if present
 pip uninstall -y torch torchvision torchaudio 2>nul
 
-REM Installe torch CUDA
+REM Install torch CUDA
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
 if errorlevel 1 (
     echo.
-    echo ❌ Echec installation PyTorch CUDA 12.1
+    echo ❌ Failed to install PyTorch CUDA 12.1
     echo.
-    echo Essayez CUDA 11.8:
+    echo Try CUDA 11.8:
     echo   pip install torch --index-url https://download.pytorch.org/whl/cu118
     echo.
     pause
@@ -75,42 +75,42 @@ if errorlevel 1 (
 )
 
 echo.
-echo ⏳ Installation dependances MATHIR...
+echo ⏳ Installing MATHIR dependencies...
 pip install streamlit plotly pandas numpy
 
 echo.
 echo ================================================
-echo   ✅ INSTALLATION TERMINEE!
+echo   ✅ INSTALLATION COMPLETE!
 echo ================================================
 echo.
 
 REM Verification
-echo Verification installation:
+echo Installation Verification:
 echo.
-python -c "import torch; print('✓ PyTorch:', torch.__version__); cuda_ok = torch.cuda.is_available(); print('✓ CUDA:', 'OUI' if cuda_ok else 'NON'); print('✓ GPU:', torch.cuda.get_device_name(0) if cuda_ok else 'N/A')"
+python -c "import torch; print('✓ PyTorch:', torch.__version__); cuda_ok = torch.cuda.is_available(); print('✓ CUDA:', 'YES' if cuda_ok else 'NO'); print('✓ GPU:', torch.cuda.get_device_name(0) if cuda_ok else 'N/A')"
 
 echo.
 echo ================================================
-echo   UTILISATION
+echo   USAGE
 echo ================================================
 echo.
-echo Lancez maintenant:
+echo Run now:
 echo   streamlit run app_streamlit.py
-echo   OU
+echo   OR
 echo   python benchmark.py
 echo.
 echo ================================================
 echo   VSCODE
 echo ================================================
 echo.
-echo Si vous utilisez VSCode, verifiez que
-echo l'interpreteur Python utilise est bien
-echo celui qui a PyTorch CUDA installe.
+echo If using VSCode, verify that the
+echo Python interpreter used is the one
+echo that has PyTorch CUDA installed.
 echo.
-echo Pour verifier:
+echo To verify:
 echo   python -c "import torch; print(torch.cuda.is_available())"
 echo.
-echo Devrait afficher: True
+echo Should display: True
 echo.
 echo ================================================
 

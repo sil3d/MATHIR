@@ -1,0 +1,82 @@
+# config/mathir_v5.yaml
+# ===============================
+# MATHIR v5 - Master Configuration
+# ===============================
+
+# --- Core Model Parameters ---
+model:
+  feature_dim: 256
+  action_dim: 2
+  camera_shape: [3, 84, 84] # Channels, Height, Width
+  state_dim: 23
+
+# --- Manifold-Constrained Hyper-Connections (MHC v5) ---
+mhc:
+  rank_ratio: 0.3
+  use_cache: true
+  projection:
+    max_iter: 10
+    tol: 1e-4
+    epsilon: 1e-8
+    # Overrelaxation parameters from "Overrelaxed Sinkhorn–Knopp Algorithm"
+    overrelaxation:
+      enabled: true
+      initial_omega: 1.4 # Initial overrelaxation parameter (ω)
+      adaptative: true # Use the adaptive Lyapunov-based method
+
+# --- Hierarchical Memory Core ---
+memory:
+  working_capacity: 64
+  episodic_capacity: 1000
+  semantic_prototypes: 256
+  immunological_capacity: 100
+  # Router regularization to prevent collapse
+  router:
+    kl_divergence_constraint: true
+    kl_target: "uniform" # Options: "uniform", "prev_policy" (for PPO-like updates)
+    kl_coefficient: 0.01 # Beta parameter for loss scaling
+    kl_margin: 0.05 # Trust region margin
+
+  # Retention / Forgetting (Initial values, evolved during training)
+  retention_decay: [0.99, 0.95, 0.8]
+
+# --- Perception & Domain Randomization ---
+perception:
+  backbone: "efficientnet_b0"
+  use_domain_randomization: true
+  dr_mode: "hybrid" # "online", "offline", "hybrid"
+  # Offline DR parameters (inspired by DROPO method)
+  offline_dr:
+    dataset_size: 100000
+    augmentation_pool: "dr_pool.pt"
+  # Online DR parameters (lightweight for RL loop)
+  online_dr:
+    probability: 0.7
+    color_jitter: 0.3
+    gaussian_noise: 0.02
+
+# --- Training & Simulation ---
+training:
+  simulator: "isaac_sim" # Options: isaac_sim, carla, gazebo
+  batch_size: 32
+  learning_rate: 1e-4
+  optimizer: "adamw"
+  weight_decay: 1e-5
+  gradient_clip: 0.5
+  dropout: 0.1
+  num_episodes: 10000
+  # KL Annealing for router
+  kl_annealing:
+    enabled: true
+    start_weight: 0.001
+    end_weight: 0.01
+    anneal_episodes: 2000
+
+# --- Deployment Target ---
+deployment:
+  target_device: "jetson" # jetson, raspberry, xavier
+  precision: "mixed" # fp32, fp16, int8
+  tensorrt:
+    workspace_size: 1024 # MB
+    optimization_level: 3
+  onnx_opset: 13

@@ -9,16 +9,16 @@ with open("README_LIB.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="mathir-lib",
-    version="2.0.0",
-    author="MATHIR Team",
-    author_email="contact@mathir.ai",
+    version="5.0.0",
+    author="Prince Gildas Mbama Kombila",
+    author_email="soilearn3d@gmail.com",
     description="Memory-Augmented Transformer with Hierarchical Retention",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/mathir-project/mathir",
+    url="https://github.com/sil3d/MATHIR.git",
     packages=find_packages(),
     classifiers=[
-        "Development Status :: 4 - Beta",
+        "Development Status :: 5 - Beta",
         "Intended Audience :: Science/Research",
         "Intended Audience :: Developers",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
@@ -48,8 +48,8 @@ setup(
     },
     keywords="deep-learning reinforcement-learning memory transformer autonomous-driving",
     project_urls={
-        "Bug Reports": "https://github.com/mathir-project/mathir/issues",
-        "Source": "https://github.com/mathir-project/mathir",
-        "Documentation": "https://mathir.readthedocs.io",
+       
+        "Source": "https://github.com/sil3d/MATHIR.git",
+       
     },
 )
