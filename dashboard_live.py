@@ -325,33 +325,40 @@ else:
                 params = data['current_hyperparams']
                 decay = params.get('retention_decay', [])
                 lstm_lr = params.get('lstm_lr', 0.0001)
+                mathir_lr = params.get('mathir_lr', 0.0001)
+                scenario = params.get('scenario', "PHASE 1: EVOLUTION")
+
+                # Scenario Badge
+                st.info(f"**SCÉNARIO ACTIF :** {scenario}")
 
                 # Summary Metrics
-                c_p1, c_p2 = st.columns(2)
+                c_p1, c_p2, c_p3 = st.columns(3)
                 with c_p1:
                     mean_decay = float(np.mean(decay)) if decay else 0
-                    st.metric("MATHIR Retention", f"{mean_decay:.3f}", help="Moyenne des taux de rétention de la mémoire.")
+                    st.metric("MATHIR Retention", f"{mean_decay:.3f}", help="Moyenne des taux de rétention.")
                 with c_p2:
-                    st.metric("LSTM Learning Rate", f"{lstm_lr:.5f}", help="Vitesse d'apprentissage du concurrent.")
+                    st.metric("MATHIR LR", f"{mathir_lr:.5f}", help="Vitesse d'apprentissage de notre champion.")
+                with c_p3:
+                    is_capped = lstm_lr >= 0.001
+                    lr_display = f"{lstm_lr:.5f}"
+                    if is_capped:
+                        lr_display += " (MAX)"
+                        st.metric("LSTM LR", lr_display, delta="SATURÉ", delta_color="inverse", help="Le LSTM est à fond !")
+                    else:
+                        st.metric("LSTM LR", lr_display, help="Vitesse d'apprentissage du concurrent.")
 
                 # Detailed Clickable Explanation
                 with st.expander("🔍 Analyse Détaillée : Comment ça marche ?", expanded=False):
-                    st.markdown("""
-                    ### � Le Cerveau derrière le Cerveau
-                    Ce n'est pas du hasard. Un modèle **Llama 3.2** observe l'entraînement toutes les 500 étapes.
+                    st.markdown(f"""
+                    ### 🎯 Protocole Scientifique 4 Phases
+                    Nous testons la robustesse sur des cycles de 30k steps :
                     
-                    1.  **Sur quoi on se base ?**
-                        - L'IA regarde l'écart de score (Advantage).
-                        - Elle analyse si MATHIR "oublie" trop vite ou "sature".
+                    1.  **PHASE 1 (Evolution)** : Le LSTM est dopé dynamiquement pour challenger MATHIR.
+                    2.  **PHASE 2 (Standard)** : "Fair Fight". Pas de dopage, LRs standard (3e-4).
+                    3.  **PHASE 3 (Unleashed)** : MATHIR libéré (3e-4) vs LSTM Dopé (1e-3).
+                    4.  **PHASE 4 (Chaos)** : Les deux modèles à fond (1e-3).
                     
-                    2.  **Paramètres de chaque Modèle :**
-                        - **MATHIR (Decay)** : `""" + str(decay) + """`
-                          - *Explication* : Contrôle la durée de vie des souvenirs. `0.99` = Long terme, `0.5` = Court terme. L'IA mixe les deux.
-                        - **LSTM (LR)** : `""" + str(lstm_lr) + """`
-                          - *Explication* : Si le LSTM traîne, on augmente son *Learning Rate* pour le rendre plus agressif et forcer MATHIR à se surpasser.
-                    
-                    3.  **L'Apprentissage en Cours :**
-                        - Actuellement, l'algorithme cherche la *combinaison optimale* pour résoudre le problème sans saturer la VRAM.
+                    **État Actuel** : `{scenario}`
                     """)
 
 # --- BENCHMARK / HALL OF FAME ---
@@ -392,123 +399,128 @@ else:
     
     with col_rep1:
         st.markdown("### 1. Analyse IA (Ollama)")
+        
+        # Load Best Params (Safe Load)
+        best_params = None
+        if os.path.exists("mathir_best_params.json"):
+            try:
+                with open("mathir_best_params.json", "r") as f:
+                    best_params = json.load(f)
+            except:
+                pass
+
         if st.button("🧠 Générer l'Analyse du Stratège (Expert)"):
-            with st.spinner("Analyse approfondie de l'historique complet..."):
-                # --- EXPERT SYSTEM LOGIC (Replacing Simulated LLM) ---
+            with st.spinner("Consultation de l'Oracle Llama 3.2 pour analyser les paramètres optimaux..."):
                 
-                # 1. Data Preparation - Get Full History
+                # --- DATA GATHERING ---
                 h_mathir = data.get('history', {}).get('mathir', [])
                 h_lstm = data.get('history', {}).get('lstm', [])
                 
                 if not h_mathir:
                     st.error("Pas assez de données pour l'analyse.")
                 else:
-                    # 2. Global Metrics (Start to Now)
-                    avg_m = np.mean(h_mathir)
-                    avg_l = np.mean(h_lstm)
-                    global_diff = ((avg_m - avg_l) / avg_l) * 100 if avg_l != 0 else 0
+                    # Metrics
+                    current_score = h_mathir[-1] if h_mathir else 0
+                    avg_m = np.mean(h_mathir[-50:]) if len(h_mathir) > 50 else np.mean(h_mathir)
+                    avg_l = np.mean(h_lstm[-50:]) if len(h_lstm) > 50 else np.mean(h_lstm)
                     
-                    # --- DATA SOURCE SWITCH: Use Benchmarks for Long Term ---
-                    if not bench_df.empty:
-                        # Use Benchmark Data for Global Trends (Real Long Term)
-                        df_m = bench_df['mathir_score'].values
-                        df_l = bench_df['lstm_score'].values
-                        n_points = len(bench_df)
+                    # Best Params Context
+                    bp_text = "Pas encore de 'Best Run' enregistré."
+                    bp_json_str = "{}"
+                    if best_params:
+                        bp_score = best_params.get('score', 0)
+                        bp_step = best_params.get('step', 0)
+                        bp_vals = best_params.get('params', {}).get('retention_decay', [])
+                        bp_text = f"Record au Step {bp_step} (Score: {bp_score:.3f}) avec Decay={bp_vals}"
+                        bp_json_str = json.dumps(best_params.get('params', {}))
+                    
+                    # Scenario Context for Ollama
+                    current_scenario = data.get('current_hyperparams', {}).get('scenario', "Inconnu")
+                    mathir_lr_val = data.get('current_hyperparams', {}).get('mathir_lr', 0.0001)
+
+                    # --- OPTION A: REAL OLLAMA CALL ---
+                    ollama_response = None
+                    try:
+                        import subprocess
                         
-                        # Global Averages (Benchmarks)
-                        avg_m = np.mean(df_m)
-                        avg_l = np.mean(df_l)
-                        global_diff = ((avg_m - avg_l) / avg_l) * 100 if avg_l != 0 else 0
-
-                        # Improvement (First 3 Benchmarks vs Last 3 Benchmarks)
-                        w_size = max(1, int(n_points * 0.15))
-                        start_m = np.mean(df_m[:w_size])
-                        end_m = np.mean(df_m[-w_size:])
-                        improvement = ((end_m - start_m) / start_m) * 100 if start_m != 0 else 0
-                        source_text = f"Benchmarks Recueillis ({n_points} Sessions Torture)"
+                        prompt = f"""
+                        Ta mission est de rédiger un verdict FINAL percutant (Style : Expert IA Futuriste & Enthousiaste).
                         
-                    else:
-                        # Fallback to History if no benchmarks
-                        n_points = len(h_mathir)
-                        avg_m = np.mean(h_mathir)
-                        avg_l = np.mean(h_lstm)
-                        global_diff = ((avg_m - avg_l) / avg_l) * 100 if avg_l != 0 else 0
-                        start_m = np.mean(h_mathir[:10]) if n_points > 10 else 0
-                        end_m = np.mean(h_mathir[-10:]) if n_points > 10 else 0
-                        improvement = ((end_m - start_m) / start_m) * 100 if start_m != 0 else 0
-                        source_text = f"Historique Court ({n_points} steps)"
-
-                    # --- LSTM DOPING DETECTION ---
-                    lstm_lr = data.get('current_hyperparams', {}).get('lstm_lr', 0.0001)
-                    is_doped = lstm_lr > 0.0003  # Threshold for "aggressive" LR
-                    doping_text = f"⚠️ LSTM DOPÉ détecté (LR={lstm_lr:.6f}). Biais artificiel en faveur du baseline." if is_doped else "Conditions équitables."
-
-                    # 4. Benchmark Summary
-                    wins_m = sum(1 for b in bench_df.to_dict('records') if b.get('winner') == 'MATHIR') if not bench_df.empty else 0
-                    wins_l = sum(1 for b in bench_df.to_dict('records') if b.get('winner') == 'LSTM') if not bench_df.empty else 0
-                    total_b = len(bench_df) if not bench_df.empty else 1
-                    win_rate = (wins_m / total_b) * 100
-                    
-                    # 5. Stability Analysis (Still using recent history for immediate volatility)
-                    std_val = np.std(h_mathir) if h_mathir else 0
-                    
-                    # 6. Verdict Logic (Expert Rule System)
-                    if win_rate > 55:
-                        verdict = "DOMINATION MATHIR 🚀"
-                    elif global_diff > 0:
-                        verdict = "AVANTAGE MATHIR (Léger) ⚔️"
-                    elif is_doped and win_rate > 40:
-                         verdict = "RÉSISTANCE HÉROÏQUE (Face au Dopage) 🛡️"
-                    else:
-                        verdict = "EN DIFFICULTÉ ⚠️"
-
-                    # 7. Pre-calculate Text Segments
-                    trend_icon = "📈" if improvement > 0 else "📉"
-                    comp_status = "supérieur au" if avg_m > avg_l else "inférieur au"
-                    gap_dir = "d'avance" if global_diff > 0 else "de retard"
-                    
-                    obs_text = "Malgré le dopage du LSTM, MATHIR maintient une cohérence structurelle." if is_doped and wins_m > wins_l else "Le LSTM profite de son Learning Rate agressif pour compenser."
-                    
-                    syn_text = "Structure synaptique résiliente." if std_val < 0.05 else "Haute plasticité adaptative (re-câblage en cours)."
-                    
-                    if improvement > 5:
-                        dyn_text = "Expansion Cognitive"
-                    elif improvement > -5:
-                        dyn_text = "Stabilisation / Plateau"
-                    else:
-                        dyn_text = "Dégradation Entropique"
+                        CONTEXTE DU COMBAT :
+                        - SCÉNARIO ACTUEL : {current_scenario}
+                        - MATHIR (New Gen) Score: {avg_m:.3f} (LR: {mathir_lr_val})
+                        - LSTM (Old Gen) Score: {avg_l:.3f}
+                        - Paramètres Gagnants : {bp_json_str}
                         
-                    if win_rate > 50 or (is_doped and win_rate > 40):
-                        rec_text = "✅ CONCLUSION EXPERT : Le modèle MATHIR est validé. Il bat ou résiste à un LSTM artificiellement boosté sur la durée. La mémoire mHC fonctionne."
-                    else:
-                        rec_text = "⚠️ CONCLUSION EXPERT : Le LSTM (même dopé) reste trop fort. Il faut augmenter la capacité sémantique du MATHIR."
+                        Structure ta réponse ainsi :
+                        
+                        1. 🏆 LE VAINQUEUR INDISCUTABLE
+                           - Déclare le gagnant avec emphase. Utilise des emojis (🚀, 🧠, 🥇). Si MATHIR gagne, c'est une révolution. Si LSTM résiste, c'est un vétéran tenace.
+                           
+                        2. 💥 ANALYSE DU K.O. TECHNIQUE
+                           - Explique LES RAISONS de la victoire. 
+                           - Si Decay > 0.9 : "Mémoire Éléphantesque" pour les délais longs.
+                           - Si Decay Mixte : "Cerveau Hybride" (Réflexes + Stratégie).
+                           - Parle de "Plasticité Synaptique" vs "Entropie du LSTM".
+                           
+                        3. 🔮 VISION FUTURISTE
+                           - En quoi cette architecture change la donne pour les véhicules autonomes de demain ?
+                           - Imagine des voitures qui "comprennent" la route au lieu de la subir.
+                        
+                        4. 📝 RECOMMANDATION DE DÉPLOIEMENT
+                           - Go / No Go pour la production. Sois décisif !
+                           
+                        Sois concis, direct, et 'WOW'. Pas de blabla inutile. Langue : Français.
+                        """
+                        
+                        # Call Ollama
+                        result = subprocess.run(
+                            ["ollama", "run", "llama3.2:3b", prompt],
+                            capture_output=True, text=True, encoding='utf-8', errors='ignore',
+                            timeout=60 # Give it time to think
+                        )
+                        
+                        if result.returncode == 0 and result.stdout.strip():
+                            ollama_response = result.stdout.strip()
+                    except Exception as e:
+                        print(f"Ollama Error: {e}")
+                        ollama_response = None
 
-                    # 8. Text Generation
-                    analysis_text = f"""
-### 📜 Rapport de L'Expert Stratège (Step {step})
+                    # --- OPTION B: FALLBACK EXPERT SYSTEM (If Ollama is dead/missing) ---
+                    if not ollama_response:
+                        # Logic to simulate the explanation
+                        decay = best_params.get('params', {}).get('retention_decay', [0.5, 0.5, 0.5]) if best_params else [0.5, 0.5, 0.5]
+                        mean_d = np.mean(decay)
+                        
+                        if mean_d > 0.8:
+                            reason = "Ces valeurs élevées (>0.8) indiquent que le modèle privilégie la **Mémoire Épisodique Long-Terme**. C'est crucial pour survivre aux 'Délais de 100 steps' du Torture Test, où l'indice visuel doit être retenu longtemps."
+                        elif mean_d < 0.4:
+                            reason = "Ces valeurs basses (<0.4) suggèrent une stratégie **Réflexe (Ultra-Short Term)**. Le modèle ignore les pièges mémoriels et se concentre sur la physique immédiate (Glace/Friction) pour ne pas déraper."
+                        else:
+                            reason = "Cette configuration **Hybride (Multi-Échelle)** est idéale. Les taux élevés (0.9) gèrent la navigation différée, tandis que les taux faibles (0.3-0.5) gèrent la friction immédiate et le filtrage du bruit."
 
-**Statut : {verdict}**
-*Contexte : {doping_text}*
+                        ollama_response = f"""
+### 🤖 Analyse de Secours (Expert Rule-Based)
 
-#### 1. {trend_icon} Analyse Macro (Long Terme)
-*   **Source** : {source_text} - Analyse complète du cycle de vie.
-*   **Dynamique** : Départ **{start_m:.2f}** -> Actuel **{end_m:.2f}** ({improvement:+.1f}%). Phase de **{dyn_text}**.
-*   **Comparatif** : Score moyen MATHIR **{avg_m:.2f}** vs LSTM **{avg_l:.2f}**.
-*   **Bilan** : {abs(global_diff):.1f}% {gap_dir} sur l'ensemble de l'expérience.
+**Paramètres Optimaux Détectés** : `{decay}`
 
-#### 2. 🏆 Arène des Benchmarks (Torture Tests)
-*   **Score Final** : **MATHIR {wins_m}** - {wins_l} LSTM
-*   **Taux de Victoire** : **{win_rate:.1f}%**
-*   *Analyse Tactique : {obs_text}*
+**Pourquoi sont-ils les meilleurs ?**
+{reason}
 
-#### 3. 🧠 Signature Cognitive (Récent)
-*   **Stabilité** : Variance {std_val:.4f}. {syn_text}
-
-#### 4. 🎯 Verdict Final
-{rec_text}
+*Note : Ollama n'a pas répondu, ceci est une approximation heuristique.*
 """
-                    st.session_state['ollama_analysis'] = analysis_text
-                    st.success("Analyse complète générée !")
+
+                    # --- FINAL DISPLAY ---
+                    st.session_state['ollama_analysis'] = f"""
+### 🧠 Rapport du Stratège (Ollama)
+
+**Analyse de la Configuration Championne**
+{ollama_response}
+
+---
+**Données Brutes** : {bp_text}
+"""
+                    st.success("Analyse générée avec succès !")
         
         if 'ollama_analysis' in st.session_state:
             st.markdown(st.session_state['ollama_analysis'])

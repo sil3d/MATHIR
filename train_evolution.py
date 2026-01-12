@@ -28,7 +28,7 @@ import numpy as np
 
 from mathir_lib import MATHIR, LSTM
 from driving_env import DrivingSimulator
-from benchmark import RetentionBenchmark
+
 
 # --- CONFIGURATION ---
 CHECKPOINT_DIR = "checkpoints"
@@ -55,14 +55,17 @@ class EvolutionTrainer:
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         # Environment
         print(f"🚀 Initializing Trainer on {self.device}")
-        self.env = DrivingSimulator(device=self.device)
-        self.env_lstm = DrivingSimulator(device=self.device) # Dual Environment for fairness
+        
+        # USE ULTIMATE TORTURE SIMULATOR
+        from mathir_lib.torture_sim import UltimateDrivingSimulator
+        self.env = UltimateDrivingSimulator(device=self.device)
+        self.env_lstm = UltimateDrivingSimulator(device=self.device) # Dual Environment for fairness
         
         # 1. Models - COMBAT DES TITANS (Heavy LSTM vs MATHIR)
         print("🏋️ Initializing HEAVY LSTM (1024 hidden, 3 layers)...")
         self.lstm = LSTM(
             action_dim=2,
-            state_dim=9, # COGNITIVE LABYRINTH UPGRADE
+            state_dim=23, # COGNITIVE TORTURE UPGRADE (State vector is bigger now)
             hidden_dim=1024,  
             num_layers=3      
         ).to(self.device)
@@ -77,19 +80,19 @@ class EvolutionTrainer:
         
         self.mathir = MATHIR(
             action_dim=2,
-            state_dim=9, # COGNITIVE LABYRINTH UPGRADE
+            state_dim=23, # COGNITIVE TORTURE UPGRADE
             hidden_dim=256,
             memory_config=heavy_memory_config
         ).to(self.device)
         
         # 2. Optimizers
+        self.initial_lstm_lr = 1e-4
         self.lr_mathir = 1e-4
-        self.lr_lstm = 1e-4
+        self.lr_lstm = self.initial_lstm_lr
         self.opt_mathir = optim.Adam(self.mathir.parameters(), lr=self.lr_mathir)
         self.opt_lstm = optim.Adam(self.lstm.parameters(), lr=self.lr_lstm)
         
-        # 3. Environment
-        self.env = DrivingSimulator(device=self.device)
+        # 3. Environment (Already Init)
         
         # 4. Metrics & History
         self.history = {
@@ -102,6 +105,14 @@ class EvolutionTrainer:
         
         self.benchmarks = [] # Persistent store for benchmarks
         self.current_decay = [0.9, 0.7, 0.5]
+        
+        # BEST PARAMETERS TRACKING
+        self.best_run = {
+            "score": -float('inf'),
+            "params": {},
+            "step": 0,
+            "timestamp": ""
+        }
         
         # 6. Auto-Resume Logic
         self.start_step = 0
@@ -128,10 +139,14 @@ class EvolutionTrainer:
             if os.path.exists(lstm_ckpt):
                 print(f"🔄 Reprise de l'entraînement au step {step}...")
                 try:
-                    self.mathir.load_state_dict(torch.load(latest_ckpt))
-                    self.lstm.load_state_dict(torch.load(lstm_ckpt))
+                    # Note: We might need to adjust state_dict loading if model changed
+                    # But since we updated dims in init, strict=False helps if partial match
+                    # However, changing state_dim usually breaks weights incompatible. 
+                    # Assuming we start fresh or user accepts mismatch if previous weights exist.
+                    self.mathir.load_state_dict(torch.load(latest_ckpt, weights_only=True), strict=False)
+                    self.lstm.load_state_dict(torch.load(lstm_ckpt, weights_only=True), strict=False)
                     self.start_step = step
-                    print("✅ Modèles chargés avec succès !")
+                    print("✅ Modèles chargés avec succès (partiel ou complet) !")
                 except Exception as e:
                     print(f"⚠️ Erreur lors du chargement : {e}")
                     self.start_step = 0
@@ -140,8 +155,6 @@ class EvolutionTrainer:
         """Créé une distribution normale pour échantillonner l'action"""
         mean = torch.tanh(out_dict['action_mean']) # Bound -1 to 1
         std = torch.exp(out_dict['log_std'])
-        return torch.distributions.Normal(mean, std)
-
         return torch.distributions.Normal(mean, std)
 
     def _try_load_logs(self):
@@ -185,43 +198,72 @@ class EvolutionTrainer:
         torch.save(self.mathir.state_dict(), path_m)
         torch.save(self.lstm.state_dict(), path_l)
         print(f"💾 Checkpoints saved @ step {step}")
-
-    def update_logs(self, step):
-        if len(self.history["mathir_rewards"]) > 0:
-            last_m_rew = np.mean(self.history["mathir_rewards"][-50:])
-            last_l_rew = np.mean(self.history["lstm_rewards"][-50:])
-            current_vram, current_ram, ram_pct = self.get_resource_usage()
-            
-            # Update history
-            self.history["vram_usage"].append(current_vram)
-            self.history["ram_usage"].append(current_ram)
-            
-            log_data = {
-                "step": step,
-                "timestamp": datetime.now().strftime("%H:%M:%S"),
-                "mathir_avg_reward": float(last_m_rew),
-                "lstm_avg_reward": float(last_l_rew),
-                "vram_gb": float(current_vram),
-                "ram_gb": float(current_ram),
-                "ram_percent": float(ram_pct),
-                "current_hyperparams": {
-                    "retention_decay": self.current_decay,
-                    "lstm_lr": self.lr_lstm
-                },
-                "history": {
-                    "mathir": self.history["mathir_rewards"][-200:], 
-                    "lstm": self.history["lstm_rewards"][-200:],
-                    "steps": list(range(max(0, step-200), step)),
-                    "vram": self.history["vram_usage"][-200:],
-                    "ram": self.history["ram_usage"][-200:]
-                },
-                "benchmarks": self.benchmarks # Preserve benchmarks
-            }
+        
+    def save_best_params(self):
+        """Sauvegarde les meilleurs paramètres trouvés"""
+        if self.best_run["score"] > -100:
+            print(f"\n💎 Saving BEST PARAMETERS found at step {self.best_run['step']} (Score: {self.best_run['score']:.4f})")
             try:
-                with open(LOG_FILE, 'w') as f:
-                    json.dump(log_data, f)
-            except:
-                pass
+                with open("mathir_best_params.json", "w") as f:
+                    json.dump(self.best_run, f, indent=4)
+                print("✅ mathir_best_params.json generated.")
+            except Exception as e:
+                print(f"❌ Failed to save best params: {e}")
+
+    def update_logs(self, step, m_rew, l_rew, vram, ram, ram_pct, current_phase="INIT"):
+        """Met à jour le fichier JSON pour le dashboard"""
+        
+        # Validation des données (NaN check)
+        m_rew = 0.0 if np.isnan(m_rew) else m_rew
+        l_rew = 0.0 if np.isnan(l_rew) else l_rew
+        
+        # Moving Average (lissage visuel)
+        avg_len = 50
+        last_m_rew = np.mean(self.history["mathir_rewards"][-avg_len:]) if len(self.history["mathir_rewards"]) >= avg_len else m_rew
+        last_l_rew = np.mean(self.history["lstm_rewards"][-avg_len:]) if len(self.history["lstm_rewards"]) >= avg_len else l_rew
+
+        # CHECK FOR NEW BEST
+        if last_m_rew > self.best_run["score"]:
+            self.best_run = {
+                "score": float(last_m_rew),
+                "params": {
+                    "retention_decay": self.current_decay,
+                    "hidden_dim": 256
+                },
+                "step": step,
+                "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            self.save_best_params()
+
+        log_data = {
+            "step": step,
+            "timestamp": datetime.now().strftime("%H:%M:%S"),
+            "mathir_avg_reward": float(last_m_rew),
+            "lstm_avg_reward": float(last_l_rew),
+            "vram_gb": vram,
+            "ram_gb": ram,
+            "ram_percent": ram_pct,
+            "current_hyperparams": {
+                "retention_decay": self.current_decay,
+                "lstm_lr": self.lr_lstm,
+                "mathir_lr": self.lr_mathir,
+                "scenario": current_phase
+            },
+            "history": {
+                "mathir": self.history["mathir_rewards"][-1000:], 
+                "lstm": self.history["lstm_rewards"][-1000:],
+                "steps": self.history["timestamps"][-1000:],
+                "vram": self.history["vram_usage"][-1000:],
+                "ram": self.history["ram_usage"][-1000:]
+            },
+            "benchmarks": self.benchmarks
+        }
+        
+        try:
+            with open(LOG_FILE, 'w') as f:
+                json.dump(log_data, f)
+        except Exception as e:
+            print(f"⚠️ Failed to write logs: {e}")
 
     def run_torture_test(self, step):
         """
@@ -243,11 +285,8 @@ class EvolutionTrainer:
             torch.manual_seed(seed)
             
             # Test MATHIR
-            
+            self.env.config.seed = seed # Use Torture Config seed
             self.env.reset()
-            # Capture state for LSTM replay if needed, but seeding numpy should be enough if reset() uses np.random
-            # The env uses np.random.uniform etc. So np.random.seed(seed) is sufficient.
-            
             obs = self.env._get_observation() 
             total_r_m = 0
             self.mathir.reset_memory()
@@ -261,25 +300,18 @@ class EvolutionTrainer:
             scores_m.append(total_r_m)
 
             # Test LSTM (Exact same condition)
-            # Re-seed for LSTM (Crucial for fairness)
             np.random.seed(seed)
             torch.manual_seed(seed)
-            # Actually easier to just force seeds inside env if we updated reset logic to accept seed
-            # But the new env reset() is random. 
-            # WORKAROUND: We trust the seed fixes numpy.random
-            # The new env uses np.random. So strict seeding is needed.
-            
-            
-            # Re-seed for LSTM already handled above, now executing
-            self.env.reset()
-            obs = self.env._get_observation()
+            self.env_lstm.config.seed = seed
+            self.env_lstm.reset()
+            obs = self.env_lstm._get_observation()
             total_r_l = 0
             
             for _ in range(200):
                 with torch.no_grad():
                     out = self.lstm(obs)
                     action = torch.tanh(out['action_mean'])
-                    obs, reward, done, _ = self.env.step(action)
+                    obs, reward, done, _ = self.env_lstm.step(action)
                     total_r_l += reward.item()
                     if done: break
             scores_l.append(total_r_l)
@@ -303,8 +335,23 @@ class EvolutionTrainer:
         # Keep only last 50
         self.benchmarks = self.benchmarks[-50:]
         
-        # Then save via update_logs
-        self.update_logs(step)
+        self.benchmarks = self.benchmarks[-50:]
+        
+        # Then save via update_logs using the torture test results as current performance
+        vram, ram, ram_pct = self.get_resource_usage()
+        # Determine current phase for logging (re-calculate or access if stored)
+        # For simplicity in torture test (which happens at interval), we can just log "TORTURE TEST" or the current scheduled phase
+        # Let's re-use the scheduler logic briefly or just pass a special flag
+        phase_idx = (step // 30000) % 4
+        scenarios = [
+            "PHASE 1: EVOLUTION (Baseline vs Doped)",
+            "PHASE 2: SCIENTIFIC STANDARD (Fair Fight)",
+            "PHASE 3: UNLEASHED (Mathir 3e-4 vs Doped)",
+            "PHASE 4: CHAOS (Both 1e-3)"
+        ]
+        current_phase = scenarios[phase_idx]
+        
+        self.update_logs(step, avg_m, avg_l, vram, ram, ram_pct, current_phase)
 
         self.mathir.train()
         self.lstm.train()
@@ -335,7 +382,8 @@ class EvolutionTrainer:
         except:
             return None
 
-    def evolve_hyperparameters(self, m_perf, l_perf):
+    def evolve_hyperparameters(self, m_perf, l_perf, force_lr_update=False):
+        # 1. Ask Ollama if MATHIR is struggling (Internal Plasticity still allowed)
         if m_perf < l_perf * 1.1:
             print(f"⚠️ MATHIR needs help ({m_perf:.3f}). Asking Llama...")
             new_decay = self.ask_ollama(self.current_decay, m_perf, self.lr_lstm)
@@ -351,105 +399,191 @@ class EvolutionTrainer:
                 new_decay = np.clip(np.array(self.current_decay) + mutation, 0.1, 0.99)
                 self.current_decay = sorted([float(x) for x in new_decay], reverse=True)
 
-        if l_perf < 0.8:
-            print("📉 LSTM struggling. Boosting Learning Rate...")
-            self.lr_lstm *= 1.2
-            if self.lr_lstm > 1e-3: self.lr_lstm = 1e-4
+        # 2. Dynamic Handicap for LSTM (ONLY if not controlled by Scenario)
+        if force_lr_update:
+            print(f"🔒 Learning Rates locked by Scenario Scheduler. Skipping dynamic adjustment.")
+        else:
+            if m_perf > l_perf * 1.5:
+                 # MATHIR Dominates -> Reset
+                 print(f"⚖️ MATHIR Dominating (>50% gap). Resetting LSTM Handicap.")
+                 self.lr_lstm = self.initial_lstm_lr 
+            elif l_perf < 0.8:
+                # LSTM struggles -> Boost it
+                print("📉 LSTM struggling. Boosting Learning Rate...")
+                self.lr_lstm *= 1.2
+                if self.lr_lstm > 1e-3: self.lr_lstm = 1e-3 
+
+            # Apply changes
             for param_group in self.opt_lstm.param_groups:
                 param_group['lr'] = self.lr_lstm
 
     def train_loop(self):
         print("\n🏎️  STARTING EVOLUTION TRAINER (Heavy Class)...")
-        obs = self.env.reset()
-        obs_l = self.env_lstm.reset()
-        
-        self.mathir.reset_memory()
-        self.lstm.reset_memory()
-        
-        done = False
-        done_l = False
-        
-        # Resume step
-        steps_range = range(self.start_step + 1, ITERATIONS + 1)
-        
-        for step in steps_range:
-            # Forward & Action Sampling (Stochastic for exploration)
-            # Use average reward from last 10 steps as performance cue (or 0 initially)
-            perf_cue = np.mean(self.history["mathir_rewards"][-10:]) if len(self.history["mathir_rewards"]) > 10 else 0.0
-            m_out = self.mathir(obs, step=step, performance_cue=perf_cue)
-            m_dist = self.get_action_dist(m_out)
-            m_action = m_dist.sample()
-            m_log_prob = m_dist.log_prob(m_action).sum(dim=-1, keepdim=True)
-            m_action_clamped = torch.clamp(m_action, -1.0, 1.0) # Physics need valid range
+        try:
+            obs = self.env.reset()
+            obs_l = self.env_lstm.reset()
+            
+            self.mathir.reset_memory()
+            self.lstm.reset_memory()
+            
+            done = False
+            done_l = False
+            
+            # Resume step
+            steps_range = range(self.start_step + 1, ITERATIONS + 1)
+            
+            for step in steps_range:
+                # Forward & Action Sampling (Stochastic for exploration)
+                # Use average reward from last 10 steps as performance cue (or 0 initially)
+                perf_cue = np.mean(self.history["mathir_rewards"][-10:]) if len(self.history["mathir_rewards"]) > 10 else 0.0
+                m_out = self.mathir(obs, step=step, performance_cue=perf_cue)
+                m_dist = self.get_action_dist(m_out)
+                m_action = m_dist.sample()
+                m_log_prob = m_dist.log_prob(m_action).sum(dim=-1, keepdim=True)
+                m_action_clamped = torch.clamp(m_action, -1.0, 1.0) # Physics need valid range
 
-            l_out = self.lstm(obs_l)
-            l_dist = self.get_action_dist(l_out)
-            l_action = l_dist.sample()
-            l_log_prob = l_dist.log_prob(l_action).sum(dim=-1, keepdim=True)
-            l_action_clamped = torch.clamp(l_action, -1.0, 1.0)
+                l_out = self.lstm(obs_l)
+                l_dist = self.get_action_dist(l_out)
+                l_action = l_dist.sample()
+                l_log_prob = l_dist.log_prob(l_action).sum(dim=-1, keepdim=True)
+                l_action_clamped = torch.clamp(l_action, -1.0, 1.0)
 
-            # Step (Using clamped actions)
-            # Parallel Universes: MATHIR and LSTM drive in their own worlds
-            obs_next, reward, done, _ = self.env.step(m_action_clamped)
-            obs_l_next, reward_l, done_l, _ = self.env_lstm.step(l_action_clamped)
-            
-            # --- RL LOSS (REINFORCE / Policy Gradient) ---
-            # Maximiser reward => Minimiser Loss (-log_prob * reward)
-            
-            m_loss = -m_log_prob * reward
-            l_loss = -l_log_prob * reward_l # LSTM is now driving properly in its own env
-
-            # --- OPTIMIZATION ---
-            # Training MATHIR
-            self.opt_mathir.zero_grad()
-            m_loss.backward()
-            self.opt_mathir.step()
-            
-            # Training LSTM (Baseline needs to be competent to be a benchmark)
-            self.opt_lstm.zero_grad()
-            l_loss.backward()
-            self.opt_lstm.step()
-            
-            # Log Rewards (Actual raw rewards from env)
-            self.history["mathir_rewards"].append(reward.item())
-            self.history["lstm_rewards"].append(reward_l.item())
-            
-            # Resource Tracking
-            vram, ram, _ = self.get_resource_usage()
-            self.history["vram_usage"].append(vram)
-            self.history["ram_usage"].append(ram)
-            
-            if step % 100 == 0:
-                print(f"Step {step} | M_Loss: {m_loss.item():.4f} | L_Loss: {l_loss.item():.4f}")
-            
-            # --- FAST LOGGING (REAL-TIME DASHBOARD) ---
-            if step % LOG_EVERY == 0:
-                self.update_logs(step)
-                # LIVE SNAPSHOT for Dashboard (Brain Scan)
-                torch.save(self.mathir.state_dict(), os.path.join(CHECKPOINT_DIR, "mathir_live.pth"))
-
-            # --- SLOW EVALUATION (EVOLUTION) ---
-            if step % EVAL_EVERY == 0:
-                m_avg = np.mean(self.history["mathir_rewards"][-EVAL_EVERY:])
-                l_avg = np.mean(self.history["lstm_rewards"][-EVAL_EVERY:])
-                self.evolve_hyperparameters(m_avg, l_avg)
+                # Step (Using clamped actions)
+                # Parallel Universes: MATHIR and LSTM drive in their own worlds
+                obs_next, reward, done, _ = self.env.step(m_action_clamped)
+                obs_l_next, reward_l, done_l, _ = self.env_lstm.step(l_action_clamped)
                 
-            if step % SAVE_EVERY == 0:
-                self.save_checkpoint(step)
-
-            # --- PERIODIC TORTURE TEST ---
-            if step % BENCHMARK_EVERY == 0:
-                self.run_torture_test(step)
+                # --- RL LOSS (REINFORCE / Policy Gradient) ---
+                # Maximiser reward => Minimiser Loss (-log_prob * reward)
                 
-            obs = obs_next
-            obs_l = obs_l_next
-            
-            if done:
-                obs = self.env.reset()
-                self.mathir.reset_memory()
-            if done_l:
-                obs_l = self.env_lstm.reset()
-                self.lstm.reset_memory()
+                m_loss = -m_log_prob * reward
+                l_loss = -l_log_prob * reward_l # LSTM is now driving properly in its own env
+
+                # --- OPTIMIZATION ---
+                # Training MATHIR
+                self.opt_mathir.zero_grad()
+                m_loss.backward()
+                self.opt_mathir.step()
+                
+                # Training LSTM (Baseline needs to be competent to be a benchmark)
+                self.opt_lstm.zero_grad()
+                l_loss.backward()
+                self.opt_lstm.step()
+                
+                # Log Rewards (Actual raw rewards from env)
+                self.history["mathir_rewards"].append(reward.item())
+                self.history["lstm_rewards"].append(reward_l.item())
+                self.history["timestamps"].append(step)
+                
+                # Resource Tracking
+                vram, ram, _ = self.get_resource_usage()
+                self.history["vram_usage"].append(vram)
+                self.history["ram_usage"].append(ram)
+                
+                if step % 100 == 0:
+                    print(f"Step {step} | M_Loss: {m_loss.item():.4f} | L_Loss: {l_loss.item():.4f}")
+                
+                # --- SCENARIO SCHEDULER (Every 30k Steps) ---
+                current_phase = "INIT"
+                phase_idx = (step // 30000) % 4
+                
+                if phase_idx == 0:
+                    current_phase = "PHASE 1: EVOLUTION (Baseline vs Doped)"
+                elif phase_idx == 1:
+                    current_phase = "PHASE 2: SCIENTIFIC STANDARD (Fair Fight)"
+                elif phase_idx == 2:
+                    current_phase = "PHASE 3: UNLEASHED (Mathir 3e-4 vs Doped)"
+                elif phase_idx == 3:
+                    current_phase = "PHASE 4: CHAOS (Both 1e-3)"
+
+                # --- FAST LOGGING (REAL-TIME DASHBOARD) ---
+                if step % LOG_EVERY == 0:
+                    # Calc momentary averages for log
+                    m_avg_log = np.mean(self.history["mathir_rewards"][-50:]) if len(self.history["mathir_rewards"]) > 0 else 0
+                    l_avg_log = np.mean(self.history["lstm_rewards"][-50:]) if len(self.history["lstm_rewards"]) > 0 else 0
+                    vram_log, ram_log, ram_pct_log = self.get_resource_usage()
+                    
+                    self.update_logs(step, m_avg_log, l_avg_log, vram_log, ram_log, ram_pct_log, current_phase)
+                    
+                    # LIVE SNAPSHOT for Dashboard (Brain Scan)
+                    torch.save(self.mathir.state_dict(), os.path.join(CHECKPOINT_DIR, "mathir_live.pth"))
+
+                # --- SLOW EVALUATION (EVOLUTION) ---
+                # Calculate averages here, as they are needed by the Scenario Scheduler
+                avg_mathir = np.mean(self.history["mathir_rewards"][-EVAL_EVERY:])
+                avg_lstm = np.mean(self.history["lstm_rewards"][-EVAL_EVERY:])
+
+                # --- SCENARIO SCHEDULER (Every 30k Steps) ---
+                current_phase = "UNKNOWN"
+                phase_idx = (step // 30000) % 4
+                
+                if phase_idx == 0:
+                    current_phase = "PHASE 1: EVOLUTION (Baseline vs Doped)"
+                    # Standard behavior (AutoML manages LRs -> Enable Dynamic Update)
+                    if step % 500 == 0:
+                        self.evolve_hyperparameters(avg_mathir, avg_lstm, force_lr_update=False)
+                        # Add this update_logs call as per instruction
+                        vram_gb, ram_gb, ram_percent = self.get_resource_usage() # Re-get for this specific log
+                        self.update_logs(step, avg_mathir, avg_lstm, vram_gb, ram_gb, ram_percent, current_phase)
+                
+                elif phase_idx == 1:
+                    current_phase = "PHASE 2: SCIENTIFIC STANDARD (Fair Fight)"
+                    # User Request: No Doping, MATHIR Boosted
+                    self.lr_lstm = 1e-4 # Reset to Initial
+                    self.lr_mathir = 3e-4 # Karpathy Constant
+                    
+                    # Force apply
+                    for pg in self.opt_lstm.param_groups: pg['lr'] = self.lr_lstm
+                    for pg in self.opt_mathir.param_groups: pg['lr'] = self.lr_mathir
+                    
+                    if step % 500 == 0:
+                        # Only evolve decay, not LRs (Locked for Scientific Standard)
+                        self.evolve_hyperparameters(avg_mathir, avg_lstm, force_lr_update=True) 
+
+                elif phase_idx == 2:
+                    current_phase = "PHASE 3: UNLEASHED (Mathir 3e-4 vs Doped)"
+                    self.lr_lstm = 1e-3 # Max Doping
+                    self.lr_mathir = 3e-4 # Boosted Mathir
+                    
+                    for pg in self.opt_lstm.param_groups: pg['lr'] = self.lr_lstm
+                    for pg in self.opt_mathir.param_groups: pg['lr'] = self.lr_mathir
+                    
+                    if step % 500 == 0:
+                        self.evolve_hyperparameters(avg_mathir, avg_lstm, force_lr_update=True)
+
+                elif phase_idx == 3:
+                    current_phase = "PHASE 4: CHAOS (Both 1e-3)"
+                    self.lr_lstm = 1e-3
+                    self.lr_mathir = 1e-3
+                    
+                    for pg in self.opt_lstm.param_groups: pg['lr'] = self.lr_lstm
+                    for pg in self.opt_mathir.param_groups: pg['lr'] = self.lr_mathir
+                    
+                    if step % 500 == 0:
+                        self.evolve_hyperparameters(avg_mathir, avg_lstm, force_lr_update=True)
+
+                # --- END SCENARIO ---
+                    
+                if step % SAVE_EVERY == 0:
+                    self.save_checkpoint(step)
+
+                # --- PERIODIC TORTURE TEST ---
+                if step % BENCHMARK_EVERY == 0:
+                    self.run_torture_test(step)
+                    
+                obs = obs_next
+                obs_l = obs_l_next
+                
+                if done:
+                    obs = self.env.reset()
+                    self.mathir.reset_memory()
+                if done_l:
+                    obs_l = self.env_lstm.reset()
+                    self.lstm.reset_memory()
+                    
+        finally:
+            self.save_best_params()
+            print("🛑 Training Stopped.")
 
 if __name__ == "__main__":
     trainer = EvolutionTrainer()

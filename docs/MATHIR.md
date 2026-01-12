@@ -66,5 +66,10 @@ L'entraînement utilise `train_evolution.py` qui pilote maintenant la **Plastici
 *   **Score LSTM** : 0.572 (Stagnation)
 *   **Conclusion** : MATHIR n'est pas juste meilleur, il joue dans une autre ligue (Celle des cerveaux adaptatifs).
 
+MATHIR v3.3 utilise :
+
+DeepSeek-mHC (Manifold-Constrained Hyper-Connections)
+Sinkhorn Warm-Start (initialisation géométrique)
+Mémoire Épisodique/Sémantique (10k+ slots)
 ---
 *Projet réalisé par l'équipe MATHIR - Janvier 2026*

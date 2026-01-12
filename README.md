@@ -1,8 +1,9 @@
 # 🧠 MATHIR: Solving Amnesia in Autonomous Vehicles
 
-![MATHIR Banner](https://via.placeholder.com/1200x300?text=MATHIR+Architecture+vs+Catastrophic+Forgetting)
-![MATHIR Architecture](/docs/images/mathir_architecture.png)
+![MATHIR Architecture](/docs/images/mathir_architecture_diagram.png)
 ![MATHIR Training](/docs/images/MATHIR_dashboard.png)
+![MATHIR Training](/docs/images/MATHIR_dashboard_V2.png)
+![MATHIR Training](/docs/images/MATHIR_dashboard_V2_3.png)
 <!-- Remplacez le lien ci-dessus par votre bannière mathir_header_banner si vous l'uploadez, ou supprimez la ligne -->
 
 > **Memory-Augmented Tensor Hybrid with Intelligent Routing**

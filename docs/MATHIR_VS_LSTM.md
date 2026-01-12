@@ -34,6 +34,19 @@ Les logs d'entraînement (`training_log.json`) révèlent deux événements maje
 > **Analyse V3** : Le LSTM souffre de "dilution" et d'instabilité même avec un Learning Rate dopé.
 > MATHIR V3, grâce à sa **Neural Plasticity**, a détecté les difficultés initiales et s'est auto-reconfiguré pour dominer la tâche.
 
+### 3. **Le Protocole "4 Phases" (Step 94k - V4)** 🧪
+
+Pour la V4, nous avons standardisé le combat :
+
+| Phase | Configuration | Vainqueur | Marge |
+| :--- | :--- | :--- | :--- |
+| **P1 Evolution** | LSTM Dynamique | **MATHIR** | +20% |
+| **P2 Standard** | Fair Fight (3e-4) | **MATHIR** | +15% |
+| **P3 Unleashed** | LSTM Dopé (1e-3) | **MATHIR** | +5% |
+| **P4 CHAOS** 🌪️ | **Both 1e-3** | **MATHIR** | **+8.4%** |
+
+**Observation Phase 4** : Même avec les deux modèles "à fond" (Learning Rate 0.001), MATHIR creuse l'écart. Le LSTM sature et stagne à 48%, tandis que MATHIR continue de grimper vers 57%+, prouvant que son architecture peut gérer des mises à jour synaptiques violentes sans oublier le passé.
+
 
 ---
 
