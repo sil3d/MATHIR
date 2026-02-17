@@ -27,9 +27,9 @@ memory:
     kl_coefficient: 0.01
     kl_margin: 0.05
   retention_decay:
+    - 0.99
     - 0.95
     - 0.8
-    - 0.6
 mhc:
   rank_ratio: 0.3
   use_cache: true
