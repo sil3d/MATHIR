@@ -31,6 +31,7 @@
   },
 
   "ui": {
+    "language": "en",
     "theme": "dark",
     "default_view": "chat",
     "show_camera_overlay": true,

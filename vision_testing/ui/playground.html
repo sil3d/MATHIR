@@ -1,9 +1,15 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MATHIR Chat Playground</title>
+<script>
+  // Set language from config (no hardcoded lang)
+  fetch('/api/settings').then(r=>r.json()).then(c=>{
+    document.documentElement.lang = c.ui?.language || 'en';
+  }).catch(()=>{});
+</script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
