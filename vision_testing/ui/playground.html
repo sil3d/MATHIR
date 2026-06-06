@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MATHIR Chat Playground</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0e1a;--bg2:#131826;--bg3:#1c2233;--bg4:#252b40;
+  --border:#2d3348;--border2:#3a4262;
+  --text:#e8eaed;--text2:#9aa0a6;--text3:#5f6368;
+  --blue:#4a9eff;--green:#34d399;--red:#f87171;--amber:#fbbf24;
+  --r:8px;
+}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+
+/* LAYOUT */
+#app{display:flex;height:100vh;overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{width:280px;min-width:280px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column}
+.sidebar-header{padding:16px;border-bottom:1px solid var(--border)}
+.sidebar-header h1{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
+.sidebar-header h1 svg{color:var(--blue)}
+.sidebar-header p{font-size:11px;color:var(--text3);margin-top:4px}
+
+/* MODEL SELECTOR */
+.model-section{padding:12px;border-bottom:1px solid var(--border)}
+.model-section label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);display:block;margin-bottom:6px}
+.model-section select{width:100%;padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-size:13px;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239aa0a6' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:24px}
+.model-section select:focus{outline:none;border-color:var(--blue)}
+.model-info{margin-top:8px;font-size:11px;color:var(--text3);line-height:1.6}
+.model-info .active{color:var(--green);font-weight:600}
+
+/* MEMORY PANEL */
+.memory-section{flex:1;overflow-y:auto;padding:12px;border-top:1px solid var(--border)}
+.memory-section h3{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:8px}
+.memory-item{padding:8px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);margin-bottom:6px;font-size:12px;color:var(--text2);line-height:1.4}
+.memory-item .mem-time{font-size:10px;color:var(--text3);margin-top:4px}
+.memory-count{font-size:11px;color:var(--text3);margin-bottom:8px}
+
+/* ACTIONS */
+.sidebar-actions{padding:12px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px}
+.sidebar-actions button{padding:8px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text2);font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s}
+.sidebar-actions button:hover{background:var(--bg4);color:var(--text);border-color:var(--border2)}
+.sidebar-actions button svg{width:14px;height:14px}
+
+/* MAIN CHAT */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+
+/* CHAT HEADER */
+.chat-header{padding:0 20px;height:48px;min-height:48px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg2)}
+.chat-header-left{display:flex;align-items:center;gap:8px}
+.chat-header-left .model-badge{font-size:11px;padding:3px 8px;background:var(--accent-blue-dim,var(--blue));color:var(--blue);border-radius:4px;font-weight:600;background:rgba(74,158,255,.15)}
+.chat-header-right{display:flex;gap:6px}
+.chat-header-right button{padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text2);font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px}
+.chat-header-right button:hover{background:var(--bg4);color:var(--text)}
+
+/* MESSAGES */
+.chat-messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:12px}
+.chat-messages::-webkit-scrollbar{width:5px}
+.chat-messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+.msg{max-width:75%;animation:msgIn .15s ease}
+.msg.user{align-self:flex-end}
+.msg.assistant{align-self:flex-start}
+.msg.system{align-self:center;max-width:85%}
+
+.msg-role{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);padding:0 4px;margin-bottom:2px}
+.msg.user .msg-role{color:var(--blue)}
+.msg.assistant .msg-role{color:var(--green)}
+
+.msg-text{padding:10px 14px;border-radius:12px;line-height:1.55;font-size:13.5px;word-break:break-word}
+.msg.user .msg-text{background:var(--blue);color:#fff;border-bottom-right-radius:4px}
+.msg.assistant .msg-text{background:var(--bg3);border:1px solid var(--border);border-bottom-left-radius:4px}
+.msg.system .msg-text{background:transparent;color:var(--text3);font-size:12px;font-style:italic;text-align:center}
+
+.msg-img{max-width:240px;max-height:180px;border-radius:var(--r);border:1px solid var(--border);margin-top:6px;cursor:pointer}
+
+@keyframes msgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* INPUT AREA */
+.chat-input-area{padding:12px 20px 16px;background:var(--bg);border-top:1px solid var(--border);display:flex;align-items:flex-end;gap:8px}
+
+.chat-input-area textarea{flex:1;min-height:44px;max-height:140px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:13.5px;font-family:inherit;resize:none;outline:none;line-height:1.5}
+.chat-input-area textarea:focus{border-color:var(--blue)}
+.chat-input-area textarea::placeholder{color:var(--text3)}
+
+.btn-icon{width:44px;height:44px;border-radius:50%;border:1px solid var(--border);background:var(--bg3);color:var(--text2);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;flex-shrink:0}
+.btn-icon:hover{background:var(--bg4);color:var(--text);border-color:var(--border2)}
+.btn-icon.recording{background:var(--red);border-color:var(--red);color:#fff;animation:pulse 1s infinite}
+.btn-send{width:44px;height:44px;border-radius:var(--r);background:var(--blue);border:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
+.btn-send:hover{background:#5aabff}
+.btn-send:disabled{opacity:.4;cursor:not-allowed}
+
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(248,113,113,.4)}50%{box-shadow:0 0 0 8px rgba(248,113,113,0)}}
+
+/* STATUS */
+.chat-status{padding:2px 20px 6px;font-size:11px;color:var(--text3);min-height:18px}
+
+/* ATTACHMENT PREVIEW */
+.attachment-strip{display:flex;gap:6px;padding:6px 20px;background:var(--bg2);border-top:1px solid var(--border)}
+.attachment-item{display:flex;align-items:center;gap:4px;padding:3px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;font-size:11px;color:var(--text2)}
+.attachment-remove{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:0 2px}
+.attachment-remove:hover{color:var(--red)}
+
+/* DRAG OVERLAY */
+.drag-overlay{position:fixed;inset:0;background:rgba(74,158,255,.1);border:3px dashed var(--blue);z-index:100;display:none;align-items:center;justify-content:center;font-size:18px;color:var(--blue);font-weight:600}
+.drag-overlay.active{display:flex}
+
+/* TOAST */
+#toast-container{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:8px;z-index:2000;pointer-events:none}
+.toast{padding:10px 16px;border-radius:var(--r);font-size:13px;font-weight:500;box-shadow:var(--shadow,0 4px 24px rgba(0,0,0,.4));pointer-events:all;animation:toastIn .2s ease;max-width:300px}
+.toast.info{background:var(--bg4);border:1px solid var(--border2);color:var(--text)}
+.toast.success{background:rgba(52,211,153,.15);border:1px solid var(--green);color:var(--green)}
+.toast.error{background:rgba(248,113,113,.15);border:1px solid var(--red);color:var(--red)}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  .sidebar{display:none}
+  .chat-messages{padding:12px}
+  .chat-input-area{padding:10px 12px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        MATHIR Playground
+      </h1>
+      <p>Test chat with GGUF models + memory</p>
+    </div>
+
+    <!-- Model selector -->
+    <div class="model-section">
+      <label>Active Model</label>
+      <select id="model-select"><option value="">Loading...</option></select>
+      <div class="model-info" id="model-info"></div>
+    </div>
+
+    <!-- Memory panel -->
+    <div class="memory-section">
+      <h3>Memory</h3>
+      <div class="memory-count" id="memory-count">0 memories</div>
+      <div id="memory-list"></div>
+    </div>
+
+    <!-- Actions -->
+    <div class="sidebar-actions">
+      <button id="btn-refresh-models">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+        Refresh Models
+      </button>
+      <button id="btn-clear-memory">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        Clear Memory
+      </button>
+      <button id="btn-export-chat">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export Chat
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN CHAT -->
+  <main class="main">
+    <div class="chat-header">
+      <div class="chat-header-left">
+        <span class="model-badge" id="header-model">No model</span>
+        <span class="muted" style="font-size:11px;color:var(--text3)" id="header-status"></span>
+      </div>
+      <div class="chat-header-right">
+        <button id="btn-attach" title="Attach image">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          Image
+        </button>
+        <button id="btn-camera" title="Use camera">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          Camera
+        </button>
+        <button id="btn-clear-chat" title="Clear chat">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          Clear
+        </button>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div class="chat-messages" id="chat-messages">
+      <div class="msg system"><div class="msg-text">Welcome to MATHIR Playground. Select a model, then start chatting. Drag images to attach.</div></div>
+    </div>
+
+    <!-- Attachment preview -->
+    <div class="attachment-strip" id="attachment-strip" style="display:none"></div>
+
+    <!-- Input -->
+    <div class="chat-input-area">
+      <textarea id="chat-input" placeholder="Ask anything... (drag images here)" rows="1"></textarea>
+      <button id="btn-talk" class="btn-icon" title="Hold to record">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      </button>
+      <button id="btn-send" class="btn-send" title="Send (Enter)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+
+    <div class="chat-status" id="chat-status"></div>
+  </main>
+</div>
+
+<!-- Drag overlay -->
+<div class="drag-overlay" id="drag-overlay">Drop image here</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- Hidden file input -->
+<input type="file" id="file-input" accept="image/*" style="display:none">
+
+<script>
+const API = '';
+
+// ============ STATE ============
+const S = {
+  model: null,
+  messages: [],       // {role, text, image?, ts}
+  attachments: [],    // {data, name}
+  recording: false,
+  mediaRecorder: null,
+  audioChunks: [],
+  cameraRunning: false,
+};
+
+// ============ UTILS ============
+async function api(path, opts = {}) {
+  const o = { headers: { 'Content-Type': 'application/json', ...(opts.headers||{}) }, ...opts };
+  if (o.body && typeof o.body !== 'string') o.body = JSON.stringify(o.body);
+  const r = await fetch(API + path, o);
+  if (!r.ok) { let e = r.statusText; try { e = (await r.json()).error || e; } catch(_){} throw new Error(e); }
+  return r.json();
+}
+
+function $(id) { return document.getElementById(id); }
+function esc(s) { return String(s).replace(/[<>&"']/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function toast(msg, type='info', ms=3000) {
+  const c = $('toast-container'), t = document.createElement('div');
+  t.className = `toast ${type}`; t.textContent = msg;
+  c.appendChild(t); setTimeout(() => t.remove(), ms);
+}
+
+function renderMd(t) {
+  if (!t) return '';
+  t = esc(t);
+  t = t.replace(/```[\s\S]*?```/g, m => {
+    const c = m.replace(/```\w*\n?/g, '').trim();
+    return `<pre style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;overflow-x:auto;font-size:12px;margin:6px 0">${c}</pre>`;
+  });
+  t = t.replace(/`([^`]+)`/g, '<code style="background:var(--bg);padding:1px 5px;border-radius:4px;font-size:12px">$1</code>');
+  t = t.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+  t = t.replace(/\*([^*\n]+)\*/g, '<em>$1</em>');
+  t = t.replace(/\n/g, '<br>');
+  return t;
+}
+
+// ============ INIT ============
+async function init() {
+  loadModels();
+  loadMemory();
+  setupChat();
+  setupDragDrop();
+  setupSidebar();
+  setInterval(loadMemory, 30000);
+}
+
+// ============ MODELS ============
+async function loadModels() {
+  try {
+    const data = await api('/api/system/context');
+    const models = data.available_models || [];
+    const sel = $('model-select');
+    sel.innerHTML = '';
+    models.forEach(m => {
+      const o = document.createElement('option');
+      o.value = m.name;
+      o.textContent = `${m.name} (${(m.capabilities||[]).join(', ')})`;
+      if (m.active) o.selected = true;
+      sel.appendChild(o);
+    });
+    if (data.active_model) {
+      S.model = data.active_model;
+      $('header-model').textContent = data.active_model;
+      updateModelInfo(data.active_model, models);
+    }
+    sel.onchange = () => switchModel(sel.value);
+  } catch (e) {
+    $('model-select').innerHTML = '<option value="">Error loading</option>';
+    toast('Failed to load models: ' + e.message, 'error');
+  }
+}
+
+async function switchModel(name) {
+  try {
+    await api('/api/models/switch', { method: 'POST', body: { name } });
+    S.model = name;
+    $('header-model').textContent = name;
+    toast('Switched to ' + name, 'success');
+    loadModels();
+  } catch (e) {
+    toast('Switch failed: ' + e.message, 'error');
+  }
+}
+
+function updateModelInfo(name, models) {
+  const m = models.find(x => x.name === name);
+  const el = $('model-info');
+  if (!m || !el) { if (el) el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <div class="active">${m.active ? 'Active' : 'Inactive'}</div>
+    <div>Type: ${esc(m.type || '?')}</div>
+    <div>Capabilities: ${(m.capabilities||[]).join(', ')}</div>
+    <div>Vision: ${m.supports_vision ? 'Yes' : 'No'}</div>
+    <div>Audio: ${m.supports_audio ? 'Yes' : 'No'}</div>
+  `;
+}
+
+// ============ MEMORY ============
+async function loadMemory() {
+  try {
+    const stats = await api('/api/memory/stats');
+    $('memory-count').textContent = `${stats.total_memories || 0} memories`;
+    // Get last 10 memories
+    const data = await api('/api/memory/recall', { method: 'POST', body: { query: '', k: 10 } });
+    const list = $('memory-list');
+    if (!data.results || data.results.length === 0) {
+      list.innerHTML = '<div style="font-size:11px;color:var(--text3)">No memories yet. Start chatting!</div>';
+      return;
+    }
+    list.innerHTML = data.results.map(r => `
+      <div class="memory-item">
+        ${esc(r.metadata?.text || r.text || '').substring(0, 120)}
+        <div class="mem-time">${r.metadata?.timestamp || ''}</div>
+      </div>
+    `).join('');
+  } catch {}
+}
+
+// ============ CHAT ============
+function setupChat() {
+  const input = $('chat-input');
+  const sendBtn = $('btn-send');
+  const talkBtn = $('btn-talk');
+  const attachBtn = $('btn-attach');
+  const clearBtn = $('btn-clear-chat');
+  const camBtn = $('btn-camera');
+
+  // Auto-resize
+  input?.addEventListener('input', () => {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+  });
+
+  // Send on Enter
+  input?.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+
+  sendBtn?.addEventListener('click', sendMessage);
+  clearBtn?.addEventListener('click', clearChat);
+
+  // Attach image
+  attachBtn?.addEventListener('click', () => $('file-input').click());
+  $('file-input')?.addEventListener('change', e => {
+    if (e.target.files[0]) addAttachment(e.target.files[0]);
+    e.target.value = '';
+  });
+
+  // Camera
+  camBtn?.addEventListener('click', toggleCamera);
+
+  // Talk (hold to record)
+  talkBtn?.addEventListener('mousedown', startRecording);
+  talkBtn?.addEventListener('mouseup', stopRecording);
+  talkBtn?.addEventListener('mouseleave', stopRecording);
+  talkBtn?.addEventListener('touchstart', e => { e.preventDefault(); startRecording(); });
+  talkBtn?.addEventListener('touchend', stopRecording);
+}
+
+function appendMsg(role, text, image = null, save = true) {
+  const box = $('chat-messages');
+  // Remove welcome
+  const welcome = box.querySelector('.msg.system');
+  if (welcome && welcome.textContent.includes('Welcome')) welcome.remove();
+
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  const label = role === 'user' ? 'You' : role === 'assistant' ? 'Model' : 'System';
+  let html = `<div class="msg-role">${label}</div>`;
+  html += `<div class="msg-text">${renderMd(text)}</div>`;
+  if (image) html += `<img class="msg-img" src="${image}" onclick="window.open(this.src)">`;
+  div.innerHTML = html;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+
+  if (save) {
+    S.messages.push({ role, text, image, ts: Date.now() });
+    saveChatHistory();
+  }
+}
+
+function saveChatHistory() {
+  try { localStorage.setItem('mathir_playground_chat', JSON.stringify(S.messages.slice(-100))); } catch {}
+}
+
+function loadChatHistory() {
+  try {
+    const raw = localStorage.getItem('mathir_playground_chat');
+    if (raw) {
+      S.messages = JSON.parse(raw);
+      S.messages.forEach(m => appendMsg(m.role, m.text, m.image, false));
+    }
+  } catch {}
+}
+
+function clearChat() {
+  S.messages = [];
+  saveChatHistory();
+  $('chat-messages').innerHTML = '<div class="msg system"><div class="msg-text">Chat cleared. Start a new conversation.</div></div>';
+  S.attachments = [];
+  renderAttachments();
+  toast('Chat cleared', 'info');
+}
+
+function addAttachment(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    S.attachments.push({ data: e.target.result, name: file.name });
+    renderAttachments();
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderAttachments() {
+  const strip = $('attachment-strip');
+  if (S.attachments.length === 0) { strip.style.display = 'none'; strip.innerHTML = ''; return; }
+  strip.style.display = 'flex';
+  strip.innerHTML = S.attachments.map((a, i) => `
+    <div class="attachment-item">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      ${esc(a.name || 'image')}
+      <button class="attachment-remove" onclick="removeAttachment(${i})">&times;</button>
+    </div>
+  `).join('');
+}
+
+function removeAttachment(i) {
+  S.attachments.splice(i, 1);
+  renderAttachments();
+}
+
+async function sendMessage() {
+  const input = $('chat-input');
+  const text = input.value.trim();
+  if (!text && S.attachments.length === 0) return;
+
+  const sendBtn = $('btn-send');
+  sendBtn.disabled = true;
+  input.value = '';
+  input.style.height = 'auto';
+
+  const userText = text;
+  const image = S.attachments.length > 0 ? S.attachments[0].data : null;
+  appendMsg('user', userText, image);
+  $('chat-status').textContent = 'Thinking...';
+
+  try {
+    const body = { message: userText };
+    if (image) body.image = image.includes(',') ? image.split(',')[1] : image;
+
+    const data = await api('/api/chat', { method: 'POST', body });
+    appendMsg('assistant', data.response || 'No response.');
+    $('chat-status').textContent = `Model: ${data.model || '?'} · ${data.duration || '?'}s`;
+  } catch (e) {
+    appendMsg('system', 'Error: ' + e.message);
+    $('chat-status').textContent = '';
+  } finally {
+    sendBtn.disabled = false;
+    S.attachments = [];
+    renderAttachments();
+  }
+}
+
+// ============ CAMERA ============
+async function toggleCamera() {
+  if (S.cameraRunning) {
+    stopCamera();
+  } else {
+    startCamera();
+  }
+}
+
+async function startCamera() {
+  try {
+    await api('/api/camera/start', { method: 'POST', body: {} });
+    S.cameraRunning = true;
+    $('btn-camera').innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg> Stop Cam';
+    toast('Camera started', 'success');
+  } catch (e) {
+    toast('Camera error: ' + e.message, 'error');
+  }
+}
+
+function stopCamera() {
+  api('/api/camera/stop', { method: 'POST' }).catch(() => {});
+  S.cameraRunning = false;
+  $('btn-camera').innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg> Camera';
+  toast('Camera stopped', 'info');
+}
+
+// ============ AUDIO ============
+async function startRecording() {
+  if (S.recording) return;
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    S.mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+    S.audioChunks = [];
+    S.mediaRecorder.ondataavailable = e => { if (e.data.size > 0) S.audioChunks.push(e.data); };
+    S.mediaRecorder.start();
+    S.recording = true;
+    $('btn-talk').classList.add('recording');
+    $('chat-status').textContent = 'Recording...';
+  } catch (e) {
+    toast('Mic error: ' + e.message, 'error');
+  }
+}
+
+async function stopRecording() {
+  if (!S.recording || !S.mediaRecorder) return;
+  S.mediaRecorder.stop();
+  S.mediaRecorder.stream.getTracks().forEach(t => t.stop());
+  S.recording = false;
+  $('btn-talk').classList.remove('recording');
+  $('chat-status').textContent = 'Processing audio...';
+
+  const blob = new Blob(S.audioChunks, { type: 'audio/webm' });
+  const reader = new FileReader();
+  reader.onload = async () => {
+    try {
+      const data = await api('/api/chat', { method: 'POST', body: { message: '', audio: reader.result } });
+      if (data.response) {
+        appendMsg('assistant', data.response);
+        $('chat-status').textContent = '';
+      }
+    } catch (e) {
+      $('chat-status').textContent = '';
+      toast('Audio failed: ' + e.message, 'error');
+    }
+  };
+  reader.readAsDataURL(blob);
+}
+
+// ============ DRAG & DROP ============
+function setupDragDrop() {
+  const overlay = $('drag-overlay');
+  let dragCount = 0;
+
+  document.addEventListener('dragenter', e => {
+    e.preventDefault();
+    dragCount++;
+    overlay.classList.add('active');
+  });
+
+  document.addEventListener('dragleave', e => {
+    e.preventDefault();
+    dragCount--;
+    if (dragCount <= 0) { overlay.classList.remove('active'); dragCount = 0; }
+  });
+
+  document.addEventListener('dragover', e => e.preventDefault());
+
+  document.addEventListener('drop', e => {
+    e.preventDefault();
+    overlay.classList.remove('active');
+    dragCount = 0;
+    const files = e.dataTransfer.files;
+    if (files.length > 0 && files[0].type.startsWith('image/')) {
+      addAttachment(files[0]);
+      toast('Image attached', 'success');
+    }
+  });
+}
+
+// ============ SIDEBAR ============
+function setupSidebar() {
+  $('btn-refresh-models')?.addEventListener('click', loadModels);
+  $('btn-clear-memory')?.addEventListener('click', async () => {
+    if (!confirm('Clear all MATHIR memory?')) return;
+    try {
+      // There's no clear endpoint, but we can note it
+      toast('Memory clear not yet implemented in API', 'warning');
+    } catch {}
+  });
+  $('btn-export-chat')?.addEventListener('click', () => {
+    const text = S.messages.map(m => `[${m.role}] ${m.text}`).join('\n\n');
+    const blob = new Blob([text], { type: 'text/plain' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `mathir_chat_${Date.now()}.txt`;
+    a.click();
+    toast('Chat exported', 'success');
+  });
+
+  // Load chat history
+  loadChatHistory();
+}
+
+// ============ START ============
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
