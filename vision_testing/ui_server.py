@@ -972,33 +972,43 @@ def count_objects():
 
 @app.route("/api/memory/recall", methods=["POST"])
 def memory_recall():
-    data = request.json
-    query = data.get("query")
+    import sqlite3 as _sqlite3
+    data = request.json or {}
+    query = data.get("query", "")
     k = data.get("k", 5)
-    if not query:
-        return jsonify({"error": "query required"}), 400
+    db_path = str(resolve_path(state["config"].get("memory_db", "memory/vision_test.db")))
 
     try:
-        tester = get_active_tester()
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        conn = _sqlite3.connect(db_path)
+        conn.row_factory = _sqlite3.Row
+        if query:
+            try:
+                rows = conn.execute(
+                    "SELECT m.id, m.text, m.metadata, m.created_at, rank FROM memories_fts fts JOIN memories m ON m.id = fts.rowid WHERE memories_fts MATCH ? ORDER BY rank LIMIT ?",
+                    (query, k)
+                ).fetchall()
+            except Exception:
+                rows = conn.execute(
+                    "SELECT id, text, metadata, created_at, 0 as rank FROM memories WHERE text LIKE ? ORDER BY id DESC LIMIT ?",
+                    (f"%{query}%", k)
+                ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT id, text, metadata, created_at, 0 as rank FROM memories ORDER BY id DESC LIMIT ?",
+                (k,)
+            ).fetchall()
+        conn.close()
 
-    if not tester.memory:
-        return jsonify({"error": "Memory not initialized"}), 500
-
-    try:
-        results = tester.memory.universal_recall(query=query, k=k)
         out = []
-        for r in results:
+        for r in rows:
+            meta = json.loads(r["metadata"]) if r["metadata"] else {}
             out.append({
-                "memory_id": r.get("memory_id"),
-                "text": r.get("metadata", {}).get("text", ""),
-                "model": r.get("metadata", {}).get("model", ""),
-                "timestamp": r.get("metadata", {}).get("timestamp", ""),
-                "score": r.get("score", 0.0),
+                "memory_id": r["id"],
+                "text": r["text"],
+                "model": meta.get("model", ""),
+                "timestamp": meta.get("timestamp", r["created_at"]),
+                "score": abs(r["rank"]) if r["rank"] else 0.0,
             })
-        nonempty = len(out) > 0
-        record_event("recall", nonempty=nonempty, query=query)
         return jsonify({"results": out, "query": query, "k": k})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -1006,16 +1016,15 @@ def memory_recall():
 
 @app.route("/api/memory/stats", methods=["GET"])
 def memory_stats():
+    import sqlite3 as _sqlite3
+    db_path = str(resolve_path(state["config"].get("memory_db", "memory/vision_test.db")))
     try:
-        tester = get_active_tester()
+        conn = _sqlite3.connect(db_path)
+        count = conn.execute("SELECT COUNT(*) FROM memories").fetchone()[0]
+        conn.close()
+        return jsonify({"total_memories": count})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-    if not tester.memory:
-        return jsonify({"error": "Memory not initialized"}), 500
-
-    stats = tester.memory.get_stats()
-    return jsonify(stats)
 
 
 # ============================================================
