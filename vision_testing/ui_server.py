@@ -1044,6 +1044,36 @@ def memory_stats():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/memory/delete", methods=["POST"])
+def memory_delete():
+    """Delete a memory by ID or clear all memories."""
+    import sqlite3 as _sqlite3
+    data = request.json or {}
+    memory_id = data.get("id")
+    clear_all = data.get("clear_all", False)
+    db_path = str(resolve_path(state["config"].get("memory_db", "memory/vision_test.db")))
+    
+    try:
+        conn = _sqlite3.connect(db_path)
+        if clear_all:
+            conn.execute("DELETE FROM memories")
+            conn.execute("DELETE FROM memories_fts")
+            conn.commit()
+            conn.close()
+            return jsonify({"status": "cleared", "deleted": "all"})
+        elif memory_id:
+            conn.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
+            conn.execute("DELETE FROM memories_fts WHERE rowid = ?", (memory_id,))
+            conn.commit()
+            conn.close()
+            return jsonify({"status": "deleted", "id": memory_id})
+        else:
+            conn.close()
+            return jsonify({"error": "Provide 'id' or 'clear_all: true'"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 # ============================================================
 # Learning API (for graphs)
 # ============================================================

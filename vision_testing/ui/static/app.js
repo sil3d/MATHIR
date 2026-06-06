@@ -1243,8 +1243,10 @@ async function loadSettingsMemory() {
         const id = btn.dataset.id;
         if (!confirm('Delete this memory?')) return;
         try {
-          // Try to delete via a dedicated endpoint or just warn
-          toast('Memory delete requires API endpoint (coming soon)', 'warning');
+          await api('/api/memory/delete', { method: 'POST', body: { id: parseInt(id) } });
+          toast('Memory deleted', 'success');
+          loadSettingsMemory();
+          checkSystem();
         } catch (e) {
           toast('Delete failed: ' + e.message, 'error');
         }

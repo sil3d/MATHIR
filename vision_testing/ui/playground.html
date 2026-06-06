@@ -571,8 +571,18 @@ async function loadMemory() {
         e.stopPropagation();
         const text = btn.parentElement.textContent.trim().substring(0, 50);
         if (!confirm(`Delete memory: "${text}..."?`)) return;
-        // Note: API doesn't have delete endpoint yet, but we can try
-        toast('Memory delete not yet implemented in API', 'warning');
+        try {
+          // Get the memory ID from the results
+          const idx = parseInt(btn.dataset.idx);
+          const data = await api('/api/memory/recall', { method: 'POST', body: { query: '', k: 15 } });
+          if (data.results && data.results[idx]) {
+            await api('/api/memory/delete', { method: 'POST', body: { id: data.results[idx].memory_id } });
+            toast('Memory deleted', 'success');
+            loadMemory();
+          }
+        } catch (e) {
+          toast('Delete failed: ' + e.message, 'error');
+        }
       });
     });
   } catch {
