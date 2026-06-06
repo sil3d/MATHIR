@@ -706,20 +706,37 @@ def chat():
 
         duration = time.time() - start
 
-        # Store in MATHIR memory with query_type as metadata (TASK 4)
+        # Store in MATHIR memory — full conversation, not truncated
         if tester.memory:
             try:
-                tester.store_memory(
-                    f"Q: {message or '[image/audio]'} | A: {str(response)[:200]}",
-                    metadata={
-                        "query_type": query_type,
-                        "modality": modality,
-                        "has_image": has_image,
-                        "has_audio": has_audio,
-                    },
-                )
-            except Exception:
-                pass
+                # Skip trivial messages
+                skip_words = {"hi", "hello", "ok", "thanks", "thank you", "bye", "yes", "no", "hey"}
+                is_trivial = (message or "").strip().lower() in skip_words
+                is_short = len((message or "").strip()) < 5
+                
+                if not is_trivial and not is_short:
+                    # Build memory text: full conversation
+                    mem_text = f"User: {message or '[image/audio]'}\nAssistant: {str(response)}"
+                    
+                    # Add file/image info if present
+                    if has_image:
+                        mem_text = f"[IMAGE ATTACHED] {mem_text}"
+                    if has_audio:
+                        mem_text = f"[AUDIO ATTACHED] {mem_text}"
+                    
+                    tester.store_memory(
+                        mem_text,
+                        metadata={
+                            "query_type": query_type,
+                            "modality": modality,
+                            "has_image": has_image,
+                            "has_audio": has_audio,
+                            "model": tester.model_name,
+                            "duration": round(duration, 3),
+                        },
+                    )
+            except Exception as e:
+                print(f"  [WARN] Memory store failed: {e}")
 
         # Record learning event (back-compat: keep query_types as a list)
         record_event("chat", model=tester.model_name, duration=duration,
