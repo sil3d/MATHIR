@@ -14,16 +14,34 @@
   --r:8px;
 }
 html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px}
-
-/* LAYOUT */
 #app{display:flex;height:100vh;overflow:hidden}
 
-/* SIDEBAR */
-.sidebar{width:280px;min-width:280px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column}
+/* ===== SIDEBAR ===== */
+.sidebar{width:300px;min-width:300px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column}
+
 .sidebar-header{padding:16px;border-bottom:1px solid var(--border)}
 .sidebar-header h1{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
 .sidebar-header h1 svg{color:var(--blue)}
 .sidebar-header p{font-size:11px;color:var(--text3);margin-top:4px}
+
+/* CHAT SESSIONS */
+.sessions-section{padding:12px;border-bottom:1px solid var(--border)}
+.sessions-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.sessions-header h3{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text3)}
+.btn-new-chat{padding:5px 10px;background:var(--blue);border:none;border-radius:var(--r);color:#fff;font-size:11px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:4px}
+.btn-new-chat:hover{background:#5aabff}
+.btn-new-chat svg{width:12px;height:12px}
+
+.session-list{max-height:200px;overflow-y:auto}
+.session-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r);cursor:pointer;transition:all .15s;margin-bottom:2px}
+.session-item:hover{background:var(--bg3)}
+.session-item.active{background:var(--accent-blue-dim,var(--blue));background:rgba(74,158,255,.15)}
+.session-item .session-name{flex:1;font-size:12px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.session-item.active .session-name{color:var(--blue);font-weight:600}
+.session-item .session-count{font-size:10px;color:var(--text3);flex-shrink:0}
+.session-item .session-delete{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:0 4px;opacity:0;transition:opacity .15s}
+.session-item:hover .session-delete{opacity:1}
+.session-item .session-delete:hover{color:var(--red)}
 
 /* MODEL SELECTOR */
 .model-section{padding:12px;border-bottom:1px solid var(--border)}
@@ -32,6 +50,10 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
 .model-section select:focus{outline:none;border-color:var(--blue)}
 .model-info{margin-top:8px;font-size:11px;color:var(--text3);line-height:1.6}
 .model-info .active{color:var(--green);font-weight:600}
+
+.btn-load-model{width:100%;margin-top:8px;padding:7px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text2);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-load-model:hover{background:var(--bg4);color:var(--text);border-color:var(--border2)}
+.btn-load-model svg{width:14px;height:14px}
 
 /* MEMORY PANEL */
 .memory-section{flex:1;overflow-y:auto;padding:12px;border-top:1px solid var(--border)}
@@ -46,18 +68,16 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
 .sidebar-actions button:hover{background:var(--bg4);color:var(--text);border-color:var(--border2)}
 .sidebar-actions button svg{width:14px;height:14px}
 
-/* MAIN CHAT */
+/* ===== MAIN CHAT ===== */
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden}
 
-/* CHAT HEADER */
 .chat-header{padding:0 20px;height:48px;min-height:48px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--bg2)}
 .chat-header-left{display:flex;align-items:center;gap:8px}
-.chat-header-left .model-badge{font-size:11px;padding:3px 8px;background:var(--accent-blue-dim,var(--blue));color:var(--blue);border-radius:4px;font-weight:600;background:rgba(74,158,255,.15)}
+.chat-header-left .model-badge{font-size:11px;padding:3px 8px;border-radius:4px;font-weight:600;background:rgba(74,158,255,.15);color:var(--blue)}
 .chat-header-right{display:flex;gap:6px}
 .chat-header-right button{padding:5px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text2);font-size:11px;cursor:pointer;display:flex;align-items:center;gap:4px}
 .chat-header-right button:hover{background:var(--bg4);color:var(--text)}
 
-/* MESSAGES */
 .chat-messages{flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:12px}
 .chat-messages::-webkit-scrollbar{width:5px}
 .chat-messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
@@ -80,7 +100,6 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
 
 @keyframes msgIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
-/* INPUT AREA */
 .chat-input-area{padding:12px 20px 16px;background:var(--bg);border-top:1px solid var(--border);display:flex;align-items:flex-end;gap:8px}
 
 .chat-input-area textarea{flex:1;min-height:44px;max-height:140px;padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:13.5px;font-family:inherit;resize:none;outline:none;line-height:1.5}
@@ -96,28 +115,34 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
 
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(248,113,113,.4)}50%{box-shadow:0 0 0 8px rgba(248,113,113,0)}}
 
-/* STATUS */
 .chat-status{padding:2px 20px 6px;font-size:11px;color:var(--text3);min-height:18px}
 
-/* ATTACHMENT PREVIEW */
 .attachment-strip{display:flex;gap:6px;padding:6px 20px;background:var(--bg2);border-top:1px solid var(--border)}
 .attachment-item{display:flex;align-items:center;gap:4px;padding:3px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;font-size:11px;color:var(--text2)}
 .attachment-remove{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:0 2px}
 .attachment-remove:hover{color:var(--red)}
 
-/* DRAG OVERLAY */
 .drag-overlay{position:fixed;inset:0;background:rgba(74,158,255,.1);border:3px dashed var(--blue);z-index:100;display:none;align-items:center;justify-content:center;font-size:18px;color:var(--blue);font-weight:600}
 .drag-overlay.active{display:flex}
 
-/* TOAST */
 #toast-container{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:8px;z-index:2000;pointer-events:none}
-.toast{padding:10px 16px;border-radius:var(--r);font-size:13px;font-weight:500;box-shadow:var(--shadow,0 4px 24px rgba(0,0,0,.4));pointer-events:all;animation:toastIn .2s ease;max-width:300px}
+.toast{padding:10px 16px;border-radius:var(--r);font-size:13px;font-weight:500;box-shadow:0 4px 24px rgba(0,0,0,.4);pointer-events:all;animation:toastIn .2s ease;max-width:300px}
 .toast.info{background:var(--bg4);border:1px solid var(--border2);color:var(--text)}
 .toast.success{background:rgba(52,211,153,.15);border:1px solid var(--green);color:var(--green)}
 .toast.error{background:rgba(248,113,113,.15);border:1px solid var(--red);color:var(--red)}
+.toast.warning{background:rgba(251,191,36,.15);border:1px solid var(--amber);color:var(--amber)}
 @keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
 
-/* RESPONSIVE */
+/* Model load modal */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px)}
+.modal.active{display:flex}
+.modal-content{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;width:420px;max-width:90vw;box-shadow:0 8px 48px rgba(0,0,0,.5);display:flex;flex-direction:column;gap:12px}
+.modal-content h2{font-size:15px;font-weight:600}
+.modal-content p{font-size:12px;color:var(--text3)}
+.modal-content input,.modal-content select{padding:9px 12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-size:13px}
+.modal-content input:focus,.modal-content select:focus{outline:none;border-color:var(--blue)}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+
 @media(max-width:768px){
   .sidebar{display:none}
   .chat-messages{padding:12px}
@@ -135,7 +160,19 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
         MATHIR Playground
       </h1>
-      <p>Test chat with GGUF models + memory</p>
+      <p>Test GGUF models + memory</p>
+    </div>
+
+    <!-- Chat Sessions -->
+    <div class="sessions-section">
+      <div class="sessions-header">
+        <h3>Chats</h3>
+        <button class="btn-new-chat" id="btn-new-chat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New
+        </button>
+      </div>
+      <div class="session-list" id="session-list"></div>
     </div>
 
     <!-- Model selector -->
@@ -143,6 +180,10 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
       <label>Active Model</label>
       <select id="model-select"><option value="">Loading...</option></select>
       <div class="model-info" id="model-info"></div>
+      <button class="btn-load-model" id="btn-load-model">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Load / Switch Model
+      </button>
     </div>
 
     <!-- Memory panel -->
@@ -158,10 +199,6 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
         Refresh Models
       </button>
-      <button id="btn-clear-memory">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-        Clear Memory
-      </button>
       <button id="btn-export-chat">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Export Chat
@@ -174,7 +211,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
     <div class="chat-header">
       <div class="chat-header-left">
         <span class="model-badge" id="header-model">No model</span>
-        <span class="muted" style="font-size:11px;color:var(--text3)" id="header-status"></span>
+        <span style="font-size:11px;color:var(--text3)" id="header-status"></span>
       </div>
       <div class="chat-header-right">
         <button id="btn-attach" title="Attach image">
@@ -185,16 +222,12 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
           Camera
         </button>
-        <button id="btn-clear-chat" title="Clear chat">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-          Clear
-        </button>
       </div>
     </div>
 
     <!-- Messages -->
     <div class="chat-messages" id="chat-messages">
-      <div class="msg system"><div class="msg-text">Welcome to MATHIR Playground. Select a model, then start chatting. Drag images to attach.</div></div>
+      <div class="msg system"><div class="msg-text">Welcome to MATHIR Playground. Create a new chat or select an existing one. Drag images to attach.</div></div>
     </div>
 
     <!-- Attachment preview -->
@@ -218,6 +251,22 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
 <!-- Drag overlay -->
 <div class="drag-overlay" id="drag-overlay">Drop image here</div>
 
+<!-- Model Load Modal -->
+<div class="modal" id="modal-load-model">
+  <div class="modal-content">
+    <h2>Load / Switch Model</h2>
+    <p>Select a model to load. This will switch the active model for all chat sessions.</p>
+    <label style="font-size:12px;color:var(--text2)">Model
+      <select id="modal-model-select" style="margin-top:4px"></select>
+    </label>
+    <div id="modal-model-info" style="font-size:11px;color:var(--text3);line-height:1.6"></div>
+    <div class="modal-actions">
+      <button class="btn" id="modal-cancel" style="padding:7px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text2);cursor:pointer">Cancel</button>
+      <button class="btn" id="modal-confirm" style="padding:7px 14px;background:var(--blue);border:none;border-radius:var(--r);color:#fff;cursor:pointer;font-weight:600">Load Model</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast container -->
 <div id="toast-container"></div>
 
@@ -229,14 +278,18 @@ const API = '';
 
 // ============ STATE ============
 const S = {
+  sessions: [],        // [{id, name, messages: [{role,text,image,ts}]}]
+  activeSession: null, // session id
   model: null,
-  messages: [],       // {role, text, image?, ts}
-  attachments: [],    // {data, name}
+  models: [],
+  attachments: [],
   recording: false,
   mediaRecorder: null,
   audioChunks: [],
   cameraRunning: false,
 };
+
+const STORAGE_KEY = 'mathir_playground_sessions';
 
 // ============ UTILS ============
 async function api(path, opts = {}) {
@@ -270,24 +323,102 @@ function renderMd(t) {
   return t;
 }
 
-// ============ INIT ============
-async function init() {
-  loadModels();
-  loadMemory();
-  setupChat();
-  setupDragDrop();
-  setupSidebar();
-  setInterval(loadMemory, 30000);
+function uuid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+
+// ============ SESSIONS ============
+function loadSessions() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    S.sessions = raw ? JSON.parse(raw) : [];
+  } catch { S.sessions = []; }
+  if (S.sessions.length === 0) createSession();
+  if (!S.activeSession) S.activeSession = S.sessions[0]?.id;
+  renderSessions();
+  renderCurrentChat();
+}
+
+function saveSessions() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(S.sessions)); } catch {}
+}
+
+function createSession() {
+  const session = { id: uuid(), name: `Chat ${S.sessions.length + 1}`, messages: [] };
+  S.sessions.unshift(session);
+  S.activeSession = session.id;
+  saveSessions();
+  renderSessions();
+  renderCurrentChat();
+  toast('New chat created', 'success');
+}
+
+function switchSession(id) {
+  S.activeSession = id;
+  renderSessions();
+  renderCurrentChat();
+}
+
+function deleteSession(id) {
+  if (S.sessions.length <= 1) { toast('Cannot delete last chat', 'warning'); return; }
+  S.sessions = S.sessions.filter(s => s.id !== id);
+  if (S.activeSession === id) S.activeSession = S.sessions[0]?.id;
+  saveSessions();
+  renderSessions();
+  renderCurrentChat();
+  toast('Chat deleted', 'info');
+}
+
+function getActiveSession() {
+  return S.sessions.find(s => s.id === S.activeSession);
+}
+
+function renderSessions() {
+  const list = $('session-list');
+  if (!list) return;
+  list.innerHTML = S.sessions.map(s => `
+    <div class="session-item ${s.id === S.activeSession ? 'active' : ''}" data-id="${s.id}">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span class="session-name">${esc(s.name)}</span>
+      <span class="session-count">${s.messages.length}</span>
+      <button class="session-delete" data-id="${s.id}" title="Delete">&times;</button>
+    </div>
+  `).join('');
+
+  // Click handlers
+  list.querySelectorAll('.session-item').forEach(el => {
+    el.addEventListener('click', e => {
+      if (e.target.classList.contains('session-delete')) return;
+      switchSession(el.dataset.id);
+    });
+  });
+  list.querySelectorAll('.session-delete').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      deleteSession(btn.dataset.id);
+    });
+  });
+}
+
+function renderCurrentChat() {
+  const session = getActiveSession();
+  const box = $('chat-messages');
+  if (!session || !box) return;
+  box.innerHTML = '';
+  if (session.messages.length === 0) {
+    box.innerHTML = '<div class="msg system"><div class="msg-text">Start chatting. Drag images to attach, or use the camera.</div></div>';
+    return;
+  }
+  session.messages.forEach(m => appendMsgToDOM(m.role, m.text, m.image, false));
+  box.scrollTop = box.scrollHeight;
 }
 
 // ============ MODELS ============
 async function loadModels() {
   try {
     const data = await api('/api/system/context');
-    const models = data.available_models || [];
+    S.models = data.available_models || [];
     const sel = $('model-select');
     sel.innerHTML = '';
-    models.forEach(m => {
+    S.models.forEach(m => {
       const o = document.createElement('option');
       o.value = m.name;
       o.textContent = `${m.name} (${(m.capabilities||[]).join(', ')})`;
@@ -297,12 +428,13 @@ async function loadModels() {
     if (data.active_model) {
       S.model = data.active_model;
       $('header-model').textContent = data.active_model;
-      updateModelInfo(data.active_model, models);
+      updateModelInfo(data.active_model, S.models);
     }
     sel.onchange = () => switchModel(sel.value);
+    // Update modal select too
+    updateModalModelSelect();
   } catch (e) {
     $('model-select').innerHTML = '<option value="">Error loading</option>';
-    toast('Failed to load models: ' + e.message, 'error');
   }
 }
 
@@ -326,9 +458,30 @@ function updateModelInfo(name, models) {
     <div class="active">${m.active ? 'Active' : 'Inactive'}</div>
     <div>Type: ${esc(m.type || '?')}</div>
     <div>Capabilities: ${(m.capabilities||[]).join(', ')}</div>
-    <div>Vision: ${m.supports_vision ? 'Yes' : 'No'}</div>
-    <div>Audio: ${m.supports_audio ? 'Yes' : 'No'}</div>
+    <div>Vision: ${m.supports_vision ? 'Yes' : 'No'} · Audio: ${m.supports_audio ? 'Yes' : 'No'}</div>
   `;
+}
+
+function updateModalModelSelect() {
+  const sel = $('modal-model-select');
+  if (!sel) return;
+  sel.innerHTML = '';
+  S.models.forEach(m => {
+    const o = document.createElement('option');
+    o.value = m.name;
+    o.textContent = `${m.name} — ${m.type || '?'} (${(m.capabilities||[]).join(', ')})`;
+    if (m.active) o.selected = true;
+    sel.appendChild(o);
+  });
+  sel.onchange = () => {
+    const m = S.models.find(x => x.name === sel.value);
+    $('modal-model-info').innerHTML = m ? `
+      <div>Type: ${esc(m.type || '?')}</div>
+      <div>Capabilities: ${(m.capabilities||[]).join(', ')}</div>
+      <div>Vision: ${m.supports_vision ? 'Yes' : 'No'}</div>
+      <div>Audio: ${m.supports_audio ? 'Yes' : 'No'}</div>
+    ` : '';
+  };
 }
 
 // ============ MEMORY ============
@@ -336,7 +489,6 @@ async function loadMemory() {
   try {
     const stats = await api('/api/memory/stats');
     $('memory-count').textContent = `${stats.total_memories || 0} memories`;
-    // Get last 10 memories
     const data = await api('/api/memory/recall', { method: 'POST', body: { query: '', k: 10 } });
     const list = $('memory-list');
     if (!data.results || data.results.length === 0) {
@@ -358,34 +510,27 @@ function setupChat() {
   const sendBtn = $('btn-send');
   const talkBtn = $('btn-talk');
   const attachBtn = $('btn-attach');
-  const clearBtn = $('btn-clear-chat');
   const camBtn = $('btn-camera');
 
-  // Auto-resize
   input?.addEventListener('input', () => {
     input.style.height = 'auto';
     input.style.height = Math.min(input.scrollHeight, 140) + 'px';
   });
 
-  // Send on Enter
   input?.addEventListener('keydown', e => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
 
   sendBtn?.addEventListener('click', sendMessage);
-  clearBtn?.addEventListener('click', clearChat);
-
-  // Attach image
   attachBtn?.addEventListener('click', () => $('file-input').click());
   $('file-input')?.addEventListener('change', e => {
     if (e.target.files[0]) addAttachment(e.target.files[0]);
     e.target.value = '';
   });
 
-  // Camera
   camBtn?.addEventListener('click', toggleCamera);
 
-  // Talk (hold to record)
+  // Talk
   talkBtn?.addEventListener('mousedown', startRecording);
   talkBtn?.addEventListener('mouseup', stopRecording);
   talkBtn?.addEventListener('mouseleave', stopRecording);
@@ -393,11 +538,10 @@ function setupChat() {
   talkBtn?.addEventListener('touchend', stopRecording);
 }
 
-function appendMsg(role, text, image = null, save = true) {
+function appendMsgToDOM(role, text, image = null, scroll = true) {
   const box = $('chat-messages');
-  // Remove welcome
   const welcome = box.querySelector('.msg.system');
-  if (welcome && welcome.textContent.includes('Welcome')) welcome.remove();
+  if (welcome) welcome.remove();
 
   const div = document.createElement('div');
   div.className = `msg ${role}`;
@@ -407,35 +551,17 @@ function appendMsg(role, text, image = null, save = true) {
   if (image) html += `<img class="msg-img" src="${image}" onclick="window.open(this.src)">`;
   div.innerHTML = html;
   box.appendChild(div);
-  box.scrollTop = box.scrollHeight;
+  if (scroll) box.scrollTop = box.scrollHeight;
+}
 
-  if (save) {
-    S.messages.push({ role, text, image, ts: Date.now() });
-    saveChatHistory();
+function appendMsg(role, text, image = null) {
+  appendMsgToDOM(role, text, image, true);
+  const session = getActiveSession();
+  if (session) {
+    session.messages.push({ role, text, image, ts: Date.now() });
+    saveSessions();
+    renderSessions(); // update count
   }
-}
-
-function saveChatHistory() {
-  try { localStorage.setItem('mathir_playground_chat', JSON.stringify(S.messages.slice(-100))); } catch {}
-}
-
-function loadChatHistory() {
-  try {
-    const raw = localStorage.getItem('mathir_playground_chat');
-    if (raw) {
-      S.messages = JSON.parse(raw);
-      S.messages.forEach(m => appendMsg(m.role, m.text, m.image, false));
-    }
-  } catch {}
-}
-
-function clearChat() {
-  S.messages = [];
-  saveChatHistory();
-  $('chat-messages').innerHTML = '<div class="msg system"><div class="msg-text">Chat cleared. Start a new conversation.</div></div>';
-  S.attachments = [];
-  renderAttachments();
-  toast('Chat cleared', 'info');
 }
 
 function addAttachment(file) {
@@ -499,11 +625,8 @@ async function sendMessage() {
 
 // ============ CAMERA ============
 async function toggleCamera() {
-  if (S.cameraRunning) {
-    stopCamera();
-  } else {
-    startCamera();
-  }
+  if (S.cameraRunning) stopCamera();
+  else startCamera();
 }
 
 async function startCamera() {
@@ -570,58 +693,61 @@ async function stopRecording() {
 function setupDragDrop() {
   const overlay = $('drag-overlay');
   let dragCount = 0;
-
-  document.addEventListener('dragenter', e => {
-    e.preventDefault();
-    dragCount++;
-    overlay.classList.add('active');
-  });
-
-  document.addEventListener('dragleave', e => {
-    e.preventDefault();
-    dragCount--;
-    if (dragCount <= 0) { overlay.classList.remove('active'); dragCount = 0; }
-  });
-
+  document.addEventListener('dragenter', e => { e.preventDefault(); dragCount++; overlay.classList.add('active'); });
+  document.addEventListener('dragleave', e => { e.preventDefault(); dragCount--; if (dragCount <= 0) { overlay.classList.remove('active'); dragCount = 0; } });
   document.addEventListener('dragover', e => e.preventDefault());
-
   document.addEventListener('drop', e => {
-    e.preventDefault();
-    overlay.classList.remove('active');
-    dragCount = 0;
-    const files = e.dataTransfer.files;
-    if (files.length > 0 && files[0].type.startsWith('image/')) {
-      addAttachment(files[0]);
-      toast('Image attached', 'success');
+    e.preventDefault(); overlay.classList.remove('active'); dragCount = 0;
+    if (e.dataTransfer.files.length > 0 && e.dataTransfer.files[0].type.startsWith('image/')) {
+      addAttachment(e.dataTransfer.files[0]); toast('Image attached', 'success');
     }
   });
 }
 
 // ============ SIDEBAR ============
 function setupSidebar() {
+  $('btn-new-chat')?.addEventListener('click', createSession);
   $('btn-refresh-models')?.addEventListener('click', loadModels);
-  $('btn-clear-memory')?.addEventListener('click', async () => {
-    if (!confirm('Clear all MATHIR memory?')) return;
-    try {
-      // There's no clear endpoint, but we can note it
-      toast('Memory clear not yet implemented in API', 'warning');
-    } catch {}
+
+  // Load model modal
+  $('btn-load-model')?.addEventListener('click', () => {
+    updateModalModelSelect();
+    $('modal-load-model').classList.add('active');
   });
+  $('modal-cancel')?.addEventListener('click', () => $('modal-load-model').classList.remove('active'));
+  $('modal-load-model')?.addEventListener('click', e => { if (e.target === $('modal-load-model')) $('modal-load-model').classList.remove('active'); });
+  $('modal-confirm')?.addEventListener('click', async () => {
+    const name = $('modal-model-select')?.value;
+    if (!name) return;
+    await switchModel(name);
+    $('modal-load-model').classList.remove('active');
+  });
+
   $('btn-export-chat')?.addEventListener('click', () => {
-    const text = S.messages.map(m => `[${m.role}] ${m.text}`).join('\n\n');
+    const session = getActiveSession();
+    if (!session) return;
+    const text = session.messages.map(m => `[${m.role}] ${m.text}`).join('\n\n');
     const blob = new Blob([text], { type: 'text/plain' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `mathir_chat_${Date.now()}.txt`;
+    a.download = `${session.name.replace(/\s/g, '_')}_${Date.now()}.txt`;
     a.click();
     toast('Chat exported', 'success');
   });
-
-  // Load chat history
-  loadChatHistory();
 }
 
-// ============ START ============
+// ============ INIT ============
+async function init() {
+  loadSessions();
+  loadModels();
+  loadMemory();
+  setupChat();
+  setupDragDrop();
+  setupSidebar();
+  setInterval(loadMemory, 30000);
+  setInterval(loadModels, 60000);
+}
+
 document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
