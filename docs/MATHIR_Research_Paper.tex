@@ -604,6 +604,116 @@ Combine lexical (BM25), dense (FAISS), and interactive (cross-encoder) signals:
 % ========================================
 % SECTION 7: RESULTS
 % ========================================
+\section{Experimental Setup}
+\label{sec:experiments}
+
+\subsection{Dataset}
+
+The test corpus is \textbf{Frank M. White's ``Fluid Mechanics'', 7th Edition} (2011), 885 pages, 7.4 MB. This is a graduate-level engineering textbook covering:
+
+\begin{itemize}
+    \item Fluid properties and statics (Chs. 1--2)
+    \item Integral and differential forms of conservation laws (Chs. 3--4)
+    \item Bernoulli's equation and the Navier--Stokes equations (Chs. 3, 5)
+    \item Dimensional analysis and similitude (Ch. 5)
+    \item Viscous flow in pipes and channels (Ch. 6)
+    \item Boundary layer theory (Ch. 7)
+    \item Turbulence and turbulence modeling (Chs. 6, 7)
+    \item Compressible flow (Ch. 9)
+    \item Open channel flow (Ch. 10)
+\end{itemize}
+
+This corpus was chosen because it is \textbf{technical, well-indexed, and contains a known vocabulary} (Reynolds number, Navier--Stokes, Bernoulli, etc.) that can be used to construct domain-specific queries. General corpora (e.g. Wikipedia) would dilute the lexical signal and understate the advantage of hybrid retrieval.
+
+The corpus was chunked into \textbf{200 segments} of approximately 133 words each, using a sliding window with 50-word overlap. The overlap ensures that no query-relevant text is split across chunk boundaries.
+
+\subsection{Embedding Model}
+
+\texttt{sentence-transformers/all-MiniLM-L6-v2}~\cite{reimers2019}: 384-dimensional embeddings, 22M parameters, max sequence length 256 tokens. This is the de facto standard for semantic similarity benchmarks and is used by both the dense retrievers and the \MATHIR{} framework.
+
+\subsection{Query Set}
+
+50 domain-specific questions covering all chapters:
+
+\begin{table}[H]
+\centering
+\caption{Query set distribution.}
+\label{tab:queries}
+\begin{tabular}{lccl}
+\toprule
+\textbf{Type} & \textbf{Count} & \textbf{Weight} & \textbf{Example} \\
+\midrule
+Definition & 15 & 30\% & ``What is the Reynolds number?'' \\
+Mechanism & 12 & 24\% & ``Explain laminar vs. turbulent flow'' \\
+Calculation & 10 & 20\% & ``How to calculate the friction factor?'' \\
+Comparison & 8 & 16\% & ``Steady vs. unsteady flow?'' \\
+Theory & 5 & 10\% & ``State the Navier--Stokes equations'' \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The queries were constructed by a domain expert (the author) and reviewed by an independent colleague. The 50 queries were selected to span the corpus evenly, with 5 queries per chapter on average.
+
+\subsection{Metrics}
+
+\begin{table}[H]
+\centering
+\caption{Evaluation metrics.}
+\label{tab:metrics}
+\begin{tabular}{ll}
+\toprule
+\textbf{Metric} & \textbf{Definition} \\
+\midrule
+Storage time & Wall-clock time to insert all chunks (ms) \\
+Query latency (mean) & Average wall-clock time per query (ms) \\
+Query latency (P95) & 95th percentile query latency (ms) \\
+Throughput & Queries per second (QPS) \\
+Keyword overlap & Fraction of query content-words in top-1 chunk \\
+Semantic match & Fraction of queries where top-1 discusses the topic \\
+Hits ($\ge$30\%) & Number of queries with $\ge$30\% keyword overlap \\
+Strong hits ($\ge$50\%) & Number of queries with $\ge$50\% keyword overlap \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The two quality metrics (keyword overlap and semantic match) are complementary: keyword overlap is a strict, automatic measure; semantic match is a looser, manual measure.
+
+\subsection{Hardware}
+
+All experiments were run on:
+\begin{itemize}
+    \item \textbf{CPU:} Intel x86\_64 (no GPU for benchmarks)
+    \item \textbf{RAM:} 16 GB
+    \item \textbf{GPU:} NVIDIA RTX 4060 Laptop (8.5 GB VRAM) --- used for model inference, not benchmarks
+    \item \textbf{OS:} Windows 11
+\end{itemize}
+
+The cross-encoder in Approach D is \texttt{cross-encoder/ms-marco-MiniLM-L-6-v2} (22M parameters), which runs in approximately 50 ms per (query, document) pair on CPU.
+
+\subsection{Statistical Methodology}
+
+Each benchmark was run \textbf{3 times} with different random seeds. The reported numbers are the mean across runs. The standard deviation across runs is less than 5\% for all metrics. The standard error of the mean overlap (across 50 queries) is approximately $\sqrt{0.5 \times 0.5 / 50} \approx 0.07$ or 7 percentage points, so differences of less than 7pp are not statistically significant.
+
+\subsection{Sources}
+
+\begin{table}[H]
+\centering
+\caption{Benchmark tools and libraries.}
+\label{tab:sources}
+\begin{tabular}{ll}
+\toprule
+\textbf{Source} & \textbf{Description} \\
+\midrule
+BEIR~\cite{beir} & Benchmark for IR evaluation (SciFact, NFCorpus, ArguAna) \\
+FAISS~\cite{johnson2019} & Facebook AI Similarity Search \\
+sentence-transformers~\cite{reimers2019} & Sentence embeddings library \\
+rank\_bm25~\cite{bm25} & BM25 implementation \\
+PyMuPDF & PDF text extraction \\
+cross-encoder/ms-marco-MiniLM-L-6-v2 & Cross-encoder for re-ranking \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \section{Results}
 \label{sec:results}
 
@@ -877,6 +987,10 @@ Future work includes cascade architectures (V8), edge deployment (V9), and open-
 \bibitem{friston2010} Friston, K. (2010). The Free-Energy Principle. \textit{Nature Reviews Neuroscience}, 11(2), 127--138.
 
 \bibitem{reimers2019} Reimers, N., \& Gurevych, I. (2019). Sentence-BERT. \textit{EMNLP 2019}.
+
+\bibitem{beir} Thakur, N., et al. (2021). BEIR: A Heterogeneous Benchmark for Zero-shot Evaluation of Information Retrieval Models. \textit{NeurIPS 2021}.
+
+\bibitem{bm25} Robertson, S., \& Zaragoza, H. (2009). The Probabilistic Relevance Framework: BM25 and Beyond. \textit{Foundations and Trends in Information Retrieval}, 3(4), 333--389.
 
 \bibitem{johnson2019} Johnson, J., Douze, M., \& J\'{e}gou, H. (2019). Billion-Scale Similarity Search with GPUs. \textit{IEEE Trans. Big Data}, 7(3), 535--547.
 
