@@ -178,6 +178,27 @@ async function checkSystem() {
     state.models = models;
     populateModelSelect(models, ctx.active_model || '');
 
+    // MATHIR memory status
+    try {
+      const memStats = await api('/api/memory/stats');
+      const count = memStats.total_memories || 0;
+      const dot = $('mathir-dot');
+      const label = $('mathir-label');
+      if (dot) {
+        dot.style.background = 'var(--accent-green)';
+        dot.style.boxShadow = '0 0 6px var(--accent-green)';
+      }
+      if (label) label.textContent = `MATHIR: connected (${count} memories)`;
+    } catch {
+      const dot = $('mathir-dot');
+      const label = $('mathir-label');
+      if (dot) {
+        dot.style.background = 'var(--accent-red)';
+        dot.style.boxShadow = '0 0 6px var(--accent-red)';
+      }
+      if (label) label.textContent = 'MATHIR: disconnected';
+    }
+
     // System info in settings — use /api/system/info
     try {
       const info = await api('/api/system/info');
@@ -197,6 +218,13 @@ async function checkSystem() {
     state.systemOk = false;
     $('system-status').textContent = 'System offline';
     $('system-status').style.color = 'var(--accent-red)';
+    const dot = $('mathir-dot');
+    const label = $('mathir-label');
+    if (dot) {
+      dot.style.background = 'var(--accent-red)';
+      dot.style.boxShadow = '0 0 6px var(--accent-red)';
+    }
+    if (label) label.textContent = 'MATHIR: disconnected';
   }
 }
 
@@ -831,6 +859,23 @@ function setupMemoryView() {
     if (e.key === 'Enter') doMemoryRecall();
   });
   $('memory-stats-btn')?.addEventListener('click', loadMemoryStats);
+  $('memory-add-btn')?.addEventListener('click', addMemoryManual);
+  $('memory-refresh-btn')?.addEventListener('click', () => {
+    loadMemoryStats();
+    toast('Memory refreshed', 'info');
+  });
+}
+
+async function addMemoryManual() {
+  const text = prompt('Enter memory text to store:');
+  if (!text?.trim()) return;
+  try {
+    await api('/api/chat', { method: 'POST', body: { message: text } });
+    toast('Memory stored', 'success');
+    loadMemoryStats();
+  } catch (e) {
+    toast('Failed: ' + e.message, 'error');
+  }
 }
 
 async function doMemoryRecall() {

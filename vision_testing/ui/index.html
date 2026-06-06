@@ -78,6 +78,10 @@
     </div>
 
     <div class="sidebar-footer">
+      <div id="mathir-status" style="display:flex;align-items:center;gap:6px;padding:6px 0;font-size:11px">
+        <span id="mathir-dot" style="width:8px;height:8px;border-radius:50%;background:var(--amber);flex-shrink:0"></span>
+        <span id="mathir-label">MATHIR: checking...</span>
+      </div>
       <small id="system-status">Connecting...</small>
     </div>
   </aside>
@@ -294,6 +298,14 @@
       <header class="view-header">
         <h1>MATHIR Memory</h1>
         <div class="header-actions">
+          <button id="memory-add-btn" class="btn" title="Add memory">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add
+          </button>
+          <button id="memory-refresh-btn" class="btn" title="Refresh">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/></svg>
+            Refresh
+          </button>
           <button id="memory-stats-btn" class="btn">Stats</button>
         </div>
       </header>

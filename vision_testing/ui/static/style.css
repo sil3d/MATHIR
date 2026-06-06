@@ -231,6 +231,24 @@ body {
   color: var(--text-muted);
 }
 
+/* MATHIR Status */
+#mathir-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 0;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+#mathir-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.3s, box-shadow 0.3s;
+}
+
 /* ===== MAIN CONTENT ===== */
 .main {
   flex: 1;

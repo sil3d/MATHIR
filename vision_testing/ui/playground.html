@@ -133,6 +133,24 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
 .toast.warning{background:rgba(251,191,36,.15);border:1px solid var(--amber);color:var(--amber)}
 @keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
 
+/* MATHIR STATUS */
+.mathir-status{display:flex;align-items:center;gap:6px;padding:8px 12px;margin-top:8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);font-size:11px}
+.mathir-status .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.mathir-status .dot.online{background:var(--green);box-shadow:0 0 6px var(--green)}
+.mathir-status .dot.offline{background:var(--red);box-shadow:0 0 6px var(--red)}
+.mathir-status .dot.loading{background:var(--amber);animation:blink 1s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* MEMORY MANAGEMENT */
+.memory-actions{display:flex;gap:4px;margin-bottom:8px}
+.memory-actions button{padding:4px 8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);color:var(--text2);font-size:10px;cursor:pointer;display:flex;align-items:center;gap:3px}
+.memory-actions button:hover{background:var(--bg4);color:var(--text)}
+.memory-actions button svg{width:10px;height:10px}
+.memory-item{position:relative}
+.memory-item .mem-delete{position:absolute;top:6px;right:6px;background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:0 2px;opacity:0;transition:opacity .15s}
+.memory-item:hover .mem-delete{opacity:1}
+.memory-item .mem-delete:hover{color:var(--red)}
+
 /* Model load modal */
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px)}
 .modal.active{display:flex}
@@ -161,6 +179,10 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
         MATHIR Playground
       </h1>
       <p>Test GGUF models + memory</p>
+      <div class="mathir-status" id="mathir-status">
+        <span class="dot loading"></span>
+        <span>MATHIR: checking...</span>
+      </div>
     </div>
 
     <!-- Chat Sessions -->
@@ -189,6 +211,16 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
     <!-- Memory panel -->
     <div class="memory-section">
       <h3>Memory</h3>
+      <div class="memory-actions">
+        <button id="btn-add-memory" title="Add memory">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add
+        </button>
+        <button id="btn-refresh-memory" title="Refresh">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/></svg>
+          Refresh
+        </button>
+      </div>
       <div class="memory-count" id="memory-count">0 memories</div>
       <div id="memory-list"></div>
     </div>
@@ -484,24 +516,76 @@ function updateModalModelSelect() {
   };
 }
 
+// ============ MATHIR STATUS ============
+async function checkMathirStatus() {
+  const el = $('mathir-status');
+  if (!el) return;
+  try {
+    const stats = await api('/api/memory/stats');
+    const count = stats.total_memories || 0;
+    el.innerHTML = `<span class="dot online"></span><span>MATHIR: connected (${count} memories)</span>`;
+  } catch {
+    el.innerHTML = `<span class="dot offline"></span><span>MATHIR: disconnected</span>`;
+  }
+}
+
 // ============ MEMORY ============
 async function loadMemory() {
   try {
     const stats = await api('/api/memory/stats');
-    $('memory-count').textContent = `${stats.total_memories || 0} memories`;
-    const data = await api('/api/memory/recall', { method: 'POST', body: { query: '', k: 10 } });
+    const count = stats.total_memories || 0;
+    $('memory-count').textContent = `${count} memories`;
+    
+    // Update MATHIR status
+    const statusEl = $('mathir-status');
+    if (statusEl) statusEl.innerHTML = `<span class="dot online"></span><span>MATHIR: connected (${count} memories)</span>`;
+    
+    if (count === 0) {
+      $('memory-list').innerHTML = '<div style="font-size:11px;color:var(--text3)">No memories yet. Start chatting!</div>';
+      return;
+    }
+    
+    const data = await api('/api/memory/recall', { method: 'POST', body: { query: '', k: 15 } });
     const list = $('memory-list');
     if (!data.results || data.results.length === 0) {
       list.innerHTML = '<div style="font-size:11px;color:var(--text3)">No memories yet. Start chatting!</div>';
       return;
     }
-    list.innerHTML = data.results.map(r => `
-      <div class="memory-item">
+    list.innerHTML = data.results.map((r, i) => `
+      <div class="memory-item" data-idx="${i}">
         ${esc(r.metadata?.text || r.text || '').substring(0, 120)}
         <div class="mem-time">${r.metadata?.timestamp || ''}</div>
+        <button class="mem-delete" data-idx="${i}" title="Delete">&times;</button>
       </div>
     `).join('');
-  } catch {}
+    
+    // Delete handlers
+    list.querySelectorAll('.mem-delete').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const text = btn.parentElement.textContent.trim().substring(0, 50);
+        if (!confirm(`Delete memory: "${text}..."?`)) return;
+        // Note: API doesn't have delete endpoint yet, but we can try
+        toast('Memory delete not yet implemented in API', 'warning');
+      });
+    });
+  } catch {
+    const statusEl = $('mathir-status');
+    if (statusEl) statusEl.innerHTML = `<span class="dot offline"></span><span>MATHIR: disconnected</span>`;
+  }
+}
+
+async function addMemoryManually() {
+  const text = prompt('Enter memory text:');
+  if (!text?.trim()) return;
+  try {
+    // Store via chat endpoint with a simple message
+    await api('/api/chat', { method: 'POST', body: { message: text } });
+    toast('Memory stored', 'success');
+    loadMemory();
+  } catch (e) {
+    toast('Failed to store memory: ' + e.message, 'error');
+  }
 }
 
 // ============ CHAT ============
@@ -708,6 +792,8 @@ function setupDragDrop() {
 function setupSidebar() {
   $('btn-new-chat')?.addEventListener('click', createSession);
   $('btn-refresh-models')?.addEventListener('click', loadModels);
+  $('btn-add-memory')?.addEventListener('click', addMemoryManually);
+  $('btn-refresh-memory')?.addEventListener('click', loadMemory);
 
   // Load model modal
   $('btn-load-model')?.addEventListener('click', () => {
@@ -741,11 +827,13 @@ async function init() {
   loadSessions();
   loadModels();
   loadMemory();
+  checkMathirStatus();
   setupChat();
   setupDragDrop();
   setupSidebar();
   setInterval(loadMemory, 30000);
   setInterval(loadModels, 60000);
+  setInterval(checkMathirStatus, 15000);
 }
 
 document.addEventListener('DOMContentLoaded', init);
