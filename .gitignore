@@ -33,6 +33,17 @@ htmlcov/
 *.pth
 *.pt
 
+# Large model files (GGUF, DLL, binaries)
+*.gguf
+*.dll
+*.so.*
+vision_testing/bin/
+vision_testing/models/
+vision_testing/logs/
+
+# Archive (old files)
+_archive/
+
 # Editor
 .vscode/
 .idea/
