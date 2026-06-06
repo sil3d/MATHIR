@@ -1171,7 +1171,90 @@ function renderPerModelResults(data) {
 
 // ============ SETTINGS VIEW ============
 function setupSettingsView() {
-  // Nothing to init yet — settings are read directly from DOM
+  // Memory management in settings
+  $('memory-create-btn')?.addEventListener('click', createMemoryFromSettings);
+  $('memory-new-text')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') createMemoryFromSettings();
+  });
+  $('memory-refresh-settings')?.addEventListener('click', loadSettingsMemory);
+  
+  // Load memory on settings view switch
+  const observer = new MutationObserver(() => {
+    if ($('view-settings')?.classList.contains('active')) {
+      loadSettingsMemory();
+    }
+  });
+  observer.observe($('view-settings') || document.body, { attributes: true, subtree: false });
+}
+
+async function createMemoryFromSettings() {
+  const input = $('memory-new-text');
+  const text = input?.value.trim();
+  if (!text) return;
+  try {
+    await api('/api/chat', { method: 'POST', body: { message: text } });
+    input.value = '';
+    toast('Memory created', 'success');
+    loadSettingsMemory();
+    checkSystem(); // update MATHIR status
+  } catch (e) {
+    toast('Failed: ' + e.message, 'error');
+  }
+}
+
+async function loadSettingsMemory() {
+  const list = $('memory-list-settings');
+  const dot = $('mathir-dot-settings');
+  const label = $('mathir-label-settings');
+  if (!list) return;
+  
+  try {
+    const stats = await api('/api/memory/stats');
+    const count = stats.total_memories || 0;
+    
+    // Update status
+    if (dot) { dot.style.background = 'var(--accent-green)'; dot.style.boxShadow = '0 0 6px var(--accent-green)'; }
+    if (label) label.textContent = `MATHIR: connected (${count} memories)`;
+    
+    if (count === 0) {
+      list.innerHTML = '<p class="muted" style="font-size:12px">No memories stored yet.</p>';
+      return;
+    }
+    
+    const data = await api('/api/memory/recall', { method: 'POST', body: { query: '', k: 20 } });
+    if (!data.results || data.results.length === 0) {
+      list.innerHTML = '<p class="muted" style="font-size:12px">No memories stored yet.</p>';
+      return;
+    }
+    
+    list.innerHTML = data.results.map((r, i) => `
+      <div style="display:flex;align-items:flex-start;gap:8px;padding:8px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:6px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;color:var(--text-primary);line-height:1.4;word-break:break-word">${escapeHtml(r.text || '').substring(0, 150)}</div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${escapeHtml(r.model || '')} · ${r.timestamp || ''}</div>
+        </div>
+        <button class="mem-del-btn" data-id="${r.memory_id}" title="Delete" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px;padding:0 4px;flex-shrink:0">&times;</button>
+      </div>
+    `).join('');
+    
+    // Delete handlers
+    list.querySelectorAll('.mem-del-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        if (!confirm('Delete this memory?')) return;
+        try {
+          // Try to delete via a dedicated endpoint or just warn
+          toast('Memory delete requires API endpoint (coming soon)', 'warning');
+        } catch (e) {
+          toast('Delete failed: ' + e.message, 'error');
+        }
+      });
+    });
+  } catch {
+    if (dot) { dot.style.background = 'var(--accent-red)'; dot.style.boxShadow = '0 0 6px var(--accent-red)'; }
+    if (label) label.textContent = 'MATHIR: disconnected';
+    list.innerHTML = '<p class="muted" style="font-size:12px">Cannot connect to MATHIR memory.</p>';
+  }
 }
 
 // ============ MODAL (HuggingFace) ============

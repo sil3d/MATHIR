@@ -471,6 +471,34 @@
             <p class="muted">Loading...</p>
           </div>
         </div>
+
+        <div class="setting-group">
+          <h2>MATHIR Memory</h2>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+            <div id="mathir-status-settings" style="display:flex;align-items:center;gap:6px;font-size:12px">
+              <span id="mathir-dot-settings" style="width:8px;height:8px;border-radius:50%;background:var(--amber)"></span>
+              <span id="mathir-label-settings">Checking...</span>
+            </div>
+            <button id="memory-refresh-settings" class="btn" style="margin-left:auto;font-size:11px;padding:4px 10px">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/></svg>
+              Refresh
+            </button>
+          </div>
+
+          <!-- Create new memory -->
+          <div style="margin-bottom:12px">
+            <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Add new memory</label>
+            <div style="display:flex;gap:6px">
+              <input id="memory-new-text" type="text" placeholder="Type something to remember..." style="flex:1;padding:8px 10px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-primary);font-size:13px">
+              <button id="memory-create-btn" class="btn-primary" style="padding:8px 14px;font-size:12px;white-space:nowrap">Save</button>
+            </div>
+          </div>
+
+          <!-- Memory list -->
+          <div id="memory-list-settings" style="max-height:300px;overflow-y:auto">
+            <p class="muted" style="font-size:12px">Loading memories...</p>
+          </div>
+        </div>
       </div>
     </section>
   </main>
