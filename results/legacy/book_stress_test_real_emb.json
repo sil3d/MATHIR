@@ -1,0 +1,41 @@
+{
+  "pdf": "D:\\COURS\\Fluid Mechanics 2\\White_2011_7ed_Fluid-Mechanics.pdf",
+  "n_chunks": 100,
+  "n_queries": 30,
+  "model": "sentence-transformers/all-MiniLM-L6-v2",
+  "embedding_dim": 384,
+  "embedding_time_s": 0.3939017000084277,
+  "storage_ms": {
+    "vectordb": 1.1172000085934997,
+    "mathir": 326.5174999833107
+  },
+  "query_latency_ms": {
+    "vectordb": {
+      "mean": 0.034913335305949054,
+      "median": 0.008100003469735384,
+      "p95": 0.03259998629800975,
+      "min": 0.007399998139590025,
+      "max": 0.7696000102441758
+    },
+    "mathir": {
+      "mean": 0.27482333631875616,
+      "median": 0.25639998784754425,
+      "p95": 0.37300001713447273,
+      "min": 0.22759998682886362,
+      "max": 0.43730001198127866
+    }
+  },
+  "throughput_qps": {
+    "vectordb": 28642.35087358168,
+    "mathir": 3638.7011867148776
+  },
+  "quality_top1_overlap_mean": {
+    "vectordb": 0.33055555555555555,
+    "mathir": 0.2061111111111111
+  },
+  "relevant_hits": {
+    "vectordb": 18,
+    "mathir": 10,
+    "total": 30
+  }
+}

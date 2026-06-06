@@ -1,0 +1,10 @@
+{
+  "timestamp": 1780690743.4825346,
+  "ebbinghaus_stress": {
+    "retained_count": 10,
+    "avg_retained_similarity": 0.9999999761581421,
+    "avg_evicted_similarity": 0.8985320395893521,
+    "success": true
+  },
+  "anomaly_stress": null
+}

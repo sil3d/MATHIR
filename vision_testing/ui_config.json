@@ -1,0 +1,49 @@
+{
+  "_comment": "UI server config. NO HARDCODED PATHS. User can change port, host, CORS, etc.",
+
+  "server": {
+    "host": "127.0.0.1",
+    "port": 5000,
+    "debug": false,
+    "cors_origins": ["*"]
+  },
+
+  "camera": {
+    "_comment": "Camera capture settings. Works on Mac/Windows/Linux via OpenCV.",
+    "enabled": true,
+    "device_id": 0,
+    "width": 1280,
+    "height": 720,
+    "fps": 30,
+    "frame_quality": 80,
+    "_supported_platforms": ["macos", "windows", "linux"]
+  },
+
+  "audio": {
+    "_comment": "Audio input/output. push-to-talk or voice activity detection.",
+    "input_device": "default",
+    "output_device": "default",
+    "sample_rate": 16000,
+    "channels": 1,
+    "push_to_talk_key": "Space",
+    "voice_activity_threshold": 0.02,
+    "max_record_seconds": 30
+  },
+
+  "ui": {
+    "theme": "dark",
+    "default_view": "chat",
+    "show_camera_overlay": true,
+    "show_model_info": true,
+    "show_memory_panel": true,
+    "auto_scroll_chat": true,
+    "show_object_counts": true
+  },
+
+  "memory": {
+    "_comment": "MATHIR memory integration. Used by chat/camera to store context.",
+    "auto_store_conversations": true,
+    "auto_store_camera_observations": true,
+    "max_memory_items": 10000
+  }
+}

@@ -5,7 +5,9 @@ pandas>=2.0.0
 numpy>=1.24.0
 openpyxl>=3.1.0
 PyYAML
-wandb
-tensorboard
-stable-baselines3
-GPUtil
+
+# Optional (not required for core training/benchmark):
+# wandb
+# tensorboard
+# stable-baselines3
+# GPUtil

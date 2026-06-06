@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "timestamp": "2026-06-05T20:26:49.702254",
+    "platform": "Windows-10-10.0.26100-SP0",
+    "dataset": "BEIR SciFact",
+    "num_corpus": 5183,
+    "num_queries": 300,
+    "num_qrels": 339,
+    "embedder": "BAAI/bge-base-en-v1.5"
+  },
+  "cold_phase": {
+    "description": "Raw FAISS search (no episodic memory)",
+    "nDCG@10": 0.6364398421123318,
+    "latency_mean_ms": 43.671237665985245,
+    "num_queries": 300
+  },
+  "warm_phase": {
+    "description": "Store relevant docs, then recall with episodic boost",
+    "nDCG@10": 0.8770318893856317,
+    "latency_mean_ms": 34.99838766598259,
+    "store_time_ms": 21331.55750000151,
+    "episodic_stored": 339,
+    "num_queries": 300
+  },
+  "improvement": {
+    "absolute": 0.24059204727329986,
+    "relative_pct": 37.8027947582256,
+    "episodic_memory_helps": true
+  }
+}

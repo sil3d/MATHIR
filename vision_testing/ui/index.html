@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MATHIR Vision Testing</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ============ SIDEBAR ============ -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2a8 8 0 0 1 8 8v4a8 8 0 0 1-16 0v-4a8 8 0 0 1 8-8z"/>
+          <path d="M9 12h.01M15 12h.01M9 16h6"/>
+        </svg>
+      </div>
+      <span class="logo-text">MATHIR</span>
+    </div>
+
+    <nav class="nav" id="main-nav">
+      <button class="nav-item active" data-view="chat" data-shortcut="1">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        <span>Chat</span>
+      </button>
+      <button class="nav-item" data-view="camera" data-shortcut="2">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+        </svg>
+        <span>Camera</span>
+      </button>
+      <button class="nav-item" data-view="models" data-shortcut="3">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+        <span>Models</span>
+      </button>
+      <button class="nav-item" data-view="memory" data-shortcut="4">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+        </svg>
+        <span>Memory</span>
+      </button>
+      <button class="nav-item" data-view="accuracy" data-shortcut="5">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+        </svg>
+        <span>Accuracy</span>
+      </button>
+      <button class="nav-item" data-view="settings" data-shortcut="6">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        <span>Settings</span>
+      </button>
+    </nav>
+
+    <div class="model-selector">
+      <label>Active model</label>
+      <select id="model-select">
+        <option value="">Loading...</option>
+      </select>
+      <div class="active-model-badges" id="active-model-badges"></div>
+      <button id="refresh-models" class="btn-small" title="Refresh models">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+        Refresh
+      </button>
+    </div>
+
+    <div class="sidebar-footer">
+      <small id="system-status">Connecting...</small>
+    </div>
+  </aside>
+
+  <!-- ============ MAIN ============ -->
+  <main class="main">
+
+    <!-- ========== CHAT VIEW ========== -->
+    <section class="view active" id="view-chat">
+      <header class="view-header">
+        <h1>Chat</h1>
+        <div class="header-actions">
+          <span class="muted" id="chat-context-info"></span>
+          <button id="clear-chat" class="btn" title="Clear messages">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+            Clear
+          </button>
+        </div>
+      </header>
+
+      <div class="chat-container">
+        <!-- Camera preview strip (shown when camera is running) -->
+        <div class="camera-preview-strip" id="camera-preview-strip" hidden>
+          <img id="chat-camera-preview" src="" alt="Camera preview">
+          <span class="camera-preview-label">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="10"/></svg>
+            LIVE
+          </span>
+        </div>
+
+        <div class="chat-messages" id="chat-messages">
+          <div class="message system">
+            <div class="message-text">Welcome. Type a message, attach an image, or click the mic to talk.</div>
+          </div>
+        </div>
+
+        <div class="attachment-strip" id="chat-attachments" hidden></div>
+
+        <div class="chat-input-area">
+          <!-- Attach image -->
+          <button id="attach-image-btn" class="btn-icon" title="Attach image">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+            </svg>
+          </button>
+
+          <!-- Text input -->
+          <textarea
+            id="chat-input"
+            placeholder="Ask anything..."
+            rows="1"
+            aria-label="Chat message input"
+          ></textarea>
+
+          <!-- Mic / Talk button -->
+          <button id="talk-btn" class="btn-talk" title="Hold to record">
+            <svg class="mic-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </button>
+
+          <!-- Send button -->
+          <button id="send-btn" class="btn-send" title="Send (Enter)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Status bar -->
+        <div class="chat-status" id="chat-status"></div>
+
+        <!-- Camera toggle in chat mode -->
+        <div class="chat-camera-toggle" id="chat-camera-toggle">
+          <button id="chat-start-cam" class="btn-small">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+            </svg>
+            Start Camera
+          </button>
+          <button id="chat-stop-cam" class="btn-small" hidden>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            </svg>
+            Stop Camera
+          </button>
+          <span class="muted" id="chat-cam-status"></span>
+        </div>
+
+        <audio id="tts-audio" autoplay style="display:none"></audio>
+      </div>
+    </section>
+
+    <!-- ========== CAMERA VIEW ========== -->
+    <section class="view" id="view-camera">
+      <header class="view-header">
+        <h1>Camera</h1>
+        <div class="header-actions">
+          <select id="camera-device" class="select-small" title="Camera device">
+            <option value="0">Camera 0</option>
+            <option value="1">Camera 1</option>
+          </select>
+          <button id="camera-toggle" class="btn btn-primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="5 3 19 12 5 21 5 3"/>
+            </svg>
+            Start Camera
+          </button>
+        </div>
+      </header>
+
+      <div class="camera-layout">
+        <!-- Left: video feed + controls -->
+        <div class="camera-main">
+          <div class="camera-view">
+            <img id="camera-stream" src="" alt="Camera feed" style="display:none">
+            <div id="camera-placeholder" class="camera-placeholder">
+              <svg class="placeholder-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+              </svg>
+              <p>Camera not started</p>
+              <small>Click "Start Camera" to begin</small>
+            </div>
+          </div>
+
+          <!-- Quick actions row -->
+          <div class="camera-actions-row">
+            <button id="cam-snapshot" class="btn btn-icon-lg" disabled title="Snapshot">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </button>
+
+            <div class="talk-hold-wrap">
+              <button id="cam-talk-btn" class="btn-talk-lg" disabled title="Hold to record audio">
+                <svg class="mic-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+                </svg>
+                <span class="talk-label">Hold to Talk</span>
+              </button>
+            </div>
+
+            <button id="cam-describe" class="btn" disabled title="Describe scene">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
+              Describe
+            </button>
+          </div>
+
+          <!-- Ask input -->
+          <div class="cam-ask-section">
+            <textarea
+              id="cam-ask-input"
+              placeholder="Ask about the scene (e.g. What do you see? How many people?)"
+              rows="2"
+              aria-label="Camera question"
+            ></textarea>
+            <button id="cam-ask" class="btn btn-primary" disabled>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
+              Ask
+            </button>
+          </div>
+        </div>
+
+        <!-- Right: response panel -->
+        <div class="camera-panel">
+          <div class="panel-header">
+            <span>Response</span>
+            <button id="cam-copy-response" class="btn-icon-sm" title="Copy response">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+            </button>
+          </div>
+          <div class="camera-response" id="camera-response">
+            <div class="empty-state">
+              <svg class="placeholder-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              <p>Response will appear here</p>
+              <small>Start camera and ask a question</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== MODELS VIEW ========== -->
+    <section class="view" id="view-models">
+      <header class="view-header">
+        <h1>Models</h1>
+        <div class="header-actions">
+          <button id="add-hf-btn" class="btn-primary">+ Add from HuggingFace</button>
+        </div>
+      </header>
+      <div class="models-container">
+        <div class="models-list" id="models-list">
+          <p class="muted">Loading models...</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== MEMORY VIEW ========== -->
+    <section class="view" id="view-memory">
+      <header class="view-header">
+        <h1>MATHIR Memory</h1>
+        <div class="header-actions">
+          <button id="memory-stats-btn" class="btn">Stats</button>
+        </div>
+      </header>
+      <div class="memory-container">
+        <div class="memory-query">
+          <input id="memory-query-input" type="text" placeholder="Search memory (e.g. topic, question, phrase)..." aria-label="Memory query">
+          <button id="memory-recall-btn" class="btn-primary">Recall</button>
+        </div>
+        <div class="memory-results" id="memory-results">
+          <div class="empty-state">
+            <svg class="placeholder-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <p>Recall results will appear here</p>
+            <small>Type a question and press Recall to search the shared memory.db</small>
+          </div>
+        </div>
+        <div class="memory-stats" id="memory-stats"></div>
+      </div>
+    </section>
+
+    <!-- ========== ACCURACY VIEW ========== -->
+    <section class="view" id="view-accuracy">
+      <header class="view-header">
+        <h1>Accuracy</h1>
+        <div class="header-actions">
+          <span class="muted" id="accuracy-status">Ready</span>
+          <select id="accuracy-model-select" class="select-small" title="Model to test"></select>
+          <button id="accuracy-run" class="btn-primary">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Run Battery
+          </button>
+          <button id="accuracy-refresh" class="btn">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+            Refresh
+          </button>
+        </div>
+      </header>
+      <div class="accuracy-container">
+        <div class="accuracy-summary" id="accuracy-summary">
+          <div class="empty-state-small">Loading accuracy results...</div>
+        </div>
+        <div class="accuracy-tabs" id="accuracy-tabs">
+          <button class="tab-btn active" data-tab="compare">Compare Models</button>
+          <button class="tab-btn" data-tab="per-model">Per-Model Detail</button>
+          <button class="tab-btn" data-tab="catalog">Test Catalog</button>
+        </div>
+        <div class="tab-panel active" id="accuracy-tab-compare">
+          <div class="card chart-card" id="accuracy-compare-overall-wrap">
+            <div class="card-header">
+              <h3>Overall Score by Model</h3>
+              <span class="muted">0.0 = always wrong · 1.0 = always right</span>
+            </div>
+            <div class="chart-wrap" id="chart-accuracy-overall">
+              <div class="empty-state-small">No accuracy data yet</div>
+            </div>
+          </div>
+          <div class="card chart-card" id="accuracy-compare-bytype-wrap">
+            <div class="card-header">
+              <h3>By Test Type</h3>
+              <span class="muted">avg score per category</span>
+            </div>
+            <div class="chart-wrap" id="chart-accuracy-bytype">
+              <div class="empty-state-small">No accuracy data yet</div>
+            </div>
+          </div>
+          <div class="card" id="accuracy-matrix-wrap">
+            <div class="card-header">
+              <h3>Score Matrix</h3>
+              <span class="muted">test image (row) × model (col)</span>
+            </div>
+            <div class="accuracy-matrix" id="accuracy-matrix">
+              <div class="empty-state-small">No accuracy data yet</div>
+            </div>
+          </div>
+        </div>
+        <div class="tab-panel" id="accuracy-tab-per-model">
+          <div class="accuracy-permodel-controls">
+            <label>Model:
+              <select id="accuracy-permodel-select" class="select-small"></select>
+            </label>
+            <label>Filter:
+              <select id="accuracy-permodel-type" class="select-small">
+                <option value="">All test types</option>
+              </select>
+            </label>
+          </div>
+          <div class="accuracy-permodel-results" id="accuracy-permodel-results">
+            <div class="empty-state">
+              <svg class="placeholder-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <p>Select a model to see per-test results</p>
+              <small>Each row shows: prompt, model response, ground truth, score</small>
+            </div>
+          </div>
+        </div>
+        <div class="tab-panel" id="accuracy-tab-catalog">
+          <div class="accuracy-catalog" id="accuracy-catalog">
+            <div class="empty-state-small">Loading test catalog...</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== SETTINGS VIEW ========== -->
+    <section class="view" id="view-settings">
+      <header class="view-header">
+        <h1>Settings</h1>
+      </header>
+      <div class="settings-container">
+        <div class="setting-group">
+          <h2>Camera</h2>
+          <label>Device ID
+            <input id="setting-camera-device" type="number" min="0" max="10" value="0">
+          </label>
+          <label>Resolution
+            <select id="setting-camera-res">
+              <option value="640x480">640x480</option>
+              <option value="1280x720" selected>1280x720</option>
+              <option value="1920x1080">1920x1080</option>
+            </select>
+          </label>
+          <label>FPS
+            <input id="setting-camera-fps" type="number" min="1" max="60" value="30">
+          </label>
+        </div>
+        <div class="setting-group">
+          <h2>Audio</h2>
+          <label>Push-to-talk key
+            <input id="setting-ptt-key" type="text" value="Space" readonly>
+          </label>
+          <label>Max record seconds
+            <input id="setting-max-record" type="number" min="5" max="120" value="30">
+          </label>
+        </div>
+        <div class="setting-group">
+          <h2>UI Theme</h2>
+          <label>Theme
+            <select id="setting-theme">
+              <option value="dark" selected>Dark</option>
+              <option value="light">Light</option>
+            </select>
+          </label>
+        </div>
+        <div class="setting-group">
+          <h2>Keyboard Shortcuts</h2>
+          <div class="shortcut-list">
+            <div><kbd>1</kbd>–<kbd>6</kbd> <span class="muted">Switch view</span></div>
+            <div><kbd>Enter</kbd> <span class="muted">Send chat (in chat input)</span></div>
+            <div><kbd>Shift</kbd>+<kbd>Enter</kbd> <span class="muted">Newline in chat</span></div>
+            <div><kbd>Space</kbd> <span class="muted">Hold to record audio</span></div>
+            <div><kbd>Ctrl</kbd>+<kbd>K</kbd> <span class="muted">Focus chat input</span></div>
+            <div><kbd>Esc</kbd> <span class="muted">Close modal / clear focus</span></div>
+          </div>
+        </div>
+        <div class="setting-group">
+          <h2>System Info</h2>
+          <div id="system-info" class="system-info">
+            <p class="muted">Loading...</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal: Add from HuggingFace -->
+  <div id="hf-modal" class="modal hidden">
+    <div class="modal-content">
+      <h2>Add Model from HuggingFace</h2>
+      <p class="muted">Paste any HuggingFace GGUF model URL. The system will auto-detect files and add the smallest one to config.</p>
+      <label>Model name (optional)
+        <input id="hf-name" type="text" placeholder="e.g., Qwen2-VL-7B-Instruct (auto-detected if empty)">
+      </label>
+      <label>HuggingFace URL or repo
+        <input id="hf-url" type="text" placeholder="https://huggingface.co/Qwen/Qwen2-VL-7B-Instruct-GGUF">
+      </label>
+      <div id="hf-status" class="muted"></div>
+      <div class="modal-actions">
+        <button id="hf-cancel" class="btn">Cancel</button>
+        <button id="hf-submit" class="btn-primary">Add Model</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- toast notifications -->
+  <div id="toast-container"></div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

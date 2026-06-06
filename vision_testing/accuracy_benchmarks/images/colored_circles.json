@@ -1,0 +1,14 @@
+{
+  "name": "colored_circles",
+  "category": "colored_objects",
+  "ground_truth": {
+    "red_circles": 3,
+    "blue_circles": 2,
+    "total_circles": 5,
+    "colors": [
+      "red",
+      "blue"
+    ]
+  },
+  "description": "3 red circles and 2 blue circles on a white background"
+}

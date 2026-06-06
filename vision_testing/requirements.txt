@@ -1,0 +1,27 @@
+# MATHIR Vision Testing requirements
+# All paths come from config.json - NO hardcoded paths
+
+# Core
+flask>=2.0
+flask-cors>=4.0
+
+# Camera (cross-platform: Mac/Windows/Linux)
+opencv-python>=4.8
+
+# Audio (for talk button / voice activity)
+# PyAudio can be tricky to install - alternative: sounddevice
+# pip install pyaudio OR pip install sounddevice
+# sounddevice>=0.4
+
+# For full STT/TTS in the future
+# openai-whisper>=20231117  # for speech-to-text
+# TTS: piper-tts, coqui-tts, or cloud APIs
+
+# Embeddings for MATHIR memory
+sentence-transformers>=2.2
+torch>=2.0
+numpy>=1.24
+
+# Existing MATHIR dependencies (in parent project)
+# sqlite3 (built-in)
+# transformers (already in MATHIR)

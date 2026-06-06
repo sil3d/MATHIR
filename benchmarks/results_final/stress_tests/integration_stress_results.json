@@ -1,0 +1,286 @@
+{
+  "test_type": "2hour_stress_test",
+  "accelerated": true,
+  "total_duration_seconds": 120.23797750473022,
+  "total_operations": 1554,
+  "system_uptime_pct": 100.0,
+  "crashed": false,
+  "crash_reason": null,
+  "memory": {
+    "start_mb": 0.0715951919555664,
+    "end_mb": 0.18825817108154297,
+    "growth_mb": 0.11666297912597656,
+    "peak_mb": 0.24126529693603516,
+    "memory_leak": false
+  },
+  "quality": {
+    "phase1_quality_median": 0.9563405005931854,
+    "phase2_quality_median": 0.9585369518995286,
+    "phase3_quality_median": 0.9586431474685668,
+    "final_quality": 0.95856025993824
+  },
+  "latency": {
+    "phase1_p99_median_ms": 13.705908005649684,
+    "phase2_p99_median_ms": 17.76101850438863,
+    "phase3_p99_median_ms": 17.823214007512433,
+    "final_p99_ms": 17.830144004256002
+  },
+  "tier_health_final": {
+    "working": 1.0,
+    "episodic": 1.0,
+    "semantic": 0.00390625,
+    "immune": 1.0
+  },
+  "tiers_active_final": 4,
+  "warnings_detected": [],
+  "critical_failures": [],
+  "timeline": [
+    {
+      "timestamp": 1780693248.5304515,
+      "elapsed_seconds": 0.68692946434021,
+      "elapsed_minutes": 0.011448824405670166,
+      "phase": "phase1_normal",
+      "total_operations": 1,
+      "memory_mb": 0.0715951919555664,
+      "memory_delta_mb": 0.0,
+      "latency_p50_ms": 1.1775000020861626,
+      "latency_p99_ms": 2.856199993402697,
+      "retrieval_quality": 0.9570031908750534,
+      "tier_health": {
+        "working": 1.0,
+        "episodic": 0.5,
+        "semantic": 0.00390625,
+        "immune": 1.0
+      },
+      "tiers_active": 4
+    },
+    {
+      "timestamp": 1780693258.745169,
+      "elapsed_seconds": 10.834614992141724,
+      "elapsed_minutes": 0.18057691653569538,
+      "phase": "phase1_normal",
+      "total_operations": 102,
+      "memory_mb": 0.08177566528320312,
+      "memory_delta_mb": 0.010180473327636719,
+      "latency_p50_ms": 1.2127000009058975,
+      "latency_p99_ms": 14.693830991163859,
+      "retrieval_quality": 0.9554448642730713,
+      "tier_health": {
+        "working": 1.0,
+        "episodic": 0.529,
+        "semantic": 0.00390625,
+        "immune": 1.0
+      },
+      "tiers_active": 4
+    },
+    {
+      "timestamp": 1780693268.991767,
+      "elapsed_seconds": 21.049380779266357,
+      "elapsed_minutes": 0.35082301298777263,
+      "phase": "phase1_normal",
+      "total_operations": 204,
+      "memory_mb": 0.08858871459960938,
+      "memory_delta_mb": 0.01699352264404297,
+      "latency_p50_ms": 1.259450007637497,
+      "latency_p99_ms": 13.61917099842686,
+      "retrieval_quality": 0.9578939357995987,
+      "tier_health": {
+        "working": 1.0,
+        "episodic": 0.57,
+        "semantic": 0.00390625,
+        "immune": 1.0
+      },
+      "tiers_active": 4
+    },
+    {
+      "timestamp": 1780693279.163901,
+      "elapsed_seconds": 31.296090126037598,
+      "elapsed_minutes": 0.5216015021006266,
+      "phase": "phase1_normal",
+      "total_operations": 307,
+      "memory_mb": 0.09495925903320312,
+      "memory_delta_mb": 0.02336406707763672,
+      "latency_p50_ms": 1.3524999958463013,
+      "latency_p99_ms": 13.705908005649684,
+      "retrieval_quality": 0.9561326698064804,
+      "tier_health": {
+        "working": 1.0,
+        "episodic": 0.598,
+        "semantic": 0.00390625,
+        "immune": 1.0
+      },
+      "tiers_active": 4
+    },
+    {
+      "timestamp": 1780693289.3796952,
+      "elapsed_seconds": 41.46853828430176,
+      "elapsed_minutes": 0.6911423047383626,
+      "phase": "phase1_normal",
+      "total_operations": 408,
+      "memory_mb": 0.09817028045654297,
+      "memory_delta_mb": 0.026575088500976562,
+      "latency_p50_ms": 1.552800000354182,
+      "latency_p99_ms": 14.684691991278655,
+      "retrieval_quality": 0.9563405005931854,
+      "tier_health": {
+        "working": 1.0,
+        "episodic": 0.636,
+        "semantic": 0.00390625,
+        "immune": 1.0
+      },
+      "tiers_active": 4
+    },
+    {
+      "timestamp": 1780693299.663841,
+      "elapsed_seconds": 51.684717655181885,
+      "elapsed_minutes": 0.8614119609196981,
+      "phase": "phase2_high_load",
+      "total_operations": 548,
+      "memory_mb": 0.12310218811035156,
+      "memory_delta_mb": 0.051506996154785156,
+      "latency_p50_ms": 1.7909999951370992,
+      "latency_p99_ms": 17.35330000214161,
+      "retrieval_quality": 0.9584417351484299,
+      "tier_health": {
+        "working": 1.0,
+        "episodic": 0.686,
+        "semantic": 0.00390625,
+        "immune": 1.0
+      },
+      "tiers_active": 4
+    },
+    {
+      "timestamp": 1780693309.8552146,
+      "elapsed_seconds": 61.96760630607605,
+      "elapsed_minutes": 1.032793438434601,
+      "phase": "phase2_high_load",
+      "total_operations": 754,
+      "memory_mb": 0.13636016845703125,
+      "memory_delta_mb": 0.06476497650146484,
+      "latency_p50_ms": 2.148549996491056,
+      "latency_p99_ms": 17.69390900357394,
+      "retrieval_quality": 0.9586321686506272,
+      "tier_health": {
+        "working": 1.0,
+        "episodic": 0.772,
+        "semantic": 0.00390625,
+        "immune": 1.0
+      },
+      "tiers_active": 4
+    },
+    {
+      "timestamp": 1780693320.052059,
+      "elapsed_seconds": 72.17328190803528,
+      "elapsed_minutes": 1.202888031800588,
+      "phase": "phase2_high_load",
+      "total_operations": 958,
+      "memory_mb": 0.1484661102294922,
+      "memory_delta_mb": 0.07687091827392578,
+      "latency_p50_ms": 2.7341999957570806,
+      "latency_p99_ms": 17.829136004729662,
+      "retrieval_quality": 0.9596024399995804,
+      "tier_health": {
+        "working": 1.0,
+        "episodic": 0.858,
+        "semantic": 0.00390625,
+        "immune": 1.0
+      },
+      "tiers_active": 4
+    },
+    {
+      "timestamp": 1780693330.2282379,
+      "elapsed_seconds": 82.3598415851593,
+      "elapsed_minutes": 1.3726640264193217,
+      "phase": "phase2_high_load",
+      "total_operations": 1162,
+      "memory_mb": 0.16343975067138672,
+      "memory_delta_mb": 0.09184455871582031,
+      "latency_p50_ms": 3.0622999984188937,
+      "latency_p99_ms": 17.82812800520332,
+      "retrieval_quality": 0.957780972480774,
+      "tier_health": {
+        "working": 1.0,
+        "episodic": 0.926,
+        "semantic": 0.00390625,
+        "immune": 1.0
+      },
+      "tiers_active": 4
+    },
+    {
+      "timestamp": 1780693340.5477242,
+      "elapsed_seconds": 92.53317165374756,
+      "elapsed_minutes": 1.5422195275624593,
+      "phase": "phase3_edge_cases",
+      "total_operations": 1280,
+      "memory_mb": 0.18258953094482422,
+      "memory_delta_mb": 0.11099433898925781,
+      "latency_p50_ms": 3.2039500001701526,
+      "latency_p99_ms": 17.82359200733481,
+      "retrieval_quality": 0.9571324825286865,
+      "tier_health": {
+        "working": 1.0,
+        "episodic": 0.968,
+        "semantic": 0.00390625,
+        "immune": 1.0
+      },
+      "tiers_active": 4
+    },
+    {
+      "timestamp": 1780693350.745145,
+      "elapsed_seconds": 102.8514289855957,
+      "elapsed_minutes": 1.7141904830932617,
+      "phase": "phase3_edge_cases",
+      "total_operations": 1383,
+      "memory_mb": 0.1929302215576172,
+      "memory_delta_mb": 0.12133502960205078,
+      "latency_p50_ms": 3.2773999992059544,
+      "latency_p99_ms": 17.822836007690057,
+      "retrieval_quality": 0.9587260349988938,
+      "tier_health": {
+        "working": 1.0,
+        "episodic": 0.999,
+        "semantic": 0.00390625,
+        "immune": 1.0
+      },
+      "tiers_active": 4
+    },
+    {
+      "timestamp": 1780693360.9222097,
+      "elapsed_seconds": 113.04950284957886,
+      "elapsed_minutes": 1.8841583808263143,
+      "phase": "phase3_edge_cases",
+      "total_operations": 1485,
+      "memory_mb": 0.19865703582763672,
+      "memory_delta_mb": 0.1270618438720703,
+      "latency_p50_ms": 3.318500006571412,
+      "latency_p99_ms": 17.822332007926892,
+      "retrieval_quality": 0.9591929911375046,
+      "tier_health": {
+        "working": 1.0,
+        "episodic": 1.0,
+        "semantic": 0.00390625,
+        "immune": 1.0
+      },
+      "tiers_active": 4
+    },
+    {
+      "timestamp": 1780693367.934853,
+      "elapsed_seconds": 120.00185513496399,
+      "elapsed_minutes": 2.0000309189160665,
+      "phase": "phase3_edge_cases",
+      "total_operations": 1554,
+      "memory_mb": 0.1862649917602539,
+      "memory_delta_mb": 0.1146697998046875,
+      "latency_p50_ms": 3.3419499959563836,
+      "latency_p99_ms": 17.830144004256002,
+      "retrieval_quality": 0.95856025993824,
+      "tier_health": {
+        "working": 1.0,
+        "episodic": 1.0,
+        "semantic": 0.00390625,
+        "immune": 1.0
+      },
+      "tiers_active": 4
+    }
+  ]
+}

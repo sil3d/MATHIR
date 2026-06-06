@@ -1,0 +1,314 @@
+{
+  "test_info": {
+    "timestamp": "2026-06-05 20:47:26",
+    "total_queries_routed": 9960,
+    "test_duration_seconds": 0.25990772247314453,
+    "max_entropy_possible": 1.3862943611198906,
+    "internal_dim": 272
+  },
+  "initial_state": {
+    "time_min": 9.0,
+    "total_routed": 830,
+    "weight_entropy": 1.3474041223526,
+    "max_entropy": 1.3862943611198906,
+    "entropy_ratio": 0.9719466226957212,
+    "max_weight_tier": "episodic",
+    "max_weight_pct": 0.30511587858200073,
+    "kl_loss": 0.0005900294636376202,
+    "collapse_risk": "MINIMAL",
+    "phase": "Phase 1: Normal",
+    "tier_weights": [
+      0.22572198510169983,
+      0.30511587858200073,
+      0.19342714548110962,
+      0.2757350206375122
+    ],
+    "notes": "Balanced diverse routing"
+  },
+  "mid_state": {
+    "time_min": 70,
+    "total_routed": 5810,
+    "weight_entropy": 1.3465062379837036,
+    "max_entropy": 1.3862943611198906,
+    "entropy_ratio": 0.9712989360325718,
+    "max_weight_tier": "episodic",
+    "max_weight_pct": 0.3055892288684845,
+    "kl_loss": 0.0009179796907119453,
+    "collapse_risk": "MINIMAL",
+    "phase": "Phase 2: Sustained Load",
+    "tier_weights": [
+      0.23276400566101074,
+      0.3055892288684845,
+      0.18199869990348816,
+      0.2796481251716614
+    ],
+    "notes": "Heavy sustained load"
+  },
+  "final_state": {
+    "time_min": 120,
+    "total_routed": 9960,
+    "weight_entropy": 1.3349781036376953,
+    "max_entropy": 1.3862943611198906,
+    "entropy_ratio": 0.9629831449067279,
+    "max_weight_tier": "immune",
+    "max_weight_pct": 0.34618502855300903,
+    "kl_loss": 7.931167783681303e-05,
+    "collapse_risk": "MINIMAL",
+    "phase": "Phase 3: Adversarial (working_only)",
+    "tier_weights": [
+      0.21132540702819824,
+      0.27468472719192505,
+      0.16780486702919006,
+      0.34618502855300903
+    ],
+    "notes": "Adversarial: working_only"
+  },
+  "metrics_timeline": [
+    {
+      "time_min": 9.0,
+      "total_routed": 830,
+      "weight_entropy": 1.3474041223526,
+      "max_entropy": 1.3862943611198906,
+      "entropy_ratio": 0.9719466226957212,
+      "max_weight_tier": "episodic",
+      "max_weight_pct": 0.30511587858200073,
+      "kl_loss": 0.0005900294636376202,
+      "collapse_risk": "MINIMAL",
+      "phase": "Phase 1: Normal",
+      "tier_weights": [
+        0.22572198510169983,
+        0.30511587858200073,
+        0.19342714548110962,
+        0.2757350206375122
+      ],
+      "notes": "Balanced diverse routing"
+    },
+    {
+      "time_min": 19.0,
+      "total_routed": 1660,
+      "weight_entropy": 1.3487504720687866,
+      "max_entropy": 1.3862943611198906,
+      "entropy_ratio": 0.9729178087251434,
+      "max_weight_tier": "episodic",
+      "max_weight_pct": 0.30529364943504333,
+      "kl_loss": 0.0005849601002410054,
+      "collapse_risk": "MINIMAL",
+      "phase": "Phase 1: Normal",
+      "tier_weights": [
+        0.2345046103000641,
+        0.30529364943504333,
+        0.1835593730211258,
+        0.27664241194725037
+      ],
+      "notes": "Balanced diverse routing"
+    },
+    {
+      "time_min": 29.0,
+      "total_routed": 2490,
+      "weight_entropy": 1.3436068296432495,
+      "max_entropy": 1.3862943611198906,
+      "entropy_ratio": 0.9692074550154292,
+      "max_weight_tier": "episodic",
+      "max_weight_pct": 0.31262487173080444,
+      "kl_loss": 0.0006495935376733541,
+      "collapse_risk": "MINIMAL",
+      "phase": "Phase 1: Normal",
+      "tier_weights": [
+        0.2249980866909027,
+        0.31262487173080444,
+        0.18718470633029938,
+        0.2751923203468323
+      ],
+      "notes": "Balanced diverse routing"
+    },
+    {
+      "time_min": 39.0,
+      "total_routed": 3320,
+      "weight_entropy": 1.3399394750595093,
+      "max_entropy": 1.3862943611198906,
+      "entropy_ratio": 0.9665620178798575,
+      "max_weight_tier": "episodic",
+      "max_weight_pct": 0.31999069452285767,
+      "kl_loss": 0.0007299906574189663,
+      "collapse_risk": "MINIMAL",
+      "phase": "Phase 1: Normal",
+      "tier_weights": [
+        0.2239406257867813,
+        0.31999069452285767,
+        0.1794108748435974,
+        0.2766578197479248
+      ],
+      "notes": "Balanced diverse routing"
+    },
+    {
+      "time_min": 49.0,
+      "total_routed": 4150,
+      "weight_entropy": 1.3456920385360718,
+      "max_entropy": 1.3862943611198906,
+      "entropy_ratio": 0.9707116152798754,
+      "max_weight_tier": "episodic",
+      "max_weight_pct": 0.3102339506149292,
+      "kl_loss": 0.0006200961652211845,
+      "collapse_risk": "MINIMAL",
+      "phase": "Phase 1: Normal",
+      "tier_weights": [
+        0.22402259707450867,
+        0.3102339506149292,
+        0.19056618213653564,
+        0.2751772403717041
+      ],
+      "notes": "Balanced diverse routing"
+    },
+    {
+      "time_min": 59.0,
+      "total_routed": 4980,
+      "weight_entropy": 1.3438341617584229,
+      "max_entropy": 1.3862943611198906,
+      "entropy_ratio": 0.9693714404730269,
+      "max_weight_tier": "episodic",
+      "max_weight_pct": 0.30953100323677063,
+      "kl_loss": 0.0009939167648553848,
+      "collapse_risk": "MINIMAL",
+      "phase": "Phase 1: Normal",
+      "tier_weights": [
+        0.22721312940120697,
+        0.30953100323677063,
+        0.1845591813325882,
+        0.2786967158317566
+      ],
+      "notes": "Balanced diverse routing"
+    },
+    {
+      "time_min": 70,
+      "total_routed": 5810,
+      "weight_entropy": 1.3465062379837036,
+      "max_entropy": 1.3862943611198906,
+      "entropy_ratio": 0.9712989360325718,
+      "max_weight_tier": "episodic",
+      "max_weight_pct": 0.3055892288684845,
+      "kl_loss": 0.0009179796907119453,
+      "collapse_risk": "MINIMAL",
+      "phase": "Phase 2: Sustained Load",
+      "tier_weights": [
+        0.23276400566101074,
+        0.3055892288684845,
+        0.18199869990348816,
+        0.2796481251716614
+      ],
+      "notes": "Heavy sustained load"
+    },
+    {
+      "time_min": 80,
+      "total_routed": 6640,
+      "weight_entropy": 1.3527389764785767,
+      "max_entropy": 1.3862943611198906,
+      "entropy_ratio": 0.9757949064914274,
+      "max_weight_tier": "episodic",
+      "max_weight_pct": 0.29974547028541565,
+      "kl_loss": 0.0007845424115657806,
+      "collapse_risk": "MINIMAL",
+      "phase": "Phase 2: Sustained Load",
+      "tier_weights": [
+        0.23652715981006622,
+        0.29974547028541565,
+        0.18908146023750305,
+        0.27464595437049866
+      ],
+      "notes": "Heavy sustained load"
+    },
+    {
+      "time_min": 90,
+      "total_routed": 7470,
+      "weight_entropy": 1.3412933349609375,
+      "max_entropy": 1.3862943611198906,
+      "entropy_ratio": 0.9675386213627819,
+      "max_weight_tier": "episodic",
+      "max_weight_pct": 0.31135454773902893,
+      "kl_loss": 0.0010418416932225227,
+      "collapse_risk": "MINIMAL",
+      "phase": "Phase 2: Sustained Load",
+      "tier_weights": [
+        0.226101815700531,
+        0.31135454773902893,
+        0.18281510472297668,
+        0.2797285318374634
+      ],
+      "notes": "Heavy sustained load"
+    },
+    {
+      "time_min": 100,
+      "total_routed": 8300,
+      "weight_entropy": 1.3311851024627686,
+      "max_entropy": 1.3862943611198906,
+      "entropy_ratio": 0.9602470729141515,
+      "max_weight_tier": "immune",
+      "max_weight_pct": 0.35143667459487915,
+      "kl_loss": 0.00030295102624222636,
+      "collapse_risk": "MINIMAL",
+      "phase": "Phase 3: Adversarial (working_only)",
+      "tier_weights": [
+        0.2086535096168518,
+        0.2763659656047821,
+        0.16354385018348694,
+        0.35143667459487915
+      ],
+      "notes": "Adversarial: working_only"
+    },
+    {
+      "time_min": 110,
+      "total_routed": 9130,
+      "weight_entropy": 1.3298795223236084,
+      "max_entropy": 1.3862943611198906,
+      "entropy_ratio": 0.9593052959180267,
+      "max_weight_tier": "immune",
+      "max_weight_pct": 0.3409513533115387,
+      "kl_loss": 8.833825268084183e-05,
+      "collapse_risk": "MINIMAL",
+      "phase": "Phase 3: Adversarial (working_only)",
+      "tier_weights": [
+        0.21167857944965363,
+        0.2863922417163849,
+        0.16097785532474518,
+        0.3409513533115387
+      ],
+      "notes": "Adversarial: working_only"
+    },
+    {
+      "time_min": 120,
+      "total_routed": 9960,
+      "weight_entropy": 1.3349781036376953,
+      "max_entropy": 1.3862943611198906,
+      "entropy_ratio": 0.9629831449067279,
+      "max_weight_tier": "immune",
+      "max_weight_pct": 0.34618502855300903,
+      "kl_loss": 7.931167783681303e-05,
+      "collapse_risk": "MINIMAL",
+      "phase": "Phase 3: Adversarial (working_only)",
+      "tier_weights": [
+        0.21132540702819824,
+        0.27468472719192505,
+        0.16780486702919006,
+        0.34618502855300903
+      ],
+      "notes": "Adversarial: working_only"
+    }
+  ],
+  "summary": {
+    "entropy_at_60min": 1.3438341617584229,
+    "entropy_at_120min": 1.3349781036376953,
+    "collapse_detected": false,
+    "max_tier_dominance": 0.35143667459487915,
+    "min_entropy": 1.3298795223236084,
+    "kl_constraint_worked": true,
+    "router_stable": true
+  },
+  "broadcast": {
+    "weight_entropy_at_60min": "1.344",
+    "weight_entropy_at_120min": "1.335",
+    "collapsed_to_one_tier": "NO",
+    "kl_constraint_prevented_collapse": "YES",
+    "router_stable": "YES",
+    "final_entropy_ratio": "96.3%",
+    "critical_issues": []
+  }
+}

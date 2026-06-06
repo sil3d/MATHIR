@@ -1,0 +1,29 @@
+{
+  "timestamp": 1780690679.3139272,
+  "ebbinghaus_test": {
+    "recalled_similarity": 1.0,
+    "unrecalled_similarity": 0.4050348103046417,
+    "ebbinghaus_success": true
+  },
+  "anomaly_test": {
+    "mathir_auc": 0.99,
+    "faiss_auc": 0.5184,
+    "auc_gain": 0.4716
+  },
+  "router_test": {
+    "noise_routing": [
+      0.21714453399181366,
+      0.2570715546607971,
+      0.2730669677257538,
+      0.25271689891815186
+    ],
+    "seq_routing": [
+      0.2617590129375458,
+      0.2558676600456238,
+      0.2526491582393646,
+      0.22972409427165985
+    ],
+    "entropy_noise": 1.9950847718016216,
+    "entropy_seq": 1.9982686867218369
+  }
+}

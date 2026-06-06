@@ -1,0 +1,15 @@
+{
+  "name": "grounding_red_circle",
+  "category": "grounding_scene",
+  "ground_truth": {
+    "target_object": "red circle",
+    "expected_bbox": {
+      "x_min": 131,
+      "y_min": 131,
+      "x_max": 381,
+      "y_max": 381
+    },
+    "tolerance_px": 40
+  },
+  "description": "One large red circle in the center for grounding tests"
+}

@@ -1,59 +1,96 @@
 """
-MATHIR Library - Memory-Augmented Transformer with Hierarchical Retention
-=========================================================================
+MATHIR Library — V7.2 (Memory-Augmented Tensor Hybrid with Intelligent Routing)
+=================================================================================
 
-Bibliothèque modulaire pour utiliser MATHIR et LSTM dans vos projets.
+V7 is the current and only supported version of MATHIR.
 
-Usage:
-    # Import MATHIR
-    from mathir_lib import MATHIR
-    model = MATHIR()
-    
-    # Ou LSTM
-    from mathir_lib import LSTM
-    baseline = LSTM()
-    
-    # Ou les deux
-    from mathir_lib import MATHIR, LSTM, count_parameters
-    
-    mathir = MATHIR(camera_shape=(3, 224, 224), action_dim=4)
-    lstm = LSTM(camera_shape=(3, 224, 224), action_dim=4)
-    
-    print(f"MATHIR: {count_parameters(mathir):,} params")
-    print(f"LSTM: {count_parameters(lstm):,} params")
+Older architectures (V4 = `MATHIR`, V5 = `MATHIRv5`) have been moved to
+`mathir_lib/legacy/` and are NOT exported by default. If you need them
+for legacy code, import directly:
 
-Modules:
-    - MATHIR: Agent avec triple mémoire hiérarchique
-    - LSTM: Baseline LSTM traditionnel  
-    - components: Vision encoder et utilitaires partagés
-    
-Version: 2.0
-Author: MATHIR Team
+    from mathir_lib.legacy.mathir_V4 import MATHIR, MATHIRMemory
+    from mathir_lib.legacy.mathir_v5 import MATHIRv5
+
+Modern usage:
+    from mathir_lib import MATHIRPluginV7
+    plugin = MATHIRPluginV7(embedding_dim=4096)
+    output = plugin.perceive(llm_embedding)
+
+Version: 7.2
+Author: MATHIR Research Team
 """
 
-__version__ = "2.0.0"
-__author__ = "MATHIR Team"
+__version__ = "7.2.0"
+__author__ = "MATHIR Research Team"
 
-from .mathir import MATHIR, MATHIRMemory
-from .mathir_v5 import MATHIRv5
-from .lstm import LSTM
-from .components import (
-    QuantumVisionEncoder,
-    count_parameters,
-    estimate_memory_usage
+# ---------------------------------------------------------------------------
+# V6 — Config-driven memory plugin
+# ---------------------------------------------------------------------------
+from .plugin import MATHIRPlugin
+
+# ---------------------------------------------------------------------------
+# V7 — Doctoral-grade memory plugin with 8 novel algorithms + 6 theorems
+# ---------------------------------------------------------------------------
+from .plugin_v7 import MATHIRPluginV7
+
+# ---------------------------------------------------------------------------
+# V7.1 — Novel retrieval approaches (closing the 12-14pp quality gap)
+# ---------------------------------------------------------------------------
+from .memory import RawEmbeddingEpisodicMemory  # Approach A: raw 384-dim
+from .memory import HybridEpisodicMemory        # Approach D: BM25 + Dense + CE
+
+# ---------------------------------------------------------------------------
+# V6 Manifold-Constrained Hyper-Connections (V6 mHC shim)
+# ---------------------------------------------------------------------------
+from .mhc import ManifoldConstrainedLinearV2
+
+# ---------------------------------------------------------------------------
+# V7 Compression (TurboQuant)
+# ---------------------------------------------------------------------------
+from .compression import TurboQuantCompression
+
+# ---------------------------------------------------------------------------
+# Configuration helpers
+# ---------------------------------------------------------------------------
+from .config import (
+    get_default_config,
+    load_config,
+    merge_config,
+    validate_config,
 )
 
+
 __all__ = [
-    # Models
-    'MATHIR',
-    'MATHIRv5',
-    'LSTM',
-    'MATHIRMemory',
-    
-    # Components
-    'QuantumVisionEncoder',
-    
-    # Utils
-    'count_parameters',
-    'estimate_memory_usage',
+    # ===== V7 (Current) =====
+    "MATHIRPluginV7",
+
+    # ===== V6 (Still supported, LLM-agnostic API) =====
+    "MATHIRPlugin",
+
+    # ===== V7.1 retrieval approaches =====
+    "RawEmbeddingEpisodicMemory",
+    "HybridEpisodicMemory",
+
+    # ===== Core components =====
+    "ManifoldConstrainedLinearV2",
+    "TurboQuantCompression",
+
+    # ===== Config helpers =====
+    "get_default_config",
+    "load_config",
+    "merge_config",
+    "validate_config",
 ]
+
+
+# ---------------------------------------------------------------------------
+# Legacy V1-V5 architectures (V1-V3 in mathir_model.py, V4-V5 in legacy/)
+# ---------------------------------------------------------------------------
+# These are kept for backward compatibility with old research code.
+# They are NOT part of the supported V7 API.
+#
+# If you need to import them:
+#   from mathir_lib.legacy.mathir_V4 import MATHIR, MATHIRMemory
+#   from mathir_lib.legacy.mathir_v5 import MATHIRv5
+#
+# For NEW projects, use MATHIRPluginV7 only.

@@ -1,0 +1,42 @@
+# MATHIR default configuration
+# Balanced for general-purpose LLM use (CPU/GPU).
+
+memory:
+  embedding_dim: 4096
+  internal_dim: 272
+  working_capacity: 64
+  episodic_capacity: 1000
+  semantic_prototypes: 256
+  immunological_capacity: 100
+  kl_coefficient: 0.01
+  anomaly_threshold: 2.0
+  decay_rates: [0.9, 0.7, 0.5]
+
+compression:
+  enabled: true
+  method: turboquant
+  bits: 3
+  episodic_only: false
+
+inference:
+  backend: pytorch
+  device: auto
+  precision: float32
+
+router:
+  type: kl_constrained
+  num_memories: 4
+  entropy_coefficient: 0.01
+  temperature: 1.0
+
+providers:
+  default: direct
+  ollama:
+    url: http://localhost:11434
+    model: llama3.2:3b
+  openai:
+    api_key: null
+    model: text-embedding-3-small
+  huggingface:
+    model: Qwen/Qwen2.5-7B-Instruct
+    device: auto
