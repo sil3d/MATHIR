@@ -42,7 +42,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Other
 
 - Fixed `localhost` hardcoded → `127.0.0.1`
-- Model auto-loads at startup
+- Model auto-loads at startup (LFM2.5-VL-1.6B by default)
 - Updated README.md for GitHub presentation
 - Created AGENT.md (agent guide)
 - LaTeX research paper for scientific review (`docs/MATHIR_Research_Paper.tex`)
@@ -53,6 +53,37 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Updated docs/28_HOW_TRAINING_WORKS.md (modern training workflow)
 - Updated docs/02_MASTER_REFERENCE.md, docs/03_MASTER_QA_GUIDE.md
 - Excluded large files from git (GGUF, DLL, binaries)
+
+### Memory Management
+
+- **`/api/memory/delete`** — Delete by ID or clear all memories
+- **Settings view** — Create, view, delete memories in MATHIR Memory section
+- **Playground** — Memory panel with delete buttons
+- **Full conversation storage** — Stores complete Q&A (not truncated to 200 chars)
+- **Skip trivial messages** — "hi", "ok", "thanks" not stored
+- **File markers** — `[IMAGE ATTACHED]` / `[AUDIO ATTACHED]` in memory
+
+### Chat Playground
+
+- **`playground.html`** — New standalone chat UI at `/playground.html`
+- **Multi-session** — Create new chats, switch between, delete
+- **Model load modal** — See all models, capabilities, switch mid-chat
+- **Image drag & drop** — Attach images directly
+- **Camera integration** — Start/stop backend camera
+- **Hold-to-talk** — Audio recording
+- **Export chat** — Save conversation as .txt
+
+### MATHIR Status
+
+- **Status indicator** — Green/red dot showing MATHIR connection status
+- **Memory count** — Shows "MATHIR: connected (N memories)"
+- **Auto-refresh** — Status checked every 15 seconds
+
+### No Hardcoded Values
+
+- **Language** — `lang` HTML attribute set from `ui_config.json` (not hardcoded `en`)
+- **All routes** — Frontend calls match backend endpoints
+- **All paths** — Relative to config files
 
 ---
 

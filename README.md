@@ -341,7 +341,7 @@ See [`vision_testing/README.md`](vision_testing/README.md) for full documentatio
 
 ## API Reference (Vision Testing)
 
-The Flask backend exposes 17 API routes:
+The Flask backend exposes 18 API routes:
 
 ### System
 
@@ -381,6 +381,7 @@ The Flask backend exposes 17 API routes:
 |---|---|---|
 | `/api/memory/recall` | POST | Search MATHIR memory `{query, k}` |
 | `/api/memory/stats` | GET | Memory statistics |
+| `/api/memory/delete` | POST | Delete memory `{id}` or `{clear_all: true}` |
 
 ### Accuracy
 

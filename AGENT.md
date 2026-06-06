@@ -67,6 +67,7 @@ python examples/simple_memory_demo.py
 | `/api/camera/ask` | POST | Ask about scene |
 | `/api/memory/recall` | POST | Search memory |
 | `/api/memory/stats` | GET | Memory stats |
+| `/api/memory/delete` | POST | Delete memory `{id}` or `{clear_all: true}` |
 | `/api/accuracy/tests` | GET | List tests |
 | `/api/accuracy/results` | GET | Get results |
 | `/api/accuracy/test` | POST | Run battery |
