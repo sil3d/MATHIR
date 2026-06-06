@@ -609,12 +609,29 @@ cd vision_testing && python accuracy_tests.py
 | mathir_dropin audit | 31 | ✅ 31/31 |
 | **Total** | **226** | **✅ 224/226 (99%)** |
 
+### Examples
+
+```bash
+# SimpleMemory demo (zero dependencies)
+python examples/simple_memory_demo.py
+
+# V7 advanced demo (8 algorithms, ~15s)
+python examples/v7_advanced_demo.py
+
+# Multimodal demo (text + image + audio patterns)
+python examples/multimodal_demo.py
+
+# MiniMax API integration
+python examples/with_minimax.py
+```
+
 ---
 
 ## Documentation
 
 | Document | Description |
 |---|---|
+| [`AGENT.md`](AGENT.md) | **Agent guide (quick reference for AI agents)** |
 | [`docs/MATHIR_Research_Paper.tex`](docs/MATHIR_Research_Paper.tex) | **LaTeX paper for scientific review** |
 | [`docs/01_MASTER_RESEARCH_PAPER.md`](docs/01_MASTER_RESEARCH_PAPER.md) | Full research paper (Markdown) |
 | [`docs/09_THEORY_V7.md`](docs/09_THEORY_V7.md) | Mathematical proofs (6 theorems) |

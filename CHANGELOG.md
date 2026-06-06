@@ -44,6 +44,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Fixed `localhost` hardcoded → `127.0.0.1`
 - Model auto-loads at startup
 - Updated README.md for GitHub presentation
+- Created AGENT.md (agent guide)
+- LaTeX research paper for scientific review (`docs/MATHIR_Research_Paper.tex`)
+- Benchmark methodology documented (dataset, queries, metrics, hardware, sources)
+- Added `simple_memory_demo.py` example (zero deps)
+- Cleaned workspace (old files archived, temp dirs removed)
+- Removed LSTM references from docs (kept as historical citations only)
+- Updated docs/28_HOW_TRAINING_WORKS.md (modern training workflow)
+- Updated docs/02_MASTER_REFERENCE.md, docs/03_MASTER_QA_GUIDE.md
+- Excluded large files from git (GGUF, DLL, binaries)
 
 ---
 
