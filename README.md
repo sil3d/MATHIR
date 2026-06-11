@@ -4,7 +4,7 @@
 
 ### Memory-Augmented Tensor Hybrid with Intelligent Routing
 
-**The first adaptive memory layer that gives any LLM persistent memory, real-time learning, and anomaly detection — on edge hardware.**
+**A drop-in cognitive memory layer with 4 tiers (working, episodic, semantic, immunological) — runs on edge, plugs into any LLM, MIT-licensed.**
 
 <br/>
 
@@ -17,81 +17,74 @@
 
 <br/>
 
-[**⚡ Quick Start**](#-quick-start-30-seconds) · [**🎬 Live Demo**](#-live-demo) · [**🏗️ Architecture**](#-architecture) · [**📊 Benchmarks**](#-tests--benchmarks) · [**📚 Docs**](docs/) · [**📄 Paper**](docs/MATHIR_Research_Paper.tex)
+[**⚡ Quick Start**](#-quick-start-30-seconds) · [**🎬 Demo**](#-live-demo) · [**🏗️ Architecture**](#-architecture) · [**🆚 vs Alternatives**](#-vs-alternatives-honest-2026-comparison) · [**📊 Benchmarks**](#-tests--benchmarks) · [**📄 Paper**](docs/MATHIR_Research_Paper.tex)
 
 <br/>
 
 ```
-   +37.8%            AUC = 1.0           88% isolation         100% uptime
-   online learning   anomaly detection   context-aware         2-hour stress
-   (episodic tier)   (immune tier)       (working tier)        without crash
+   +37.8%        AUC = 1.0       88% isolation     100% uptime
+   online         anomaly         context-aware     2-hour stress
+   learning       detection       retrieval         without crash
 ```
 
 </div>
 
 ---
 
-## 😱 The Problem: Why Your LLM Forgets Everything
+## 😱 The REAL Problem in 2026 (it's not what you think)
 
-> **Imagine hiring a brilliant consultant who forgets your project the moment they leave the room.**
+> **Most "LLM has no memory" articles are wrong as of 2026.** ChatGPT remembers, Claude Projects remembers, Gemini remembers. So what's actually broken?
 
-That's exactly what an LLM does. Every conversation starts from **zero**. Every chat is **session 1**. Every user is a **stranger**.
-
-### What breaks without memory
+### The thing that actually keeps breaking
 
 ```
-Session 1                                Session 2 (next day)
-┌────────────────────────────┐           ┌────────────────────────────┐
-│ User: "I'm Alice"          │           │ User: "Hi again!"          │
-│ LLM:  "Nice to meet you!"  │           │ LLM:  "Have we met?"       │  ❌
-│                            │           │                            │
-│ User: "I work on Python"   │           │ User: "Remember my project?"│
-│ LLM:  "Cool, I love Python"│           │ LLM:  "What project?"       │  ❌
-│                            │           │                            │
-│ User: "I'm building a RAG" │           │ User: "Please help me"     │
-│ LLM:  "Great! RAG is..."   │           │ LLM:  "I don't have context"│  ❌
-│                            │           │                            │
-│ ... 50 messages later ...  │           │ ... starts from scratch ...│
-└────────────────────────────┘           └────────────────────────────┘
-        💀 Everything forgotten
+You: "I'm Alice, I work on Python, building a RAG system"
+Claude/ChatGPT: "Got it, I'll remember that"        ✅ (vendor-side memory)
+
+... 3 months later, you switch from Claude to a local Llama 3.1 ...
+Llama 3.1: "Hi! Who are you?"                         ❌
+            ↑ All that "memory"? Gone. Vendor-locked.
+
+... you try Mem0, which costs $79/mo ...
+Mem0: "Here's what I remember about you"              ✅ (portable, but $$$)
+
+... you want anomaly detection on weird prompts ...
+Mem0: "Sorry, that's not what we do"                  ❌
+
+... you want it on a Jetson Nano with no internet ...
+Mem0: "... we'll get back to you with an enterprise quote"  ❌
+
+... you want the source code to audit it ...
+Mem0: "It's our managed platform"                     ❌
 ```
 
-### The cost of forgetting
+### What's actually broken in 2026
 
-| Symptom | Real-world impact | Quantified |
+| Real problem | Why it's broken | Who fixes it |
 |---|---|---|
-| **User repeats themselves** | Frustration, churn | Avg **+3.2 messages** wasted per session |
-| **No personalization** | Generic, useless answers | **0 % context retention** across sessions |
-| **No learning from mistakes** | Same hallucination tomorrow | **100 %** error rate repeats |
-| **No anomaly detection** | Prompt-injection succeeds | **0 %** injection caught |
-| **Can't detect "weird" inputs** | Drift goes unnoticed | **∞** silent degradation |
+| **Vendor lock-in on memory** | ChatGPT's memory doesn't follow you to Claude. Claude Projects don't export to Gemini. | **MATHIR** (local SQLite, yours forever) |
+| **Context rot** | 200K-token windows are advertised. Effective is ~32K. Beyond that, hallucinations, repetition, contradictions appear. ([Chroma Context Rot, Jul 2025](https://research.trychroma.com/context-rot)) | MATHIR (curated synthesis, not raw context) |
+| **KV cache explodes** | 100M context = 638 H100s per user. ([Magic AI, Aug 2024](https://magic.dev/blog/100m-token-context-windows)) | MATHIR (memory extracted, not stuffed in) |
+| **Anomaly detection doesn't exist** | No major LLM (GPT, Claude, Gemini) flags weird/prompt-injection inputs in real time | **MATHIR** (immunological tier, AUC = 1.0) |
+| **Memory APIs cost $20–$400/mo** | Mem0 starts at $19, Zep at $104/mo, Cognee Cloud at $35/mo | **MATHIR** (MIT, free) |
+| **Most OSS memory libs are just RAG** | mem0, Letta, Cognee, LangMem = vector DB + extraction. Not a "cognitive architecture". | **MATHIR** (4 cognitive tiers, KL router, Mahalanobis detector) |
+| **Can't run on edge** | Mem0 / Zep / Cognee = cloud. Recall / Supermemory = SaaS. | **MATHIR** (Jetson Nano, 0.6 GB VRAM) |
+| **Cross-language recall** | "clotures python" (French) doesn't find "Python closures" (English) in vanilla RAG | **MATHIR UNIBRI** (character n-gram kernel + J-L projection) |
 
-### Why existing solutions don't fix it
+### The 4 documented failure modes of long context (Breunig, 2025)
 
 ```
-                  Vector DB              RAG              Long Context (1M)        Skills (.md)
-                  (Qdrant/Chroma)        (embed→search)   (Gemini 1.5, etc.)       (Claude Skills)
-                 ┌──────────────┐       ┌──────────────┐  ┌──────────────┐         ┌──────────────┐
-Stores data      │      ✅       │       │      ✅       │  │      ✅       │         │      ❌       │
-                 ├──────────────┤       ├──────────────┤  ├──────────────┤         ├──────────────┤
-Learns online    │      ❌       │       │      ❌       │  │      ❌       │         │      ❌       │
-                 ├──────────────┤       ├──────────────┤  ├──────────────┤         ├──────────────┤
-Structured       │      ❌       │       │      ❌       │  │      ❌       │         │      ✅       │
-                 ├──────────────┤       ├──────────────┤  ├──────────────┤         ├──────────────┤
-Edge-friendly    │      ❌       │       │      ❌       │  │      ❌       │         │      ✅       │
-                 ├──────────────┤       ├──────────────┤  ├──────────────┤         ├──────────────┤
-Knows "weird"    │      ❌       │       │      ❌       │  │      ❌       │         │      ❌       │
-                 ├──────────────┤       ├──────────────┤  ├──────────────┤         ├──────────────┤
-Cross-provider   │      ❌       │       │      ❌       │  │      ❌       │         │      ❌       │
-                 └──────────────┘       └──────────────┘  └──────────────┘         └──────────────┘
-
-                    +                       +                       +                       +
-                                       ╔══════════════════════════════════════════════════╗
-                                       ║              🧠  MATHIR  does all of it        ║
-                                       ╚══════════════════════════════════════════════════╝
+   1. Context poisoning       2. Context distraction    3. Context confusion       4. Context clash
+   hallucination gets         model fixates on          superfluous content        multi-turn info
+   re-referenced              repeating past actions    degrades responses         contradicts itself
+   (Gemini 2.5 Pokémon)       (beyond 100K tokens)       (8B fails with 46 tools)   (o3: 98.1 → 64.1)
+        ↓                         ↓                         ↓                          ↓
+   ╔══════════════════════════════════════════════════════════════════════════════════════╗
+   ║  Long context ≠ memory. A 1M-token window is a liability if you don't structure it.  ║
+   ╚══════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-> **MATHIR** is the first memory layer that **stores, learns, structures, fits on edge, detects weirdness, and works across LLM providers** — all at once.
+> **MATHIR's position is honest:** We're not a "ChatGPT memory clone". We're a **cognitive architecture** for any LLM — with **4 memory tiers**, **online learning**, **anomaly detection**, and **edge deployment** — that you can actually read, audit, and run yourself.
 
 ---
 
@@ -100,9 +93,9 @@ Cross-provider   │      ❌       │       │      ❌       │  │      �
 ```
    ┌─────────────────────────────────────────────────────────────────────────────┐
    │                                                                             │
-   │   +37.8 %            AUC = 1.0          88 % isolation     100 % uptime     │
-   │   online learning    anomaly detection  context-aware      2-hour stress    │
-   │   (episodic tier)    (immune tier)      (working tier)     without crash   │
+   │   +37.8 %           AUC = 1.0          88 % isolation     100 % uptime     │
+   │   online learning   anomaly detection  context-aware      2-hour stress    │
+   │   (episodic tier)   (immune tier)      (working tier)     without crash   │
    │                                                                             │
    └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -112,7 +105,69 @@ Cross-provider   │      ❌       │       │      ❌       │  │      �
 - **Working memory** — multi-head attention produces context-dependent results (88 % isolation)
 - **KL-constrained router** — PPO-style routing between 4 tiers, never collapses
 - **Universal Bridge (UNIBRI)** — works across LLM providers and languages, no retraining
-- **Fits on edge** — 0.6 GB VRAM, ~15 ms latency, runs on a Jetson Nano
+- **Edge-deployable** — 0.6 GB VRAM, ~15 ms latency, runs on a Jetson Nano
+- **Zero external dependencies** (`SimpleMemory` uses only SQLite FTS5)
+
+---
+
+## 🆚 vs Alternatives (honest 2026 comparison)
+
+> Researched against Mem0, Letta, Zep, Cognee, LangMem, Microsoft GraphRAG, Supermemory, Recall.it, ChatGPT Memory, Claude Projects, Gemini memories, Microsoft Copilot Work IQ. Sources at the bottom of this section.
+
+| Product | Architecture | OSS? | LLM-agnostic? | Edge? | Anomaly detection | Cost |
+|---|---|:---:|:---:|:---:|:---:|:---|
+| **🧠 MATHIR** | 4 cognitive tiers + KL router + Mahalanobis | ✅ **MIT** | ✅ Any | ✅ **0.6 GB** | ✅ **AUC = 1.0** | **Free** |
+| [Mem0](https://mem0.ai) | Vector + rerankers + LLM compression | ⚠️ SDK only | ✅ Any | ❌ Cloud | ❌ | Free → $249/mo |
+| [Letta](https://letta.com) | Core/archival/recall tiers | ✅ Apache 2.0 | ✅ Any | ⚠️ Heavy | ❌ | Free (BYO infra) |
+| [Zep](https://getzep.com) | Temporal knowledge graph | ⚠️ Graphiti OSS | ✅ Any | ❌ Cloud | ❌ | $1,250/yr → Custom |
+| [Cognee](https://cognee.ai) | Self-hosted KG + vector | ✅ Apache 2.0 | ✅ Any | ⚠️ Heavy | ❌ | $35/mo → Custom |
+| [LangMem](https://langchain-ai.github.io/langmem/) | Library on LangGraph store | ✅ MIT | ✅ Via LangChain | ⚠️ DIY | ❌ | Free (BYO infra) |
+| [Microsoft GraphRAG](https://microsoft.github.io/graphrag/) | KG + community detection | ✅ MIT | ✅ Any | ⚠️ DIY | ❌ | Free (BYO infra) |
+| [Supermemory](https://supermemory.ai) | Custom vector graph | ❌ Self-host binary | ✅ Any | ⚠️ Self-host | ❌ | $19 → $399/mo |
+| [Recall.it](https://recall.it) | Personal knowledge graph | ❌ Closed SaaS | ⚠️ Max tier only | ❌ | ❌ | Free → $38/mo |
+| **ChatGPT Memory** (vendor) | Background "Dreaming" synthesis | ❌ Closed | ❌ OpenAI only | ❌ Cloud | ❌ | $20/mo+ |
+| **Claude Projects** (vendor) | User-curated KB per project | ❌ Closed | ❌ Anthropic only | ❌ Cloud | ❌ | $20/mo+ |
+| **Gemini memories** (vendor) | Implied semantic + chat history | ❌ Closed | ❌ Google only | ❌ Cloud | ❌ | Free → $20/mo |
+| **Microsoft Work IQ** (vendor) | Semantic index + personal memory | ❌ Closed | ❌ Microsoft 365 only | ❌ Cloud | ❌ | M365 sub |
+
+### What this table actually says
+
+**3 things only MATHIR does, as of June 2026:**
+
+1. **Anomaly detection on inputs** (immunological tier, AUC = 1.0). No competitor in this list has it.
+2. **Edge deployment in 0.6 GB VRAM**. All others need cloud or heavy local infra.
+3. **MIT-licensed, fully open source, no managed service**. The only true OSS option with a 4-tier cognitive architecture.
+
+**Things others do that MATHIR doesn't (honesty):**
+
+- **Enterprise SSO, SOC 2, HIPAA, audit logs** → Zep, Mem0 Pro, Supermemory Enterprise have these. MATHIR doesn't.
+- **Managed hosted service** → Mem0, Zep, Cognee, Supermemory all offer this. MATHIR is self-host only.
+- **Temporal fact validity** (modeling "this preference is no longer valid") → Zep's specialty.
+- **1M+ tokens of pre-curated memory** → Mem0's LoCoMo benchmark wins.
+
+**Where MATHIR is competitive:**
+
+- **Pure retrieval quality** → MATHIR = FAISS dense-only (0.7441 nDCG@10 on BEIR SciFact, equal to SOTA)
+- **Cross-provider** → 11/12 wins across 3 different LLM architectures
+- **Cross-lingual** → UNIBRI finds English content from French queries
+- **Cost** → free, vs $20–$400/mo for managed alternatives
+
+### Sources
+
+- Mem0 pricing & research: [mem0.ai/pricing](https://mem0.ai/pricing), [mem0.ai/research](https://mem0.ai/research)
+- Letta docs: [docs.letta.com](https://docs.letta.com), [letta.com/blog/continual-learning](https://www.letta.com/blog/continual-learning)
+- Zep docs: [getzep.com](https://www.getzep.com), [help.getzep.com](https://help.getzep.com)
+- Cognee: [cognee.ai](https://www.cognee.ai), [github.com/topoteretes/cognee](https://github.com/topoteretes/cognee)
+- LangMem: [langchain-ai.github.io/langmem](https://langchain-ai.github.io/langmem/)
+- Microsoft GraphRAG: [microsoft.github.io/graphrag](https://microsoft.github.io/graphrag/), arXiv 2404.16130
+- Supermemory: [supermemory.ai](https://supermemory.ai)
+- Recall: [recall.it](https://www.recall.it)
+- ChatGPT Memory: [openai.com/index/chatgpt-memory-dreaming](https://openai.com/index/chatgpt-memory-dreaming/)
+- Claude Projects: [anthropic.com/news/projects](https://www.anthropic.com/news/projects), [anthropic.com/news/claude-fable-5-mythos-5](https://www.anthropic.com/news/claude-fable-5-mythos-5)
+- Microsoft Work IQ: [microsoft.com/.../work-iq-apis](https://www.microsoft.com/en-us/microsoft-365/blog/2026/06/02/announcing-the-new-work-iq-apis/)
+- Magic AI 100M tokens: [magic.dev/blog/100m-token-context-windows](https://magic.dev/blog/100m-token-context-windows)
+- Chroma Context Rot: [research.trychroma.com/context-rot](https://research.trychroma.com/context-rot)
+- Breunig, "How Long Contexts Fail": [dbreunig.com](https://www.dbreunig.com/2025/06/22/how-contexts-fail-and-how-to-fix-them.html)
 
 ---
 
@@ -129,7 +184,7 @@ pip install -e .
 ### 2. The smallest possible example
 
 ```python
-from mathir_dropin.simple import SimpleMemory   # zero dependencies
+from mathir_dropin.simple import SimpleMemory   # zero dependencies (just SQLite FTS5)
 
 memory = SimpleMemory(db_path="my_app.db")
 memory.store("User asked about Python closures")
@@ -145,7 +200,7 @@ results = memory.recall("Python functions", k=3)
 ```python
 def chat(user_message):
     context = memory.search_context(user_message, k=5, last_n=3)
-    response = openai.chat.completions.create(
+    response = openai.chat.completions.create(  # or anthropic, or local llama_cpp
         model="gpt-4",
         messages=[
             {"role": "system", "content": f"Relevant memories:\n{context}"},
@@ -156,7 +211,7 @@ def chat(user_message):
     return response.choices[0].message.content
 ```
 
-Now the LLM **remembers** — across sessions, across restarts, across users.
+Works with **any LLM** — OpenAI, Anthropic, Gemini, Groq, Ollama, local 7B via `llama_cpp`, anything.
 
 ### 4. Or use the full V7 plugin (8 algorithms, 6 theorems)
 
@@ -168,7 +223,7 @@ output = plugin.perceive(llm_embedding)
 
 print(output["enhanced_embedding"])  # [1, 4096]
 print(output["router_weights"])      # 4-tier allocation: [0.4, 0.3, 0.2, 0.1]
-print(output["anomaly_score"])       # novelty detection
+print(output["anomaly_score"])       # novelty detection (0.0–1.0)
 print(output["episodic_context"])    # retrieved past experiences
 ```
 
@@ -222,30 +277,29 @@ A standalone **playground** at `/playground.html` provides multi-session chat wi
 
 ## 💡 More Examples
 
-### Example 1 — Persistent chat memory across sessions
+### Example 1 — Persistent chat memory across sessions (and across LLMs)
 
 ```python
-# === Day 1 ===
+# === Day 1, with GPT-4 ===
 memory = SimpleMemory(db_path="alice.db")
 memory.store("Alice is a software engineer at Google")
 memory.store("Alice prefers Python over JavaScript")
 memory.store("Alice is building a RAG system for legal documents")
 # (close the app, go to sleep)
 
-# === Day 2 (re-open the app) ===
+# === Day 2 (re-open, still GPT-4) ===
 memory = SimpleMemory(db_path="alice.db")   # same DB, no config
 print(memory.search_context("What does Alice do?", k=3))
 # → ["Alice is a software engineer at Google",
 #    "Alice is building a RAG system for legal documents",
 #    "Alice prefers Python over JavaScript"]
 
-print(memory.search_context("What's she building?", k=3))
-# → ["Alice is building a RAG system for legal documents",
-#    "Alice is a software engineer at Google",
-#    "Alice prefers Python over JavaScript"]
+# === Day 3 (switch to local Llama 3.1 — same memory!) ===
+# Same SQLite file, same memories, different LLM.
+# This is what vendor-locked ChatGPT Memory can't do.
 ```
 
-### Example 2 — Anomaly detection on user inputs
+### Example 2 — Anomaly detection (no other LLM-memory product has this)
 
 ```python
 from mathir_lib import MATHIRPluginV7
@@ -309,9 +363,33 @@ client = anthropic.Anthropic()
 
 # Local 7B
 from llama_cpp import Llama
-# ... same memory, on-device
+# ... same memory, on-device, no internet
 
 # The memory layer is provider-agnostic.
+```
+
+### Example 6 — Full cognitive pipeline
+
+```python
+from mathir_lib import MATHIRPluginV7
+
+plugin = MATHIRPluginV7(embedding_dim=768)
+
+# A single perceive() call routes through all 4 tiers
+output = plugin.perceive(input_embedding, metadata={"user": "alice"})
+
+# What just happened:
+print(f"Router picked: {output['router_weights']}")
+# → [0.4, 0.3, 0.2, 0.1]  (working, episodic, semantic, immune)
+
+print(f"Context used: {output['episodic_context']}")
+# → "User asked about Python closures 3 days ago..."
+
+print(f"Anomaly score: {output['anomaly_score']:.3f}")
+# → 0.02  (looks normal)
+
+print(f"Enhanced embedding: {output['enhanced_embedding'].shape}")
+# → (1, 768)
 ```
 
 ---
@@ -489,11 +567,11 @@ nDCG@10 (SciFact)
 ```
 Retrieval quality over 2 hours
 1.0 ┤█████████████████████████████████████████████████
-    │                                                  
+    │
 0.95┤█████████████████████████████████████████████████
-    │                                                  
+    │
 0.9 ┤█████████████████████████████████████████████████
-    │                                                  
+    │
 0.85┤█████████████████████████████████████████████████
     └─────────────────────────────────────────────────
     0    20    40    60    80    100   120  (minutes)
@@ -677,7 +755,7 @@ Full paper: [`docs/MATHIR_Research_Paper.tex`](docs/MATHIR_Research_Paper.tex)
 
 <div align="center">
 
-### 🧠 MATHIR — *The first memory layer that learns.*
+### 🧠 MATHIR — *A 4-tier cognitive memory layer for any LLM, on any hardware.*
 
 **Author:** [Prince Gildas Mbama Kombila](https://github.com/sil3d) · **Email:** soilearn3d@gmail.com
 
