@@ -66,15 +66,21 @@ class StressTest:
         if config:
             self.config.update(config)
 
-        # Init memory
+        # Init MATHIR 4-tier memory
+        self.memory = None
+        self._embedding_dim = 384
         try:
-            from mathir_dropin.simple import SimpleMemory
-            self.memory = SimpleMemory(self._db_path)
-            self._log("info", "MATHIR SimpleMemory initialized")
+            import torch
+            from mathir_dropin import MATHIRMemory
+            self.memory = MATHIRMemory(
+                embedding_dim=self._embedding_dim,
+                db_path=self._db_path,
+            )
+            self._log("info", f"MATHIR 4-tier memory initialized (dim={self._embedding_dim})")
         except ImportError:
-            # Fallback: use raw sqlite3 for basic storage
             self._log("warn", "mathir_dropin not available, using raw sqlite3 fallback")
-            self.memory = None
+        except Exception as e:
+            self._log("warn", f"MATHIR init failed: {e}, using raw sqlite3 fallback")
 
         # Init metrics
         self.metrics = MetricsCollector(self._db_path)
@@ -140,6 +146,10 @@ class StressTest:
                 for conv in batch:
                     self._store_conversation(conv)
 
+                # 2b. Recall benchmark (every 50 conversations)
+                if self.conversations_sent > 0 and self.conversations_sent % 50 == 0:
+                    self._benchmark_recall()
+
                 # 3. Collect metrics
                 snapshot = self.metrics.collect()
 
@@ -185,16 +195,39 @@ class StressTest:
             time.sleep(self.config["interval_seconds"])
 
     def _store_conversation(self, conv):
-        """Stocke une conversation dans MATHIR"""
+        """Stocke une conversation dans MATHIR avec routing par tier"""
         msg = conv["user_message"]
         tiers = self.config.get("tiers_enabled", {})
 
         if self.memory is not None:
-            # Use MATHIR SimpleMemory
             try:
-                self.memory.store(msg)
-            except Exception:
-                pass
+                import torch
+                # Créer un embedding à partir du texte (hash → vecteur déterministe)
+                # Pour un stress test, on utilise un embedding déterministe basé sur le hash du texte
+                text_hash = hash(msg) % (2**31)
+                torch.manual_seed(text_hash)
+                emb = torch.randn(1, self._embedding_dim)
+
+                # Déterminer le tier selon le type de conversation
+                if conv.get("is_anomaly"):
+                    tier = "immune"
+                elif conv["type"] == "trivial":
+                    tier = "working"
+                elif conv["type"] == "technical":
+                    tier = "semantic"
+                else:
+                    tier = "episodic"
+
+                # Stocker dans le tier actif correspondant
+                if tiers.get(tier, False):
+                    self.memory.store(
+                        embedding=emb,
+                        metadata={"text": msg, "type": conv["type"], "is_anomaly": conv.get("is_anomaly", False)},
+                        tier=tier,
+                    )
+
+            except Exception as e:
+                self.metrics.increment_errors()
         else:
             # Fallback: raw sqlite3
             self._raw_store(msg)
@@ -224,6 +257,25 @@ class StressTest:
             )
             conn.commit()
             conn.close()
+        except Exception:
+            pass
+
+    def _benchmark_recall(self):
+        """Benchmark du recall MATHIR — test de latence FTS5"""
+        if self.memory is None:
+            return
+
+        try:
+            # Requêtes de test variées
+            queries = ["Python", "bug", "réunion", "MATHIR", "memory"]
+            start = time.perf_counter()
+            for q in queries:
+                self.memory.recall_text(query_text=q, k=3)
+            elapsed_ms = (time.perf_counter() - start) * 1000 / len(queries)
+
+            # Mettre à jour la métrique de latence
+            if self.metrics.history:
+                self.metrics.history[-1].recall_latency_ms = round(elapsed_ms, 2)
         except Exception:
             pass
 
