@@ -174,6 +174,14 @@ class StressTest:
                     "recall_latency_ms": snapshot.recall_latency_ms,
                     "errors": snapshot.errors,
                     "cpu_percent": snapshot.cpu_percent,
+                    "peak_ram_mb": snapshot.peak_ram_mb,
+                    "throughput_conv_per_sec": snapshot.throughput_conv_per_sec,
+                    "db_write_latency_ms": snapshot.db_write_latency_ms,
+                    "uptime_seconds": snapshot.uptime_seconds,
+                    "tier_working": snapshot.tier_working,
+                    "tier_episodic": snapshot.tier_episodic,
+                    "tier_semantic": snapshot.tier_semantic,
+                    "tier_immune": snapshot.tier_immune,
                     "history": history_data,
                 })
 
@@ -220,11 +228,14 @@ class StressTest:
 
                 # Stocker dans le tier actif correspondant
                 if tiers.get(tier, False):
+                    t0 = time.perf_counter()
                     self.memory.store(
                         embedding=emb,
                         metadata={"text": msg, "type": conv["type"], "is_anomaly": conv.get("is_anomaly", False)},
                         tier=tier,
                     )
+                    self.metrics.record_write_latency(time.perf_counter() - t0)
+                    self.metrics.increment_tier(tier)
 
             except Exception as e:
                 self.metrics.increment_errors()
