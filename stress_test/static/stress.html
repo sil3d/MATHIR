@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MATHIR Stress Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --surface: #12121a;
+            --surface-2: #1a1a25;
+            --border: #2a2a3a;
+            --text: #e0e0e0;
+            --text-dim: #888;
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+            --green: #22c55e;
+            --red: #ef4444;
+            --yellow: #eab308;
+            --blue: #3b82f6;
+            --purple: #a855f7;
+            --cyan: #06b6d4;
+            --radius: 8px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            grid-template-rows: 56px 1fr;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Header */
+        .header {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header h1 {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .header h1 span { color: var(--accent); }
+
+        .header-controls { display: flex; gap: 8px; align-items: center; }
+
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--text-dim);
+            margin-right: 8px;
+        }
+        .status-dot.running { background: var(--green); animation: pulse 1.5s infinite; }
+        .status-dot.paused { background: var(--yellow); }
+        .status-dot.stopped { background: var(--red); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        button {
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--surface-2);
+            color: var(--text);
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.15s;
+        }
+        button:hover { background: var(--border); }
+        button.primary { background: var(--accent); border-color: var(--accent); color: white; }
+        button.primary:hover { background: var(--accent-hover); }
+        button.danger { border-color: var(--red); color: var(--red); }
+        button.danger:hover { background: var(--red); color: white; }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        /* Sidebar */
+        .sidebar {
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .sidebar section h3 {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-dim);
+            margin-bottom: 12px;
+        }
+
+        .sidebar label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+
+        .sidebar input[type="number"] {
+            width: 100%;
+            padding: 6px 10px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-size: 13px;
+            margin-top: 4px;
+        }
+        .sidebar input[type="number"]:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .sidebar input[type="checkbox"] {
+            accent-color: var(--accent);
+        }
+
+        .tier-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 8px;
+            background: var(--bg);
+            border-radius: var(--radius);
+        }
+
+        .export-btns {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        /* Main content */
+        .main {
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* Metrics cards */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 10px;
+        }
+
+        .metric-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px;
+        }
+
+        .metric-card .label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-dim);
+            margin-bottom: 4px;
+        }
+
+        .metric-card .value {
+            font-size: 22px;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .metric-card .delta {
+            font-size: 11px;
+            margin-top: 2px;
+        }
+        .metric-card .delta.up { color: var(--red); }
+        .metric-card .delta.down { color: var(--green); }
+        .metric-card .delta.neutral { color: var(--text-dim); }
+
+        /* Charts grid */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .chart-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px;
+        }
+
+        .chart-card h4 {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        .chart-card canvas {
+            width: 100% !important;
+            height: 180px !important;
+        }
+
+        /* Logs */
+        .logs-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px;
+            flex: 1;
+            min-height: 120px;
+        }
+
+        .logs-card h4 {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        .logs-content {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .log-entry { color: var(--text-dim); }
+        .log-entry .time { color: var(--cyan); }
+        .log-entry .level-info { color: var(--blue); }
+        .log-entry .level-warn { color: var(--yellow); }
+        .log-entry .level-error { color: var(--red); }
+
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .metrics-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+        @media (max-width: 900px) {
+            body { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+            .charts-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <h1><span>MATHIR</span> Stress Test</h1>
+        <div class="header-controls">
+            <div class="status-dot" id="statusDot"></div>
+            <span id="statusText" style="font-size:13px; color:var(--text-dim); margin-right:12px;">Idle</span>
+            <button class="primary" id="btnStart" onclick="startTest()">▶ Start</button>
+            <button id="btnPause" onclick="pauseTest()" disabled>⏸ Pause</button>
+            <button class="danger" id="btnStop" onclick="stopTest()" disabled>⏹ Stop</button>
+        </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <section>
+            <h3>Configuration</h3>
+            <label>Batch size
+                <input type="number" id="cfgBatchSize" value="50" min="1" max="1000" step="10">
+            </label>
+            <label>Interval (seconds)
+                <input type="number" id="cfgInterval" value="5" min="1" max="60">
+            </label>
+            <label>Anomaly rate %
+                <input type="number" id="cfgAnomalyRate" value="10" min="0" max="100">
+            </label>
+        </section>
+
+        <section>
+            <h3>Memory Tiers</h3>
+            <div class="tier-group">
+                <label><input type="checkbox" id="tierWorking" checked> Working Memory</label>
+                <label><input type="checkbox" id="tierEpisodic" checked> Episodic Memory</label>
+                <label><input type="checkbox" id="tierSemantic" checked> Semantic Memory</label>
+                <label><input type="checkbox" id="tierImmune" checked> Immune Memory</label>
+                <label><input type="checkbox" id="tierKL" checked> KL Router</label>
+            </div>
+        </section>
+
+        <section>
+            <h3>Data Source</h3>
+            <label><input type="radio" name="dataSource" value="synthetic" checked> Synthetic</label>
+            <label><input type="radio" name="dataSource" value="file"> Upload File</label>
+        </section>
+
+        <section>
+            <h3>Export</h3>
+            <div class="export-btns">
+                <button onclick="downloadCSV()">📥 Download CSV</button>
+                <button onclick="downloadHTML()">📥 Download Report</button>
+            </div>
+        </section>
+    </aside>
+
+    <!-- Main content -->
+    <main class="main">
+        <!-- Metrics cards -->
+        <div class="metrics-grid">
+            <div class="metric-card">
+                <div class="label">RAM</div>
+                <div class="value" id="valRAM">0 <small>MB</small></div>
+                <div class="delta neutral" id="deltaRAM">—</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">GPU</div>
+                <div class="value" id="valGPU">0 <small>MB</small></div>
+                <div class="delta neutral" id="deltaGPU">—</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">DB Size</div>
+                <div class="value" id="valDB">0 <small>MB</small></div>
+                <div class="delta neutral" id="deltaDB">—</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Conversations</div>
+                <div class="value" id="valConvos">0</div>
+                <div class="delta neutral" id="deltaConvos">—</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Recall</div>
+                <div class="value" id="valRecall">0 <small>ms</small></div>
+                <div class="delta neutral" id="deltaRecall">—</div>
+            </div>
+            <div class="metric-card">
+                <div class="label">Errors</div>
+                <div class="value" id="valErrors">0</div>
+                <div class="delta neutral" id="deltaErrors">—</div>
+            </div>
+        </div>
+
+        <!-- Charts -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h4>RAM Usage (MB)</h4>
+                <canvas id="chartRAM"></canvas>
+            </div>
+            <div class="chart-card">
+                <h4>DB Size (MB)</h4>
+                <canvas id="chartDB"></canvas>
+            </div>
+            <div class="chart-card">
+                <h4>Recall Latency (ms)</h4>
+                <canvas id="chartRecall"></canvas>
+            </div>
+            <div class="chart-card">
+                <h4>Conversations</h4>
+                <canvas id="chartConvos"></canvas>
+            </div>
+        </div>
+
+        <!-- Logs -->
+        <div class="logs-card">
+            <h4>Logs</h4>
+            <div class="logs-content" id="logsContent"></div>
+        </div>
+    </main>
+
+    <script>
+        // ============================================================
+        // WebSocket
+        // ============================================================
+        const socket = io();
+        let prevState = null;
+
+        socket.on('connect', () => addLog('info', 'Connected to server'));
+        socket.on('disconnect', () => addLog('warn', 'Disconnected from server'));
+
+        socket.on('metrics_update', (data) => {
+            updateMetrics(data);
+            updateCharts(data);
+        });
+
+        socket.on('status_update', (data) => {
+            updateStatus(data.status);
+        });
+
+        socket.on('log', (data) => {
+            addLog(data.level || 'info', data.message);
+        });
+
+        // ============================================================
+        // Charts
+        // ============================================================
+        const chartOpts = {
+            responsive: true,
+            animation: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { display: false },
+                y: {
+                    beginAtZero: true,
+                    grid: { color: '#1e1e2e' },
+                    ticks: { color: '#888', font: { size: 10 } }
+                }
+            },
+            elements: {
+                point: { radius: 0 },
+                line: { borderWidth: 2, tension: 0.3 }
+            }
+        };
+
+        function makeChart(id, color) {
+            return new Chart(document.getElementById(id), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        fill: true,
+                    }]
+                },
+                options: { ...chartOpts }
+            });
+        }
+
+        const chartRAM = makeChart('chartRAM', '#6366f1');
+        const chartDB = makeChart('chartDB', '#22c55e');
+        const chartRecall = makeChart('chartRecall', '#eab308');
+        const chartConvos = makeChart('chartConvos', '#3b82f6');
+
+        const MAX_POINTS = 120;
+
+        function updateCharts(data) {
+            if (!data.history || data.history.length === 0) return;
+
+            const labels = data.history.map((_, i) => i);
+            const ramData = data.history.map(h => h.y || h.ram_mb || 0);
+            const dbData = data.history.map(h => h.db_size_mb || 0);
+            const recallData = data.history.map(h => h.recall_latency_ms || 0);
+            const convData = data.history.map(h => h.conversations || 0);
+
+            // Trim to MAX_POINTS
+            const trim = (arr) => arr.length > MAX_POINTS ? arr.slice(-MAX_POINTS) : arr;
+            const trimLabels = (arr) => arr.length > MAX_POINTS ? arr.slice(-MAX_POINTS) : arr;
+
+            chartRAM.data.labels = trimLabels(labels);
+            chartRAM.data.datasets[0].data = trim(ramData);
+            chartRAM.update('none');
+
+            chartDB.data.labels = trimLabels(labels);
+            chartDB.data.datasets[0].data = trim(dbData);
+            chartDB.update('none');
+
+            chartRecall.data.labels = trimLabels(labels);
+            chartRecall.data.datasets[0].data = trim(recallData);
+            chartRecall.update('none');
+
+            chartConvos.data.labels = trimLabels(labels);
+            chartConvos.data.datasets[0].data = trim(convData);
+            chartConvos.update('none');
+        }
+
+        // ============================================================
+        // Metrics update
+        // ============================================================
+        function updateMetrics(data) {
+            // Values
+            document.getElementById('valRAM').innerHTML = `${Math.round(data.ram_mb)} <small>MB</small>`;
+            document.getElementById('valGPU').innerHTML = `${Math.round(data.gpu_mb)} <small>MB</small>`;
+            document.getElementById('valDB').innerHTML = `${data.db_size_mb.toFixed(1)} <small>MB</small>`;
+            document.getElementById('valConvos').textContent = formatNumber(data.conversations);
+            document.getElementById('valRecall').innerHTML = `${Math.round(data.recall_latency_ms)} <small>ms</small>`;
+            document.getElementById('valErrors').textContent = data.errors;
+
+            // Deltas
+            if (prevState) {
+                updateDelta('deltaRAM', data.ram_mb - prevState.ram_mb, 'MB');
+                updateDelta('deltaDB', data.db_size_mb - prevState.db_size_mb, 'MB');
+                updateDelta('deltaConvos', data.conversations - prevState.conversations, '');
+                updateDelta('deltaRecall', data.recall_latency_ms - prevState.recall_latency_ms, 'ms');
+            }
+
+            prevState = { ...data };
+        }
+
+        function updateDelta(id, diff, unit) {
+            const el = document.getElementById(id);
+            if (Math.abs(diff) < 0.1) {
+                el.className = 'delta neutral';
+                el.textContent = '—';
+            } else if (diff > 0) {
+                el.className = 'delta up';
+                el.textContent = `▲ +${diff.toFixed(1)}${unit}`;
+            } else {
+                el.className = 'delta down';
+                el.textContent = `▼ ${diff.toFixed(1)}${unit}`;
+            }
+        }
+
+        function formatNumber(n) {
+            if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+            if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+            return n;
+        }
+
+        // ============================================================
+        // Status
+        // ============================================================
+        function updateStatus(status) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            const btnStart = document.getElementById('btnStart');
+            const btnPause = document.getElementById('btnPause');
+            const btnStop = document.getElementById('btnStop');
+
+            dot.className = 'status-dot ' + status;
+
+            const labels = { running: 'Running', paused: 'Paused', stopped: 'Stopped', idle: 'Idle' };
+            text.textContent = labels[status] || status;
+
+            btnStart.disabled = (status === 'running');
+            btnPause.disabled = (status === 'stopped' || status === 'idle');
+            btnStop.disabled = (status === 'stopped' || status === 'idle');
+        }
+
+        // ============================================================
+        // Logs
+        // ============================================================
+        function addLog(level, message) {
+            const el = document.getElementById('logsContent');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="time">[${time}]</span> <span class="level-${level}">${message}</span>`;
+            el.appendChild(entry);
+            el.scrollTop = el.scrollHeight;
+
+            // Trim old logs
+            while (el.children.length > 200) {
+                el.removeChild(el.firstChild);
+            }
+        }
+
+        // ============================================================
+        // Actions
+        // ============================================================
+        function getConfig() {
+            return {
+                batch_size: +document.getElementById('cfgBatchSize').value,
+                interval_seconds: +document.getElementById('cfgInterval').value,
+                anomaly_rate: +document.getElementById('cfgAnomalyRate').value / 100,
+                tiers_enabled: {
+                    working: document.getElementById('tierWorking').checked,
+                    episodic: document.getElementById('tierEpisodic').checked,
+                    semantic: document.getElementById('tierSemantic').checked,
+                    immune: document.getElementById('tierImmune').checked,
+                    kl_router: document.getElementById('tierKL').checked,
+                }
+            };
+        }
+
+        function startTest() {
+            fetch('/api/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(getConfig())
+            }).then(r => r.json()).then(data => {
+                updateStatus('running');
+                addLog('info', 'Stress test started');
+            });
+        }
+
+        function pauseTest() {
+            fetch('/api/pause', { method: 'POST' })
+                .then(r => r.json()).then(data => {
+                    updateStatus(data.status);
+                    addLog('info', `Stress test ${data.status}`);
+                });
+        }
+
+        function stopTest() {
+            fetch('/api/stop', { method: 'POST' })
+                .then(r => r.json()).then(data => {
+                    updateStatus('stopped');
+                    addLog('warn', 'Stress test stopped');
+                });
+        }
+
+        function downloadCSV() {
+            window.location.href = '/api/download/csv';
+        }
+
+        function downloadHTML() {
+            window.location.href = '/api/download/html';
+        }
+
+        // Config sync on change (debounced)
+        let configTimeout;
+        document.querySelectorAll('.sidebar input').forEach(el => {
+            el.addEventListener('change', () => {
+                clearTimeout(configTimeout);
+                configTimeout = setTimeout(() => {
+                    fetch('/api/config', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(getConfig())
+                    });
+                }, 300);
+            });
+        });
+
+        // Initial status
+        updateStatus('idle');
+    </script>
+</body>
+</html>
