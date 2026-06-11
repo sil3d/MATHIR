@@ -83,69 +83,63 @@
 
 | # | Document | Lines | Format | One-line pitch |
 |:---:|---|:---:|:---:|---|
-| 8 | [`docs/09_THEORY_V7.md`](09_THEORY_V7.md) | 699 | MD | 6 theorems with proofs |
-| 9 | [`docs/10_V7_PAPER.md`](10_V7_PAPER.md) | — | MD | V7 paper draft |
-| 10 | [`docs/11_PROOFS.md`](11_PROOFS.md) | — | MD | Step-by-step proofs |
-| 11 | [`docs/24_MATHIR_Preuves_Mathematiques.tex`](24_MATHIR_Preuves_Mathematiques.tex) | — | LaTeX | Mathematical proofs (FR/EN) |
-| 12 | [`docs/37_THEORY.md`](37_THEORY.md) | — | MD | Theory overview |
+| 8 | [`docs/09_THEORY_V7.md`](09_THEORY_V7.md) | 699 | MD | 6 theorems with proofs (current) |
+| 9 | [`docs/11_PROOFS.md`](11_PROOFS.md) | — | MD | Step-by-step proofs |
 
 ### 📊 Benchmarks & research
 
 | # | Document | Lines | Format | One-line pitch |
 |:---:|---|:---:|:---:|---|
-| 13 | [`docs/14_RETRIEVAL_RESEARCH_RESULTS.md`](14_RETRIEVAL_RESEARCH_RESULTS.md) | — | MD | 4 retrieval approaches (A/B/C/D) compared |
-| 14 | [`docs/15_BENCHMARK_V6_VS_V7.md`](15_BENCHMARK_V6_VS_V7.md) | — | MD | V6 vs V7 benchmarks |
-| 15 | [`docs/35_KV_CACHE_RESEARCH_REPORT.md`](35_KV_CACHE_RESEARCH_REPORT.md) | — | MD | KV cache growth research |
-| 16 | [`docs/36_RUST_ML_RESEARCH_REPORT.md`](36_RUST_ML_RESEARCH_REPORT.md) | — | MD | Rust ML port research |
-| 17 | [`benchmarks/research/SOTA_RESEARCH_2024_2026.md`](../benchmarks/research/SOTA_RESEARCH_2024_2026.md) | — | MD | SOTA comparison 2024-2026 |
-| 18 | [`benchmarks/results_final/README.md`](../benchmarks/results_final/README.md) | — | MD | Older benchmark results |
+| 10 | [`docs/14_RETRIEVAL_RESEARCH_RESULTS.md`](14_RETRIEVAL_RESEARCH_RESULTS.md) | — | MD | 4 retrieval approaches (A/B/C/D) compared |
+| 11 | [`docs/15_BENCHMARK_V6_VS_V7.md`](15_BENCHMARK_V6_VS_V7.md) | — | MD | V6 vs V7 benchmarks |
+| 12 | [`docs/35_KV_CACHE_RESEARCH_REPORT.md`](35_KV_CACHE_RESEARCH_REPORT.md) | — | MD | KV cache growth research |
+| 13 | [`docs/36_RUST_ML_RESEARCH_REPORT.md`](36_RUST_ML_RESEARCH_REPORT.md) | — | MD | Rust ML port research |
+| 14 | [`benchmarks/research/SOTA_RESEARCH_2024_2026.md`](../benchmarks/research/SOTA_RESEARCH_2024_2026.md) | — | MD | SOTA comparison 2024-2026 |
+| 15 | [`benchmarks/results_final/README.md`](../benchmarks/results_final/README.md) | — | MD | Older benchmark results |
 
 ### 🛠️ Developer guides
 
 | # | Document | Lines | Format | One-line pitch |
 |:---:|---|:---:|:---:|---|
-| 19 | [`docs/04_DEV_INTEGRATION_GUIDE.md`](04_DEV_INTEGRATION_GUIDE.md) | — | MD | Production integration patterns |
-| 20 | [`docs/05_SHIPPING_GUIDE.md`](05_SHIPPING_GUIDE.md) | — | MD | Shipping/deployment guide |
-| 21 | [`docs/12_V7_TUTORIAL.md`](12_V7_TUTORIAL.md) | — | MD | V7 hands-on tutorial |
-| 22 | [`docs/13_V7_MIGRATION_GUIDE.md`](13_V7_MIGRATION_GUIDE.md) | — | MD | V6 → V7 migration |
-| 23 | [`docs/33_QUICK_START.md`](33_QUICK_START.md) | — | MD | 5-minute quick start |
-| 24 | [`docs/29_DEPLOYEMENT.md`](29_DEPLOYEMENT.md) | — | MD | Deployment guide |
-| 25 | [`docs/32_CUDA_SETUP.md`](32_CUDA_SETUP.md) | — | MD | CUDA setup |
-| 26 | [`mathir_dropin/README.md`](../mathir_dropin/README.md) | — | MD | Drop-in memory module |
-| 27 | [`vision_testing/README.md`](../vision_testing/README.md) | — | MD | Vision/audio testing |
+| 16 | [`docs/04_DEV_INTEGRATION_GUIDE.md`](04_DEV_INTEGRATION_GUIDE.md) | — | MD | Production integration patterns |
+| 17 | [`docs/05_SHIPPING_GUIDE.md`](05_SHIPPING_GUIDE.md) | — | MD | Shipping/deployment guide |
+| 18 | [`docs/12_V7_TUTORIAL.md`](12_V7_TUTORIAL.md) | — | MD | V7 hands-on tutorial |
+| 19 | [`docs/13_V7_MIGRATION_GUIDE.md`](13_V7_MIGRATION_GUIDE.md) | — | MD | V6 → V7 migration |
+| 20 | [`docs/33_QUICK_START.md`](33_QUICK_START.md) | — | MD | 5-minute quick start |
+| 21 | [`docs/32_CUDA_SETUP.md`](32_CUDA_SETUP.md) | — | MD | CUDA setup |
+| 22 | [`mathir_dropin/README.md`](../mathir_dropin/README.md) | — | MD | Drop-in memory module |
+| 23 | [`vision_testing/README.md`](../vision_testing/README.md) | — | MD | Vision/audio testing |
 
 ### 🔍 Comparisons & analysis
 
 | # | Document | Lines | Format | One-line pitch |
 |:---:|---|:---:|:---:|---|
-| 28 | [`docs/22_MATHIR_VS_RAG_COMPARISON.md`](22_MATHIR_VS_RAG_COMPARISON.md) | — | MD | MATHIR vs RAG |
-| 29 | [`docs/38_MATHIR_VS_RAG_COMPARISON.html`](38_MATHIR_VS_RAG_COMPARISON.html) | 410 | HTML | Same, visual format |
-| 30 | [`docs/08_WHY_SAME_RESULTS.md`](08_WHY_SAME_RESULTS.md) | — | MD | Why two methods give same results |
-| 31 | [`docs/analysis/mathir_v71_failure_analysis.md`](analysis/mathir_v71_failure_analysis.md) | — | MD | V7.1 failure analysis |
+| 24 | [`docs/22_MATHIR_VS_RAG_COMPARISON.md`](22_MATHIR_VS_RAG_COMPARISON.md) | — | MD | MATHIR vs RAG |
+| 25 | [`docs/38_MATHIR_VS_RAG_COMPARISON.html`](38_MATHIR_VS_RAG_COMPARISON.html) | 410 | HTML | Same, visual format |
+| 26 | [`docs/08_WHY_SAME_RESULTS.md`](08_WHY_SAME_RESULTS.md) | — | MD | Why two methods give same results |
+| 27 | [`docs/analysis/mathir_v71_failure_analysis.md`](analysis/mathir_v71_failure_analysis.md) | — | MD | V7.1 failure analysis |
 
 ### 🤖 AI agent / dev context
 
 | # | Document | Lines | Format | One-line pitch |
 |:---:|---|:---:|:---:|---|
-| 32 | [`AGENT.md`](../AGENT.md) | — | MD | Quick reference for AI agents |
-| 33 | [`vision_testing/SWARM_CONTEXT_VISION.md`](../vision_testing/SWARM_CONTEXT_VISION.md) | — | MD | Vision testing swarm context |
-| 34 | [`vision_testing/MODEL_RESEARCH.md`](../vision_testing/MODEL_RESEARCH.md) | — | MD | Vision model research |
-| 35 | [`docs/00_README.md`](00_README.md) | — | MD | Docs index (this file's predecessor) |
+| 28 | [`AGENT.md`](../AGENT.md) | — | MD | Quick reference for AI agents |
+| 29 | [`vision_testing/SWARM_CONTEXT_VISION.md`](../vision_testing/SWARM_CONTEXT_VISION.md) | — | MD | Vision testing swarm context |
+| 30 | [`vision_testing/MODEL_RESEARCH.md`](../vision_testing/MODEL_RESEARCH.md) | — | MD | Vision model research |
+| 31 | [`docs/00_README.md`](00_README.md) | — | MD | Docs index (this file) |
 
 ### 📚 Specialized topics
 
 | # | Document | Lines | Format | One-line pitch |
 |:---:|---|:---:|:---:|---|
-| 36 | [`docs/02_MASTER_REFERENCE.md`](02_MASTER_REFERENCE.md) | — | MD | Master reference manual |
-| 37 | [`docs/06_MULTIMODAL_MEMORY_GUIDE.md`](06_MULTIMODAL_MEMORY_GUIDE.md) | — | MD | Multimodal (text+image+audio) memory |
-| 38 | [`docs/20_MATHIR.md`](20_MATHIR.md) | — | MD | MATHIR deep dive |
-| 39 | [`docs/27_IMPROVEMENTS_V5.md`](27_IMPROVEMENTS_V5.md) | — | MD | V5 improvements |
-| 40 | [`docs/28_HOW_TRAINING_WORKS.md`](28_HOW_TRAINING_WORKS.md) | — | MD | How training works |
-| 41 | [`docs/LATIN_NOMENCLATURE_RESEARCH.md`](LATIN_NOMENCLATURE_RESEARCH.md) | — | MD | Latin naming conventions |
-| 42 | [`mathir_dropin/DESIGN_latin_nomenclature.md`](../mathir_dropin/DESIGN_latin_nomenclature.md) | — | MD | Latin nomenclature design |
-| 43 | [`mathir_lib/README_using_auto_config_tool.md`](../mathir_lib/README_using_auto_config_tool.md) | — | MD | Auto config tool |
-| 44 | [`docs/visualizations/visual_report.html`](visualizations/visual_report.html) | — | HTML | Visual report (older) |
-| 45 | [`docs/visualizations/README.md`](visualizations/README.md) | — | MD | Visualizations index |
+| 32 | [`docs/02_MASTER_REFERENCE.md`](02_MASTER_REFERENCE.md) | — | MD | Master reference manual |
+| 33 | [`docs/06_MULTIMODAL_MEMORY_GUIDE.md`](06_MULTIMODAL_MEMORY_GUIDE.md) | — | MD | Multimodal (text+image+audio) memory |
+| 34 | [`docs/28_HOW_TRAINING_WORKS.md`](28_HOW_TRAINING_WORKS.md) | — | MD | How training works |
+| 35 | [`docs/LATIN_NOMENCLATURE_RESEARCH.md`](LATIN_NOMENCLATURE_RESEARCH.md) | — | MD | Latin naming conventions |
+| 36 | [`mathir_dropin/DESIGN_latin_nomenclature.md`](../mathir_dropin/DESIGN_latin_nomenclature.md) | — | MD | Latin nomenclature design |
+| 37 | [`mathir_lib/README_using_auto_config_tool.md`](../mathir_lib/README_using_auto_config_tool.md) | — | MD | Auto config tool |
+| 38 | [`docs/visualizations/visual_report.html`](visualizations/visual_report.html) | — | HTML | Visual report (older) |
+| 39 | [`docs/visualizations/README.md`](visualizations/README.md) | — | MD | Visualizations index |
 
 ---
 
@@ -187,9 +181,10 @@
 
 | Metric | Value |
 |---|---|
-| **Total documents** | 45+ |
-| **Total content** | ~8 000 lines / ~600 KB |
-| **Papers / formal writeups** | 4 (LaTeX + MD) |
+| **Total current documents** | 39 (was 45 — 6 legacy archived) |
+| **Total content** | ~7 000 lines / ~520 KB |
+| **Legacy archived** | 6 files in [`_archive/legacy_docs/`](../_archive/legacy_docs/) (V5 era + V7 drafts) |
+| **Papers / formal writeups** | 2 (1 LaTeX + 1 MD) |
 | **Theorem proofs** | 6 (Neyman-Pearson, Sinkhorn-Knopp, JL, Robbins-Monro, RIP, Ebbinghaus) |
 | **Use-case analyses** | 2 (chat, autonomous driving) |
 | **Q&A items** | 63 |
