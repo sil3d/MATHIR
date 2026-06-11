@@ -2,6 +2,11 @@
 server.py — Serveur Flask + WebSocket du MATHIR Stress Test
 Lance avec: python stress_test/server.py
 Ouvre: http://localhost:5000
+
+Architecture:
+  - Thread 1 (storage): génère + stocke les conversations (interval configurable)
+  - Thread 2 (metrics): pousse les métriques toutes les 500ms (temps réel)
+  - GPU: auto-detect CUDA, embeddings sur GPU si disponible
 """
 
 import os
@@ -25,6 +30,23 @@ from stress_test.generator import ConversationGenerator
 app = Flask(__name__, static_folder="static", template_folder="static")
 app.config["SECRET_KEY"] = "mathir-stress-test"
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+
+
+# ============================================================
+# GPU Detection
+# ============================================================
+
+def detect_gpu():
+    """Detecte le GPU disponible et retourne (device, info_string)"""
+    try:
+        import torch
+        if torch.cuda.is_available():
+            device_name = torch.cuda.get_device_name(0)
+            vram_mb = torch.cuda.get_device_properties(0).total_memory / 1024 / 1024
+            return torch.device("cuda"), f"CUDA: {device_name} ({vram_mb:.0f}MB VRAM)"
+    except (ImportError, RuntimeError):
+        pass
+    return None, "CPU only (no CUDA)"
 
 
 # ============================================================
@@ -53,10 +75,13 @@ class StressTest:
         self.metrics = None
         self.generator = ConversationGenerator()
         self.conversations_sent = 0
-        self._thread = None
+        self._storage_thread = None
+        self._metrics_thread = None
         self._db_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "stress_memory.db"
         )
+        # Detect GPU at init time (not just at start)
+        self._device, self._gpu_info = detect_gpu()
 
     def start(self, config=None):
         """Démarre le stress test"""
@@ -65,6 +90,10 @@ class StressTest:
 
         if config:
             self.config.update(config)
+
+        # Detect GPU
+        self._device, self._gpu_info = detect_gpu()
+        self._log("info", f"Device: {self._gpu_info}")
 
         # Init MATHIR 4-tier memory
         self.memory = None
@@ -77,10 +106,13 @@ class StressTest:
                 db_path=self._db_path,
             )
             self._log("info", f"MATHIR 4-tier memory initialized (dim={self._embedding_dim})")
+            print(f"[INIT] MATHIR memory OK: {type(self.memory)}")
         except ImportError:
             self._log("warn", "mathir_dropin not available, using raw sqlite3 fallback")
+            print("[INIT] MATHIR import FAILED, using raw sqlite3")
         except Exception as e:
             self._log("warn", f"MATHIR init failed: {e}, using raw sqlite3 fallback")
+            print(f"[INIT] MATHIR init FAILED: {e}")
 
         # Init metrics
         self.metrics = MetricsCollector(self._db_path)
@@ -94,8 +126,13 @@ class StressTest:
         self.paused = False
         self.conversations_sent = 0
 
-        self._thread = threading.Thread(target=self._run_loop, daemon=True)
-        self._thread.start()
+        # Thread 1: Storage (configurable interval)
+        self._storage_thread = threading.Thread(target=self._storage_loop, daemon=True)
+        self._storage_thread.start()
+
+        # Thread 2: Metrics push (500ms — real-time feel)
+        self._metrics_thread = threading.Thread(target=self._metrics_loop, daemon=True)
+        self._metrics_thread.start()
 
         self._log("info", f"Stress test started — batch={self.config['batch_size']}, interval={self.config['interval_seconds']}s")
         socketio.emit("status_update", {"status": "running"})
@@ -105,8 +142,10 @@ class StressTest:
         """Arrête le stress test"""
         self.running = False
         self.paused = False
-        if self._thread:
-            self._thread.join(timeout=5)
+        if self._storage_thread:
+            self._storage_thread.join(timeout=5)
+        if self._metrics_thread:
+            self._metrics_thread.join(timeout=5)
         self._log("warn", f"Stress test stopped — {self.conversations_sent} conversations injected")
         socketio.emit("status_update", {"status": "stopped"})
         return {"status": "stopped"}
@@ -124,15 +163,18 @@ class StressTest:
     def update_config(self, config):
         """Met à jour la config en temps réel"""
         self.config.update(config)
-        # Regenerate with new anomaly rate
         self.generator = ConversationGenerator(
             anomaly_rate=self.config.get("anomaly_rate", 0.10)
         )
         self._log("info", f"Config updated: batch={self.config['batch_size']}, interval={self.config['interval_seconds']}s, anomaly={self.config['anomaly_rate']:.0%}")
         return {"status": "updated"}
 
-    def _run_loop(self):
-        """Boucle principale du stress test (thread séparé)"""
+    # ============================================================
+    # Thread 1: Storage loop (configurable interval)
+    # ============================================================
+
+    def _storage_loop(self):
+        """Boucle de stockage — génère et stocke les conversations"""
         while self.running:
             if self.paused:
                 time.sleep(0.5)
@@ -146,75 +188,103 @@ class StressTest:
                 for conv in batch:
                     self._store_conversation(conv)
 
-                # 2b. Recall benchmark (every 50 conversations)
+                # 3. Recall benchmark (every 50 conversations)
                 if self.conversations_sent > 0 and self.conversations_sent % 50 == 0:
                     self._benchmark_recall()
 
-                # 3. Collect metrics
-                snapshot = self.metrics.collect()
-
-                # 4. Push to WebSocket
-                history_data = []
-                for s in self.metrics.history[-120:]:
-                    history_data.append({
-                        "x": s.timestamp,
-                        "y": s.ram_mb,
-                        "ram_mb": s.ram_mb,
-                        "db_size_mb": s.db_size_mb,
-                        "recall_latency_ms": s.recall_latency_ms,
-                        "conversations": s.conversations_total,
-                    })
-
-                socketio.emit("metrics_update", {
-                    "ram_mb": snapshot.ram_mb,
-                    "gpu_mb": snapshot.gpu_mb,
-                    "db_size_mb": snapshot.db_size_mb,
-                    "conversations": self.conversations_sent,
-                    "tokens": snapshot.tokens_total,
-                    "recall_latency_ms": snapshot.recall_latency_ms,
-                    "errors": snapshot.errors,
-                    "cpu_percent": snapshot.cpu_percent,
-                    "peak_ram_mb": snapshot.peak_ram_mb,
-                    "throughput_conv_per_sec": snapshot.throughput_conv_per_sec,
-                    "db_write_latency_ms": snapshot.db_write_latency_ms,
-                    "uptime_seconds": snapshot.uptime_seconds,
-                    "tier_working": snapshot.tier_working,
-                    "tier_episodic": snapshot.tier_episodic,
-                    "tier_semantic": snapshot.tier_semantic,
-                    "tier_immune": snapshot.tier_immune,
-                    "history": history_data,
-                })
-
-                # 5. Log every 10 batches
-                if self.conversations_sent % (self.config["batch_size"] * 10) == 0:
+                # 4. Log every 10 batches
+                if self.conversations_sent % (self.config["batch_size"] * 10) == 0 and self.conversations_sent > 0:
                     rates = self.metrics.get_growth_rates()
-                    self._log("info",
-                        f"Convos: {self.conversations_sent:,} | "
-                        f"RAM: {snapshot.ram_mb:.0f}MB ({rates['ram_mb_per_hour']:+.0f}MB/h) | "
-                        f"DB: {snapshot.db_size_mb:.1f}MB ({rates['db_mb_per_hour']:+.1f}MB/h) | "
-                        f"Recall: {snapshot.recall_latency_ms:.0f}ms"
-                    )
+                    snap = self.metrics.history[-1] if self.metrics.history else None
+                    if snap:
+                        self._log("info",
+                            f"Convos: {self.conversations_sent:,} | "
+                            f"RAM: {snap.ram_mb:.0f}MB ({rates['ram_mb_per_hour']:+.0f}MB/h) | "
+                            f"DB: {snap.db_size_mb:.1f}MB ({rates['db_mb_per_hour']:+.1f}MB/h) | "
+                            f"Recall: {snap.recall_latency_ms:.0f}ms"
+                        )
 
             except Exception as e:
                 self.metrics.increment_errors()
-                self._log("error", f"Error in run loop: {e}")
+                self._log("error", f"Error in storage loop: {e}")
 
-            # Sleep
             time.sleep(self.config["interval_seconds"])
+
+    # ============================================================
+    # Thread 2: Metrics push (500ms — real-time)
+    # ============================================================
+
+    def _metrics_loop(self):
+        """Boucle de métriques — pousse les données toutes les 500ms"""
+        while self.running:
+            if self.paused:
+                time.sleep(0.5)
+                continue
+
+            try:
+                if self.metrics:
+                    snapshot = self.metrics.collect()
+
+                    # Build history for charts (last 120 points)
+                    history_data = []
+                    for s in self.metrics.history[-120:]:
+                        history_data.append({
+                            "x": s.timestamp,
+                            "y": s.ram_mb,
+                            "ram_mb": s.ram_mb,
+                            "db_size_mb": s.db_size_mb,
+                            "recall_latency_ms": s.recall_latency_ms,
+                            "conversations": s.conversations_total,
+                        })
+
+                    socketio.emit("metrics_update", {
+                        "ram_mb": snapshot.ram_mb,
+                        "gpu_mb": snapshot.gpu_mb,
+                        "db_size_mb": snapshot.db_size_mb,
+                        "conversations": self.conversations_sent,
+                        "tokens": snapshot.tokens_total,
+                        "recall_latency_ms": snapshot.recall_latency_ms,
+                        "errors": snapshot.errors,
+                        "cpu_percent": snapshot.cpu_percent,
+                        "peak_ram_mb": snapshot.peak_ram_mb,
+                        "throughput_conv_per_sec": snapshot.throughput_conv_per_sec,
+                        "db_write_latency_ms": snapshot.db_write_latency_ms,
+                        "uptime_seconds": snapshot.uptime_seconds,
+                        "tier_working": snapshot.tier_working,
+                        "tier_episodic": snapshot.tier_episodic,
+                        "tier_semantic": snapshot.tier_semantic,
+                        "tier_immune": snapshot.tier_immune,
+                        "history": history_data,
+                    })
+
+            except Exception as e:
+                pass  # Don't spam errors on metrics thread
+
+            time.sleep(0.5)  # 500ms = real-time feel
+
+    # ============================================================
+    # Storage
+    # ============================================================
 
     def _store_conversation(self, conv):
         """Stocke une conversation dans MATHIR avec routing par tier"""
         msg = conv["user_message"]
         tiers = self.config.get("tiers_enabled", {})
 
+        # Debug: log first call to verify memory state
+        if self.conversations_sent == 0:
+            print(f"[STORE DEBUG] memory={self.memory is not None}, tiers={tiers}, dim={self._embedding_dim}")
+
         if self.memory is not None:
             try:
                 import torch
-                # Créer un embedding à partir du texte (hash → vecteur déterministe)
-                # Pour un stress test, on utilise un embedding déterministe basé sur le hash du texte
+
+                # Créer un embedding déterministe basé sur le hash du texte
+                # Toujours sur CPU — les couches MATHIR sont sur CPU
                 text_hash = hash(msg) % (2**31)
-                torch.manual_seed(text_hash)
-                emb = torch.randn(1, self._embedding_dim)
+                gen = torch.Generator()
+                gen.manual_seed(text_hash)
+                emb = torch.randn(1, self._embedding_dim, generator=gen)
 
                 # Déterminer le tier selon le type de conversation
                 if conv.get("is_anomaly"):
@@ -236,9 +306,18 @@ class StressTest:
                     )
                     self.metrics.record_write_latency(time.perf_counter() - t0)
                     self.metrics.increment_tier(tier)
+                else:
+                    if self.metrics.error_count <= 3:
+                        self._log("error", f"Tier '{tier}' disabled in config. tiers={list(tiers.keys())}")
+                        print(f"[TIER DEBUG] tier={tier}, tiers_enabled={tiers}")
 
             except Exception as e:
                 self.metrics.increment_errors()
+                if self.metrics.error_count <= 3:
+                    import traceback
+                    tb = traceback.format_exc()
+                    self._log("error", f"Store failed ({type(e).__name__}): {e}")
+                    print(f"[STORE ERROR] {tb}")
         else:
             # Fallback: raw sqlite3
             self._raw_store(msg)
@@ -277,14 +356,12 @@ class StressTest:
             return
 
         try:
-            # Requêtes de test variées
             queries = ["Python", "bug", "réunion", "MATHIR", "memory"]
             start = time.perf_counter()
             for q in queries:
                 self.memory.recall_text(query_text=q, k=3)
             elapsed_ms = (time.perf_counter() - start) * 1000 / len(queries)
 
-            # Mettre à jour la métrique de latence
             if self.metrics.history:
                 self.metrics.history[-1].recall_latency_ms = round(elapsed_ms, 2)
         except Exception:
@@ -311,7 +388,6 @@ class StressTest:
         rates = self.metrics.get_growth_rates()
         snapshots = self.metrics.history
 
-        # Build chart data
         ram_data = json.dumps([{"x": i, "y": s.ram_mb} for i, s in enumerate(snapshots[-200:])])
         db_data = json.dumps([{"x": i, "y": s.db_size_mb} for i, s in enumerate(snapshots[-200:])])
         recall_data = json.dumps([{"x": i, "y": s.recall_latency_ms} for i, s in enumerate(snapshots[-200:])])
@@ -330,7 +406,7 @@ h1 {{ color: #6366f1; }}
 canvas {{ height: 200px !important; }}
 </style></head><body>
 <h1>MATHIR Stress Test Report</h1>
-<p>Generated: {time.strftime("%Y-%m-%d %H:%M:%S")} | Duration: {self.metrics.get_uptime_seconds():.0f}s | Conversations: {self.conversations_sent:,}</p>
+<p>Generated: {time.strftime("%Y-%m-%d %H:%M:%S")} | Device: {self._gpu_info} | Duration: {self.metrics.get_uptime_seconds():.0f}s | Conversations: {self.conversations_sent:,}</p>
 <div class="grid">
   <div class="card"><h3>Peak RAM</h3><div class="value">{max((s.ram_mb for s in snapshots), default=0):.0f} MB</div></div>
   <div class="card"><h3>Final DB Size</h3><div class="value">{snapshots[-1].db_size_mb if snapshots else 0:.1f} MB</div></div>
@@ -420,6 +496,7 @@ def api_status():
         "status": "running" if stress.running else ("paused" if stress.paused else "stopped"),
         "conversations": stress.conversations_sent,
         "uptime": stress.metrics.get_uptime_seconds() if stress.metrics else 0,
+        "gpu": stress._gpu_info,
     })
 
 
@@ -460,8 +537,10 @@ def on_disconnect():
 # ============================================================
 
 if __name__ == "__main__":
+    device, gpu_info = detect_gpu()
     print("=" * 50)
     print("  MATHIR Stress Test")
+    print(f"  Device: {gpu_info}")
     print("  http://localhost:5000")
     print("=" * 50)
     socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True)
