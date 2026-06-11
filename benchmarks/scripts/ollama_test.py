@@ -7,7 +7,7 @@ Handles Unicode in responses.
 import json, time, urllib.request, urllib.error
 from datetime import datetime
 import sys, os
-sys.path.insert(0, "D:/SECRET_PROJECT/MATHIR")
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 import warnings; warnings.filterwarnings('ignore')
 
 import torch
@@ -187,7 +187,7 @@ print(f"Working Ollama models: {len(working_models)}/{len(USER_MODELS)}")
 print(f"  {', '.join(working_models)}")
 print(f"\nRetrieval success: {sum(1 for r in retrieval_results if r.get('found'))}/{len(retrieval_results)}")
 
-print("\nResults saved to: D:/SECRET_PROJECT/MATHIR/benchmarks/ollama_test_results.json")
+print(f"\nResults saved to: {os.path.join(os.path.dirname(os.path.abspath(__file__)), \"..\", \"results\", \"ollama_test_results.json\")}")
 
 # Save
 results = {
@@ -197,5 +197,5 @@ results = {
     "retrieval_results": retrieval_results,
     "retrieval_success_rate": f"{sum(1 for r in retrieval_results if r.get('found'))}/{len(retrieval_results)}",
 }
-with open("D:/SECRET_PROJECT/MATHIR/benchmarks/ollama_test_results.json", "w") as f:
+with open("os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results", "ollama_test_results.json"), "w") as f:
     json.dump(results, f, indent=2)

@@ -5,7 +5,7 @@ This fixes the failures from the original cross_provider_self_correction_test.py
 import warnings
 warnings.filterwarnings('ignore')
 import sys
-sys.path.insert(0, 'D:/SECRET_PROJECT/MATHIR')
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 
 from mathir_dropin import MATHIRMemory
 import torch
@@ -141,6 +141,6 @@ results_json = {
     "total_tests": 5,
     "overall_pass": total >= 4
 }
-with open("D:/SECRET_PROJECT/MATHIR/benchmarks/universal_recall_results.json", "w") as f:
+with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results", "universal_recall_results.json"), "w") as f:
     json.dump(results_json, f, indent=2)
-print(f"\nResults saved to: D:/SECRET_PROJECT/MATHIR/benchmarks/universal_recall_results.json")
+print(f"\nResults saved to: {os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'results', 'universal_recall_results.json')}")

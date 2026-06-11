@@ -14,7 +14,7 @@ print("=" * 60)
 # Setup MATHIR
 print("\n[1/4] Setting up MATHIR...")
 try:
-    sys.path.insert(0, "D:/SECRET_PROJECT/MATHIR")
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
     from mathir_dropin import MATHIRMemory
     import torch
     mathir = MATHIRMemory(embedding_dim=1024, db_path="mathir_local_benchmark.db")
@@ -157,7 +157,7 @@ results["summary"] = {
 }
 
 # Save
-output = "D:/SECRET_PROJECT/MATHIR/benchmarks/openrouter_stress_results.json"
+output = "os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results", "openrouter_stress_results.json")
 with open(output, "w") as f:
     json.dump(results, f, indent=2)
 

@@ -254,7 +254,7 @@ if __name__ == "__main__":
             })
         time.sleep(2)
 
-    output_path = "D:/SECRET_PROJECT/MATHIR/benchmarks/openrouter_stress_results.json"
+    output_path = "os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results", "openrouter_stress_results.json")
     with open(output_path, "w") as f:
         json.dump(all_results, f, indent=2)
 

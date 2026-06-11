@@ -3,7 +3,7 @@ MATHIR Latin Name Demo - shows new capabilities
 """
 import warnings; warnings.filterwarnings('ignore')
 import sys, os
-sys.path.insert(0, "D:/SECRET_PROJECT/MATHIR")
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 
 from mathir_dropin.latin_names import (
     parse_taxonomic_name,

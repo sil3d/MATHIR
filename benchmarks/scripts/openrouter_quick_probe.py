@@ -118,7 +118,7 @@ if __name__ == "__main__":
         time.sleep(1)  # small delay between probes
 
         # Save after every model (in case of crash)
-        with open("D:/SECRET_PROJECT/MATHIR/benchmarks/openrouter_free_model_probe.json", "w") as f:
+        with open("os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results", "openrouter_free_model_probe.json"), "w") as f:
             json.dump({
                 "timestamp": datetime.now().isoformat(),
                 "results": results,
@@ -138,4 +138,4 @@ if __name__ == "__main__":
         r = next(r for r in results if r["model"] == m)
         print(f"  - {m} ({r['status']})")
 
-    print(f"\nSaved to: D:/SECRET_PROJECT/MATHIR/benchmarks/openrouter_free_model_probe.json")
+    print(f"\nSaved to: {os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'results', 'openrouter_free_model_probe.json')}")

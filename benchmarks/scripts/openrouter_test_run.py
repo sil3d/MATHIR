@@ -32,7 +32,7 @@ if r.startswith("HTTP"):
 
 print("[2/5] Setting up MATHIR...")
 try:
-    sys.path.insert(0, "D:/SECRET_PROJECT/MATHIR")
+    sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
     from mathir_dropin import MATHIRMemory
     import torch
     mathir = MATHIRMemory(embedding_dim=1024, db_path="mathir_openrouter.db")
@@ -125,7 +125,7 @@ for scenario in scenarios:
     time.sleep(3)
 
 print("\n[5/5] Saving results...")
-output = "D:/SECRET_PROJECT/MATHIR/benchmarks/openrouter_stress_results.json"
+output = "os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results", "openrouter_stress_results.json")
 with open(output, "w") as f:
     json.dump(results, f, indent=2)
 

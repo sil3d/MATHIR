@@ -159,7 +159,7 @@ def run_mathir_benchmark(working_models):
         # Setup MATHIR
         try:
             import sys
-            sys.path.insert(0, "D:/SECRET_PROJECT/MATHIR")
+            sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
             from mathir_dropin import MATHIRMemory
             import torch
             mathir = MATHIRMemory(embedding_dim=1024, db_path=f"mathir_{model.split('/')[-1].replace(':','_')}.db")
@@ -281,7 +281,7 @@ if __name__ == "__main__":
         all_results["benchmarks"] = benchmarks
 
     # Save results
-    output_path = "D:/SECRET_PROJECT/MATHIR/benchmarks/openrouter_free_model_probe.json"
+    output_path = "os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results", "openrouter_free_model_probe.json")
     with open(output_path, "w") as f:
         json.dump(all_results, f, indent=2)
 

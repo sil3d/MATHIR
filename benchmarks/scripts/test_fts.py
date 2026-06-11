@@ -1,7 +1,7 @@
 import warnings
 warnings.filterwarnings('ignore')
 import sys
-sys.path.insert(0, 'D:/SECRET_PROJECT/MATHIR')
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
 from mathir_dropin import MATHIRMemory
 import torch
 

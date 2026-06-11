@@ -4,7 +4,7 @@ Test Ollama models ONE BY ONE - showing each model's result clearly.
 """
 import json, time, urllib.request, urllib.error
 import sys, os
-sys.path.insert(0, "D:/SECRET_PROJECT/MATHIR")
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 import warnings; warnings.filterwarnings('ignore')
 
 import torch
@@ -113,5 +113,5 @@ for r in all_results:
 print("=" * 70)
 
 # Save
-with open("D:/SECRET_PROJECT/MATHIR/benchmarks/ollama_one_by_one.json", "w") as f:
+with open("os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results", "ollama_one_by_one.json"), "w") as f:
     json.dump(all_results, f, indent=2)

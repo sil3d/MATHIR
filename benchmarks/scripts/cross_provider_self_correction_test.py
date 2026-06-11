@@ -15,7 +15,7 @@ Test B: Self-Correction Loop
 import json, time, sys, os
 from datetime import datetime
 
-sys.path.insert(0, "D:/SECRET_PROJECT/MATHIR")
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -440,7 +440,7 @@ if __name__ == "__main__":
     }
 
     # Save results
-    output_path = "D:/SECRET_PROJECT/MATHIR/benchmarks/cross_provider_self_correction_results.json"
+    output_path = "os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results", "cross_provider_self_correction_results.json")
     with open(output_path, "w") as f:
         json.dump(results, f, indent=2)
 

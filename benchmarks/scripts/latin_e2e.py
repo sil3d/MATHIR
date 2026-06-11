@@ -5,7 +5,7 @@ Uses the same embedding model for store and query (no random vectors).
 import warnings; warnings.filterwarnings('ignore')
 import sys, os
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-sys.path.insert(0, "D:/SECRET_PROJECT/MATHIR")
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 
 import torch
 from sentence_transformers import SentenceTransformer

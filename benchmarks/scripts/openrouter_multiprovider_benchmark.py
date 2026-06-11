@@ -84,7 +84,7 @@ SCENARIOS = [
 def setup_mathir():
     try:
         import sys
-        sys.path.insert(0, "D:/SECRET_PROJECT/MATHIR")
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
         from mathir_dropin import MATHIRMemory
         import torch
         mathir = MATHIRMemory(embedding_dim=1024, db_path="mathir_multiprovider.db")
@@ -276,7 +276,7 @@ if __name__ == "__main__":
         time.sleep(3)
 
     # Save
-    output = "D:/SECRET_PROJECT/MATHIR/benchmarks/openrouter_multiprovider_results.json"
+    output = "os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results", "openrouter_multiprovider_results.json")
     with open(output, "w") as f:
         json.dump(all_results, f, indent=2)
 
