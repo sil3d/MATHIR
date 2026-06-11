@@ -669,12 +669,30 @@ cd vision_testing && python start_ui.py
 
 ## 📚 Documentation
 
+> **📖 New here? See the [Complete Documentation Index](docs/00_README.md)** — 45+ documents organized by audience (CTO / researcher / developer / theorist), with reading paths for 10 min, 1 hour, 3 hours, and full deep-dive.
+
+### Top 7 "Hidden Gems"
+
+| # | Document | Lines | What it is |
+|:---:|---|:---:|---|
+| 1 | [`README.md`](README.md) | 510 | The pitch (you are here) |
+| 2 | [`MATHIR_FINAL_REPORT.md`](MATHIR_FINAL_REPORT.md) | 348 | All benchmark numbers |
+| 3 | [`docs/03_MASTER_QA_GUIDE.md`](docs/03_MASTER_QA_GUIDE.md) | **637** | **63 Q&A** for CTO defense |
+| 4 | [`docs/07_MATHIR_VS_VECTORDB_USE_CASES.md`](docs/07_MATHIR_VS_VECTORDB_USE_CASES.md) | **454** | **MATHIR vs FAISS** on chat + autonomous driving |
+| 5 | [`docs/MATHIR_Research_Paper.tex`](docs/MATHIR_Research_Paper.tex) | **1 130** | **LaTeX paper** — peer-review ready |
+| 6 | [`docs/09_THEORY_V7.md`](docs/09_THEORY_V7.md) | **699** | **6 theorems with proofs** |
+| 7 | [`docs/01_MASTER_RESEARCH_PAPER.md`](docs/01_MASTER_RESEARCH_PAPER.md) | **2 155** | **Doctoral research paper** — 145 KB |
+
+### Quick links
+
 | Document | Description |
 |---|---|
 | 📄 [`docs/MATHIR_Research_Paper.tex`](docs/MATHIR_Research_Paper.tex) | LaTeX paper for scientific review |
-| 📖 [`docs/01_MASTER_RESEARCH_PAPER.md`](docs/01_MASTER_RESEARCH_PAPER.md) | Full research paper (Markdown) |
-| 📊 [`benchmarks/MATHIR_FINAL_REPORT.html`](benchmarks/MATHIR_FINAL_REPORT.html) | Visual benchmark report (HTML) |
+| 📖 [`docs/01_MASTER_RESEARCH_PAPER.md`](docs/01_MASTER_RESEARCH_PAPER.md) | Full research paper (Markdown, 145 KB) |
+| 📊 [`benchmarks/MATHIR_FINAL_REPORT.html`](benchmarks/MATHIR_FINAL_REPORT.html) | Visual benchmark report (HTML, interactive charts) |
 | 📊 [`benchmarks/MATHIR_FINAL_REPORT.md`](benchmarks/MATHIR_FINAL_REPORT.md) | Benchmark report (Markdown) |
+| 🎯 [`docs/03_MASTER_QA_GUIDE.md`](docs/03_MASTER_QA_GUIDE.md) | 63 Q&A for defense / evaluation |
+| 🆚 [`docs/07_MATHIR_VS_VECTORDB_USE_CASES.md`](docs/07_MATHIR_VS_VECTORDB_USE_CASES.md) | MATHIR vs FAISS use cases |
 | 🔬 [`docs/09_THEORY_V7.md`](docs/09_THEORY_V7.md) | Mathematical proofs (6 theorems) |
 | 📘 [`docs/12_V7_TUTORIAL.md`](docs/12_V7_TUTORIAL.md) | V7 usage tutorial |
 | 🤖 [`AGENT.md`](AGENT.md) | Quick reference for AI agents |

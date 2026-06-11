@@ -1,124 +1,221 @@
-# 📚 MATHIR — Documentation Hub
+# 📚 MATHIR — Complete Documentation Index
 
-**Welcome to the MATHIR documentation.**
-
-This is the entry point for everything in `docs/`. All files are numbered
-for easy reading order. Start at the top, or jump straight to what you need
-in the table below.
+> **Every document in the MATHIR project, organized by audience and purpose.**
+> If a visitor only reads **one** page from this index, they should walk away knowing what MATHIR is, what it isn't, and where to go next.
 
 ---
 
-## 🗂️ Index — Pick What You Need
+## 🚀 Start Here (5 minutes)
 
-### 🎓 For the Doctoral Defense
-
-| # | File | What's in it |
-|---|------|--------------|
-| **01** | [`01_RESEARCH_PAPER.md`](01_RESEARCH_PAPER.md) | The 21 000-word doctoral paper. **Read this first.** |
-| **02** | [`02_REFERENCE.md`](02_REFERENCE.md) | The single-file complete reference (5 800 words). Quick refresh. |
-| **03** | [`03_QA_GUIDE.md`](03_QA_GUIDE.md) | 100+ defense Q&A — every tough question answered. |
-| **08** | [`08_THEORY_V7.md`](08_THEORY_V7.md) | The 6 formal theorems (capacity, retention, router, anomaly, sparse, mHC). |
-| **09** | [`09_V7_PAPER.md`](09_V7_PAPER.md) | NeurIPS-style V7 paper (12 000+ words). |
-| **10** | [`10_PROOFS.md`](10_PROOFS.md) | Step-by-step proof of each theorem. |
-| **11** | [`11_TUTORIAL.md`](11_TUTORIAL.md) | Hands-on V7 tutorial (3 500 words). |
-
-### 🚀 For Production Deployment
-
-| # | File | What's in it |
-|---|------|--------------|
-| **04** | [`04_INTEGRATION_GUIDE.md`](04_INTEGRATION_GUIDE.md) | Developer guide — 7 provider recipes (5 200 words). |
-| **05** | [`05_SHIPPING_GUIDE.md`](05_SHIPPING_GUIDE.md) | How to ship: 1 folder, 3 lines, SQLite. |
-| **06** | [`06_MULTIMODAL_GUIDE.md`](06_MULTIMODAL_GUIDE.md) | Text, image, audio, video with CLIP, CLAP, ImageBind. |
-| **12** | [`12_MIGRATION_GUIDE.md`](12_MIGRATION_GUIDE.md) | Migrate from V6 to V7. |
-
-### 🧠 For the Research Community
-
-| # | File | What's in it |
-|---|------|--------------|
-| **07** | [`07_USE_CASES.md`](07_USE_CASES.md) | Chat + driving vs VectorDB. |
-| **13** | [`13_BENCHMARK_RESULTS.md`](13_BENCHMARK_RESULTS.md) | V7.1 retrieval-quality research results. |
-| **14** | [`14_WHY_SAME_RESULTS.md`](14_WHY_SAME_RESULTS.md) | Mathematical proof why A=C=FAISS (JL lemma) and D>FAISS. |
-| **15** | [`15_THEORY.md`](15_THEORY.md) | Early-stage theory (precursor to V7). |
-| **25b** | [`25b_BENCHMARK_V6_VS_V7.md`](25b_BENCHMARK_V6_VS_V7.md) | V6 vs V7 head-to-head. |
-| **25c** | [`25c_VS_RAG_COMPARISON.md`](25c_VS_RAG_COMPARISON.md) | MATHIR vs RAG. |
-| **26** | [`26_MATHIR_JOURNAL.md`](26_MATHIR_JOURNAL.md) | Scientific journal. |
-| **32** | [`32_MATHIR_VS_RAG.html`](32_MATHIR_VS_RAG.html) | HTML version of the RAG comparison. |
-
-### 🛠️ For Operators / DevOps
-
-| # | File | What's in it |
-|---|------|--------------|
-| **16** | [`16_DEPLOYMENT.md`](16_DEPLOYMENT.md) | Deployment guide (legacy). |
-| **17** | [`17_HOW_TRAINING_WORKS.md`](17_HOW_TRAINING_WORKS.md) | Training pipeline walk-through. |
-| **18** | [`18_OLLAMA_INTEGRATION.md`](18_OLLAMA_INTEGRATION.md) | Ollama integration (legacy). |
-| **19** | [`19_OLLAMA_SETUP.md`](19_OLLAMA_SETUP.md) | Ollama setup (legacy). |
-| **20** | [`20_CUDA_SETUP.md`](20_CUDA_SETUP.md) | CUDA / GPU setup. |
-| **21** | [`21_QUICK_START.md`](21_QUICK_START.md) | Quick start (canonical). |
-| **21a** | [`21a_QUICKSTART.md`](21a_QUICKSTART.md) | Quick start (alternate). |
-| **22** | [`22_KV_CACHE_RESEARCH.md`](22_KV_CACHE_RESEARCH.md) | KV-cache research report. |
-| **23** | [`23_RUST_ML_RESEARCH.md`](23_RUST_ML_RESEARCH.md) | Rust + ML research. |
-
-### 🕰️ Historical / Changelogs
-
-| # | File | What's in it |
-|---|------|--------------|
-| **27** | [`27_IMPROVEMENTS_V2.md`](27_IMPROVEMENTS_V2.md) | V2 changelog. |
-| **28** | [`28_IMPROVEMENTS_V3.md`](28_IMPROVEMENTS_V3.md) | V3 changelog. |
-| **29** | [`29_IMPROVEMENTS_V5.md`](29_IMPROVEMENTS_V5.md) | V5 changelog. |
-| **30** | [`30_JOURNAL_DE_BORD.md`](30_JOURNAL_DE_BORD.md) | French "journal de bord". |
-| **31** | [`31_PREUVES_MATH.tex`](31_PREUVES_MATH.tex) | LaTeX mathematical proofs. |
-| **33** | [`33_MATHIR.md`](33_MATHIR.md) | Early architecture document. |
-| **34** | [`34_GITHUB_ASSETS.md`](34_GITHUB_ASSETS.md) | GitHub repo assets & copy. |
-
-### 🖼️ Visualizations (separate sub-folder)
-
-- [`visualizations/`](visualizations/) — 8 PNG diagrams + `visual_report.html` + scripts.
-- Start with [`visualizations/README.md`](visualizations/README.md).
-- The self-contained HTML report is in
-  [`visualizations/visual_report.html`](visualizations/visual_report.html).
+| Order | Document | What you'll get |
+|:---:|---|---|
+| 1 | [`README.md`](../README.md) | Hero pitch, quick start, benchmarks, 2026 competitor comparison |
+| 2 | [`MATHIR_FINAL_REPORT.md`](../MATHIR_FINAL_REPORT.md) | 10-section visual report of all benchmark results |
+| 3 | [`CHANGELOG.md`](../CHANGELOG.md) | Version history, what changed in V7.7.1 |
 
 ---
 
-## 📊 Benchmark Results
+## 🎯 By Audience
 
-All benchmark JSONs now live in [`../results/`](../results/). See
-[`../results/README.md`](../results/README.md) for the full index of what
-each file contains and how to re-generate them.
+### 👔 "I'm a CTO / tech lead evaluating MATHIR for my stack"
+
+| Document | Lines | Time | Why read it |
+|---|:---:|:---:|---|
+| [`docs/03_MASTER_QA_GUIDE.md`](03_MASTER_QA_GUIDE.md) | **637** | 20 min | **63 Q&A** covering what MATHIR is, what it isn't, when to use it |
+| [`docs/07_MATHIR_VS_VECTORDB_USE_CASES.md`](07_MATHIR_VS_VECTORDB_USE_CASES.md) | **454** | 25 min | Side-by-side MATHIR vs FAISS on **chat** and **autonomous driving** |
+| [`MATHIR_FINAL_REPORT.md`](../MATHIR_FINAL_REPORT.md) | 348 | 15 min | Plain-English benchmark results with all numbers |
+
+### 🔬 "I'm a researcher / academic reviewer"
+
+| Document | Lines | Time | Why read it |
+|---|:---:|:---:|---|
+| [`docs/MATHIR_Research_Paper.tex`](MATHIR_Research_Paper.tex) | **1 130** | 90 min | **LaTeX paper** — 6 theorems, peer-review-ready |
+| [`docs/01_MASTER_RESEARCH_PAPER.md`](01_MASTER_RESEARCH_PAPER.md) | **2 155** | 3 h | **Doctoral-level research paper** — JL bottleneck, 4 candidate solutions |
+| [`docs/09_THEORY_V7.md`](09_THEORY_V7.md) | **699** | 2 h | **6 theorems proved from first principles** (Shannon, Robbins-Monro, Neyman-Pearson) |
+| [`benchmarks/MATHIR_FINAL_REPORT.html`](../benchmarks/MATHIR_FINAL_REPORT.html) | 1 793 | 30 min | **Visual benchmark report** with 4 interactive Chart.js graphs |
+
+### 🛠️ "I'm a developer integrating MATHIR"
+
+| Document | Lines | Time | Why read it |
+|---|:---:|:---:|---|
+| [`README.md`](../README.md) | 510 | 5 min | Quick Start in 30 seconds, 6 code examples |
+| [`docs/33_QUICK_START.md`](33_QUICK_START.md) | — | 5 min | Step-by-step install + first run |
+| [`docs/04_DEV_INTEGRATION_GUIDE.md`](04_DEV_INTEGRATION_GUIDE.md) | — | 30 min | Production integration patterns |
+| [`mathir_dropin/README.md`](../mathir_dropin/README.md) | — | 10 min | Drop-in memory module API |
+| [`vision_testing/README.md`](../vision_testing/README.md) | — | 10 min | Vision/audio testing UI |
+
+### 📊 "I want to see the numbers"
+
+| Document | Lines | Time | Why read it |
+|---|:---:|:---:|---|
+| [`MATHIR_FINAL_REPORT.md`](../MATHIR_FINAL_REPORT.md) | 348 | 15 min | All benchmarks in one place (MD) |
+| [`benchmarks/MATHIR_FINAL_REPORT.html`](../benchmarks/MATHIR_FINAL_REPORT.html) | 1 793 | 30 min | **Same data + interactive charts** (HTML) |
+| [`docs/15_BENCHMARK_V6_VS_V7.md`](15_BENCHMARK_V6_VS_V7.md) | — | 10 min | Version-over-version improvements |
+| [`docs/14_RETRIEVAL_RESEARCH_RESULTS.md`](14_RETRIEVAL_RESEARCH_RESULTS.md) | — | 15 min | 4 retrieval approaches compared (A/B/C/D) |
+| [`docs/35_KV_CACHE_RESEARCH_REPORT.md`](35_KV_CACHE_RESEARCH_REPORT.md) | — | 15 min | Why context windows fail, what MATHIR does instead |
+
+### 🧠 "I'm a theorist / mathematician"
+
+| Document | Lines | Time | Why read it |
+|---|:---:|:---:|---|
+| [`docs/09_THEORY_V7.md`](09_THEORY_V7.md) | **699** | 2 h | **6 theorems proved** — Neyman-Pearson optimality, Sinkhorn-Knopp contraction, JL bottleneck |
+| [`docs/11_PROOFS.md`](11_PROOFS.md) | — | 90 min | Step-by-step proofs |
+| [`docs/24_MATHIR_Preuves_Mathematiques.tex`](24_MATHIR_Preuves_Mathematiques.tex) | — | 60 min | LaTeX proofs (French/English) |
+| [`docs/MATHIR_Research_Paper.tex`](MATHIR_Research_Paper.tex) | **1 130** | 90 min | Combined paper with theorems, algorithms, experiments |
 
 ---
 
-## 🆕 What's New in V7.4
+## 📖 Complete Document Catalog
 
-The project has been reorganized for clarity. The headline changes:
+### 🏆 Top-tier (start here)
 
-1. **Numbered doc prefixes** — every doc now starts with `NN_NAME.md` so
-   alphabetical directory listing = reading order.
-2. **`docs/00_README.md` (this file)** — single entry point with TOC.
-3. **`docs/visualizations/`** — all 8 PNGs and the HTML report now live
-   under `docs/`, not at the project root.
-4. **`results/`** — all benchmark JSONs consolidated (renamed
-   `*_results.json` → descriptive names, no suffix cruft).
-5. **`MASTER_INDEX.md` at the project root** — one navigation document
-   for the entire project.
-6. **Tests consolidated in `tests/`** — with a fresh `__init__.py`.
-7. **Benchmarks in `benchmarks/`** — with their own `__init__.py` and
-   paths updated to write into `results/`.
-8. **One-shot `reorganize_v74.ps1` script** at the project root — run it
-   to do the binary file moves (PNGs, HTML) and the deletions.
+| # | Document | Lines | Format | One-line pitch |
+|:---:|---|:---:|:---:|---|
+| 1 | [`README.md`](../README.md) | 510 | MD | The main pitch — 30 sec to "yes this is interesting" |
+| 2 | [`MATHIR_FINAL_REPORT.md`](../MATHIR_FINAL_REPORT.md) | 348 | MD | All benchmark numbers in one file |
+| 3 | [`benchmarks/MATHIR_FINAL_REPORT.html`](../benchmarks/MATHIR_FINAL_REPORT.html) | 1 793 | HTML | Visual report with Chart.js graphs |
+| 4 | [`docs/01_MASTER_RESEARCH_PAPER.md`](01_MASTER_RESEARCH_PAPER.md) | **2 155** | MD | Doctoral paper — 145 KB of research |
+| 5 | [`docs/03_MASTER_QA_GUIDE.md`](03_MASTER_QA_GUIDE.md) | 637 | MD | 63 Q&A — defense-ready |
+| 6 | [`docs/07_MATHIR_VS_VECTORDB_USE_CASES.md`](07_MATHIR_VS_VECTORDB_USE_CASES.md) | 454 | MD | MATHIR vs FAISS on real use cases |
+| 7 | [`docs/MATHIR_Research_Paper.tex`](MATHIR_Research_Paper.tex) | **1 130** | LaTeX | Peer-review-ready paper |
 
-See [`../CHANGELOG.md`](../CHANGELOG.md) for the full changelog entry.
+### 🧪 Theory & proofs
+
+| # | Document | Lines | Format | One-line pitch |
+|:---:|---|:---:|:---:|---|
+| 8 | [`docs/09_THEORY_V7.md`](09_THEORY_V7.md) | 699 | MD | 6 theorems with proofs |
+| 9 | [`docs/10_V7_PAPER.md`](10_V7_PAPER.md) | — | MD | V7 paper draft |
+| 10 | [`docs/11_PROOFS.md`](11_PROOFS.md) | — | MD | Step-by-step proofs |
+| 11 | [`docs/24_MATHIR_Preuves_Mathematiques.tex`](24_MATHIR_Preuves_Mathematiques.tex) | — | LaTeX | Mathematical proofs (FR/EN) |
+| 12 | [`docs/37_THEORY.md`](37_THEORY.md) | — | MD | Theory overview |
+
+### 📊 Benchmarks & research
+
+| # | Document | Lines | Format | One-line pitch |
+|:---:|---|:---:|:---:|---|
+| 13 | [`docs/14_RETRIEVAL_RESEARCH_RESULTS.md`](14_RETRIEVAL_RESEARCH_RESULTS.md) | — | MD | 4 retrieval approaches (A/B/C/D) compared |
+| 14 | [`docs/15_BENCHMARK_V6_VS_V7.md`](15_BENCHMARK_V6_VS_V7.md) | — | MD | V6 vs V7 benchmarks |
+| 15 | [`docs/35_KV_CACHE_RESEARCH_REPORT.md`](35_KV_CACHE_RESEARCH_REPORT.md) | — | MD | KV cache growth research |
+| 16 | [`docs/36_RUST_ML_RESEARCH_REPORT.md`](36_RUST_ML_RESEARCH_REPORT.md) | — | MD | Rust ML port research |
+| 17 | [`benchmarks/research/SOTA_RESEARCH_2024_2026.md`](../benchmarks/research/SOTA_RESEARCH_2024_2026.md) | — | MD | SOTA comparison 2024-2026 |
+| 18 | [`benchmarks/results_final/README.md`](../benchmarks/results_final/README.md) | — | MD | Older benchmark results |
+
+### 🛠️ Developer guides
+
+| # | Document | Lines | Format | One-line pitch |
+|:---:|---|:---:|:---:|---|
+| 19 | [`docs/04_DEV_INTEGRATION_GUIDE.md`](04_DEV_INTEGRATION_GUIDE.md) | — | MD | Production integration patterns |
+| 20 | [`docs/05_SHIPPING_GUIDE.md`](05_SHIPPING_GUIDE.md) | — | MD | Shipping/deployment guide |
+| 21 | [`docs/12_V7_TUTORIAL.md`](12_V7_TUTORIAL.md) | — | MD | V7 hands-on tutorial |
+| 22 | [`docs/13_V7_MIGRATION_GUIDE.md`](13_V7_MIGRATION_GUIDE.md) | — | MD | V6 → V7 migration |
+| 23 | [`docs/33_QUICK_START.md`](33_QUICK_START.md) | — | MD | 5-minute quick start |
+| 24 | [`docs/29_DEPLOYEMENT.md`](29_DEPLOYEMENT.md) | — | MD | Deployment guide |
+| 25 | [`docs/32_CUDA_SETUP.md`](32_CUDA_SETUP.md) | — | MD | CUDA setup |
+| 26 | [`mathir_dropin/README.md`](../mathir_dropin/README.md) | — | MD | Drop-in memory module |
+| 27 | [`vision_testing/README.md`](../vision_testing/README.md) | — | MD | Vision/audio testing |
+
+### 🔍 Comparisons & analysis
+
+| # | Document | Lines | Format | One-line pitch |
+|:---:|---|:---:|:---:|---|
+| 28 | [`docs/22_MATHIR_VS_RAG_COMPARISON.md`](22_MATHIR_VS_RAG_COMPARISON.md) | — | MD | MATHIR vs RAG |
+| 29 | [`docs/38_MATHIR_VS_RAG_COMPARISON.html`](38_MATHIR_VS_RAG_COMPARISON.html) | 410 | HTML | Same, visual format |
+| 30 | [`docs/08_WHY_SAME_RESULTS.md`](08_WHY_SAME_RESULTS.md) | — | MD | Why two methods give same results |
+| 31 | [`docs/analysis/mathir_v71_failure_analysis.md`](analysis/mathir_v71_failure_analysis.md) | — | MD | V7.1 failure analysis |
+
+### 🤖 AI agent / dev context
+
+| # | Document | Lines | Format | One-line pitch |
+|:---:|---|:---:|:---:|---|
+| 32 | [`AGENT.md`](../AGENT.md) | — | MD | Quick reference for AI agents |
+| 33 | [`vision_testing/SWARM_CONTEXT_VISION.md`](../vision_testing/SWARM_CONTEXT_VISION.md) | — | MD | Vision testing swarm context |
+| 34 | [`vision_testing/MODEL_RESEARCH.md`](../vision_testing/MODEL_RESEARCH.md) | — | MD | Vision model research |
+| 35 | [`docs/00_README.md`](00_README.md) | — | MD | Docs index (this file's predecessor) |
+
+### 📚 Specialized topics
+
+| # | Document | Lines | Format | One-line pitch |
+|:---:|---|:---:|:---:|---|
+| 36 | [`docs/02_MASTER_REFERENCE.md`](02_MASTER_REFERENCE.md) | — | MD | Master reference manual |
+| 37 | [`docs/06_MULTIMODAL_MEMORY_GUIDE.md`](06_MULTIMODAL_MEMORY_GUIDE.md) | — | MD | Multimodal (text+image+audio) memory |
+| 38 | [`docs/20_MATHIR.md`](20_MATHIR.md) | — | MD | MATHIR deep dive |
+| 39 | [`docs/27_IMPROVEMENTS_V5.md`](27_IMPROVEMENTS_V5.md) | — | MD | V5 improvements |
+| 40 | [`docs/28_HOW_TRAINING_WORKS.md`](28_HOW_TRAINING_WORKS.md) | — | MD | How training works |
+| 41 | [`docs/LATIN_NOMENCLATURE_RESEARCH.md`](LATIN_NOMENCLATURE_RESEARCH.md) | — | MD | Latin naming conventions |
+| 42 | [`mathir_dropin/DESIGN_latin_nomenclature.md`](../mathir_dropin/DESIGN_latin_nomenclature.md) | — | MD | Latin nomenclature design |
+| 43 | [`mathir_lib/README_using_auto_config_tool.md`](../mathir_lib/README_using_auto_config_tool.md) | — | MD | Auto config tool |
+| 44 | [`docs/visualizations/visual_report.html`](visualizations/visual_report.html) | — | HTML | Visual report (older) |
+| 45 | [`docs/visualizations/README.md`](visualizations/README.md) | — | MD | Visualizations index |
 
 ---
 
-## 🧭 How to Navigate From Here
+## 🗺️ Reading Paths
 
-- **Defending?** → 01, 02, 03, 08, 09, 10, 11
-- **Shipping?** → 04, 05, 06, 12, then `mathir_dropin/README.md`
-- **Researching?** → 07, 13, 14, 15, 24, 25b, 25c, 26
-- **Operating?** → 16, 17, 18, 19, 20, 21
-- **Curious about history?** → 27, 28, 29, 30, 31, 33, 34
-- **Want pretty pictures?** → `visualizations/visual_report.html`
+### Path A: "I have 10 minutes"
+1. [`README.md`](../README.md) — Hero, Quick Start, "vs Alternatives" table
+2. Done. You know what MATHIR is, what it isn't, and whether it fits.
+
+### Path B: "I have 1 hour"
+1. [`README.md`](../README.md) — 5 min
+2. [`MATHIR_FINAL_REPORT.md`](../MATHIR_FINAL_REPORT.md) — 15 min
+3. [`docs/03_MASTER_QA_GUIDE.md`](03_MASTER_QA_GUIDE.md) — 20 min (skim)
+4. [`docs/07_MATHIR_VS_VECTORDB_USE_CASES.md`](07_MATHIR_VS_VECTORDB_USE_CASES.md) — 20 min
+5. Done. You can defend MATHIR to a CTO or write a comparison blog post.
+
+### Path C: "I'm writing a paper / doing a literature review"
+1. [`docs/MATHIR_Research_Paper.tex`](MATHIR_Research_Paper.tex) — 90 min (full read)
+2. [`docs/09_THEORY_V7.md`](09_THEORY_V7.md) — 2 h (theorems + proofs)
+3. [`docs/01_MASTER_RESEARCH_PAPER.md`](01_MASTER_RESEARCH_PAPER.md) — 3 h (deep dive, JL bottleneck)
+4. [`benchmarks/MATHIR_FINAL_REPORT.html`](../benchmarks/MATHIR_FINAL_REPORT.html) — 30 min (all numbers)
+
+### Path D: "I'm integrating MATHIR into my product"
+1. [`docs/33_QUICK_START.md`](33_QUICK_START.md) — 5 min
+2. [`docs/04_DEV_INTEGRATION_GUIDE.md`](04_DEV_INTEGRATION_GUIDE.md) — 30 min
+3. [`mathir_dropin/README.md`](../mathir_dropin/README.md) — 10 min
+4. [`docs/05_SHIPPING_GUIDE.md`](05_SHIPPING_GUIDE.md) — 30 min
+5. Examples in [`examples/`](../examples/) — 30 min
+6. Done. You have a production integration.
+
+### Path E: "I want the visual story"
+1. [`benchmarks/MATHIR_FINAL_REPORT.html`](../benchmarks/MATHIR_FINAL_REPORT.html) — 30 min (interactive charts)
+2. [`docs/38_MATHIR_VS_RAG_COMPARISON.html`](38_MATHIR_VS_RAG_COMPARISON.html) — 15 min
+3. [`docs/visualizations/visual_report.html`](visualizations/visual_report.html) — 15 min
 
 ---
 
-*Last reorganized: V7.4 (2026-06-03).*
+## 📈 By the Numbers
+
+| Metric | Value |
+|---|---|
+| **Total documents** | 45+ |
+| **Total content** | ~8 000 lines / ~600 KB |
+| **Papers / formal writeups** | 4 (LaTeX + MD) |
+| **Theorem proofs** | 6 (Neyman-Pearson, Sinkhorn-Knopp, JL, Robbins-Monro, RIP, Ebbinghaus) |
+| **Use-case analyses** | 2 (chat, autonomous driving) |
+| **Q&A items** | 63 |
+| **Benchmark HTML reports** | 2 (with interactive charts) |
+
+---
+
+## 🎯 The 7 "Hidden Gems" Most People Miss
+
+If you only have time for 7 docs, read these in order:
+
+1. ⭐ [`README.md`](../README.md) — the pitch
+2. ⭐ [`MATHIR_FINAL_REPORT.md`](../MATHIR_FINAL_REPORT.md) — the numbers
+3. ⭐ [`docs/03_MASTER_QA_GUIDE.md`](03_MASTER_QA_GUIDE.md) — the Q&A
+4. ⭐ [`docs/07_MATHIR_VS_VECTORDB_USE_CASES.md`](07_MATHIR_VS_VECTORDB_USE_CASES.md) — the comparison
+5. ⭐ [`docs/MATHIR_Research_Paper.tex`](MATHIR_Research_Paper.tex) — the paper
+6. ⭐ [`docs/09_THEORY_V7.md`](09_THEORY_V7.md) — the proofs
+7. ⭐ [`docs/01_MASTER_RESEARCH_PAPER.md`](01_MASTER_RESEARCH_PAPER.md) — the deep dive
+
+---
+
+## 🔄 Maintenance
+
+This index lives at [`docs/00_README.md`](00_README.md) and is generated manually.
+If you add a new document, please update it here.
+
+---
+
+*Last updated: June 11, 2026 · MATHIR V7.7.1*
