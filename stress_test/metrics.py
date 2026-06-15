@@ -28,6 +28,7 @@ class MetricsSnapshot:
     throughput_conv_per_sec: float = 0.0
     db_write_latency_ms: float = 0.0
     uptime_seconds: float = 0.0
+    gpu_util_percent: float = 0.0
     tier_working: int = 0
     tier_episodic: int = 0
     tier_semantic: int = 0
@@ -50,10 +51,17 @@ class MetricsCollector:
         }
         self._last_write_time = 0.0
         self._write_latencies: List[float] = []
+        self._gpu_util = 0.0
+        # Manual CPU tracking via cpu_times() delta — process-wide, thread-independent,
+        # works correctly regardless of which thread calls it (metrics vs storage).
+        # psutil.Process().cpu_percent() is unreliable when called from a sleeping thread.
+        self._process = psutil.Process()
+        self._last_cpu_times = None
+        self._last_cpu_mono = None
 
     def collect(self) -> MetricsSnapshot:
         """Prend un snapshot des métriques actuelles"""
-        process = psutil.Process()
+        process = self._process
         mem_info = process.memory_info()
         ram_mb = round(mem_info.rss / 1024 / 1024, 2)
 
@@ -73,21 +81,29 @@ class MetricsCollector:
             if len(self._write_latencies) > 100:
                 self._write_latencies = self._write_latencies[-100:]
 
+        gpu_mb, gpu_util = self._get_gpu_usage()
+
+        # CPU percent: manual cpu_times() delta.
+        # Measures PROCESS-wide CPU time (all threads), not just calling thread.
+        # Robust across Flask reloader forks and thread pool workers.
+        cpu = self._get_cpu_percent()
+
         snapshot = MetricsSnapshot(
             timestamp=time.time(),
             ram_mb=ram_mb,
-            gpu_mb=self._get_gpu_usage(),
+            gpu_mb=gpu_mb,
             db_size_mb=self._get_db_size(),
             conversations_total=self.total_conversations,
             tokens_total=self.total_tokens,
             recall_latency_ms=self._benchmark_recall(),
             errors=self.error_count,
-            cpu_percent=process.cpu_percent(interval=None),
+            cpu_percent=cpu,
             ram_percent=process.memory_percent(),
             peak_ram_mb=round(self.peak_ram_mb, 2),
             throughput_conv_per_sec=round(throughput, 2),
             db_write_latency_ms=avg_write_ms,
             uptime_seconds=round(uptime, 1),
+            gpu_util_percent=gpu_util,
             tier_working=self.tier_counts["working"],
             tier_episodic=self.tier_counts["episodic"],
             tier_semantic=self.tier_counts["semantic"],
@@ -106,27 +122,67 @@ class MetricsCollector:
         if tier in self.tier_counts:
             self.tier_counts[tier] += 1
 
-    def _get_gpu_usage(self) -> float:
-        """GPU VRAM si CUDA disponible, 0 sinon."""
+    def _get_gpu_usage(self) -> tuple:
+        """GPU VRAM (MB) and utilization (%) for THIS process only.
+
+        VRAM: torch.cuda.memory_allocated() = only MATHIR's tensors (not global).
+        Util: nvidia-smi = system-wide GPU util (no per-process API exists).
+
+        Returns (vram_mb, util_percent).
+        """
+        # --- VRAM: MATHIR-specific via torch.cuda ---
+        vram_mb = 0.0
         try:
             import torch
             if torch.cuda.is_available():
-                return round(torch.cuda.memory_allocated() / 1024 / 1024, 2)
+                vram_mb = round(torch.cuda.memory_allocated() / 1024 / 1024, 2)
         except (ImportError, RuntimeError):
             pass
 
+        # --- GPU Utilization: nvidia-smi (system-wide, only option) ---
+        util_pct = self._gpu_util  # keep last known value as default
         try:
             import subprocess
             result = subprocess.run(
-                ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
+                ["nvidia-smi",
+                 "--query-gpu=utilization.gpu",
+                 "--format=csv,noheader,nounits"],
                 capture_output=True, text=True, timeout=3
             )
             if result.returncode == 0:
-                return float(result.stdout.strip().split("\n")[0])
-        except (FileNotFoundError, subprocess.TimeoutExpired, ValueError):
+                util_pct = float(result.stdout.strip().split("\n")[0])
+                self._gpu_util = util_pct
+        except (FileNotFoundError, subprocess.TimeoutExpired, ValueError, IndexError):
             pass
 
-        return 0.0
+        return (vram_mb, util_pct)
+
+    def _get_cpu_percent(self) -> float:
+        """Process CPU % via cpu_times() delta — process-wide, thread-independent.
+
+        Uses process.cpu_times().user + .system (monotonically increasing) divided
+        by wall-clock elapsed. Works correctly regardless of which thread calls it,
+        and survives Flask reloader forks because psutil.Process() is re-acquired
+        at __init__ time (child process gets its own instance).
+        """
+        try:
+            ct = self._process.cpu_times()
+            cpu_time = ct.user + ct.system
+            now = time.monotonic()
+
+            if self._last_cpu_times is not None and self._last_cpu_mono is not None:
+                dt_wall = now - self._last_cpu_mono
+                dt_cpu = cpu_time - self._last_cpu_times
+                if dt_wall > 0.01:  # avoid division by tiny wall time
+                    percent = (dt_cpu / dt_wall) * 100.0
+                    return min(round(percent, 1), 100.0)
+
+            # First call or too-fast call: store baseline
+            self._last_cpu_times = cpu_time
+            self._last_cpu_mono = now
+            return 0.0
+        except Exception:
+            return 0.0
 
     def _get_db_size(self) -> float:
         """Taille du fichier SQLite en MB"""
@@ -199,7 +255,7 @@ class MetricsCollector:
         os.makedirs(os.path.dirname(filepath) or ".", exist_ok=True)
 
         with open(filepath, "w", encoding="utf-8") as f:
-            f.write("timestamp,datetime,ram_mb,ram_percent,cpu_percent,gpu_mb,"
+            f.write("timestamp,datetime,ram_mb,ram_percent,cpu_percent,gpu_mb,gpu_util_percent,"
                     "db_size_mb,conversations,tokens,recall_latency_ms,errors,"
                     "peak_ram_mb,throughput_conv_per_sec,db_write_latency_ms,"
                     "uptime_seconds,tier_working,tier_episodic,tier_semantic,tier_immune,"
@@ -210,7 +266,8 @@ class MetricsCollector:
             for s in self.history:
                 dt = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(s.timestamp))
                 f.write(f"{s.timestamp},{dt},{s.ram_mb},{s.ram_percent},"
-                        f"{s.cpu_percent},{s.gpu_mb},{s.db_size_mb},"
+                        f"{s.cpu_percent},{s.gpu_mb},{s.gpu_util_percent},"
+                        f"{s.db_size_mb},"
                         f"{s.conversations_total},{s.tokens_total},"
                         f"{s.recall_latency_ms},{s.errors},"
                         f"{s.peak_ram_mb},{s.throughput_conv_per_sec},"

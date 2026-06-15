@@ -3,6 +3,8 @@ Semantic Memory — Learned concepts.
 Uses online k-means prototypes with learned projection.
 """
 
+import threading
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -26,6 +28,7 @@ class SemanticMemory(nn.Module):
         update_rate: float = 0.01,
     ):
         super().__init__()
+        self._lock = threading.RLock()
         self.num_prototypes = num_prototypes
         self.feature_dim = feature_dim
         self.proj_dim = proj_dim
@@ -52,40 +55,48 @@ class SemanticMemory(nn.Module):
         Returns:
             [B, D] retrieved prototype (projected back) + query
         """
-        with torch.no_grad():
-            projected = self.down(query)
-            sims = F.cosine_similarity(
-                projected.unsqueeze(1),
-                self.prototypes.unsqueeze(0),
-                dim=-1
-            )
-            idx = sims.argmax(dim=1)
-        retrieved = self.up(self.prototypes[idx])
-        return retrieved + query  # Residual
+        with self._lock:
+            with torch.no_grad():
+                projected = self.down(query)
+                sims = F.cosine_similarity(
+                    projected.unsqueeze(1),
+                    self.prototypes.unsqueeze(0),
+                    dim=-1
+                )
+                idx = sims.argmax(dim=1)
+            retrieved = self.up(self.prototypes[idx])
+            return retrieved + query  # Residual
     
     def update(self, features: torch.Tensor) -> None:
         """
         Update prototypes via online k-means.
+        O(B * num_prototypes) for cosine scan, O(B) for scatter update.
+        Fully vectorized — no Python for-loop.
         """
-        with torch.no_grad():
-            projected = self.down(features)
-            sims = F.cosine_similarity(
-                projected.unsqueeze(1),
-                self.prototypes.unsqueeze(0),
-                dim=-1
-            )
-            idx = sims.argmax(dim=1)
-            for i in range(features.size(0)):
-                self.prototypes[idx[i]] = (
-                    (1 - self.update_rate) * self.prototypes[idx[i]]
-                    + self.update_rate * projected[i].detach()
+        with self._lock:
+            with torch.no_grad():
+                projected = self.down(features)
+                sims = F.cosine_similarity(
+                    projected.unsqueeze(1),
+                    self.prototypes.unsqueeze(0),
+                    dim=-1
                 )
-                self.usage[idx[i]] += 1
+                idx = sims.argmax(dim=1)  # [B]
+
+                # Vectorized EMA update — no Python for-loop
+                alpha = self.update_rate
+                # Scatter: prototypes[idx] = (1-alpha) * prototypes[idx] + alpha * projected
+                old = self.prototypes[idx]  # [B, proj_dim]
+                self.prototypes[idx] = (1 - alpha) * old + alpha * projected.detach()
+
+                # Vectorized usage increment
+                self.usage.scatter_add_(0, idx, torch.ones_like(idx, dtype=self.usage.dtype))
     
     def reset(self) -> None:
         """Reset semantic memory (re-initialize prototypes)."""
-        self.prototypes = torch.randn(self.num_prototypes, self.proj_dim) * 0.1
-        self.usage.zero_()
+        with torch.no_grad():
+            self.prototypes.copy_(torch.randn(self.num_prototypes, self.proj_dim) * 0.1)
+            self.usage.zero_()
     
     def get_usage(self) -> int:
         """Get number of prototypes that have been used."""

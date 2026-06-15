@@ -279,7 +279,7 @@ V7.8 & GPU Embedding & bge-large-en-v1.5 CUDA, daemon architecture & \checkmark 
 ]
     \node[block] (input) at (0,5) {Input Layer\\(Text/Image/Audio)};
     \node[block] (encoder) at (0,3.5) {Encoder\\(MiniLM/CLIP)};
-    \node[block, fill=orange!20, text width=7cm] (mathir) at (0,2) {\textbf{\MATHIR{} Plugin}\\$0.6$ GB, $10$ ms, edge};
+    \node[block, fill=orange!20, text width=7cm] (mathir) at (0,2) {\textbf{\MATHIR{} Plugin}\\$\sim$500 MB VRAM (GPU), 25 ms GPU / 50 ms CPU};
     
     \node[tier] (w) at (-3,0.5) {Working\\$W=64$ slots};
     \node[tier] (e) at (-1,0.5) {Episodic\\$N=1000$ slots};
@@ -861,6 +861,10 @@ V7 & 116,976 bytes & $9.3\times$ \\
 \end{tabular}
 \end{table}
 
+\begin{remark}
+The $9.3\times$ compression ratio above refers to MATHIR's internal memory representation (episodic slots, working memory, semantic prototypes, and immune patterns)---not to the embedding model itself. The V7.8 default embedding engine (\texttt{BAAI/bge-large-en-v1.5}, 1024d) requires $\sim$500 MB VRAM on GPU. For CPU-only or edge deployment without GPU, \texttt{MiniLM-L6-v2} (384d) provides 50 ms inference with a minimal memory footprint ($<$80 MB INT8).
+\end{remark}
+
 \subsection{Statistical Significance}
 
 \begin{table}[H]
@@ -911,6 +915,8 @@ context = memory.search_context("What did we discuss?", k=5)
 \toprule
 \textbf{Model} & \textbf{Type} & \textbf{VRAM} \\
 \midrule
+MATHIR plugin (bge-large) & Embedding & $\sim$500 MB (GPU) / 80 MB (CPU INT8) \\
+SimpleMemory & FTS5-only & 0 MB (SQLite only) \\
 LFM2.5-VL-1.6B & Vision-Language & 2.4 GB \\
 LFM2.5-Audio-1.5B & Audio & 2.2 GB \\
 Gemma-4-E2B & Multimodal & 4.4 GB \\
@@ -977,6 +983,8 @@ We presented \MATHIR{}, a plug-and-play hierarchical memory layer for LLMs. The 
 \end{enumerate}
 
 Future work includes cascade architectures (V8.0), edge deployment (V9), and open-source release (V10).
+
+V7.8 defaults to \texttt{BAAI/bge-large-en-v1.5} (1024d) on CUDA with $\sim$500 MB VRAM. For CPU-only or edge deployment without GPU, \texttt{MiniLM-L6-v2} (384d) provides 50 ms inference with a minimal memory footprint.
 
 % ========================================
 % REFERENCES

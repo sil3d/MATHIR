@@ -20,6 +20,7 @@ import torch.nn.functional as F
 from typing import Dict, List, Optional, Any, Tuple
 
 from .config import get_default_config, merge_config
+from .hybrid_device import HybridDeviceManager
 from .memory import (
     # V6
     WorkingMemory, EpisodicMemory, SemanticMemory, ImmunologicalMemory,
@@ -49,13 +50,38 @@ class MATHIRPluginV7(nn.Module):
         >>> plugin = MATHIRPluginV7(4096, config=load_config('config/v7.yaml'))
     """
 
-    def __init__(self, embedding_dim: int, config: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        embedding_dim: int,
+        config: Optional[Dict[str, Any]] = None,
+        device_map: Optional[Dict[str, str]] = "auto",
+    ):
         super().__init__()
 
         # Load config
         self.config = merge_config(get_default_config(), config or {})
         self.config["memory"]["embedding_dim"] = embedding_dim
         self.embedding_dim = embedding_dim
+
+        # ---- device auto-detection --------------------------------------
+        # When ``device_map="auto"``, we detect the best device and move
+        # the *entire* module to it.  This avoids cross-device tensor/
+        # parameter mismatches that a mixed device map would cause.
+        # The caller can still pass an explicit device_map for fine-grained
+        # control over mixed CPU/GPU placement.
+        _target_device: Optional[torch.device] = None
+        if device_map == "auto":
+            from .device_utils import detect_device
+            _detected = detect_device()
+            if _detected != "cpu":
+                _target_device = torch.device(_detected)
+            device_map = None  # No mixed-device map; module-level .to() below.
+
+        # Hybrid device manager — None means single-device passthrough
+        self.device_manager = HybridDeviceManager(
+            device_map,
+            fallback=str(_target_device) if _target_device is not None else "cpu",
+        )
 
         # Extract config
         mem_cfg = self.config["memory"]
@@ -204,37 +230,65 @@ class MATHIRPluginV7(nn.Module):
             nn.Linear(self.internal_dim, self.internal_dim),
         )
 
+        # ---- move entire module to target device if auto-detected GPU ---
+        if _target_device is not None:
+            self.to(_target_device)
+
     def perceive(self, embedding: torch.Tensor) -> Dict[str, torch.Tensor]:
         """Process embedding through V7 memory system."""
-        x = self.input_proj(embedding)
+        # Transfer input to input_proj device if hybrid
+        x_in = self.device_manager.to_device(embedding, "input_proj")
+        x = self.input_proj(x_in)
 
-        # Store in working memory
-        self._store_working(x)
+        # Store in working memory (ensure on correct device)
+        x_work = self.device_manager.to_device(x, "working")
+        self._store_working(x_work)
 
-        # Retrieve from each tier.
+        # Retrieve from each tier — transfer query to each tier's device,
+        # then transfer results back to the router's device for fusion.
         # When use_raw_embedding=True, episodic operates on the FULL raw
         # embedding (no projection bottleneck) and the result is mapped
         # back to internal_dim via input_proj so it can fuse with the
         # other tiers through the router.
-        working_ctx = self._retrieve_working(x)
-        episodic_ctx = self._retrieve_episodic(x, raw_query=embedding if self.use_raw_embedding else None)
-        semantic_ctx = self._retrieve_semantic(x)
-        immune_ctx = self._retrieve_immune(x)
+        x_router = self.device_manager.to_device(x, "router")
+
+        working_ctx = self._retrieve_working(x_router)
+        episodic_ctx = self._retrieve_episodic(
+            self.device_manager.to_device(x, "episodic"),
+            raw_query=self.device_manager.to_device(embedding, "episodic")
+            if self.use_raw_embedding else None,
+        )
+        semantic_ctx = self._retrieve_semantic(
+            self.device_manager.to_device(x, "semantic"),
+        )
+        immune_ctx = self._retrieve_immune(
+            self.device_manager.to_device(x, "immune"),
+        )
 
         # V7: optional sparse coding
         if self.use_sparse_coding:
-            sparse_ctx = self.sparse_coding.retrieve(x)
+            sparse_ctx = self.sparse_coding.retrieve(
+                self.device_manager.to_device(x, "sparse_coding"),
+            )
         else:
-            sparse_ctx = torch.zeros_like(x)
+            sparse_ctx = torch.zeros_like(x_router)
 
         # V7: optional Neural ODE
         if self.use_neural_ode:
-            ode_ctx = self.neural_ode.retrieve(x)
+            ode_ctx = self.neural_ode.retrieve(
+                self.device_manager.to_device(x, "neural_ode"),
+            )
         else:
-            ode_ctx = torch.zeros_like(x)
+            ode_ctx = torch.zeros_like(x_router)
+
+        # Transfer all contexts to router device for fusion
+        working_ctx = self.device_manager.to_device(working_ctx, "router")
+        episodic_ctx = self.device_manager.to_device(episodic_ctx, "router")
+        semantic_ctx = self.device_manager.to_device(semantic_ctx, "router")
+        immune_ctx = self.device_manager.to_device(immune_ctx, "router")
 
         # Router
-        router_logits = self.router(x)
+        router_logits = self.router(x_router)
         router_weights = F.softmax(router_logits, dim=-1)
         kl_loss = self._compute_kl(router_logits)
 
@@ -252,11 +306,15 @@ class MATHIRPluginV7(nn.Module):
             output = output + 0.1 * ode_ctx
 
         # Residual + norm
-        output = self.layer_norm(output + x)
-        enhanced = self.output_proj(output)
+        output = self.layer_norm(output + x_router)
+        enhanced = self.output_proj(
+            self.device_manager.to_device(output, "output_proj"),
+        )
 
-        # Anomaly
-        anomaly = self._compute_anomaly(x)
+        # Anomaly (use immune device)
+        anomaly = self._compute_anomaly(
+            self.device_manager.to_device(x, "immune"),
+        )
 
         return {
             "enhanced_embedding": enhanced,
@@ -270,14 +328,14 @@ class MATHIRPluginV7(nn.Module):
         if "embedding" not in experience:
             return
         raw_emb = experience["embedding"].detach()
-        emb = self.input_proj(raw_emb)
+        emb = self.input_proj(self.device_manager.to_device(raw_emb, "input_proj"))
 
         # V7 Ebbinghaus: evict if at capacity
         if self.episodic_type == "ebbinghaus":
             count = self.episodic.count.item() if torch.is_tensor(self.episodic.count) else self.episodic.count
             if count >= self.episodic_capacity:
                 self.episodic.evict()
-            self.episodic.store(emb)
+            self.episodic.store(self.device_manager.to_device(emb, "episodic"))
         elif self.use_raw_embedding:
             # Approach A: feed the FULL raw embedding to the raw memory
             # (no projection through input_proj — keep all dimensions)
@@ -286,28 +344,29 @@ class MATHIRPluginV7(nn.Module):
                     f"raw_embedding_dim mismatch: config={self.raw_embedding_dim}, "
                     f"got={raw_emb.size(-1)}"
                 )
-            self.episodic.store(raw_emb)
+            self.episodic.store(self.device_manager.to_device(raw_emb, "episodic"))
         else:
-            self.episodic.store(emb)
+            self.episodic.store(self.device_manager.to_device(emb, "episodic"))
 
         # Semantic
+        emb_sem = self.device_manager.to_device(emb, "semantic")
         if hasattr(self.semantic, "update"):
-            self.semantic.update(emb) if self.semantic_type == "hyperbolic" else self._update_semantic_standard(emb)
+            self.semantic.update(emb_sem) if self.semantic_type == "hyperbolic" else self._update_semantic_standard(emb_sem)
         else:
-            self._update_semantic_standard(emb)
+            self._update_semantic_standard(emb_sem)
 
         # Immunological
-        self.immunological.store(emb)
+        self.immunological.store(self.device_manager.to_device(emb, "immune"))
 
         # V7: optional tiers
         if self.use_sparse_coding:
-            self.sparse_coding.store(emb)
+            self.sparse_coding.store(self.device_manager.to_device(emb, "sparse_coding"))
         if self.use_neural_ode:
-            self.neural_ode.store(emb)
+            self.neural_ode.store(self.device_manager.to_device(emb, "neural_ode"))
 
     def recall(self, query: torch.Tensor, k: int = 3) -> List[Dict[str, Any]]:
         """Recall from episodic memory (V7 compatible)."""
-        x = self.input_proj(query)
+        x = self.input_proj(self.device_manager.to_device(query, "input_proj"))
 
         # Approach A: raw-embedding episodic operates on the FULL raw query
         if isinstance(self.episodic, RawEmbeddingEpisodicMemory):
@@ -316,22 +375,33 @@ class MATHIRPluginV7(nn.Module):
                     f"raw_embedding_dim mismatch: config={self.raw_embedding_dim}, "
                     f"got query.size(-1)={query.size(-1)}"
                 )
-            indices, sims = self.episodic.search(query, k=k)
+            raw_q = self.device_manager.to_device(query, "episodic")
+            indices, sims = self.episodic.search(raw_q, k=k)
             if indices.numel() == 0:
                 return []
             return [
-                {"index": idx, "value": self.episodic.values[idx].cpu(), "similarity": s}
+                {
+                    "index": idx,
+                    "value": self.device_manager.to_device(
+                        self.episodic.values[idx], "cpu",
+                    ).cpu(),
+                    "similarity": s,
+                }
                 for idx, s in zip(indices[0].tolist(), sims[0].tolist())
             ]
 
         # Variational returns (value, uncertainty)
         if isinstance(self.episodic, VariationalMemory):
-            value, uncertainty = self.episodic.retrieve(x, k=k)
+            value, uncertainty = self.episodic.retrieve(
+                self.device_manager.to_device(x, "episodic"), k=k,
+            )
             return [{"value": value.cpu(), "uncertainty": uncertainty.cpu().mean().item()}]
 
         # CrossAttention returns tensor
         if isinstance(self.episodic, CrossAttentionMemory):
-            value = self.episodic.retrieve(x, k=k)
+            value = self.episodic.retrieve(
+                self.device_manager.to_device(x, "episodic"), k=k,
+            )
             return [{"value": value.cpu()}]
 
         # Ebbinghaus, standard episodic return top-k from .search()
@@ -341,7 +411,9 @@ class MATHIRPluginV7(nn.Module):
             if count < k:
                 return []
             with torch.no_grad():
-                key = self.episodic.encoder(x)
+                key = self.episodic.encoder(
+                    self.device_manager.to_device(x, "episodic"),
+                )
                 sims = F.cosine_similarity(
                     key.unsqueeze(1),
                     self.episodic.keys[:count].unsqueeze(0),
@@ -353,7 +425,9 @@ class MATHIRPluginV7(nn.Module):
                     idx = top_k[0, i].item()
                     memories.append({
                         "index": idx,
-                        "value": self.episodic.values[idx].cpu(),
+                        "value": self.device_manager.to_device(
+                            self.episodic.values[idx], "cpu",
+                        ).cpu(),
                         "similarity": sims[0, idx].item(),
                         "stability": self.episodic.stability[idx].item(),
                     })
@@ -361,14 +435,24 @@ class MATHIRPluginV7(nn.Module):
 
         # Standard episodic
         if hasattr(self.episodic, "search"):
-            indices, sims = self.episodic.search(x, k=k)
+            indices, sims = self.episodic.search(
+                self.device_manager.to_device(x, "episodic"), k=k,
+            )
             return [
-                {"index": idx, "value": self.episodic.values[idx].cpu(), "similarity": s}
+                {
+                    "index": idx,
+                    "value": self.device_manager.to_device(
+                        self.episodic.values[idx], "cpu",
+                    ).cpu(),
+                    "similarity": s,
+                }
                 for idx, s in zip(indices[0].tolist(), sims[0].tolist())
             ]
         else:
             # Fallback
-            value = self.episodic.retrieve(x, k=k)
+            value = self.episodic.retrieve(
+                self.device_manager.to_device(x, "episodic"), k=k,
+            )
             return [{"value": value.cpu()}]
 
     def forget(self, threshold: float = 0.1) -> None:
@@ -395,6 +479,7 @@ class MATHIRPluginV7(nn.Module):
                 "use_neural_ode": self.use_neural_ode,
                 "use_infonce": self.use_infonce,
             },
+            "hybrid_device": self.device_manager.get_stats(),
         }
 
         # V6 stats
@@ -524,20 +609,10 @@ class MATHIRPluginV7(nn.Module):
         if isinstance(self.semantic, HyperbolicMemory):
             self.semantic.update(x)
             return
-        with torch.no_grad():
-            projected = self.semantic.down(x)
-            sims = F.cosine_similarity(
-                projected.unsqueeze(1),
-                self.semantic.prototypes.unsqueeze(0),
-                dim=-1
-            )
-            idx = sims.argmax(dim=1)
-            alpha = 0.01
-            for i in range(x.size(0)):
-                self.semantic.prototypes[idx[i]] = (
-                    (1 - alpha) * self.semantic.prototypes[idx[i]] + alpha * projected[i].detach()
-                )
-                self.semantic.usage[idx[i]] += 1
+        # Delegate to the semantic module's own vectorized update.
+        # This avoids duplicating the EMA logic and ensures the update_rate
+        # configured on the semantic module is respected.
+        self.semantic.update(x)
 
     def _compute_kl(self, logits: torch.Tensor) -> torch.Tensor:
         target = self.prev_probs.unsqueeze(0).expand_as(logits)

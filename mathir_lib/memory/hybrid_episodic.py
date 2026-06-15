@@ -36,6 +36,7 @@ from __future__ import annotations
 import math
 import os
 import re
+import threading
 import time
 import warnings
 from collections import OrderedDict
@@ -341,6 +342,8 @@ class HybridEpisodicMemory(nn.Module):
         use_onnx: bool = False,
         onnx_opset: int = 14,
         onnx_file_name: str = "model.onnx",
+        bm25_max_corpus: int = 5000,
+        lazy_cross_encoder: bool = True,
     ):
         super().__init__()
         self.capacity = int(capacity)
@@ -354,6 +357,9 @@ class HybridEpisodicMemory(nn.Module):
         self.cross_encoder_top_n = int(cross_encoder_top_n)
         self.bm25_weight = float(bm25_weight)
         self.device = device
+
+        # ---- BM25 corpus bound ----
+        self.bm25_max_corpus = max(1, int(bm25_max_corpus))
 
         # ---- Result cache (LRU on (query_text, doc_text) → ce_score) ----
         # The cross-encoder is deterministic: the same (query, doc) pair
@@ -401,7 +407,8 @@ class HybridEpisodicMemory(nn.Module):
         self.onnx_opset = int(onnx_opset)
         self.onnx_file_name = str(onnx_file_name)
         self._cross_encoder_backend: str = "none"
-        if self.use_cross_encoder_requested:
+        self._lazy_cross_encoder = bool(lazy_cross_encoder)
+        if self.use_cross_encoder_requested and not self._lazy_cross_encoder:
             self._try_load_cross_encoder()
 
         # ---- Latency tracking (per-call, ms) ----
@@ -433,6 +440,9 @@ class HybridEpisodicMemory(nn.Module):
         self._gt_slot_for_query: dict[int, int] = {}
         self._n_ce_skipped_correct = 0
         self._n_ce_skipped_wrong = 0
+
+        # ---- Thread safety ----
+        self._lock = threading.RLock()
 
     # ------------------------------------------------------------------
     # Cross-encoder lazy loader
@@ -524,6 +534,14 @@ class HybridEpisodicMemory(nn.Module):
 
     @property
     def has_cross_encoder(self) -> bool:
+        """Check if cross-encoder is available. Triggers lazy load if needed."""
+        if self._cross_encoder is not None:
+            return True
+        # Lazy load: try to load on first access
+        if (self.use_cross_encoder_requested
+                and not self._cross_encoder_failed
+                and self._lazy_cross_encoder):
+            self._try_load_cross_encoder()
         return self._cross_encoder is not None
 
     # ------------------------------------------------------------------
@@ -540,44 +558,52 @@ class HybridEpisodicMemory(nn.Module):
             text: optional raw text for BM25. May be ``None`` (then BM25
                 will have nothing to index for this slot).
         """
-        if embedding.dim() == 1:
-            embedding = embedding.unsqueeze(0)
-        if embedding.size(-1) != self.feature_dim:
-            raise ValueError(
-                f"Expected feature_dim={self.feature_dim}, got "
-                f"embedding.size(-1)={embedding.size(-1)}"
-            )
-
-        with torch.no_grad():
-            raw = embedding.detach().mean(0)
-            idx = int(self.ptr.item()) % self.capacity
-
-            self.keys[idx] = raw
-            self.values[idx] = raw
-
-            self.ptr = (self.ptr + 1) % self.capacity
-            self.count = torch.minimum(
-                self.count + 1,
-                torch.tensor(self.capacity, dtype=torch.long),
-            )
-
-        # ---- BM25 indexing (kept in sync with the dense slot) ----
-        if text is not None and self._BM25Okapi is not None:
-            tokens = _tokenize(text)
-            if tokens:
-                # Append to BM25 corpus and remember which slot it points to
-                self._bm25_corpus_tokens.append(tokens)
-                self._bm25_doc_ids.append(idx)
-                # Rebuild the BM25 index from scratch — small-N use case,
-                # O(N) per insert, exact ranking. The corpus lives in memory
-                # so this is cheap up to a few thousand docs.
-                self._bm25 = self._BM25Okapi(self._bm25_corpus_tokens)
-            else:
-                warnings.warn(
-                    "[HybridEpisodicMemory] store() received text but it "
-                    "tokenized to nothing; skipping BM25 indexing for this slot.",
-                    RuntimeWarning,
+        with self._lock:
+            if embedding.dim() == 1:
+                embedding = embedding.unsqueeze(0)
+            if embedding.size(-1) != self.feature_dim:
+                raise ValueError(
+                    f"Expected feature_dim={self.feature_dim}, got "
+                    f"embedding.size(-1)={embedding.size(-1)}"
                 )
+
+            with torch.no_grad():
+                raw = embedding.detach().mean(0)
+                idx = int(self.ptr.item()) % self.capacity
+
+                self.keys[idx] = raw
+                self.values[idx] = raw
+
+                self.ptr = (self.ptr + 1) % self.capacity
+                self.count = torch.minimum(
+                    self.count + 1,
+                    torch.tensor(self.capacity, dtype=torch.long),
+                )
+
+            # ---- BM25 indexing (kept in sync with the dense slot) ----
+            if text is not None and self._BM25Okapi is not None:
+                tokens = _tokenize(text)
+                if tokens:
+                    # Append to BM25 corpus and remember which slot it points to
+                    self._bm25_corpus_tokens.append(tokens)
+                    self._bm25_doc_ids.append(idx)
+
+                    # Bound BM25 corpus size — drop oldest entries when over limit
+                    if len(self._bm25_corpus_tokens) > self.bm25_max_corpus:
+                        excess = len(self._bm25_corpus_tokens) - self.bm25_max_corpus
+                        self._bm25_corpus_tokens = self._bm25_corpus_tokens[excess:]
+                        self._bm25_doc_ids = self._bm25_doc_ids[excess:]
+
+                    # Rebuild the BM25 index from scratch — small-N use case,
+                    # O(N) per insert, exact ranking. The corpus lives in memory
+                    # so this is cheap up to a few thousand docs.
+                    self._bm25 = self._BM25Okapi(self._bm25_corpus_tokens)
+                else:
+                    warnings.warn(
+                        "[HybridEpisodicMemory] store() received text but it "
+                        "tokenized to nothing; skipping BM25 indexing for this slot.",
+                        RuntimeWarning,
+                    )
 
     # ------------------------------------------------------------------
     # Stage 1 — Dense top-k via cosine
@@ -1094,71 +1120,81 @@ class HybridEpisodicMemory(nn.Module):
         Also compacts the BM25 corpus to keep dense + sparse in sync.
         Returns the number of memories kept.
         """
-        count = int(self.count.item())
-        if count < 2:
+        with self._lock:
+            count = int(self.count.item())
+            if count < 2:
+                return count
+
+            with torch.no_grad():
+                sims = F.cosine_similarity(
+                    self.keys[:count].unsqueeze(1),
+                    self.keys[:count].unsqueeze(0),
+                    dim=-1,
+                )
+                usage = sims.mean(dim=1)
+                mask = usage > threshold
+                kept = int(mask.sum().item())
+                if kept < count:
+                    self.keys[:kept] = self.keys[:count][mask]
+                    self.values[:kept] = self.values[:count][mask]
+                    self.count = torch.tensor(kept, dtype=torch.long)
+                    self.ptr = torch.tensor(kept, dtype=torch.long)
+
+                    # Compact the BM25 corpus: remap doc IDs to match the
+                    # new slot positions after dense buffer compaction.
+                    # keep_idx contains the *original* slot indices that survived.
+                    # Build old_slot → new_slot mapping.
+                    old_to_new: dict[int, int] = {
+                        int(keep_idx[i].item()): i for i in range(kept)
+                    }
+                    new_corpus: List[List[str]] = []
+                    new_doc_ids: List[int] = []
+                    for tokens, slot in zip(self._bm25_corpus_tokens, self._bm25_doc_ids):
+                        if slot in old_to_new:
+                            new_corpus.append(tokens)
+                            new_doc_ids.append(old_to_new[slot])
+                    self._bm25_corpus_tokens = new_corpus
+                    self._bm25_doc_ids = new_doc_ids
+                    if self._BM25Okapi is not None and new_corpus:
+                        self._bm25 = self._BM25Okapi(new_corpus)
+                    else:
+                        self._bm25 = None
+
+                    # Invalidate CE cache — slot mapping changed
+                    self.clear_cache()
+
+                    return kept
             return count
-
-        with torch.no_grad():
-            sims = F.cosine_similarity(
-                self.keys[:count].unsqueeze(1),
-                self.keys[:count].unsqueeze(0),
-                dim=-1,
-            )
-            usage = sims.mean(dim=1)
-            mask = usage > threshold
-            kept = int(mask.sum().item())
-            if kept < count:
-                self.keys[:kept] = self.keys[:count][mask]
-                self.values[:kept] = self.values[:count][mask]
-                self.count = torch.tensor(kept, dtype=torch.long)
-                self.ptr = torch.tensor(kept, dtype=torch.long)
-
-                # Compact the BM25 corpus: keep tokens whose slot id is in
-                # the surviving set. Use the first 0..count-1 slot ids.
-                surviving = set(range(kept))
-                new_corpus: List[List[str]] = []
-                new_doc_ids: List[int] = []
-                for tokens, slot in zip(self._bm25_corpus_tokens, self._bm25_doc_ids):
-                    if slot in surviving:
-                        new_corpus.append(tokens)
-                        new_doc_ids.append(slot)
-                self._bm25_corpus_tokens = new_corpus
-                self._bm25_doc_ids = new_doc_ids
-                if self._BM25Okapi is not None and new_corpus:
-                    self._bm25 = self._BM25Okapi(new_corpus)
-                else:
-                    self._bm25 = None
-                return kept
-        return count
 
     def reset(self) -> None:
         """Reset all stored memories (does NOT unload the cross-encoder)."""
-        self.keys.zero_()
-        self.values.zero_()
-        self.ptr = torch.tensor(0, dtype=torch.long)
-        self.count = torch.tensor(0, dtype=torch.long)
-        self._bm25_corpus_tokens = []
-        self._bm25_doc_ids = []
-        self._bm25 = None
-        self._n_searches = 0
-        self._n_dense_used = 0
-        self._n_bm25_used = 0
-        self._n_ce_used = 0
-        self._n_ce_skipped_adaptive = 0
-        self._n_ce_skipped_agreement = 0
-        self._n_ce_skipped_threshold = 0
-        self._n_ce_skipped_correct = 0
-        self._n_ce_skipped_wrong = 0
-        self._gt_slot_for_query = {}
-        # Wipe the cache too: store slots are gone, so cached scores
-        # would be stale. Counters reset so subsequent tests start clean.
-        self._ce_cache.clear()
-        self._n_cache_hits = 0
-        self._n_cache_misses = 0
-        self._n_cache_evictions = 0
-        # Latency tracking — do NOT reset (operators want the running
-        # average across resets). If you want a clean slate, instantiate
-        # a new HybridEpisodicMemory.
+        with self._lock:
+            self.keys.zero_()
+            self.values.zero_()
+            self.ptr = torch.tensor(0, dtype=torch.long)
+            self.count = torch.tensor(0, dtype=torch.long)
+            self._bm25_corpus_tokens = []
+            self._bm25_doc_ids = []
+            self._bm25 = None
+            self._n_searches = 0
+            self._n_dense_used = 0
+            self._n_bm25_used = 0
+            self._n_ce_used = 0
+            self._n_ce_skipped_adaptive = 0
+            self._n_ce_skipped_agreement = 0
+            self._n_ce_skipped_threshold = 0
+            self._n_ce_skipped_correct = 0
+            self._n_ce_skipped_wrong = 0
+            self._gt_slot_for_query = {}
+            # Wipe the cache too: store slots are gone, so cached scores
+            # would be stale. Counters reset so subsequent tests start clean.
+            self._ce_cache.clear()
+            self._n_cache_hits = 0
+            self._n_cache_misses = 0
+            self._n_cache_evictions = 0
+            # Latency tracking — do NOT reset (operators want the running
+            # average across resets). If you want a clean slate, instantiate
+            # a new HybridEpisodicMemory.
 
     def get_usage(self) -> int:
         return int(self.count.item())

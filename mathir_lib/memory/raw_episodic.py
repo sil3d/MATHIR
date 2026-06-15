@@ -27,6 +27,7 @@ to 95%+, as frequently-used memories survive longer.
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import threading
 from typing import Optional, Tuple, List
 from collections import OrderedDict
 
@@ -34,34 +35,39 @@ from collections import OrderedDict
 class LIRSEvictionTracker:
     """
     LIRS (Low Inter-Reference Recency Set) eviction tracker.
-    
+
     Tracks item references to determine which items to evict when capacity
     is reached. Items that are frequently referenced are kept in the "residence
     list" even if stored earlier. Items that haven't been referenced recently
     are evicted first.
-    
-    LIRS Algorithm:
+
+    LIRS Algorithm (O(1) amortized per operation via OrderedDict):
     - Stack (S): Ordered by recency of reference (most recent at front)
     - Residence List (R): Items currently in cache (subset of S)
     - LIRS items: Items in both S and R (recently referenced AND in cache)
     - Non-LIRS items: Items in S but not in R (were in cache, got evicted)
-    
+
     On reference to item X:
     - If X in R: move X to top of S
     - If X not in R but in S: X becomes LIRS, move to top of S, evict LIRS from R if needed
     - If X not in S: add X to R, move to top of S, evict LIRS from R if needed
-    
+
     On eviction: evict from R (not S) - LIRS items are protected
+
+    Complexity:
+        reference(): O(1) amortized — OrderedDict move_to_end + append
+        _prune_residence(): O(1) amortized — evict from tail
+        unregister_item(): O(1) amortized — OrderedDict pop/discard
     """
-    
+
     def __init__(self, capacity: int):
         self.capacity = capacity
-        # Residence list: ordered list of item_ids currently in cache
-        # Front of list = high priority (recently referenced, keep longer)
-        # Back of list = low priority (evict these first)
-        self._residence_list: List[int] = []
-        # Stack: ordered by recency (most recent first)
-        self._stack: List[int] = []
+        # Residence list: OrderedDict (item_id → slot_idx) ordered by recency
+        # Front (last) = most recently referenced (keep longer)
+        # Back (first) = least recently referenced (evict first)
+        self._residence_list: "OrderedDict[int, int]" = OrderedDict()
+        # Stack: OrderedDict ordered by recency (most recent at end)
+        self._stack: "OrderedDict[int, None]" = OrderedDict()
         # Track which items are LIRS (in both stack and residence)
         self._lirs_set: set = set()
         # Stack max size (prune oldest stack entries)
@@ -72,33 +78,32 @@ class LIRSEvictionTracker:
         self._item_to_slot: dict = {}
         # Set of all valid item_ids (for checking if item exists)
         self._valid_items: set = set()
-    
+
     def get_new_item_id(self) -> int:
         """Get a new unique item ID."""
         item_id = self._item_counter
         self._item_counter += 1
         return item_id
-    
+
     def register_item(self, item_id: int, slot_idx: int):
         """Register a newly stored item."""
         self._valid_items.add(item_id)
         self._item_to_slot[item_id] = slot_idx
-    
+
     def unregister_item(self, item_id: int):
-        """Unregister an item (called when item is evicted from buffer)."""
+        """Unregister an item (called when item is evicted from buffer).
+        O(1) amortized — OrderedDict.pop + set.discard."""
         self._valid_items.discard(item_id)
         self._item_to_slot.pop(item_id, None)
-        if item_id in self._lirs_set:
-            self._lirs_set.discard(item_id)
-        if item_id in self._stack:
-            self._stack.remove(item_id)
-        if item_id in self._residence_list:
-            self._residence_list.remove(item_id)
-    
+        self._lirs_set.discard(item_id)
+        self._stack.pop(item_id, None)
+        self._residence_list.pop(item_id, None)
+
     def reference(self, item_id: int) -> int:
         """
         Record a reference to item_id. Returns slot_idx of the item.
-        
+        O(1) amortized via OrderedDict operations.
+
         LIRS logic:
         - If item in residence list: move to top of stack (stays LIRS)
         - If item not in residence but in stack: add to residence (becomes LIRS), move to top, evict oldest LIRS if needed
@@ -106,75 +111,70 @@ class LIRSEvictionTracker:
         """
         if item_id not in self._valid_items:
             return -1
-        
+
         slot_idx = self._item_to_slot.get(item_id, -1)
-        
+
         if item_id in self._residence_list:
             # Case 1: Item is in residence list (LIRS item)
             # Move to top of stack (most recent)
-            if item_id in self._stack:
-                self._stack.remove(item_id)
-            self._stack.insert(0, item_id)
+            self._stack.pop(item_id, None)
+            self._stack[item_id] = None
             # Move to top of residence list too (most recently referenced)
-            self._residence_list.remove(item_id)
-            self._residence_list.insert(0, item_id)
+            self._residence_list.move_to_end(item_id, last=True)
         elif item_id in self._stack:
             # Case 2: Item was in cache but got evicted (non-LIRS in stack)
             # Re-add to residence list as LIRS item (at top)
-            self._residence_list.insert(0, item_id)
+            self._residence_list[item_id] = self._item_to_slot.get(item_id, -1)
             self._lirs_set.add(item_id)
             # Move to top of stack
-            self._stack.remove(item_id)
-            self._stack.insert(0, item_id)
+            self._stack.pop(item_id, None)
+            self._stack[item_id] = None
             # Evict oldest LIRS item if over capacity
             self._prune_residence()
         else:
             # Case 3: New item (not in stack)
-            self._residence_list.insert(0, item_id)
+            self._residence_list[item_id] = self._item_to_slot.get(item_id, -1)
             self._lirs_set.add(item_id)
             # Add to top of stack
-            self._stack.insert(0, item_id)
+            self._stack[item_id] = None
             # Evict oldest LIRS item if over capacity
             self._prune_residence()
-        
+
         # Prune stack if too large
         self._prune_stack()
-        
+
         return slot_idx
-    
+
     def _prune_residence(self):
         """Evict oldest LIRS item from residence list if over capacity.
-        
-        The oldest LIRS item is the one that appears latest in the stack
-        among the LIRS items (lowest recency).
-        """
+        O(k) per eviction where k is the position of the first LIRS item
+        in the residence list (typically O(1) when most items are LIRS)."""
         while len(self._residence_list) > self.capacity:
-            # Find the LIRS item with lowest recency (latest position in stack)
-            lirs_items_in_r = [item for item in self._residence_list if item in self._lirs_set]
-            if not lirs_items_in_r:
+            # Find the first LIRS item (lowest recency = front of OrderedDict)
+            # Use next() with a generator to avoid copying all keys.
+            oldest_lirs_id = next(
+                (iid for iid in self._residence_list if iid in self._lirs_set),
+                None,
+            )
+            if oldest_lirs_id is None:
                 break
-            
-            # Find the LIRS item with lowest recency (max position in stack)
-            oldest_lirs = max(lirs_items_in_r, key=lambda x: self._stack.index(x))
-            
-            # Remove it from residence list
-            self._residence_list.remove(oldest_lirs)
-            self._lirs_set.discard(oldest_lirs)
-            # Note: oldest_lirs stays in stack (now non-LIRS)
-    
+            del self._residence_list[oldest_lirs_id]
+            self._lirs_set.discard(oldest_lirs_id)
+
     def _prune_stack(self):
-        """Prune oldest items from stack if over max size."""
+        """Prune oldest items from stack if over max size.
+        O(1) amortized — pop from the front of the OrderedDict."""
         while len(self._stack) > self._stack_max:
-            self._stack.pop()
-    
+            self._stack.popitem(last=False)
+
     def get_lirs_items(self) -> set:
         """Return set of current LIRS item IDs."""
         return self._lirs_set.copy()
-    
-    def get_residence_list(self) -> List[int]:
-        """Return copy of residence list."""
+
+    def get_residence_list(self) -> "OrderedDict[int, int]":
+        """Return copy of residence list (OrderedDict)."""
         return self._residence_list.copy()
-    
+
     def get_stats(self) -> dict:
         """Return LIRS statistics."""
         return {
@@ -276,6 +276,9 @@ class RawEmbeddingEpisodicMemory(nn.Module):
         # Set of valid buffer slot indices (for LIRS mode)
         self._valid_slots: set = set()
 
+        # ---- Thread safety ----
+        self._lock = threading.RLock()
+
     # ------------------------------------------------------------------
     # Storage
     # ------------------------------------------------------------------
@@ -286,41 +289,42 @@ class RawEmbeddingEpisodicMemory(nn.Module):
         Args:
             features: ``[B, D]`` tensor of raw embeddings (``D = embedding_dim``).
         """
-        if features.dim() == 1:
-            features = features.unsqueeze(0)
-        if features.size(-1) != self.embedding_dim:
-            raise ValueError(
-                f"Expected embedding_dim={self.embedding_dim}, "
-                f"got features.size(-1)={features.size(-1)}"
-            )
-
-        with torch.no_grad():
-            # Average the batch into a single memory slot (matches EpisodicMemory contract)
-            raw = features.detach().mean(0)
-            key = self.key_encoder(raw)
-
-            if self.eviction_policy == "LIRS" and self._lirs_tracker is not None:
-                # LIRS eviction: determine which slot to use based on LIRS algorithm
-                idx = self._lirs_store(key, raw)
-            else:
-                # FIFO eviction: circular buffer
-                idx = self.ptr % self.capacity
-                self.keys[idx] = key.detach()
-                self.values[idx] = raw.detach()
-                self.ptr = (self.ptr + 1) % self.capacity
-                self.count = torch.minimum(
-                    self.count + 1,
-                    torch.tensor(self.capacity, dtype=torch.long),
+        with self._lock:
+            if features.dim() == 1:
+                features = features.unsqueeze(0)
+            if features.size(-1) != self.embedding_dim:
+                raise ValueError(
+                    f"Expected embedding_dim={self.embedding_dim}, "
+                    f"got features.size(-1)={features.size(-1)}"
                 )
+
+            with torch.no_grad():
+                # Average the batch into a single memory slot (matches EpisodicMemory contract)
+                raw = features.detach().mean(0)
+                key = self.key_encoder(raw)
+
+                if self.eviction_policy == "LIRS" and self._lirs_tracker is not None:
+                    # LIRS eviction: determine which slot to use based on LIRS algorithm
+                    idx = self._lirs_store(key, raw)
+                else:
+                    # FIFO eviction: circular buffer
+                    idx = self.ptr % self.capacity
+                    self.keys[idx] = key.detach()
+                    self.values[idx] = raw.detach()
+                    self.ptr = (self.ptr + 1) % self.capacity
+                    self.count = torch.minimum(
+                        self.count + 1,
+                        torch.tensor(self.capacity, dtype=torch.long),
+                    )
     
     def _lirs_store(self, key: torch.Tensor, raw: torch.Tensor) -> int:
         """
         Store using LIRS eviction policy.
-        
+
         Returns the buffer slot index used.
         """
         count = self.count.item()
-        
+
         if count < self.capacity:
             # Not yet at capacity, use next slot
             idx = count
@@ -338,32 +342,57 @@ class RawEmbeddingEpisodicMemory(nn.Module):
         else:
             # At capacity - need to evict using LIRS
             # Get the LIRS item with lowest priority (oldest in stack among LIRS)
-            residence_list = self._lirs_tracker.get_residence_list()
-            if residence_list:
-                # Find the LIRS item with lowest recency (oldest in stack)
-                lirs_items = [item for item in residence_list if item in self._lirs_tracker.get_lirs_items()]
-                if lirs_items:
-                    # Find LIRS item with max stack position (oldest = lowest recency)
-                    oldest_lirs = max(lirs_items, key=lambda x: self._lirs_tracker._stack.index(x) if x in self._lirs_tracker._stack else float('inf'))
-                    idx = self._item_id_to_slot.get(oldest_lirs)
-                    if idx is not None:
-                        # Unregister evicted item from LIRS tracker
-                        self._lirs_tracker.unregister_item(oldest_lirs)
-                        del self._slot_to_item_id[idx]
-                        del self._item_id_to_slot[oldest_lirs]
-                        # Store new item in that slot
-                        item_id = self._lirs_tracker.get_new_item_id()
-                        self._lirs_tracker.register_item(item_id, idx)
-                        self._slot_to_item_id[idx] = item_id
-                        self._item_id_to_slot[item_id] = idx
-                        self.keys[idx] = key.detach()
-                        self.values[idx] = raw.detach()
-                        # Add new item to LIRS structures
-                        self._lirs_tracker.reference(item_id)
-                        return idx
-            
-            # Fallback (shouldn't happen): use ptr like FIFO
+            residence = self._lirs_tracker.get_residence_list()
+            lirs_items = self._lirs_tracker.get_lirs_items()
+            # Find LIRS items in residence list (OrderedDict keys)
+            lirs_in_residence = [item for item in residence if item in lirs_items]
+            if lirs_in_residence:
+                # Find LIRS item with lowest recency (first in stack = oldest)
+                stack_keys = list(self._lirs_tracker._stack.keys())
+                oldest_lirs = max(
+                    lirs_in_residence,
+                    key=lambda x: stack_keys.index(x) if x in stack_keys else float('inf'),
+                )
+                idx = self._item_id_to_slot.get(oldest_lirs)
+                if idx is not None:
+                    # Unregister evicted item from LIRS tracker
+                    self._lirs_tracker.unregister_item(oldest_lirs)
+                    del self._slot_to_item_id[idx]
+                    del self._item_id_to_slot[oldest_lirs]
+                    # Store new item in that slot
+                    item_id = self._lirs_tracker.get_new_item_id()
+                    self._lirs_tracker.register_item(item_id, idx)
+                    self._slot_to_item_id[idx] = item_id
+                    self._item_id_to_slot[item_id] = idx
+                    self.keys[idx] = key.detach()
+                    self.values[idx] = raw.detach()
+                    # Add new item to LIRS structures
+                    self._lirs_tracker.reference(item_id)
+                    return idx
+
+            # Fallback: evict the oldest item in the residence list
+            # (regardless of LIRS status) to avoid data corruption.
+            if residence:
+                oldest_id = next(iter(residence))
+                idx = self._item_id_to_slot.get(oldest_id)
+                if idx is not None:
+                    self._lirs_tracker.unregister_item(oldest_id)
+                    self._slot_to_item_id.pop(idx, None)
+                    self._item_id_to_slot.pop(oldest_id, None)
+                    # Store new item in the freed slot
+                    item_id = self._lirs_tracker.get_new_item_id()
+                    self._lirs_tracker.register_item(item_id, idx)
+                    self._slot_to_item_id[idx] = item_id
+                    self._item_id_to_slot[item_id] = idx
+                    self.keys[idx] = key.detach()
+                    self.values[idx] = raw.detach()
+                    self._lirs_tracker.reference(item_id)
+                    return idx
+
+            # Last resort: FIFO overwrite (empty tracker state)
             idx = self.ptr % self.capacity
+            self.keys[idx] = key.detach()
+            self.values[idx] = raw.detach()
             self.ptr = (self.ptr + 1) % self.capacity
             return idx
 
@@ -418,7 +447,7 @@ class RawEmbeddingEpisodicMemory(nn.Module):
         
         if self.eviction_policy == "LIRS" and self._lirs_tracker is not None:
             # LIRS mode: only search valid slots
-            valid_slots = sorted(list(self._valid_slots))
+            valid_slots = sorted(self._valid_slots)
             if not valid_slots:
                 return torch.zeros(0, dtype=torch.long), torch.zeros(0)
             valid_keys = self.keys[valid_slots]
@@ -463,43 +492,45 @@ class RawEmbeddingEpisodicMemory(nn.Module):
         Returns:
             number of memories kept after pruning.
         """
-        count = self.count.item()
-        if count < 2:
+        with self._lock:
+            count = self.count.item()
+            if count < 2:
+                return count
+
+            with torch.no_grad():
+                sims = F.cosine_similarity(
+                    self.keys[:count].unsqueeze(1),
+                    self.keys[:count].unsqueeze(0),
+                    dim=-1,
+                )
+                usage = sims.mean(dim=1)
+                mask = usage > threshold
+
+                kept = int(mask.sum().item())
+                if kept < count:
+                    self.keys[:kept] = self.keys[:count][mask]
+                    self.values[:kept] = self.values[:count][mask]
+                    self.count = torch.tensor(kept, dtype=torch.long)
+                    self.ptr = torch.tensor(kept, dtype=torch.long)
+                    return kept
             return count
-
-        with torch.no_grad():
-            sims = F.cosine_similarity(
-                self.keys[:count].unsqueeze(1),
-                self.keys[:count].unsqueeze(0),
-                dim=-1,
-            )
-            usage = sims.mean(dim=1)
-            mask = usage > threshold
-
-            kept = int(mask.sum().item())
-            if kept < count:
-                self.keys[:kept] = self.keys[:count][mask]
-                self.values[:kept] = self.values[:count][mask]
-                self.count = torch.tensor(kept, dtype=torch.long)
-                self.ptr = torch.tensor(kept, dtype=torch.long)
-                return kept
-        return count
 
     # ------------------------------------------------------------------
     # Maintenance
     # ------------------------------------------------------------------
     def reset(self) -> None:
         """Reset all stored memories (does NOT reset ``key_encoder`` weights)."""
-        self.keys.zero_()
-        self.values.zero_()
-        self.ptr = torch.tensor(0, dtype=torch.long)
-        self.count = torch.tensor(0, dtype=torch.long)
-        # Reset LIRS tracker and mappings
-        if self.eviction_policy == "LIRS" and self._lirs_tracker is not None:
-            self._lirs_tracker = LIRSEvictionTracker(self.capacity)
-        self._slot_to_item_id = {}
-        self._item_id_to_slot = {}
-        self._valid_slots = set()
+        with self._lock:
+            self.keys.zero_()
+            self.values.zero_()
+            self.ptr = torch.tensor(0, dtype=torch.long)
+            self.count = torch.tensor(0, dtype=torch.long)
+            # Reset LIRS tracker and mappings
+            if self.eviction_policy == "LIRS" and self._lirs_tracker is not None:
+                self._lirs_tracker = LIRSEvictionTracker(self.capacity)
+            self._slot_to_item_id = {}
+            self._item_id_to_slot = {}
+            self._valid_slots = set()
 
     def get_usage(self) -> int:
         """Return the number of stored memories."""

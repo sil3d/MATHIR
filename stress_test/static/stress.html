@@ -272,6 +272,54 @@
         .tier-legend .l-semantic::before { background: var(--green); }
         .tier-legend .l-immune::before { background: var(--red); }
 
+        /* System health bar */
+        .health-section { margin-top: 12px; }
+        .health-bar {
+            display: flex;
+            gap: 2px;
+            height: 10px;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 6px;
+            background: #1a1a2e;
+        }
+        .health-seg {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.4s ease;
+            min-width: 2px;
+        }
+        .health-seg.seg-green  { background: var(--green); }
+        .health-seg.seg-blue   { background: var(--blue); }
+        .health-seg.seg-red    { background: var(--red); }
+        .health-legend {
+            display: flex;
+            gap: 10px;
+            margin-top: 4px;
+            font-size: 10px;
+            color: var(--text-dim);
+        }
+        .health-legend span::before {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-right: 3px;
+            vertical-align: middle;
+        }
+        .health-legend .hl-good::before  { background: var(--green); }
+        .health-legend .hl-normal::before { background: var(--blue); }
+        .health-legend .hl-bad::before   { background: var(--red); }
+        .health-status {
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+        .health-status.hs-good  { color: var(--green); }
+        .health-status.hs-normal { color: var(--blue); }
+        .health-status.hs-bad   { color: var(--red); }
+
         /* Charts grid */
         .charts-grid {
             display: grid;
@@ -350,6 +398,7 @@
         <div class="header-controls">
             <div class="status-dot" id="statusDot"></div>
             <span id="statusText" style="font-size:13px; color:var(--text-dim); margin-right:12px;">Idle</span>
+            <a href="/changelog" target="_blank" style="padding:6px 12px; border:1px solid var(--border); border-radius:6px; font-size:12px; color:var(--text-dim); text-decoration:none; background:var(--surface);">Changelog</a>
             <button class="primary" id="btnStart" onclick="startTest()">▶ Start</button>
             <button id="btnPause" onclick="pauseTest()" disabled>⏸ Pause</button>
             <button class="danger" id="btnStop" onclick="stopTest()" disabled>⏹ Stop</button>
@@ -371,6 +420,10 @@
             <label class="has-tooltip">Anomaly rate %
                 <input type="number" id="cfgAnomalyRate" value="10" min="0" max="100">
                 <div class="tooltip">Percentage of conversations flagged as anomalous (routed to Immune tier). Tests MATHIR anomaly detection.</div>
+            </label>
+            <label class="has-tooltip">Worker Threads
+                <input type="number" id="cfgNumThreads" value="4" min="1" max="16">
+                <div class="tooltip">Number of parallel store threads. More threads = higher concurrency stress. 1 = sequential.</div>
             </label>
         </section>
 
@@ -423,8 +476,8 @@
             <div class="metric-card has-tooltip">
                 <div class="label">GPU</div>
                 <div class="value" id="valGPU">0 <small>MB</small></div>
-                <div class="delta neutral" id="deltaGPU">—</div>
-                <div class="tooltip">GPU VRAM allocated by PyTorch. 0 = CPU-only mode. Only used for embedding computation.</div>
+                <div class="delta" id="deltaGPUUtil">0%</div>
+                <div class="tooltip">GPU VRAM and utilization. Shows real-time GPU usage from nvidia-smi.</div>
             </div>
             <div class="metric-card has-tooltip">
                 <div class="label">DB Size</div>
@@ -500,6 +553,21 @@
                 </div>
                 <div class="tooltip">Distribution of conversations across tiers. Working=blue, Episodic=purple, Semantic=green, Immune=red.</div>
             </div>
+            <div class="metric-card">
+                <div class="label">System Health</div>
+                <div class="health-bar">
+                    <div class="health-seg seg-green" id="healthGreen" style="width:0%"></div>
+                    <div class="health-seg seg-blue"  id="healthBlue"  style="width:0%"></div>
+                    <div class="health-seg seg-red"   id="healthRed"   style="width:0%"></div>
+                </div>
+                <div class="health-legend">
+                    <span class="hl-good">Good</span>
+                    <span class="hl-normal">Normal</span>
+                    <span class="hl-bad">Critical</span>
+                </div>
+                <div class="health-status hs-good" id="healthStatus">Analyzing...</div>
+                <div class="tooltip">Overall system health based on CPU, GPU, Recall, and Errors. Green=optimal, Blue=moderate load, Red=needs attention.</div>
+            </div>
         </div>
 
         <!-- Charts -->
@@ -528,6 +596,10 @@
                 <h4>CPU %</h4>
                 <canvas id="chartCPU"></canvas>
             </div>
+            <div class="chart-card">
+                <h4>GPU Utilization (%)</h4>
+                <canvas id="chartGPU"></canvas>
+            </div>
         </div>
 
         <!-- Logs -->
@@ -544,8 +616,24 @@
         const socket = io();
         let prevState = null;
 
+        // Health thresholds — defaults, overwritten by server on connect
+        let healthThresholds = {
+            cpu_percent:       [30, 70],
+            gpu_mb:            [200, 500],
+            recall_latency_ms: [5, 20],
+            errors:            [0, 5],
+            db_write_latency_ms: [10, 50],
+        };
+
         socket.on('connect', () => addLog('info', 'Connected to server'));
         socket.on('disconnect', () => addLog('warn', 'Disconnected from server'));
+
+        socket.on('health_config', (data) => {
+            if (data && data.thresholds) {
+                healthThresholds = data.thresholds;
+                addLog('info', `Health thresholds loaded from server`);
+            }
+        });
 
         socket.on('metrics_update', (data) => {
             updateMetrics(data);
@@ -603,6 +691,7 @@
         const chartConvos = makeChart('chartConvos', '#3b82f6');
         const chartThroughput = makeChart('chartThroughput', '#06b6d4');
         const chartCPU = makeChart('chartCPU', '#f97316');
+        const chartGPU = makeChart('chartGPU', '#a855f7');
 
         const MAX_POINTS = 120;
 
@@ -665,12 +754,25 @@
         }
 
         // ============================================================
+        // GPU util history (client-side)
+        // ============================================================
+        let gpuHistory = [];
+        function updateGPUChart(gpuUtil) {
+            gpuHistory.push(gpuUtil);
+            if (gpuHistory.length > MAX_POINTS) gpuHistory = gpuHistory.slice(-MAX_POINTS);
+            chartGPU.data.labels = gpuHistory.map((_, i) => i);
+            chartGPU.data.datasets[0].data = gpuHistory;
+            chartGPU.update('none');
+        }
+
+        // ============================================================
         // Metrics update
         // ============================================================
         function updateMetrics(data) {
             // Core metrics
             document.getElementById('valRAM').innerHTML = `${Math.round(data.ram_mb)} <small>MB</small>`;
             document.getElementById('valGPU').innerHTML = `${Math.round(data.gpu_mb)} <small>MB</small>`;
+            document.getElementById('deltaGPUUtil').textContent = `${(data.gpu_util_percent || 0).toFixed(0)}%`;
             document.getElementById('valDB').innerHTML = `${data.db_size_mb.toFixed(1)} <small>MB</small>`;
             document.getElementById('valConvos').textContent = formatNumber(data.conversations);
             document.getElementById('valRecall').innerHTML = `${data.recall_latency_ms.toFixed(1)} <small>ms</small>`;
@@ -685,6 +787,9 @@
 
             // CPU chart
             updateCPUChart(data.cpu_percent);
+
+            // GPU chart
+            updateGPUChart(data.gpu_util_percent || 0);
 
             // Tier distribution bars
             const total = (data.tier_working || 0) + (data.tier_episodic || 0) + (data.tier_semantic || 0) + (data.tier_immune || 0);
@@ -709,7 +814,11 @@
                 updateDelta('deltaPeakRAM', data.peak_ram_mb - prevState.peak_ram_mb, 'MB');
                 updateDelta('deltaDBWrite', data.db_write_latency_ms - prevState.db_write_latency_ms, 'ms');
                 updateDelta('deltaCPU', data.cpu_percent - prevState.cpu_percent, '%');
+                updateDelta('deltaGPUUtil', (data.gpu_util_percent || 0) - (prevState.gpu_util_percent || 0), '%');
             }
+
+            // System health bar
+            updateHealth(data);
 
             prevState = { ...data };
         }
@@ -726,6 +835,52 @@
             } else {
                 el.className = 'delta down';
                 el.textContent = `▼ ${diff.toFixed(1)}${unit}`;
+            }
+        }
+
+        // ============================================================
+        // System Health Bar — driven by server thresholds (healthThresholds)
+        // Each metric: [good_max, normal_max] → above normal_max = critical
+        // ============================================================
+        function scoreMetric(value, thresholds) {
+            if (!thresholds || thresholds.length < 2) return 0;
+            const [goodMax, normalMax] = thresholds;
+            if (value <= goodMax) return 0;       // green
+            if (value <= normalMax) return 1;      // blue
+            return 2;                              // red
+        }
+
+        function updateHealth(data) {
+            const metrics = [
+                { key: 'cpu_percent',       val: data.cpu_percent },
+                { key: 'gpu_mb',            val: data.gpu_mb },
+                { key: 'recall_latency_ms', val: data.recall_latency_ms },
+                { key: 'errors',            val: data.errors },
+                { key: 'db_write_latency_ms', val: data.db_write_latency_ms },
+            ];
+
+            const scores = metrics.map(m => scoreMetric(m.val, healthThresholds[m.key]));
+
+            const good   = scores.filter(s => s === 0).length;
+            const normal = scores.filter(s => s === 1).length;
+            const bad    = scores.filter(s => s === 2).length;
+            const total  = scores.length;
+
+            document.getElementById('healthGreen').style.width = `${(good / total) * 100}%`;
+            document.getElementById('healthBlue').style.width  = `${(normal / total) * 100}%`;
+            document.getElementById('healthRed').style.width   = `${(bad / total) * 100}%`;
+
+            const statusEl = document.getElementById('healthStatus');
+            const worst = Math.max(...scores);
+            if (worst === 0) {
+                statusEl.textContent = 'All systems optimal';
+                statusEl.className = 'health-status hs-good';
+            } else if (worst === 1) {
+                statusEl.textContent = 'Moderate load — within normal range';
+                statusEl.className = 'health-status hs-normal';
+            } else {
+                statusEl.textContent = 'Attention needed — check metrics';
+                statusEl.className = 'health-status hs-bad';
             }
         }
 
@@ -788,6 +943,7 @@
                 batch_size: +document.getElementById('cfgBatchSize').value,
                 interval_seconds: +document.getElementById('cfgInterval').value,
                 anomaly_rate: +document.getElementById('cfgAnomalyRate').value / 100,
+                num_threads: +document.getElementById('cfgNumThreads').value,
                 tiers_enabled: {
                     working: document.getElementById('tierWorking').checked,
                     episodic: document.getElementById('tierEpisodic').checked,
@@ -799,8 +955,9 @@
         }
 
         function startTest() {
-            // Reset CPU history
+            // Reset CPU and GPU history
             cpuHistory = [];
+            gpuHistory = [];
             prevState = null;
 
             fetch('/api/start', {
@@ -808,8 +965,16 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(getConfig())
             }).then(r => r.json()).then(data => {
-                updateStatus('running');
-                addLog('info', 'Stress test started');
+                if (data.status === 'already_running') {
+                    addLog('warn', 'Test already running — stop first');
+                } else if (data.status === 'running') {
+                    updateStatus('running');
+                    addLog('info', 'Stress test started');
+                } else {
+                    addLog('error', `Start failed: ${JSON.stringify(data)}`);
+                }
+            }).catch(err => {
+                addLog('error', `Start request failed: ${err}`);
             });
         }
 

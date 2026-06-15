@@ -14,7 +14,7 @@ MATHIR is a drop-in PyTorch memory plugin that sits between any LLM and your app
 - **Provider-agnostic** — `mathir_lib.providers` ships adapters for OpenAI, Ollama, HuggingFace, and a `DirectProvider` for custom embeddings. Each returns a `[B, D]` tensor that plugs straight into the plugin.
 - **8 config presets** — `config/default.yaml`, `config/edge.yaml` (Jetson / Raspberry Pi), `config/research.yaml` (full quality), `config/v7.yaml` (doctoral features), plus the auto-config wizard.
 - **4 retrieval back-ends** — `raw_episodic` (31.6 % overlap, 657 QPS), `ensemble_episodic` (29.1 %, 425 QPS), `faiss_episodic` (31.6 %, 20 392 QPS), `hybrid_episodic` (45.7 %, 2 QPS).
-- **Production-ready** — 100 % backward compatible with V6, 49/49 V7 unit tests pass, 130 new V7.1 retrieval tests pass, zero regressions, optional ONNX export, INT8 precision, 0.6 GB VRAM, 10 ms p50 inference.
+- **Production-ready** — 100 % backward compatible with V6, 49/49 V7 unit tests pass, 130 new V7.1 retrieval tests pass, zero regressions, optional ONNX export, INT8 precision, ~500 MB VRAM (GPU), 25ms p50 inference.
 
 ---
 
@@ -395,7 +395,7 @@ The full schema lives in `mathir_lib/config.py::DEFAULT_CONFIG`. Below is the **
 | Parameter | Default | Options | When to change |
 |---|---|---|---|
 | `backend` | `pytorch` | `pytorch`/`onnx`/`rust` | `onnx` for 2-3× faster CPU inference |
-| `device` | `auto` | `auto`/`cpu`/`cuda` | `cpu` for edge, `cuda` for research |
+| `device` | `auto` | `auto`/`cpu`/`cuda` | `cuda` for GPU (bge-large default), `cpu` for edge (MiniLM fallback) |
 | `precision` | `float32` | `float32`/`float16`/`int8` | `int8` for 4× smaller model on edge |
 
 ### 4.4 `router.*`
@@ -448,7 +448,7 @@ inference:
 **Edge / Jetson / Raspberry Pi** (`config/edge.yaml` — shipped):
 ```yaml
 memory:
-  embedding_dim: 1024
+  embedding_dim: 1024       # Jetson: use bge-large; Raspberry Pi: fallback to MiniLM (384d)
   internal_dim: 272
   working_capacity: 32
   episodic_capacity: 256
@@ -462,6 +462,8 @@ inference:
   device: cpu
   precision: int8
 ```
+
+> **Raspberry Pi note:** Jetson has GPU support for bge-large (1024d), but Raspberry Pi requires the MiniLM fallback (384d) due to memory constraints. Update `embedding_dim` to `384` when deploying on Raspberry Pi.
 
 **Research / full features** (`config/research.yaml` — shipped):
 ```yaml
@@ -481,7 +483,103 @@ compression:
 
 ---
 
-## 5. Code Patterns (7 idiomatic patterns)
+## 5. HybridSearch — Auto-Selecting Vector Backend
+
+### 5.1 Architecture Overview
+
+MATHIR V7.2 ships `HybridSearch` — a drop-in vector store that automatically selects the optimal backend based on collection size:
+
+```
+User Query → bge-large CUDA Embedding → HybridSearch Auto-Select
+                                            ├─ N < 5K:  numpy brute-force (0.78ms)
+                                            ├─ N >= 5K: USearch HNSW mmap (1.37ms)
+                                            └─ SQLite:  ALWAYS stores metadata
+```
+
+**Key insight:** Numpy is faster at small scales (0.78ms vs 1.37ms) with better recall (0.8592 vs 0.8376). USearch wins at scale via O(log N) HNSW traversal. The crossover is at ~5K vectors.
+
+### 5.2 BEIR Benchmark Results
+
+| Backend | Search (avg) | Recall@10 | When to use |
+|---------|-------------|-----------|-------------|
+| **Numpy** | 0.78ms | 0.8592 | N<5K (default) |
+| **USearch** | 1.37ms | 0.8376 | N>=5K (auto-switch) |
+| **sqlite-vec** | 23.68ms | 0.8592 | Never for vectors |
+
+### 5.3 Quick Start
+
+```python
+from mathir_search import HybridSearch
+import numpy as np
+
+# Initialize — auto-selects backend based on data volume
+search = HybridSearch(dim=1024, db_path="memories.db")
+
+# Store embeddings with metadata
+embedding = np.random.randn(1024).astype(np.float32)  # or your bge-large output
+search.store("mem_1", embedding, {"agent": "coder", "task": "auth fix"})
+
+# Search — auto-selects numpy (N<5K) or USearch (N>=5K)
+query = np.random.randn(1024).astype(np.float32)
+results = search.search(query, k=5)
+
+for r in results:
+    print(f"ID: {r['id']}, Score: {r['score']:.4f}, Meta: {r['metadata']}")
+```
+
+### 5.4 Backend Details
+
+| Feature | Numpy | USearch | sqlite-vec |
+|---------|-------|---------|------------|
+| **Index type** | Brute-force | HNSW mmap | Flat |
+| **Storage** | In-memory | Memory-mapped file | SQLite DB |
+| **Persistence** | Via pickle | Auto-persisted | SQLite file |
+| **Metadata** | Dict in Python | Dict in Python | SQL columns |
+| **Recall@10** | 0.8592 | 0.8376 | 0.8592 |
+| **Best for** | <5K items, dev | >5K items, prod | Metadata only |
+
+### 5.5 Deployment Options
+
+| Tier | Embedder | Dim | Latency/text | Hardware |
+|------|----------|-----|--------------|----------|
+| **GPU** | bge-large CUDA | 1024 | 3ms | Jetson, A100, RTX |
+| **CPU** | bge-large CPU | 1024 | 30ms | Server CPU, Mac M-series |
+| **Edge** | MiniLM | 384 | 1ms | Raspberry Pi, microcontrollers |
+
+The system auto-downgrades: GPU → CPU → Edge. `HybridSearch` handles backend switching transparently.
+
+### 5.6 Advanced Usage
+
+```python
+from mathir_search import HybridSearch
+
+# Force a specific backend
+search = HybridSearch(dim=1024, db_path="memories.db", backend="usearch")
+
+# Custom metadata schema
+search.store("mem_1", emb, {
+    "agent": "coder",
+    "task": "auth fix",
+    "timestamp": "2026-06-15T10:30:00Z",
+    "session_id": "sess_abc123"
+})
+
+# Filter by metadata during search
+results = search.search(query, k=5, filter={"agent": "coder"})
+
+# Batch operations
+embeddings = np.random.randn(100, 1024).astype(np.float32)
+ids = [f"mem_{i}" for i in range(100)]
+search.store_batch(ids, embeddings, [{"agent": "coder"}] * 100)
+
+# Get stats
+stats = search.stats()
+print(f"Backend: {stats['backend']}, Count: {stats['count']}, Dim: {stats['dim']}")
+```
+
+---
+
+## 6. Code Patterns (7 idiomatic patterns)
 
 ### Pattern 1 — Simple store/recall loop
 
@@ -744,9 +842,10 @@ emb = emb / emb.norm(dim=-1, keepdim=True).clamp(min=1e-8)
 
 **Q: How do I deploy to edge (Jetson, Raspberry Pi)?**
 
-> Use `config/edge.yaml` (shipped). 0.6 GB VRAM → 80 MB with `precision: int8` + `bits: 3` compression. Or export to ONNX:
+> Use `config/edge.yaml` (shipped). ~500 MB VRAM (GPU) → 80 MB with `precision: int8` + `bits: 3` compression. On CPU-only devices (Raspberry Pi), export to ONNX for CPU fallback:
 
 ```python
+# CPU fallback — export to ONNX for edge deployment
 # In MATHIR v7.2+ — see plugin_v7.export_onnx
 plugin.export_onnx("mathir_edge.onnx")
 
@@ -821,7 +920,7 @@ def process(text):
 |---|---|---|
 | **Low latency (real-time chat)** | `precision: int8`, `episodic_capacity: 256`, `use_raw_embedding: true`, `compression.enabled: true` | 3-10 ms p50, 25 ms p99 |
 | **High quality (RAG/QA)** | `compression.enabled: false`, `use_sparse_coding: true`, `immune_type: mahalanobis`, `episodic_capacity: 10000` | 45.7 % overlap (Approach D) |
-| **Low memory (edge)** | `precision: int8`, `compression.enabled: true`, `episodic_only: true`, `episodic_capacity: 256` | 80 MB footprint, 0.6 GB → 80 MB |
+| **Low memory (edge)** | `precision: int8`, `compression.enabled: true`, `episodic_only: true`, `episodic_capacity: 256`, `embedding_dim: 384` (MiniLM CPU fallback) | 80 MB footprint, ~500 MB → 80 MB |
 | **High throughput (batch)** | `backend: onnx`, `precision: float16`, `episodic_capacity: 5000`, `semantic_prototypes: 256` | 20K QPS (FAISS), 657 QPS (raw) |
 | **Balanced (default)** | shipped `config/default.yaml` | 6-10 ms p50, 31.6 % quality, 0.6 GB VRAM |
 
@@ -835,6 +934,9 @@ def process(text):
 | MATHIR FAISS-backed (C) | 8.9 ms | 8.9 ms | 31.6 % | 5.0 MB | 97 |
 | MATHIR hybrid (D) | 494 ms | 220 ms (cache miss + agree) | **45.7 %** | 8.0 MB | 2 |
 | MATHIR D + cache hit | — | 3-30 ms | 45.7 % | 8.0 MB + cache | 50-300 |
+| **HybridSearch (N<5K)** | **0.78 ms** | **0.78 ms** | **0.8592 recall** | **varies** | **1,282** |
+| **HybridSearch (N>=5K)** | **1.37 ms** | **1.37 ms** | **0.8376 recall** | **varies** | **730** |
+| **sqlite-vec (baseline)** | **23.68 ms** | **23.68 ms** | **0.8592 recall** | **varies** | **42** |
 
 **Caching is the key lever.** V7.2's LRU result cache hits 80-85 % on real chat workloads (follow-up turns, paraphrased questions, batched re-evaluation). That brings the warm path from 494 ms to 3-30 ms with **zero quality loss**.
 

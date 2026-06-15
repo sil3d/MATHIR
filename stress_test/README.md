@@ -17,28 +17,39 @@ python stress_test/server.py
 ### Monitoring live
 - **4 graphiques temps réel** : RAM, DB Size, Recall Latency, Conversations
 - **6 métriques clés** : RAM, GPU, DB, Conversations, Recall, Errors
+- **System Health Bar** — 3-color bar (green/blue/red) scoring CPU, GPU, Recall, Errors, DB Write. Thresholds server-driven via WebSocket `health_config` event.
 - **Logs en direct** avec niveaux (info/warn/error)
 
 ### Contrôle
 - **Start / Pause / Stop** — boutons en header
 - **Configuration en temps réel** — batch size, intervalle, taux d'anomalies
 - **Tiers sélectifs** — activer/désactiver Working, Episodic, Semantic, Immune, KL Router
+- **Clean slate** — `start()` deletes old DB + WAL/SHM before reinit
+- **Start after Stop** — Recreates ThreadPoolExecutor automatically
+
+### Métriques corrigées
+- **CPU** — Utilise `cpu_times()` delta (process-wide, thread-independent) au lieu de `psutil.cpu_percent(interval=None)` qui retournait toujours 0%
+- **GPU** — Utilise `torch.cuda.memory_allocated()` (MATHIR-only tensors) au lieu de `nvidia-smi memory.used` (global, tous processus)
 
 ### Export
 - **CSV** — toutes les métriques horodatées
 - **HTML** — rapport visuel avec graphiques statiques
 
+### Architecture
+- **Changelog** — Documentation complète de l'architecture à `/changelog` avec diffs code avant/après, benchmarks, références fichiers
+
 ## Architecture
 
 ```
 stress_test/
-├── server.py           ← Flask + WebSocket (port 5000)
-├── metrics.py          ← Collecte RAM/GPU/DB/latence
+├── server.py           ← Flask + WebSocket (port 5000), executor recreation, clean slate
+├── metrics.py          ← CPU via cpu_times() delta, GPU via torch.cuda.memory_allocated()
 ├── generator.py        ← Générateur synthétique (126 phrases)
 ├── static/
-│   └── stress.html     ← UI dark theme (Chart.js + Socket.IO)
+│   ├── stress.html     ← UI dark theme (Chart.js + Socket.IO), health bar, server-driven thresholds
+│   └── changelog.html  ← Architecture documentation page
 ├── reports/            ← CSV/HTML exportés
-└── stress_memory.db    ← SQLite (créé automatiquement)
+└── stress_memory.db    ← SQLite (créé automatiquement, supprimé au restart)
 ```
 
 ## API Endpoints
@@ -54,6 +65,7 @@ stress_test/
 | GET | `/api/status` | État du test |
 | GET | `/api/download/csv` | Télécharge le CSV |
 | GET | `/api/download/html` | Télécharge le rapport HTML |
+| WS | `health_config` | Envoie les seuils de health au client |
 
 ## Données synthétiques
 

@@ -20,13 +20,13 @@ from beir.retrieval.evaluation import EvaluateRetrieval
 from sentence_transformers import CrossEncoder, SentenceTransformer
 
 import sys
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-DATASETS = ["arguana"]
+DATASETS = ["scifact", "nfcorpus", "arguana"]
 MODEL_NAME = "BAAI/bge-base-en-v1.5"
-BEIR_DATA_DIR = Path(__file__).parent / "beir_data"
-CACHE_DIR = Path(__file__).parent / "controlled_emb_cache"
-RESULTS_FILE = Path(__file__).parent / "results_final" / "beir" / "multi_dataset_efficient_results.json"
+BEIR_DATA_DIR = Path(__file__).parent.parent / "beir_data"
+CACHE_DIR = Path(__file__).parent.parent / "controlled_emb_cache"
+RESULTS_FILE = Path(__file__).parent.parent / "results_final" / "beir" / "multi_dataset_efficient_results.json"
 TOP_K = 20
 
 def load_dataset(name):
@@ -35,12 +35,7 @@ def load_dataset(name):
     if nested.exists():
         data_path = nested
     if not data_path.exists():
-        print(f"Downloading {name}...")
-        url = util.download_dataset(
-            f"https://public.ukp.informatik.tu-darmstadt.de/scaden/datasets/{name}.zip",
-            str(BEIR_DATA_DIR)
-        )
-        data_path = Path(url).parent / name
+        raise FileNotFoundError(f"Dataset {name} not found at {data_path}. Please download manually.")
     return GenericDataLoader(data_path).load(split="test")
 
 class DenseFAISS:

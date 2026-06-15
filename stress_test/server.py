@@ -14,6 +14,7 @@ import sys
 import json
 import time
 import threading
+from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, render_template, request, send_file, jsonify
 from flask_socketio import SocketIO, emit
 
@@ -63,12 +64,22 @@ class StressTest:
             "batch_size": 50,
             "interval_seconds": 5,
             "anomaly_rate": 0.10,
+            "num_threads": 4,
             "tiers_enabled": {
                 "working": True,
                 "episodic": True,
                 "semantic": True,
                 "immune": True,
                 "kl_router": True,
+            },
+            # Health thresholds: each metric has [good_max, normal_max]
+            # above normal_max = critical
+            "health_thresholds": {
+                "cpu_percent":       [30, 70],      # % process CPU
+                "gpu_mb":            [200, 500],    # MB MATHIR-specific VRAM
+                "recall_latency_ms": [5, 20],       # ms FTS5 query
+                "errors":            [0, 5],        # error count
+                "db_write_latency_ms": [10, 50],    # ms per write
             },
         }
         self.memory = None
@@ -80,6 +91,9 @@ class StressTest:
         self._db_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "stress_memory.db"
         )
+        # Thread pool for parallel store operations
+        self._executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="mathir-store")
+        self._futures = []
         # Detect GPU at init time (not just at start)
         self._device, self._gpu_info = detect_gpu()
 
@@ -89,7 +103,28 @@ class StressTest:
             return {"status": "already_running"}
 
         if config:
-            self.config.update(config)
+            # Deep merge: don't overwrite health_thresholds if not in new config
+            for k, v in config.items():
+                if k == "health_thresholds" and "health_thresholds" in self.config:
+                    self.config["health_thresholds"].update(v)
+                else:
+                    self.config[k] = v
+
+        # --- Clean slate: delete old DB before reinit ---
+        if os.path.exists(self._db_path):
+            try:
+                os.remove(self._db_path)
+                self._log("info", f"Removed old DB: {os.path.basename(self._db_path)}")
+            except OSError as e:
+                self._log("warn", f"Could not remove old DB: {e}")
+        # Also remove WAL/SHM files from SQLite journal
+        for ext in ("-wal", "-shm"):
+            p = self._db_path + ext
+            if os.path.exists(p):
+                try:
+                    os.remove(p)
+                except OSError:
+                    pass
 
         # Detect GPU
         self._device, self._gpu_info = detect_gpu()
@@ -126,6 +161,12 @@ class StressTest:
         self.paused = False
         self.conversations_sent = 0
 
+        # Recreate thread pool (killed by stop())
+        self._executor = ThreadPoolExecutor(
+            max_workers=self.config.get("num_threads", 4),
+            thread_name_prefix="mathir-store"
+        )
+
         # Thread 1: Storage (configurable interval)
         self._storage_thread = threading.Thread(target=self._storage_loop, daemon=True)
         self._storage_thread.start()
@@ -146,6 +187,8 @@ class StressTest:
             self._storage_thread.join(timeout=5)
         if self._metrics_thread:
             self._metrics_thread.join(timeout=5)
+        # Shutdown thread pool
+        self._executor.shutdown(wait=False)
         self._log("warn", f"Stress test stopped — {self.conversations_sent} conversations injected")
         socketio.emit("status_update", {"status": "stopped"})
         return {"status": "stopped"}
@@ -166,7 +209,14 @@ class StressTest:
         self.generator = ConversationGenerator(
             anomaly_rate=self.config.get("anomaly_rate", 0.10)
         )
-        self._log("info", f"Config updated: batch={self.config['batch_size']}, interval={self.config['interval_seconds']}s, anomaly={self.config['anomaly_rate']:.0%}")
+        # Recreate executor if num_threads changed
+        new_threads = self.config.get("num_threads", 4)
+        if new_threads != self._executor._max_workers:
+            self._executor.shutdown(wait=False)
+            self._executor = ThreadPoolExecutor(max_workers=new_threads, thread_name_prefix="mathir-store")
+        self._log("info", f"Config updated: batch={self.config['batch_size']}, interval={self.config['interval_seconds']}s, threads={new_threads}, anomaly={self.config['anomaly_rate']:.0%}")
+        # Push updated health thresholds to frontend
+        socketio.emit("health_config", {"thresholds": self.config["health_thresholds"]})
         return {"status": "updated"}
 
     # ============================================================
@@ -174,7 +224,7 @@ class StressTest:
     # ============================================================
 
     def _storage_loop(self):
-        """Boucle de stockage — génère et stocke les conversations"""
+        """Boucle de stockage — génère et stocke les conversations en parallèle"""
         while self.running:
             if self.paused:
                 time.sleep(0.5)
@@ -184,21 +234,33 @@ class StressTest:
                 # 1. Generate batch
                 batch = self.generator.generate_batch(self.config["batch_size"])
 
-                # 2. Store each conversation
+                # 2. Submit all stores to thread pool (parallel)
+                self._futures = []
                 for conv in batch:
-                    self._store_conversation(conv)
+                    future = self._executor.submit(self._store_conversation, conv)
+                    self._futures.append(future)
 
-                # 3. Recall benchmark (every 50 conversations)
+                # 3. Wait for all to complete
+                for f in self._futures:
+                    try:
+                        f.result(timeout=10)
+                    except Exception:
+                        self.metrics.increment_errors()
+
+                self._futures.clear()
+
+                # 4. Recall benchmark (every 50 conversations)
                 if self.conversations_sent > 0 and self.conversations_sent % 50 == 0:
                     self._benchmark_recall()
 
-                # 4. Log every 10 batches
+                # 5. Log every 10 batches
                 if self.conversations_sent % (self.config["batch_size"] * 10) == 0 and self.conversations_sent > 0:
                     rates = self.metrics.get_growth_rates()
                     snap = self.metrics.history[-1] if self.metrics.history else None
                     if snap:
                         self._log("info",
                             f"Convos: {self.conversations_sent:,} | "
+                            f"Threads: {self.config['num_threads']} | "
                             f"RAM: {snap.ram_mb:.0f}MB ({rates['ram_mb_per_hour']:+.0f}MB/h) | "
                             f"DB: {snap.db_size_mb:.1f}MB ({rates['db_mb_per_hour']:+.1f}MB/h) | "
                             f"Recall: {snap.recall_latency_ms:.0f}ms"
@@ -240,6 +302,7 @@ class StressTest:
                     socketio.emit("metrics_update", {
                         "ram_mb": snapshot.ram_mb,
                         "gpu_mb": snapshot.gpu_mb,
+                        "gpu_util_percent": snapshot.gpu_util_percent,
                         "db_size_mb": snapshot.db_size_mb,
                         "conversations": self.conversations_sent,
                         "tokens": snapshot.tokens_total,
@@ -450,6 +513,11 @@ def index():
     return render_template("stress.html")
 
 
+@app.route("/changelog")
+def changelog():
+    return render_template("changelog.html")
+
+
 @app.route("/api/start", methods=["POST"])
 def api_start():
     config = request.json if request.is_json else None
@@ -481,11 +549,17 @@ def api_metrics():
         return jsonify({
             "ram_mb": snapshot.ram_mb,
             "gpu_mb": snapshot.gpu_mb,
+            "gpu_util_percent": snapshot.gpu_util_percent,
             "db_size_mb": snapshot.db_size_mb,
             "conversations": stress.conversations_sent,
             "tokens": snapshot.tokens_total,
             "recall_latency_ms": snapshot.recall_latency_ms,
             "errors": snapshot.errors,
+            "cpu_percent": snapshot.cpu_percent,
+            "peak_ram_mb": snapshot.peak_ram_mb,
+            "throughput_conv_per_sec": snapshot.throughput_conv_per_sec,
+            "db_write_latency_ms": snapshot.db_write_latency_ms,
+            "uptime_seconds": snapshot.uptime_seconds,
         })
     return jsonify({"error": "not started"}), 400
 
@@ -523,6 +597,8 @@ def api_download_html():
 @socketio.on("connect")
 def on_connect():
     print("[WS] Client connected")
+    # Send health thresholds once on connect
+    emit("health_config", {"thresholds": stress.config["health_thresholds"]})
     if stress.running and stress.metrics:
         emit("status_update", {"status": "running" if not stress.paused else "paused"})
 

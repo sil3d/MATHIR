@@ -12,7 +12,7 @@ import numpy as np
 
 sys.path.insert(0, r"D:\SECRET_PROJECT\MATHIR")
 
-from mathir_search import VectorSearch
+from mathir_search import HybridSearch
 
 
 def generate_data(n: int, dim: int):
@@ -39,7 +39,7 @@ def generate_data(n: int, dim: int):
     return embeddings, items
 
 
-def bench_insert(search: VectorSearch, items, label: str):
+def bench_insert(search: HybridSearch, items, label: str):
     """Benchmark insert (single + batch)."""
     # Single inserts
     start = time.perf_counter()
@@ -52,21 +52,13 @@ def bench_insert(search: VectorSearch, items, label: str):
     # Batch insert (remaining)
     remaining = items[n:]
     if remaining:
-        search.close()
-        if search.backend_name == "sqlite":
-            search._backend = __import__("mathir_search", fromlist=["_SQLiteBackend"])._SQLiteBackend(search.dim, search.db_path)
-        elif search.backend_name == "gpu":
-            search._backend = __import__("mathir_search", fromlist=["_GPUBackend"])._GPUBackend(search.dim)
-        else:
-            search._backend = __import__("mathir_search", fromlist=["_NumpyBackend"])._NumpyBackend(search.dim)
-
         start = time.perf_counter()
         search.store_batch(remaining)
         elapsed = (time.perf_counter() - start) * 1000
         print(f"  {label} batch insert ({len(remaining)}): {elapsed:.1f}ms ({elapsed/len(remaining):.2f}ms/item)")
 
 
-def bench_search(search: VectorSearch, queries, k=5, label=""):
+def bench_search(search: HybridSearch, queries, k=5, label=""):
     """Benchmark search."""
     # Warmup
     for q in queries[:3]:
@@ -140,7 +132,7 @@ def main():
                     print(f"  [SKIP] {backend}: no GPU")
                     continue
 
-                search = VectorSearch(dim=dim, backend=backend, db_path=db_path)
+                search = HybridSearch(dim=dim, db_path=db_path, strategy=backend if backend != "gpu" else "auto")
                 bench_insert(search, items, f"{backend:>6}")
                 avg_search = bench_search(search, queries, k=5, label=f"{backend:>6}")
                 search.close()

@@ -40,6 +40,7 @@ Intuition for the 3-tier ensemble:
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import threading
 from typing import Tuple
 
 
@@ -123,6 +124,9 @@ class EnsembleEpisodicMemory(nn.Module):
         # ---- Bookkeeping ----
         self.register_buffer("ptr", torch.tensor(0, dtype=torch.long))
         self.register_buffer("count", torch.tensor(0, dtype=torch.long))
+
+        # ---- Thread safety ----
+        self._lock = threading.RLock()
 
     # ------------------------------------------------------------------ #
     # Ensemble weights
@@ -217,28 +221,29 @@ class EnsembleEpisodicMemory(nn.Module):
         Args:
             x: [B, D] or [D] tensor to store
         """
-        with torch.no_grad():
-            if x.dim() == 1:
-                x = x.unsqueeze(0)
-            v = x.mean(0)  # [D]
+        with self._lock:
+            with torch.no_grad():
+                if x.dim() == 1:
+                    x = x.unsqueeze(0)
+                v = x.mean(0)  # [D]
 
-            ptr = int(self.ptr.item())
-            idx = ptr % self.capacity
+                ptr = int(self.ptr.item())
+                idx = ptr % self.capacity
 
-            # Store raw + compute cached projections
-            self.keys_raw[idx] = v
-            self.values[idx] = v
-            for d in self.proj_dims:
-                projected = self._project(v.unsqueeze(0), d).squeeze(0)
-                getattr(self, f"keys_proj_{d}")[idx] = projected
+                # Store raw + compute cached projections
+                self.keys_raw[idx] = v
+                self.values[idx] = v
+                for d in self.proj_dims:
+                    projected = self._project(v.unsqueeze(0), d).squeeze(0)
+                    getattr(self, f"keys_proj_{d}")[idx] = projected
 
-            self.ptr = torch.tensor(
-                (ptr + 1) % self.capacity, dtype=torch.long
-            )
-            self.count = torch.minimum(
-                self.count + 1,
-                torch.tensor(self.capacity, dtype=torch.long),
-            )
+                self.ptr = torch.tensor(
+                    (ptr + 1) % self.capacity, dtype=torch.long
+                )
+                self.count = torch.minimum(
+                    self.count + 1,
+                    torch.tensor(self.capacity, dtype=torch.long),
+                )
 
     def retrieve(self, query: torch.Tensor, k: int = 3) -> torch.Tensor:
         """
@@ -296,35 +301,42 @@ class EnsembleEpisodicMemory(nn.Module):
         """
         Prune low-usage memories (by mean raw-cosine to all other stored vectors).
 
+        Uses centroid-based scoring (O(n)) instead of full pairwise cosine (O(n²)).
+
         Returns:
             number of memories kept
         """
-        count = int(self.count.item())
-        if count < 2:
+        with self._lock:
+            count = int(self.count.item())
+            if count < 2:
+                return count
+
+            with torch.no_grad():
+                # O(n) centroid-based scoring instead of O(n²) pairwise cosine
+                keys = self.keys_raw[:count]
+                centroid = keys.mean(dim=0)  # [D]
+                centroid_norm = centroid.norm()
+                if centroid_norm < 1e-8:
+                    return count
+
+                key_norms = keys.norm(dim=-1)  # [count]
+                key_norms = torch.where(key_norms > 0, key_norms, torch.ones_like(key_norms))
+                usage = (keys @ centroid) / (key_norms * centroid_norm)  # [count]
+                mask = usage > threshold
+                kept = int(mask.sum().item())
+
+                if kept < count:
+                    keep_idx = mask.nonzero(as_tuple=True)[0]
+                    self.keys_raw[:kept] = self.keys_raw[:count][keep_idx]
+                    self.values[:kept] = self.values[:count][keep_idx]
+                    for d in self.proj_dims:
+                        getattr(self, f"keys_proj_{d}")[:kept] = (
+                            getattr(self, f"keys_proj_{d}")[:count][keep_idx]
+                        )
+                    self.count = torch.tensor(kept, dtype=torch.long)
+                    self.ptr = torch.tensor(kept % self.capacity, dtype=torch.long)
+                    return kept
             return count
-
-        with torch.no_grad():
-            sims = F.cosine_similarity(
-                self.keys_raw[:count].unsqueeze(0),
-                self.keys_raw[:count].unsqueeze(1),
-                dim=-1,
-            )
-            usage = sims.mean(dim=0)  # [count]
-            mask = usage > threshold
-            kept = int(mask.sum().item())
-
-            if kept < count:
-                keep_idx = mask.nonzero(as_tuple=True)[0]
-                self.keys_raw[:kept] = self.keys_raw[:count][keep_idx]
-                self.values[:kept] = self.values[:count][keep_idx]
-                for d in self.proj_dims:
-                    getattr(self, f"keys_proj_{d}")[:kept] = (
-                        getattr(self, f"keys_proj_{d}")[:count][keep_idx]
-                    )
-                self.count = torch.tensor(kept, dtype=torch.long)
-                self.ptr = torch.tensor(kept % self.capacity, dtype=torch.long)
-                return kept
-        return count
 
     def get_stats(self) -> dict:
         """Return memory statistics."""
@@ -341,12 +353,13 @@ class EnsembleEpisodicMemory(nn.Module):
 
     def reset(self) -> None:
         """Reset all stored memories and bookkeeping."""
-        self.keys_raw.zero_()
-        self.values.zero_()
-        for d in self.proj_dims:
-            getattr(self, f"keys_proj_{d}").zero_()
-        self.ptr = torch.tensor(0, dtype=torch.long)
-        self.count = torch.tensor(0, dtype=torch.long)
+        with self._lock:
+            self.keys_raw.zero_()
+            self.values.zero_()
+            for d in self.proj_dims:
+                getattr(self, f"keys_proj_{d}").zero_()
+            self.ptr = torch.tensor(0, dtype=torch.long)
+            self.count = torch.tensor(0, dtype=torch.long)
 
     def get_usage(self) -> int:
         """Number of stored memories."""

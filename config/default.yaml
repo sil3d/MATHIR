@@ -21,6 +21,13 @@ compression:
 inference:
   backend: pytorch
   device: auto
+  device_map: null  # Set to enable hybrid mode
+  # device_map:
+  #   working: cuda:0
+  #   episodic: cpu
+  #   semantic: cuda:0
+  #   immune: cpu
+  #   router: cuda:0
   precision: float32
 
 router:

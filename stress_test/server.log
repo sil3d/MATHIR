@@ -1,0 +1,27 @@
+==================================================
+  MATHIR Stress Test
+  Device: CUDA: NVIDIA GeForce RTX 4060 Laptop GPU (8188MB VRAM)
+  http://localhost:5000
+==================================================
+ * Serving Flask app 'server'
+ * Debug mode: on
+==================================================
+  MATHIR Stress Test
+  Device: CUDA: NVIDIA GeForce RTX 4060 Laptop GPU (8188MB VRAM)
+  http://localhost:5000
+==================================================
+[WS] Client connected
+[WS] Client connected
+[WS] Client connected
+[INIT] MATHIR memory OK: <class 'mathir_dropin.memory.MATHIRMemory'>
+[INIT] MATHIR memory OK: <class 'mathir_dropin.memory.MATHIRMemory'>
+[STORE DEBUG] memory=True, tiers={'working': True, 'episodic': True, 'semantic': True, 'immune': True, 'kl_router': True}, dim=384
+[STORE DEBUG] memory=True, tiers={'working': True, 'episodic': True, 'semantic': True, 'immune': True, 'kl_router': True}, dim=384
+[STORE DEBUG] memory=True, tiers={'working': True, 'episodic': True, 'semantic': True, 'immune': True, 'kl_router': True}, dim=384
+[STORE DEBUG] memory=True, tiers={'working': True, 'episodic': True, 'semantic': True, 'immune': True, 'kl_router': True}, dim=384
+[STORE DEBUG] memory=True, tiers={'working': True, 'episodic': True, 'semantic': True, 'immune': True, 'kl_router': True}, dim=384
+[STORE DEBUG] memory=True, tiers={'working': True, 'episodic': True, 'semantic': True, 'immune': True, 'kl_router': True}, dim=384
+[WS] Client disconnected
+[WS] Client connected
+[WS] Client disconnected
+[WS] Client connected

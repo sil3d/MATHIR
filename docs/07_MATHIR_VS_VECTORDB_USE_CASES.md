@@ -60,7 +60,7 @@ The two architectures under comparison share the same goal — augment an LLM wi
                  │  embedding  (raw 384–4096 dim, no projection)
                  ▼
 ┌────────────────────────────────────────────────────────────────┐
-│             MATHIR V7.1  (60 KB · ~1–500 ms · 0.6 GB VRAM)     │
+│             MATHIR V7.1  (60 KB · ~1–500 ms · ~500 MB VRAM)     │
 │                                                                │
 │  ┌─────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────────┐  │
 │  │ Working │  │ Episodic │  │ Semantic │  │  Immunological   │  │
@@ -104,7 +104,7 @@ The two architectures under comparison share the same goal — augment an LLM wi
 | Router | None | KL-constrained (Theorem 3) |
 | Cache | Vendor-specific | Built-in 10K LRU (chat) / 90%+ hit (driving) |
 | LLM-agnostic | N/A (it *is* the memory) | Yes — drop-in `.perceive() / .store() / .recall()` |
-| Edge deployable | ❌ (typical 2–4 GB) | ✅ (0.6 GB total, 60 KB memory) |
+| Edge deployable | ❌ (typical 2–4 GB) | ✅ (60 KB internal memory, ~500 MB embedding model (GPU) or 80 MB (CPU INT8)) |
 | Formal guarantees | None | 6 theorems, 8 algorithms |
 
 ---
@@ -182,7 +182,7 @@ An autonomous-driving stack — typically a vision-language model (Qwen3-VL, LLa
 | **Pre-recorded data replay** | ✅ | ✅ | TIE |
 | **Policy bias from retrieved context** | ⚠️ (top-1 only, single score) | ✅ (top-5 + per-stage scores + novelty flag) | MATHIR |
 | **Forgetting dangerous situations** | ❌ (FIFO drops the crash) | ✅ (Ebbinghaus: dangerous $S$ survives) | **MATHIR** |
-| **Edge / on-car deployment (Jetson Orin 8 GB)** | ❌ (2–4 GB just for the index at 1 M vectors) | ✅ (0.6 GB total, 60 KB memory budget) | MATHIR |
+| **Edge / on-car deployment (Jetson Orin 8 GB)** | ❌ (2–4 GB just for the index at 1 M vectors) | ✅ (~500 MB embedding model (GPU), 60 KB internal memory budget) | MATHIR |
 
 ### 4.2 Why driving is the killer use case for MATHIR
 
@@ -210,11 +210,11 @@ This is the single most important distinction. Consider the input: an embedding 
 | Component | VRAM | Latency (P50) |
 |---|---:|---:|
 | VLM (Qwen3-VL 7B, INT8) | 7.0 GB | 80 ms |
-| MATHIR V7.1 plugin | 0.6 GB | 6–494 ms (warm–cold) |
+| MATHIR V7.1 plugin (bge-large embedding) | ~500 MB | 6–494 ms (warm–cold) |
 | LRU cache | 0.01 GB | 0.1 ms |
-| **Total** | **7.61 GB** | **86–580 ms** |
+| **Total** | **~7.51 GB** | **86–580 ms** |
 
-A FAISS index of 1 M 384-dim vectors (PQ16) takes 2 GB VRAM and 50 ms per query — incompatible with a 0.6 GB budget or a 20 ms sub-frame SLA. MATHIR's 60 KB hard-capped memory budget (Theorem 1) is the only option for on-car deployment.
+A FAISS index of 1 M 384-dim vectors (PQ16) takes 2 GB VRAM and 50 ms per query — incompatible with a ~500 MB budget or a 20 ms sub-frame SLA. MATHIR's 60 KB hard-capped memory budget (Theorem 1) is the only option for on-car deployment.
 
 ---
 

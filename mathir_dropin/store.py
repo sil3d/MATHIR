@@ -474,8 +474,7 @@ class SQLiteStore:
                 f"Query embedding dim {q.shape[0]} != stored dim {first_emb_dim}"
             )
 
-        # Build embedding matrix using provider embeddings when available,
-        # otherwise fall back to primary embeddings
+        # Phase 1: Extract embeddings and metadata from rows
         mem_ids = []
         modalities = []
         texts = []
@@ -484,8 +483,8 @@ class SQLiteStore:
         stabilities = []
         recall_counts = []
         metadatas = []
-        similarities = []
         emb_models = []
+        embeddings = []  # collected for vectorized cosine
 
         for r in rows:
             # Use provider-specific embedding if available, otherwise primary
@@ -506,6 +505,7 @@ class SQLiteStore:
             stabilities.append(float(r["stability"]))
             recall_counts.append(int(r["recall_count"]))
             emb_models.append(model)
+            embeddings.append(emb)
 
             try:
                 meta = json.loads(r["metadata"]) if r["metadata"] else {}
@@ -513,20 +513,22 @@ class SQLiteStore:
                 meta = {"_raw": r["metadata"]}
             metadatas.append(meta)
 
-            # Compute cosine similarity
-            norm = float(np.linalg.norm(emb))
-            if norm == 0:
-                similarities.append(0.0)
-            else:
-                unit = emb / norm
-                similarities.append(float(np.dot(unit, q_unit)))
-
         if not mem_ids:
             return []
 
-        # Sort by similarity descending
-        sorted_indices = np.argsort(-np.array(similarities))
-        top_idx = sorted_indices[:k]
+        # Phase 2: Vectorized cosine similarity (single matrix multiply)
+        embs_matrix = np.stack(embeddings)  # [N, D]
+        norms = np.linalg.norm(embs_matrix, axis=1)
+        norms = np.where(norms == 0, 1.0, norms)  # avoid div-by-zero
+        embs_unit = embs_matrix / norms[:, None]
+        similarities = embs_unit @ q_unit  # [N]
+
+        # Phase 3: Top-k via argpartition — O(N) not O(N log N)
+        if k >= len(similarities):
+            top_idx = np.argsort(-similarities)
+        else:
+            top_idx = np.argpartition(-similarities, k)[:k]
+            top_idx = top_idx[np.argsort(-similarities[top_idx])]
 
         results: List[Dict[str, Any]] = []
         for i in top_idx:
@@ -539,7 +541,7 @@ class SQLiteStore:
                 "tier": tiers[i],
                 "stability": stabilities[i],
                 "recall_count": recall_counts[i],
-                "similarity": similarities[i],
+                "similarity": float(similarities[i]),
                 "embedding_model": emb_models[i],
             })
         return results

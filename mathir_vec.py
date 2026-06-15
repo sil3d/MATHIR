@@ -17,7 +17,9 @@ from __future__ import annotations
 import json
 import sqlite3
 import struct
+import threading
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -41,9 +43,16 @@ class VecMemory:
     """
 
     def __init__(self, db_path: str, dim: int):
+        # --- Input validation ---
+        if not isinstance(dim, int) or dim <= 0:
+            raise ValueError(f"dim must be a positive integer, got {dim!r}")
+        if not isinstance(db_path, str) or not db_path.strip():
+            raise ValueError("db_path must be a non-empty string")
+
         self.db_path = db_path
         self.dim = dim
-        self._conn = sqlite3.connect(db_path)
+        self._lock = threading.Lock()
+        self._conn = sqlite3.connect(db_path, check_same_thread=False)
         # ── Performance: WAL mode + relaxed sync (3-5x write speedup) ──
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA synchronous=NORMAL")
@@ -69,10 +78,13 @@ class VecMemory:
                 timestamp REAL
             )
         """)
-        cur.execute(f"""
-            CREATE VIRTUAL TABLE IF NOT EXISTS memory_vec
-            USING vec0(embedding float[{self.dim}])
-        """)
+        # SECURITY FIX: dim is validated as positive int in __init__, so this
+        # is safe.  The f-string is unavoidable here because sqlite-vec DDL
+        # doesn't support parameterized table definitions.
+        cur.execute(
+            "CREATE VIRTUAL TABLE IF NOT EXISTS memory_vec "
+            "USING vec0(embedding float[%d])" % (self.dim,)
+        )
         self._conn.commit()
 
     def store(
@@ -82,10 +94,15 @@ class VecMemory:
         metadata: Optional[Dict[str, Any]] = None,
     ):
         """Store a single embedding with metadata."""
+        # --- Input validation ---
+        if not isinstance(memory_id, str) or not memory_id.strip():
+            raise ValueError("memory_id must be a non-empty string")
+
         arr = np.asarray(embedding, dtype=np.float32).reshape(-1)
-        assert arr.shape[0] == self.dim, (
-            f"Expected dim {self.dim}, got {arr.shape[0]}"
-        )
+        if arr.shape[0] != self.dim:
+            raise ValueError(
+                f"Expected dim {self.dim}, got {arr.shape[0]}"
+            )
 
         # L2-normalize so vec0 L2 distance → cosine similarity
         norm = np.linalg.norm(arr)
@@ -101,21 +118,22 @@ class VecMemory:
         ts = time.time()
         meta_json = json.dumps(meta, ensure_ascii=False, default=str)
 
-        cur = self._conn.cursor()
-        # INSERT into metadata table, capture rowid
-        cur.execute(
-            "INSERT OR REPLACE INTO memories "
-            "(memory_id, metadata, agent, tier, timestamp) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (memory_id, meta_json, agent, tier, ts),
-        )
-        rowid = cur.lastrowid
-        # INSERT into vec0 using rowid as FK
-        cur.execute(
-            "INSERT OR REPLACE INTO memory_vec (rowid, embedding) VALUES (?, ?)",
-            (rowid, blob),
-        )
-        self._conn.commit()
+        with self._lock:
+            cur = self._conn.cursor()
+            # INSERT into metadata table, capture rowid
+            cur.execute(
+                "INSERT OR REPLACE INTO memories "
+                "(memory_id, metadata, agent, tier, timestamp) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (memory_id, meta_json, agent, tier, ts),
+            )
+            rowid = cur.lastrowid
+            # INSERT into vec0 using rowid as FK
+            cur.execute(
+                "INSERT OR REPLACE INTO memory_vec (rowid, embedding) VALUES (?, ?)",
+                (rowid, blob),
+            )
+            self._conn.commit()
 
     def search(
         self,
@@ -139,8 +157,15 @@ class VecMemory:
         -------
         List of dicts with keys: memory_id, similarity, metadata, agent, tier.
         """
+        # --- Input validation ---
+        if not isinstance(k, int) or k <= 0:
+            raise ValueError(f"k must be a positive integer, got {k}")
+
         q = np.asarray(query, dtype=np.float32).reshape(-1)
-        assert q.shape[0] == self.dim
+        if q.shape[0] != self.dim:
+            raise ValueError(
+                f"Query dim mismatch: expected {self.dim}, got {q.shape[0]}"
+            )
 
         # L2-normalize query
         q_norm = np.linalg.norm(q)
@@ -151,14 +176,15 @@ class VecMemory:
         # Fetch extra rows if we need to post-filter by agent
         fetch_k = min(k * 10, 10000) if agent_filter else k
 
-        cur = self._conn.cursor()
-        rows = cur.execute("""
-            SELECT m.memory_id, m.metadata, m.agent, m.tier, v.distance
-            FROM memory_vec v
-            JOIN memories m ON m.id = v.rowid
-            WHERE v.embedding MATCH ? AND k = ?
-            ORDER BY v.distance
-        """, (q_unit.tobytes(), fetch_k)).fetchall()
+        with self._lock:
+            cur = self._conn.cursor()
+            rows = cur.execute("""
+                SELECT m.memory_id, m.metadata, m.agent, m.tier, v.distance
+                FROM memory_vec v
+                JOIN memories m ON m.id = v.rowid
+                WHERE v.embedding MATCH ? AND k = ?
+                ORDER BY v.distance
+            """, (q_unit.tobytes(), fetch_k)).fetchall()
 
         results = []
         for row in rows:
@@ -185,7 +211,8 @@ class VecMemory:
 
     def close(self):
         """Close the database connection."""
-        self._conn.close()
+        with self._lock:
+            self._conn.close()
 
     def __enter__(self):
         return self

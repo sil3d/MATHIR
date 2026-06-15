@@ -273,6 +273,34 @@ But for **most workloads**, the cache alone is sufficient and simpler.
 
 ## 9. VectorDB Comparison {#9-vectordb}
 
+### Q9.0: What is the HybridSearch architecture?
+
+**A:** MATHIR V7.2 introduces `HybridSearch` — an auto-selecting backend that picks the optimal vector index based on collection size. The flow:
+
+```
+User Query
+    ↓
+bge-large CUDA Embedding (1024d, 3ms/text)
+    ↓
+HybridSearch Auto-Select
+    ├─ N < 5K: numpy brute-force (0.78ms, recall@10 = 0.8592)
+    ├─ N >= 5K: USearch HNSW mmap (1.37ms, recall@10 = 0.8376)
+    └─ SQLite: ALWAYS stores metadata (tags, timestamps, agent info)
+```
+
+**Why auto-select?** Numpy is faster at small scales (0.78ms vs 1.37ms) with better recall. USearch wins at scale via O(log N) HNSW traversal. The crossover happens at ~5K vectors — below that, brute-force is both faster and more accurate.
+
+### Q9.0a: What are the BEIR benchmark results?
+
+**A:**
+| Backend | Search (avg) | Recall@10 | When to use |
+|---------|-------------|-----------|-------------|
+| **Numpy** | 0.78ms | 0.8592 | N<5K (default) |
+| **USearch** | 1.37ms | 0.8376 | N>=5K (auto-switch) |
+| **sqlite-vec** | 23.68ms | 0.8592 | Never for vectors |
+
+sqlite-vec is 30× slower than numpy for vector search — use it only for metadata queries, never for embeddings.
+
 ### Q9.1: How does MATHIR compare to FAISS?
 **A:** In a real stress test (White's Fluid Mechanics, 200 chunks, 50 queries):
 | System | Quality | QPS (warm) | Latency (warm) |
@@ -374,7 +402,7 @@ Steering, throttle, brake
 - **Recall**: "Have I seen this intersection before?"
 - **Anomaly**: "This pedestrian trajectory is unusual → danger!"
 - **Adaptation**: "This road is icy → reduce speed by 20%"
-- **Edge deployment**: 9.3× compression enables Jetson/Raspberry Pi
+- **Edge deployment**: 9.3× compression enables Jetson (bge-large, GPU) / Raspberry Pi (MiniLM 384d, CPU fallback)
 
 ### Q11.3: What metrics improve with MATHIR in driving?
 **A:**
@@ -388,7 +416,17 @@ Steering, throttle, brake
 **A:** **NO.** MATHIR provides the **memory context** to the LLM/VLM. The VLM does the visual reasoning, MATHIR provides the historical context.
 
 ### Q11.5: Can MATHIR run on Jetson/Raspberry Pi?
-**A:** **YES** — V7's 9.3× compression puts the memory footprint at ~60KB. With cache, latency is 3-220ms on CPU, fast enough for edge.
+**A:** **YES** — V7's 9.3× compression puts the internal memory footprint at ~60KB. On Jetson, use bge-large (1024d) with GPU support; on Raspberry Pi, fall back to MiniLM (384d) on CPU. With cache, latency is 3-220ms on CPU, fast enough for edge.
+
+### Q11.6: What are the deployment options?
+**A:** Three tiers, each optimized for different hardware:
+| Tier | Embedder | Dim | Latency/text | Hardware |
+|------|----------|-----|--------------|----------|
+| **GPU** | bge-large CUDA | 1024 | 3ms | Jetson, A100, RTX |
+| **CPU** | bge-large CPU | 1024 | 30ms | Server CPU, Mac M-series |
+| **Edge** | MiniLM | 384 | 1ms | Raspberry Pi, microcontrollers |
+
+The system auto-downgrades: GPU → CPU → Edge based on available hardware. `HybridSearch` handles the backend switching transparently.
 
 ---
 
@@ -532,7 +570,7 @@ streamlit run benchmarks/streamlit_app.py
 
 ### Q15.2: What's planned for V8?
 **A:** The two-stage cascade architecture (FAISS + MATHIR D) is the immediate next step. Also:
-- ONNX export for edge deployment
+- ONNX export for edge deployment (CPU fallback for Raspberry Pi)
 - Rust core (PyO3) for 7× speedup
 - GPU acceleration
 - Multi-tenant memory isolation
@@ -633,5 +671,8 @@ memories = plugin.recall(query, k=5)
 | Anomaly detection | ✅ Yes (NP-optimal) |
 | LLM-agnostic | ✅ Yes |
 | Edge deployable | ✅ Yes |
+| **HybridSearch** | **Auto-select numpy (N<5K) or USearch (N>=5K)** |
+| **Vector backend** | **0.78ms numpy / 1.37ms USearch / 23.68ms sqlite-vec** |
+| **Deployment** | **GPU: bge-large 3ms / CPU: bge-large 30ms / Edge: MiniLM 1ms** |
 
 **MATHIR — The missing hippocampus of LLM agents.** 🧠

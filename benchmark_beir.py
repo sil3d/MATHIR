@@ -69,10 +69,9 @@ def embed_texts(texts, batch_size=64):
 # Evaluation: Recall@k
 # ---------------------------------------------------------------------------
 
-def recall_at_k(results, qrels, k=10):
+def recall_at_k(results, relevant, k=10):
     """Calculate recall@k for a single query."""
     retrieved_ids = [r["memory_id"] for r in results[:k]]
-    relevant = qrels.get(set(), set())
     if not relevant:
         return 0.0
     hits = len(set(retrieved_ids) & relevant)
@@ -125,8 +124,15 @@ def main():
     # --- Test 1: HybridSearch (auto) ---
     print("\n--- Test 1: HybridSearch (auto) ---")
     db_path = r"C:\Users\So-i-learn-3D\AppData\Local\Temp\beir_hybrid.db"
-    if os.path.exists(db_path):
-        os.remove(db_path)
+    # Clean up all related files (DB + WAL/SHM + USearch index)
+    for suffix in ["", "-wal", "-shm", "-journal"]:
+        f = db_path + suffix
+        if os.path.exists(f):
+            os.remove(f)
+    index_dir = r"C:\Users\So-i-learn-3D\AppData\Local\Temp\mathir_indexes"
+    if os.path.exists(index_dir):
+        import shutil
+        shutil.rmtree(index_dir, ignore_errors=True)
     search = HybridSearch(dim=dim, db_path=db_path)
 
     # Insert all documents
@@ -207,8 +213,10 @@ def main():
     # --- Test 3: sqlite-vec ---
     print("\n--- Test 3: sqlite-vec ---")
     vec_db = r"C:\Users\So-i-learn-3D\AppData\Local\Temp\beir_vec.db"
-    if os.path.exists(vec_db):
-        os.remove(vec_db)
+    for suffix in ["", "-wal", "-shm", "-journal"]:
+        f = vec_db + suffix
+        if os.path.exists(f):
+            os.remove(f)
     vec = VecMemory(vec_db, dim)
 
     start = time.perf_counter()
@@ -238,9 +246,11 @@ def main():
     vec.close()
 
     # Cleanup
-    for f in [db_path, vec_db]:
-        if os.path.exists(f):
-            os.remove(f)
+    for base in [db_path, vec_db]:
+        for suffix in ["", "-wal", "-shm", "-journal"]:
+            f = base + suffix
+            if os.path.exists(f):
+                os.remove(f)
 
     print("\n" + "=" * 60)
     print("BEIR benchmark complete.")

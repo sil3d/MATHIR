@@ -38,6 +38,52 @@ from .config import (
 from .exceptions import DimensionMismatchError, StorageError
 from .store import SQLiteStore
 
+
+# ---------------------------------------------------------------------------
+# Lightweight hybrid device manager for the drop-in package.
+# This mirrors mathir_lib.hybrid_device.HybridDeviceManager but keeps the
+# drop-in self-contained (no dependency on mathir_lib).
+# ---------------------------------------------------------------------------
+
+class _HybridDeviceManager:
+    """Minimal device manager for the drop-in package.
+
+    Handles CPU↔GPU transfers at tier boundaries. When ``device_map`` is
+    ``None`` or empty, acts as a no-op passthrough.
+    """
+
+    def __init__(self, device_map=None, fallback="cpu"):
+        self.device_map = dict(device_map) if device_map else {}
+        self._fallback = torch.device(fallback)
+        self._transfer_count = 0
+        self._transfer_bytes = 0
+        self._component_transfers = {}
+
+    def get_device(self, component):
+        return torch.device(self.device_map.get(component, self._fallback))
+
+    def to_device(self, tensor, component):
+        target = self.get_device(component)
+        if tensor.device == target:
+            return tensor
+        self._transfer_count += 1
+        self._transfer_bytes += tensor.nelement() * tensor.element_size()
+        self._component_transfers[component] = (
+            self._component_transfers.get(component, 0) + 1
+        )
+        return tensor.detach().to(target)
+
+    def get_stats(self):
+        return {
+            "transfer_count": self._transfer_count,
+            "transfer_bytes": self._transfer_bytes,
+            "component_transfers": dict(self._component_transfers),
+            "device_map": dict(self.device_map),
+        }
+
+    def is_hybrid(self):
+        return bool(self.device_map)
+
 # UniversalBridge is optional: the file exists in the package but if
 # the import fails for any reason we fall back to the vanilla paths
 # in MATHIRMemory.  This keeps ``import mathir_dropin`` working even
@@ -46,6 +92,48 @@ try:  # pragma: no cover - import-time only
     from .universal_bridge import UniversalBridge
 except Exception:  # pragma: no cover
     UniversalBridge = None  # type: ignore[assignment]
+
+
+# ---------------------------------------------------------------------------
+# Self-contained device detection (no dependency on mathir_lib)
+# ---------------------------------------------------------------------------
+
+def _detect_device() -> str:
+    """Auto-detect best available device.
+
+    Returns ``"cuda:0"`` if a CUDA GPU is available with at least 1 GB
+    free VRAM, otherwise ``"cpu"``.  This is intentionally duplicated
+    from ``mathir_lib.device_utils`` so the drop-in package stays
+    dependency-free.
+    """
+    if torch.cuda.is_available():
+        try:
+            free_mem = torch.cuda.mem_get_info(0)[0] / (1024 ** 3)
+            if free_mem >= 1.0:
+                return "cuda:0"
+        except Exception:
+            return "cuda:0"
+    return "cpu"
+
+
+def _auto_device_map() -> Dict[str, str]:
+    """Generate a tier→device map for single-device execution.
+
+    If GPU is available, all components go on GPU.  Otherwise returns
+    an empty dict (CPU-only, no special mapping needed).
+    """
+    device = _detect_device()
+    if device == "cpu":
+        return {}  # Everything on CPU — no special mapping needed.
+    return {
+        "working": "cuda:0",
+        "episodic": "cuda:0",
+        "semantic": "cuda:0",
+        "immune": "cuda:0",
+        "router": "cuda:0",
+        "input_proj": "cuda:0",
+        "output_proj": "cuda:0",
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -463,6 +551,7 @@ class MATHIRMemory(nn.Module):
         db_path: Optional[str] = None,
         provider: Optional[str] = None,
         model: Optional[str] = None,
+        device_map: Any = "auto",
     ):
         super().__init__()
 
@@ -471,6 +560,18 @@ class MATHIRMemory(nn.Module):
                 f"embedding_dim must be a positive int, got {embedding_dim!r}"
             )
         self.embedding_dim = embedding_dim
+
+        # ---- device auto-detection --------------------------------------
+        # When ``device_map="auto"``, we detect the best device and move
+        # the *entire* module to it.  This avoids cross-device tensor/
+        # parameter mismatches that a mixed device map would cause.
+        _target_device: Optional[torch.device] = None
+        if device_map == "auto":
+            _detected = _detect_device()
+            if _detected != "cpu":
+                _target_device = torch.device(_detected)
+            device_map = None  # No mixed-device map; module-level .to() below.
+        # ``None`` means single-device passthrough (existing behaviour).
 
         # ---- config -----------------------------------------------------
         cfg = configure(config)
@@ -489,6 +590,12 @@ class MATHIRMemory(nn.Module):
         self._cfg_mem = cfg["memory"]
         self._cfg_storage = cfg["storage"]
         self._cfg_router = cfg["router"]
+
+        # ---- hybrid device manager -----------------------------------
+        self.device_manager = _HybridDeviceManager(
+            device_map,
+            fallback=str(_target_device) if _target_device is not None else "cpu",
+        )
 
         # ---- projections ----------------------------------------------
         internal = self._cfg_mem["internal_dim"]
@@ -559,6 +666,10 @@ class MATHIRMemory(nn.Module):
         # for users who never call the new API).
         self._bridge: Optional["UniversalBridge"] = None
 
+        # ---- move entire module to target device if auto-detected GPU ---
+        if _target_device is not None:
+            self.to(_target_device)
+
     # ------------------------------------------------------------------
     # Embedding dimension check
     # ------------------------------------------------------------------
@@ -601,7 +712,10 @@ class MATHIRMemory(nn.Module):
         """
         x_in = self._check_dim(embedding)
         modality = _infer_modality(metadata)
-        x = self.input_proj(x_in)
+
+        # Transfer input to input_proj device if hybrid
+        x_in_dev = self.device_manager.to_device(x_in, "input_proj")
+        x = self.input_proj(x_in_dev)
 
         # All tier reads/writes happen under the same lock that store()
         # uses. Without it, the working buffer's circular pointer could
@@ -611,13 +725,28 @@ class MATHIRMemory(nn.Module):
             # Retrieve from each tier. Working context comes from
             # *before* the current input is added (otherwise we'd always
             # trivially retrieve the input itself with similarity 1.0).
-            w_ctx = self.working.retrieve(x)
-            e_ctx = self.episodic.retrieve(x, k=3)
-            s_ctx = self.semantic.retrieve(x)
-            i_ctx = self.immune.recognize(x)
+            w_ctx = self.working.retrieve(
+                self.device_manager.to_device(x, "working"),
+            )
+            e_ctx = self.episodic.retrieve(
+                self.device_manager.to_device(x, "episodic"), k=3,
+            )
+            s_ctx = self.semantic.retrieve(
+                self.device_manager.to_device(x, "semantic"),
+            )
+            i_ctx = self.immune.recognize(
+                self.device_manager.to_device(x, "immune"),
+            )
+
+            # Transfer all contexts to router device for fusion
+            x_router = self.device_manager.to_device(x, "router")
+            w_ctx = self.device_manager.to_device(w_ctx, "router")
+            e_ctx = self.device_manager.to_device(e_ctx, "router")
+            s_ctx = self.device_manager.to_device(s_ctx, "router")
+            i_ctx = self.device_manager.to_device(i_ctx, "router")
 
             # Route and blend.
-            routed = self.router(x)
+            routed = self.router(x_router)
             weights = routed["weights"]  # [B, 4]
             w = weights.unsqueeze(-1)     # [B, 4, 1] for broadcasting
             ctx_stack = torch.stack([w_ctx, e_ctx, s_ctx, i_ctx], dim=1)  # [B, 4, D]
@@ -625,17 +754,21 @@ class MATHIRMemory(nn.Module):
 
             # Residual + norm.
             if self.config["perception"]["use_residual"]:
-                fused = fused + x
+                fused = fused + x_router
             fused = self.layer_norm(fused)
 
-            enhanced = self.output_proj(fused)
+            enhanced = self.output_proj(
+                self.device_manager.to_device(fused, "output_proj"),
+            )
 
             # Anomaly score in the original projected space (uses the
             # immune tier's continuous score, not the thresholded mask).
-            anomaly = self.immune.anomaly_score(x)
+            anomaly = self.immune.anomaly_score(
+                self.device_manager.to_device(x, "immune"),
+            )
 
             # Also write to the working buffer so future calls see it.
-            self.working.store(x)
+            self.working.store(self.device_manager.to_device(x, "working"))
 
         return {
             "enhanced_embedding": enhanced,
@@ -686,7 +819,10 @@ class MATHIRMemory(nn.Module):
         """
         x_in = self._check_dim(embedding)
         modality = _infer_modality(metadata)
-        x = self.input_proj(x_in)
+
+        # Transfer input to input_proj device if hybrid
+        x_in_dev = self.device_manager.to_device(x_in, "input_proj")
+        x = self.input_proj(x_in_dev)
 
         memory_id = _new_id()
         modality_text = ""
@@ -703,10 +839,10 @@ class MATHIRMemory(nn.Module):
         # Update tiers under a single lock so concurrent stores don't
         # race on the circular-buffer ``ptr`` counters.
         with self._op_lock:
-            self.working.store(x)
-            slot = self.episodic.store(x)
-            self.semantic.update(x)
-            self.immune.store(x)
+            self.working.store(self.device_manager.to_device(x, "working"))
+            slot = self.episodic.store(self.device_manager.to_device(x, "episodic"))
+            self.semantic.update(self.device_manager.to_device(x, "semantic"))
+            self.immune.store(self.device_manager.to_device(x, "immune"))
             self._tier_for_id[memory_id] = tier
             # The slot the episodic buffer just wrote to now belongs to
             # this id; whatever id used to live there has been evicted
@@ -846,15 +982,17 @@ class MATHIRMemory(nn.Module):
             return sql_results[:k]
 
         # --- In-memory only path (db_path=None) ---
-        q_proj = self.input_proj(q)
-        live_hits = self.episodic.search(q_proj, k=k)
+        q_proj = self.input_proj(self.device_manager.to_device(q, "input_proj"))
+        live_hits = self.episodic.search(
+            self.device_manager.to_device(q_proj, "episodic"), k=k,
+        )
         live_results: List[Dict[str, Any]] = []
         for h in live_hits:
             live_results.append({
                 "memory_id":  f"live_{h['index']}",
                 "similarity": h["similarity"],
                 "metadata":   {"_live": True},
-                "embedding":  h["value"],
+                "embedding":  self.device_manager.to_device(h["value"], "cpu").cpu(),
                 "tier":       "episodic",
                 "modality":   "text",
                 "stability":  h["stability"],
@@ -1231,6 +1369,7 @@ class MATHIRMemory(nn.Module):
                     self._store.count() if self._store is not None else 0
                 ),
             },
+            "hybrid_device": self.device_manager.get_stats(),
         }
         return stats
 

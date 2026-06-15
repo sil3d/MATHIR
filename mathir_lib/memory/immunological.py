@@ -3,6 +3,8 @@ Immunological Memory — Anomaly detection.
 Detects novel inputs via distance threshold.
 """
 
+import threading
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -26,6 +28,7 @@ class ImmunologicalMemory(nn.Module):
     
     def __init__(self, capacity: int = 100, feature_dim: int = 272, threshold: float = 2.0):
         super().__init__()
+        self._lock = threading.RLock()
         self.capacity = capacity
         self.feature_dim = feature_dim
         self.threshold = threshold
@@ -39,12 +42,13 @@ class ImmunologicalMemory(nn.Module):
         """
         Store features as "normal" patterns.
         """
-        with torch.no_grad():
-            idx = self.ptr % self.capacity
-            self.bank[idx] = features.detach().mean(0)
-            
-            self.ptr = (self.ptr + 1) % self.capacity
-            self.count = torch.minimum(self.count + 1, torch.tensor(self.capacity, dtype=torch.long))
+        with self._lock:
+            with torch.no_grad():
+                idx = self.ptr % self.capacity
+                self.bank[idx] = features.detach().mean(0)
+                
+                self.ptr = (self.ptr + 1) % self.capacity
+                self.count = torch.minimum(self.count + 1, torch.tensor(self.capacity, dtype=torch.long))
     
     def recognize(self, features: torch.Tensor) -> Optional[torch.Tensor]:
         """
@@ -57,14 +61,15 @@ class ImmunologicalMemory(nn.Module):
             [B, D] anomaly signal (features if anomaly, zeros if normal)
             or None if not enough data
         """
-        count = self.count.item()
-        if count < 10:
-            return None
-        
-        dists = torch.cdist(features, self.bank[:count])
-        min_dist = dists.min(dim=1)[0]
-        anomaly = (min_dist > self.threshold).float().unsqueeze(-1)
-        return anomaly * features
+        with self._lock:
+            count = self.count.item()
+            if count < 10:
+                return None
+            
+            dists = torch.cdist(features, self.bank[:count])
+            min_dist = dists.min(dim=1)[0]
+            anomaly = (min_dist > self.threshold).float().unsqueeze(-1)
+            return anomaly * features
     
     def get_anomaly_score(self, features: torch.Tensor) -> torch.Tensor:
         """
@@ -102,6 +107,7 @@ class MahalanobisImmunologicalMemory(nn.Module):
                  threshold: float = 2.0, ema_decay: float = 0.01,
                  regularization: float = 1e-4):
         super().__init__()
+        self._lock = threading.RLock()
         self.capacity = capacity
         self.feature_dim = feature_dim
         self.threshold = threshold
@@ -119,39 +125,59 @@ class MahalanobisImmunologicalMemory(nn.Module):
         self.register_buffer("n_updates", torch.tensor(0, dtype=torch.long))
 
     def store(self, features: torch.Tensor) -> None:
-        """Store features and update running statistics."""
-        with torch.no_grad():
-            x = features.detach().mean(0)
+        """Store features and update running statistics.
+        O(D²) per call — dominated by the rank-1 covariance update."""
+        with self._lock:
+            with torch.no_grad():
+                x = features.detach().mean(0)
 
-            # Store
-            idx = self.ptr % self.capacity
-            self.bank[idx] = x
-            self.ptr = (self.ptr + 1) % self.capacity
-            self.count = torch.minimum(
-                self.count + 1,
-                torch.tensor(self.capacity, dtype=torch.long, device=self.count.device),
-            )
+                # Store
+                idx = self.ptr % self.capacity
+                self.bank[idx] = x
+                self.ptr = (self.ptr + 1) % self.capacity
+                self.count = torch.minimum(
+                    self.count + 1,
+                    torch.tensor(self.capacity, dtype=torch.long, device=self.count.device),
+                )
 
-            # Update running statistics
-            self.running_mean = (1 - self.ema_decay) * self.running_mean + self.ema_decay * x
+                # Update running statistics (O(D) for mean, O(D²) for cov)
+                self.running_mean = (1 - self.ema_decay) * self.running_mean + self.ema_decay * x
 
-            diff = (x - self.running_mean).unsqueeze(0)
-            new_cov = diff.T @ diff
-            self.running_cov = (1 - self.ema_decay) * self.running_cov + self.ema_decay * new_cov
+                diff = (x - self.running_mean).unsqueeze(0)
+                new_cov = diff.T @ diff
+                self.running_cov = (1 - self.ema_decay) * self.running_cov + self.ema_decay * new_cov
 
-            # Regularize
-            self.running_cov = self.running_cov + self.regularization * torch.eye(
-                self.feature_dim, device=self.running_cov.device
-            )
+                # Regularize ONLY to prevent singularity — don't compound
+                # by adding regularization every step. Just ensure minimum
+                # diagonal value.
+                diag_min = self.running_cov.diag().min().item()
+                if diag_min < self.regularization:
+                    self.running_cov += (
+                        self.regularization - diag_min
+                    ) * torch.eye(
+                        self.feature_dim, device=self.running_cov.device
+                    )
 
-            self.n_updates = self.n_updates + 1
+                self.n_updates = self.n_updates + 1
 
     def mahalanobis_distance(self, x: torch.Tensor) -> torch.Tensor:
-        """Compute Mahalanobis distance from running mean."""
+        """Compute Mahalanobis distance from running mean.
+        Uses Cholesky decomposition for numerical stability instead
+        of raw torch.linalg.inv()."""
         diff = x - self.running_mean.unsqueeze(0)  # [B, D]
-        cov_inv = torch.linalg.inv(self.running_cov)
+        try:
+            # Cholesky-based solve: more numerically stable than inv()
+            L = torch.linalg.cholesky(self.running_cov)
+            # Solve L @ L^T @ z = diff^T  →  z = cov_inv @ diff^T
+            left = torch.cholesky_solve(diff.T, L).T  # [B, D]
+        except RuntimeError:
+            # Fallback: add more regularization and retry
+            reg_cov = self.running_cov + 1e-3 * torch.eye(
+                self.feature_dim, device=self.running_cov.device
+            )
+            cov_inv = torch.linalg.inv(reg_cov)
+            left = diff @ cov_inv
         # D_M^2 = diff^T @ cov_inv @ diff
-        left = diff @ cov_inv  # [B, D]
         dist_sq = (left * diff).sum(dim=-1)  # [B]
         return torch.sqrt(dist_sq.clamp(min=0))
 
@@ -161,29 +187,30 @@ class MahalanobisImmunologicalMemory(nn.Module):
 
         Returns features if anomaly, None if normal.
         """
-        count = self.count.item() if torch.is_tensor(self.count) else self.count
-        n_updates = self.n_updates.item() if torch.is_tensor(self.n_updates) else self.n_updates
-        if count < 10 or n_updates < 10:
-            return None
+        with self._lock:
+            count = self.count.item() if torch.is_tensor(self.count) else self.count
+            n_updates = self.n_updates.item() if torch.is_tensor(self.n_updates) else self.n_updates
+            if count < 10 or n_updates < 10:
+                return None
 
-        with torch.no_grad():
-            # Use minimum distance to bank OR Mahalanobis to mean
-            dists_to_bank = torch.cdist(features, self.bank[:count])
-            min_bank_dist = dists_to_bank.min(dim=1)[0]
+            with torch.no_grad():
+                # Use minimum distance to bank OR Mahalanobis to mean
+                dists_to_bank = torch.cdist(features, self.bank[:count])
+                min_bank_dist = dists_to_bank.min(dim=1)[0]
 
-            mahalanobis = self.mahalanobis_distance(features)
+                mahalanobis = self.mahalanobis_distance(features)
 
-            # Combined: use the more sensitive
-            dist = torch.minimum(min_bank_dist, mahalanobis)
+                # Combined: use the more sensitive
+                dist = torch.minimum(min_bank_dist, mahalanobis)
 
-            # Adaptive threshold based on chi-squared distribution
-            # chi^2_{D, 0.95} ~ D + 2*sqrt(D) for large D
-            chi2_threshold = self.feature_dim + 2 * (self.feature_dim ** 0.5)
-            chi2_threshold = chi2_threshold / 10  # Scale to similar magnitude
+                # Adaptive threshold based on chi-squared distribution
+                # chi^2_{D, 0.95} ~ D + 2*sqrt(D) for large D
+                chi2_threshold = self.feature_dim + 2 * (self.feature_dim ** 0.5)
+                chi2_threshold = chi2_threshold / 10  # Scale to similar magnitude
 
-            anomaly = (dist > max(self.threshold, chi2_threshold ** 0.5)).float().unsqueeze(-1)
+                anomaly = (dist > max(self.threshold, chi2_threshold ** 0.5)).float().unsqueeze(-1)
 
-        return anomaly * features
+            return anomaly * features
 
     def get_anomaly_score(self, features: torch.Tensor) -> torch.Tensor:
         """Get continuous anomaly score (not just binary)."""
@@ -232,6 +259,7 @@ class EnsembleColdStartImmunologicalMemory(nn.Module):
         voting_threshold: int = 2,
     ):
         super().__init__()
+        self._lock = threading.RLock()
         self.capacity = capacity
         self.feature_dim = feature_dim
         self.threshold = threshold
@@ -262,27 +290,28 @@ class EnsembleColdStartImmunologicalMemory(nn.Module):
 
     def store(self, features: torch.Tensor) -> None:
         """Store features and update all detectors."""
-        with torch.no_grad():
-            x = features.detach().mean(0)
-            x_np = x.cpu().numpy()
+        with self._lock:
+            with torch.no_grad():
+                x = features.detach().mean(0)
+                x_np = x.cpu().numpy()
 
-            # Update Mahalanobis memory
-            self.mahalanobis.store(features)
+                # Update Mahalanobis memory
+                self.mahalanobis.store(features)
 
-            # Update cold-start ensemble when we have enough samples
-            count = self.mahalanobis.count.item()
-            n_updates = self.mahalanobis.n_updates.item()
+                # Update cold-start ensemble when we have enough samples
+                count = self.mahalanobis.count.item()
+                n_updates = self.mahalanobis.n_updates.item()
 
-            if n_updates <= self._warmup_threshold:
-                # Accumulate data for cold-start detectors
-                if self._knn_data is None:
-                    self._knn_data = x_np.reshape(1, -1)
-                else:
-                    self._knn_data = np.vstack([self._knn_data, x_np])
+                if n_updates <= self._warmup_threshold:
+                    # Accumulate data for cold-start detectors
+                    if self._knn_data is None:
+                        self._knn_data = x_np.reshape(1, -1)
+                    else:
+                        self._knn_data = np.vstack([self._knn_data, x_np])
 
-                # Re-fit detectors when we have enough samples
-                if count >= 3:
-                    self._fit_cold_start_detectors()
+                    # Re-fit detectors when we have enough samples
+                    if count >= 3:
+                        self._fit_cold_start_detectors()
 
     def _fit_cold_start_detectors(self) -> None:
         """Fit/update cold-start ensemble detectors."""
@@ -463,22 +492,23 @@ class EnsembleColdStartImmunologicalMemory(nn.Module):
 
         Returns features if anomaly, None if normal.
         """
-        n_updates = self.mahalanobis.n_updates.item()
-        count = self.mahalanobis.count.item()
+        with self._lock:
+            n_updates = self.mahalanobis.n_updates.item()
+            count = self.mahalanobis.count.item()
 
-        if count < 3 or n_updates < 3:
-            # Not enough data for any detector
-            return None
+            if count < 3 or n_updates < 3:
+                # Not enough data for any detector
+                return None
 
-        if n_updates < self._warmup_threshold:
-            # Cold-start phase: use ensemble
-            x_np = features.detach().cpu().numpy()
-            anomaly_flags = self._ensemble_anomaly(x_np)
-            anomaly = torch.from_numpy(anomaly_flags).float().unsqueeze(-1).to(features.device)
-            return anomaly * features
+            if n_updates < self._warmup_threshold:
+                # Cold-start phase: use ensemble
+                x_np = features.detach().cpu().numpy()
+                anomaly_flags = self._ensemble_anomaly(x_np)
+                anomaly = torch.from_numpy(anomaly_flags).float().unsqueeze(-1).to(features.device)
+                return anomaly * features
 
-        # Warmup complete: use Mahalanobis
-        return self.mahalanobis.recognize(features)
+            # Warmup complete: use Mahalanobis
+            return self.mahalanobis.recognize(features)
 
     def get_anomaly_score(self, features: torch.Tensor) -> torch.Tensor:
         """
