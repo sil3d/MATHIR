@@ -6,6 +6,88 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [8.0.0] — 2026-06-15
+
+### HybridSearch Auto-Scaling Backend (NEW)
+
+- **`mathir_search.py`** — New unified vector search class replacing `VectorSearch`
+  - Auto-scales: numpy brute-force (N < 5000) → USearch HNSW (N ≥ 5000)
+  - SQLite WAL metadata store always-on (thread-safe, crash-safe)
+  - USearch HNSW tuned for 1024d: `connectivity=32`, `expansion_add=256`, `expansion_search=128`
+  - Auto-persists USearch index to disk (`mathir_indexes/`), rebuilds on load
+  - Thread-safe with `RLock` on all mutating operations
+  - Agent-filtered search with over-fetch + post-filter
+  - `store()`, `store_batch()`, `search()`, `delete()`, `count()`, `stats()`, `save()`, `close()`
+
+### USearch Integration
+
+- **`usearch`** — HNSW library with memory-mapped indexes for fast ANN search
+  - Cosine metric, L2-normalized vectors
+  - Memory-mapped persistence — index survives process restarts
+  - Auto-builds from SQLite metadata on first load (crash-recovery)
+  - `save()` persists to `mathir_indexes/mathir_{dim}d.usearch`
+
+### sqlite-vec WAL Optimization
+
+- **`mathir_vec_optimized.py`** — High-performance sqlite-vec backend
+  - WAL mode + single connection (no pool overhead for sequential access)
+  - LRU dict cache (512 entries, 120s TTL) for repeated queries
+  - PRAGMA tuning: `cache_size=-8000`, `temp_store=MEMORY`, `mmap_size=256MB`
+  - `store()`, `store_batch()`, `search()`, `delete()`, `get_all()`, `stats()`, `close()`
+
+### BEIR Benchmark Results
+
+- **SciFact** (5183 docs, 1109 queries):
+
+| Backend | Latency | Recall@10 | nDCG@10 |
+|---|:---:|:---:|:---:|
+| **Numpy** | **0.83ms** | **0.8592** | — |
+| USearch | 5.33ms | 0.8526 | — |
+| sqlite-vec | 37.95ms | 0.8592 | — |
+
+- Numpy backend is fastest at MATHIR scale (< 5000 memories)
+- USearch outperforms sqlite-vec for large-scale workloads
+- Fixed stale USearch index persistence bug
+- Fixed USearch HNSW recall with tuned params
+
+### Security Fixes (8)
+
+| Severity | Issue | Fix |
+|---|---|---|
+| CRITICAL | RCE via `torch.load` | `weights_only=True` enforced |
+| HIGH | SQL injection in vec0 DDL | Validated dim as `int > 0` |
+| HIGH | `assert`-based validation | Replaced with `ValueError` |
+| MEDIUM | Path traversal on `db_path`/`index_dir` | `Path.resolve()` canonicalization |
+| MEDIUM | Path traversal on torch save/load | `Path.resolve()` + whitelist |
+| MEDIUM | Race condition in USearch search | Lock moved around index access |
+| MEDIUM | No thread safety in VecMemory | Added `threading.Lock()` |
+| LOW | Partial locking in `_MetadataStore` | Full RLock on all mutations |
+
+### Code Reduction (-46%)
+
+| File | Before | After | Reduction |
+|---|:---:|:---:|:---:|
+| `mathir_search.py` | 559 | 321 | -43% |
+| `mathir_gpu_vec.py` | 511 | 275 | -46% |
+| `mathir_vec_optimized.py` | 476 | 240 | -50% |
+| **Total** | **1546** | **836** | **-46%** |
+
+### Documentation Updates
+
+- `README.md` — HybridSearch section, updated performance numbers, architecture diagram, vector search benchmarks
+- `03_MASTER_QA_GUIDE.md` — Architecture diagram, BEIR benchmarks, deployment options, quick reference
+- `04_DEV_INTEGRATION_GUIDE.md` — Full HybridSearch chapter with architecture, benchmarks, quick start, advanced usage
+- `stress_test/static/changelog.html` — Interactive changelog with before/after diffs
+
+### Bug Fixes
+
+- `benchmark_unified.py` — Stale `VectorSearch` import → `HybridSearch`
+- `benchmark_beir.py` — Dead `recall_at_k` function fixed
+- `mathir_search.py` — Docstring `VectorSearch` → `HybridSearch`
+- Stale `VectorSearch` references: 0 remaining
+
+---
+
 ## [7.8.0] — 2026-06-15
 
 ### GPU Embedding Engine (NEW)

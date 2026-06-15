@@ -1,6 +1,6 @@
 # 📚 MATHIR — Master Reference Document
 
-**The complete, definitive, single-file reference for MATHIR V7.2**
+**The complete, definitive, single-file reference for MATHIR V8.0.0**
 
 This document consolidates everything: what MATHIR is, how it works, how to use it, how to deploy it, and how it answers all the common questions.
 
@@ -14,7 +14,7 @@ This document consolidates everything: what MATHIR is, how it works, how to use 
 4. [Multi-Modal Support (text, image, audio, video)](#4-multimodal)
 5. [Memory Storage Format (SQLite)](#5-storage)
 6. [Multi-Agent Support (20+ agents)](#6-multi-agent)
-7. [Version Evolution (V1 → V7.2)](#7-versions)
+7. [Version Evolution (V1 → V8.0.0)](#7-versions)
 8. [Use Cases: Chat & Autonomous Driving](#8-usecases)
 9. [Integration Recipes (5-minute setup)](#9-integration)
 10. [VectorDB Comparison](#10-vectordb)
@@ -115,7 +115,7 @@ flowchart TB
         EM["Vector [1, D]<br/>e.g., D=512 (CLIP)"]
     end
 
-    subgraph MATHIR["🧠 MATHIR V7.2 PLUGIN"]
+    subgraph MATHIR["🧠 MATHIR V8.0.0 PLUGIN"]
         direction TB
         subgraph W["⚡ WORKING MEMORY (64 slots, last N)"]
             W1["Circular buffer<br/>+ Multi-head attention"]
@@ -352,7 +352,7 @@ flowchart TB
     style ANOM fill:#ffcccc,stroke:#cc0000
 ```
 
-### V7.2 — Latency Optimization (Result Cache)
+### V7.2 → V8.0.0 — Latency Optimization + HybridSearch
 
 ```mermaid
 flowchart TD
@@ -387,6 +387,7 @@ timeline
     V7    : 2026-06 : 8 algorithms + 6 theorems
     V7.1  : 2026-06 : 4 retrieval approaches A/B/C/D
     V7.2  : 2026-06 : Latency optimization (cache)
+    V8.0.0: 2026-06 : HybridSearch auto-backend + full integration
 ```
 
 ---
@@ -741,7 +742,7 @@ mem_c = MATHIRMemory(embedding_dim=768, db_path="shared.db")
 
 ---
 
-## 7. Version Evolution (V1 → V7.2) {#7-versions}
+## 7. Version Evolution (V1 → V8.0.0) {#7-versions}
 
 | Version | Focus | Status | Key Innovation |
 |---------|-------|--------|----------------|
@@ -752,7 +753,8 @@ mem_c = MATHIRMemory(embedding_dim=768, db_path="shared.db")
 | V6 | `MATHIRPlugin` API (LLM-agnostic) | Still supported | 4-tier memory |
 | V7 | 8 new algorithms + 6 theorems | Current | Doctoral-grade |
 | V7.1 | 4 retrieval approaches A/B/C/D | Current | Hybrid retrieval |
-| V7.2 | Latency optimization (cache + adaptive) | **Current latest** | 5-12× speedup |
+| V7.2 | Latency optimization (cache + adaptive) | Supported | 5-12× speedup |
+| V8.0.0 | HybridSearch auto-backend, full integration | **Current latest** | Optimal vector index selection |
 
 ### V7 Theoretical Advances
 
@@ -1430,7 +1432,8 @@ results = memory.recall(torch.from_numpy(query), k=5)
 - 💾 **SQLite storage** (one file, inspectable, thread-safe)
 - 🖼️ **Multi-modal** (text, image, audio, video)
 - 🤖 **Multi-agent** (20+ concurrent, shared memory)
-- 🔬 **5-12× speedup** with cache (V7.2)
+- 🔬 **5-12× speedup** with cache (V7.2+)
+- 🔄 **HybridSearch** auto-backend selection (V8.0.0)
 - 🏆 **45.7% quality** (beats FAISS by +14.1pp)
 
 **One file. One class. One database. Production-ready.**

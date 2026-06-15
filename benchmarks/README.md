@@ -6,11 +6,13 @@ Performance benchmarks, stress tests, and accuracy evaluations for the MATHIR co
 
 ```
 benchmarks/
-├── scripts/          # All runnable benchmark scripts
+├── scripts/          # All active benchmark scripts
 ├── results/          # JSON output from benchmark runs
+├── results_final/    # Consolidated final results (verified)
 ├── reports/          # HTML/MD visual reports
-├── legacy_deprecated/ # Old scripts (kept for reference, not maintained)
-├── results_final/    # Archived older result sets
+├── _deprecated/      # Old scripts (kept for reference, not maintained)
+├── beir_data/        # BEIR dataset cache
+├── controlled_emb_cache/  # Pre-computed embeddings
 └── README.md         # This file
 ```
 
@@ -31,6 +33,13 @@ python benchmarks/scripts/test_fts.py
 
 ## Active Benchmarks
 
+### Vector Search (moved from root)
+
+| Script | What it tests | Output |
+|--------|--------------|--------|
+| `benchmark_beir.py` | BEIR SciFact dataset — numpy vs USearch vs sqlite-vec | `results/` |
+| `benchmark_unified.py` | All backends against FAISS baseline | `results/` |
+
 ### Memory Tier Tests
 
 | Script | What it tests | Duration | Output |
@@ -40,6 +49,7 @@ python benchmarks/scripts/test_fts.py
 | `test_working_memory_context.py` | Working memory context window behavior | ~3 min | `results/context_*.json` |
 | `test_immunological_2hour_stress.py` | Immunological memory under sustained anomaly injection | ~5 min | `results/immunological_*.json` |
 | `test_immunological_anomaly_detection.py` | AUC-ROC for anomaly detection (Mahalanobis distance) | ~2 min | `results/immunological_results.json` |
+| `test_episodic_memory_online_learning.py` | Episodic online learning behavior | ~3 min | `results/` |
 
 ### Router Tests
 
@@ -67,6 +77,14 @@ python benchmarks/scripts/test_fts.py
 | `ollama_one_by_one.py` | Sequential Ollama model testing | ~5 min | `results/ollama_one_by_one.json` |
 | `ollama_test.py` | Ollama integration test | ~5 min | stdout |
 
+### Head-to-Head Comparisons
+
+| Script | What it tests | Duration | Output |
+|--------|--------------|----------|--------|
+| `mathir_vs_faiss_full.py` | MATHIR vs FAISS — all capabilities (664 lines) | ~15 min | `results/` |
+| `multi_dataset_efficient.py` | Multi-dataset BEIR with GPU-accelerated CE reranking | ~10 min | `results/` |
+| `test_integration_2hour_stress.py` | Full MATHIR stack integration stress test (829 lines) | ~2 hours | `results/` |
+
 ### Demos & Utilities
 
 | Script | What it does |
@@ -86,6 +104,14 @@ Results are saved as JSON in `results/`. Each file contains:
 - Per-checkpoint metrics (latency, accuracy, memory usage)
 - Summary statistics
 
+### Final Consolidated Results
+
+`results_final/` contains verified, consolidated results:
+- `beir/` — BEIR benchmark results (SciFact, ArguAna, NFCorpus)
+- `stress_tests/` — 2-hour stress test results (all tiers)
+- `memory_tiers/` — Memory tier performance results
+- `MATHIR_FINAL_REPORT.html` — Comprehensive HTML report
+
 ### Visual Reports
 
 Open `reports/MATHIR_FINAL_REPORT.html` in a browser for:
@@ -93,13 +119,16 @@ Open `reports/MATHIR_FINAL_REPORT.html` in a browser for:
 - 7 data tables with all raw numbers
 - MATHIR vs FAISS side-by-side comparison
 
-## Legacy Benchmarks
+## Deprecated Benchmarks
 
-The `legacy_deprecated/` directory contains older benchmark scripts that are no longer maintained:
+The `_deprecated/` directory contains older benchmark scripts that are no longer maintained:
 - `real_sota_benchmark.py` / `real_sota_benchmark_v2.py` — early SOTA comparisons
 - `comprehensive_stress_test.py` — monolithic stress test
 - `mathir_vs_rag.py` — early RAG comparison
 - `streamlit_app.py` — old Streamlit dashboard
+- `openrouter_test_run*.py` — one-off OpenRouter test iterations
+- `openrouter_quick_probe.py` — quick probe (superseded)
+- `openrouter_stress_test.py` — stress test (superseded by multiprovider_benchmark)
 
 These are kept for historical reference. Do not run them without updating imports.
 

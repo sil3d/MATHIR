@@ -41,8 +41,9 @@ vision_testing/bin/
 vision_testing/models/
 vision_testing/logs/
 
-# Archive (old files)
+# Archive / deprecated (old files)
 _archive/
+_deprecated/
 
 # Editor
 .vscode/

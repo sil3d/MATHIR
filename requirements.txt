@@ -1,10 +1,19 @@
 torch>=2.0.0
+numpy>=1.24.0
+PyYAML
+
+# Embedding providers
+sentence-transformers>=2.2.0
+
+# Vector search backends
+usearch>=2.14.0           # HNSW index (auto-scaling backend)
+sqlite-vec>=0.1.4         # SQLite vector extension
+
+# Dashboard / UI
 streamlit>=1.28.0
 plotly>=5.17.0
 pandas>=2.0.0
-numpy>=1.24.0
 openpyxl>=3.1.0
-PyYAML
 
 # Optional (not required for core training/benchmark):
 # wandb

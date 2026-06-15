@@ -6,7 +6,7 @@
 
 ## TL;DR
 
-MATHIR is a drop-in PyTorch memory plugin that sits between any LLM and your application. It receives embedding vectors (any dimension, 384 to 4096+), augments them with cross-session context, and learns from every interaction. It is **provider-agnostic** (OpenAI, Ollama, HuggingFace, Claude, Cohere, Gemini, custom) and **deployment-agnostic** (PyTorch, ONNX, INT8, edge devices). V7.2 ships an LRU result cache (80-85 % hit rate, 5-12× speedup on warm path), TurboQuant 3-bit compression (9.3× footprint reduction with <0.1 % quality loss), and four retrieval back-ends: `RawEmbeddingEpisodicMemory` (best online balance), `EnsembleEpisodicMemory` (multi-encoder fusion), `FAISSBackedEpisodicMemory` (HNSW at 20K QPS), and `HybridEpisodicMemory` (BM25 + Dense + Cross-Encoder, 45.7 % quality on textbook RAG).
+MATHIR is a drop-in PyTorch memory plugin that sits between any LLM and your application. It receives embedding vectors (any dimension, 384 to 4096+), augments them with cross-session context, and learns from every interaction. It is **provider-agnostic** (OpenAI, Ollama, HuggingFace, Claude, Cohere, Gemini, custom) and **deployment-agnostic** (PyTorch, ONNX, INT8, edge devices). V8.0.0 ships `HybridSearch` — an auto-selecting backend that picks the optimal vector index (BruteForce, HNSW, or hybrid BM25+Dense+Cross-Encoder) based on collection size — plus an LRU result cache (80-85 % hit rate, 5-12× speedup on warm path), TurboQuant 3-bit compression (9.3× footprint reduction with <0.1 % quality loss), and four retrieval back-ends: `RawEmbeddingEpisodicMemory` (best online balance), `EnsembleEpisodicMemory` (multi-encoder fusion), `FAISSBackedEpisodicMemory` (HNSW at 20K QPS), and `HybridEpisodicMemory` (BM25 + Dense + Cross-Encoder, 45.7 % quality on textbook RAG).
 
 **Five-bullet summary**
 
@@ -487,7 +487,7 @@ compression:
 
 ### 5.1 Architecture Overview
 
-MATHIR V7.2 ships `HybridSearch` — a drop-in vector store that automatically selects the optimal backend based on collection size:
+MATHIR V8.0.0 ships `HybridSearch` — a drop-in vector store that automatically selects the optimal backend based on collection size:
 
 ```
 User Query → bge-large CUDA Embedding → HybridSearch Auto-Select

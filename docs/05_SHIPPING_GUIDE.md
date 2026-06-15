@@ -242,7 +242,7 @@ plugin = MATHIRPlugin(embedding_dim=4096)
 out = plugin.perceive(emb)
 plugin.store({"embedding": emb, "user": "alice"})
 
-# AFTER (V7.2 dropin)
+# AFTER (V8.0.0 dropin)
 from mathir_dropin import MATHIRMemory
 memory = MATHIRMemory(embedding_dim=4096, db_path="memory.db")
 out = memory.perceive(emb, metadata={"user": "alice"})

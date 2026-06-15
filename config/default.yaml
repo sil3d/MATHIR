@@ -2,7 +2,7 @@
 # Balanced for general-purpose LLM use (CPU/GPU).
 
 memory:
-  embedding_dim: 4096
+  embedding_dim: 1024
   internal_dim: 272
   working_capacity: 64
   episodic_capacity: 1000
@@ -36,8 +36,39 @@ router:
   entropy_coefficient: 0.01
   temperature: 1.0
 
+# HybridSearch — auto-scaling vector backend
+hybrid_search:
+  enabled: true
+  strategy: auto          # "auto" | "numpy" | "usearch" | null
+  # auto: numpy < 5000, USearch HNSW >= 5000
+  # numpy: brute-force cosine (fastest for small N)
+  # usearch: HNSW with memory-mapped index (best for large N)
+  numpy_threshold: 5000  # Auto-switch threshold
+  index_dir: mathir_indexes  # USearch index persistence dir
+
+  # sqlite-vec config (used by VecMemory / GPUVecMemory)
+  sqlite_vec:
+    wal_mode: true
+    synchronous: normal   # "full" | "normal" | "off"
+    cache_size: -8000     # Negative = KB
+    mmap_size: 268435456  # 256MB memory-mapped I/O
+    temp_store: memory
+    cache_capacity: 512   # LRU query cache entries
+    cache_ttl: 120.0      # Seconds before cache expiry
+
+  # USearch HNSW tuning (for 1024d embeddings)
+  usearch:
+    metric: cosine
+    connectivity: 32       # HNSW M parameter (default ~16)
+    expansion_add: 256     # ef_construction (default ~128)
+    expansion_search: 128  # ef search (default ~64)
+
 providers:
   default: direct
+  embedding:
+    model: BAAI/bge-large-en-v1.5  # 1024d, CUDA, L2-normalized
+    device: auto
+    backend: sentence-transformers
   ollama:
     url: http://localhost:11434
     model: llama3.2:3b

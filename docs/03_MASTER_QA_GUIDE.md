@@ -8,7 +8,7 @@
 
 1. [Fundamentals: What is MATHIR?](#1-fundamentals)
 2. [Architecture vs Model](#2-architecture-vs-model)
-3. [Version Evolution (V1-V7.2)](#3-versions)
+3. [Version Evolution (V1-V8.0.0)](#3-versions)
 4. [Memory Tiers (4-tier hierarchical)](#4-memory-tiers)
 5. [Theoretical Foundations (6 theorems)](#5-theorems)
 6. [V7 New Algorithms (8 novel)](#6-v7-algorithms)
@@ -94,7 +94,7 @@ MATHIR is the **Architecture + Framework** — like "Transformer + HuggingFace" 
 
 ---
 
-## 3. Version Evolution (V1 → V7.2) {#3-versions}
+## 3. Version Evolution (V1 → V8.0.0) {#3-versions}
 
 ### Q3.1: What is the history of MATHIR versions?
 **A:**
@@ -107,7 +107,8 @@ MATHIR is the **Architecture + Framework** — like "Transformer + HuggingFace" 
 | V6 | `MATHIRPlugin` API (LLM-agnostic) | Still supported |
 | V7 | 8 new algorithms + 6 theorems | Current |
 | V7.1 | 4 retrieval approaches (A/B/C/D) | Current |
-| V7.2 | Latency optimization (cache + adaptive) | Current |
+| V7.2 | Latency optimization (cache + adaptive) | Supported |
+| V8.0.0 | HybridSearch auto-backend, full HybridSearch integration | **Current latest** |
 
 ### Q3.2: What's the difference between V6 and V7?
 **A:** V7 adds:
@@ -275,7 +276,7 @@ But for **most workloads**, the cache alone is sufficient and simpler.
 
 ### Q9.0: What is the HybridSearch architecture?
 
-**A:** MATHIR V7.2 introduces `HybridSearch` — an auto-selecting backend that picks the optimal vector index based on collection size. The flow:
+**A:** MATHIR V8.0.0 introduces `HybridSearch` — an auto-selecting backend that picks the optimal vector index based on collection size. The flow:
 
 ```
 User Query

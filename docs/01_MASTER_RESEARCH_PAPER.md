@@ -5,7 +5,7 @@
 **Author:** Prince Gildas Mbama Kombila
 **Affiliation:** MATHIR Project, Independent Research
 **Date:** June 2, 2026
-**Project Version:** MATHIR V7.1 (post-retrieval-research)
+**Project Version:** MATHIR V8.0.0 (HybridSearch + full integration)
 **Domain:** Machine Learning, Memory-Augmented Neural Networks, Information Retrieval, Stochastic Approximation
 
 ---
@@ -2150,6 +2150,6 @@ If you use MATHIR V7.1 in your research, please cite this paper:
 
 **Date:** June 2, 2026
 
-**Version:** MATHIR V7.1 (post-retrieval-research)
+**Version:** MATHIR V8.0.0 (HybridSearch + full integration)
 
 **Total word count:** ~25,000 words (main text + appendices)
