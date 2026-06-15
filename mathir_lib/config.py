@@ -58,6 +58,7 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "inference": {
         "backend": "pytorch",
         "device": "auto",
+        "device_map": None,  # Set to dict for hybrid mode (e.g., {"working": "cuda:0", "episodic": "cpu"})
         "precision": "float32",
     },
     "router": {
@@ -79,6 +80,10 @@ DEFAULT_CONFIG: Dict[str, Any] = {
         "huggingface": {
             "model": "Qwen/Qwen2.5-7B-Instruct",
             "device": "auto",
+        },
+        "onnx": {
+            "model_dir": None,  # Path to ONNX model directory
+            "provider": "CPUExecutionProvider",
         },
     },
 }

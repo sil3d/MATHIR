@@ -11,7 +11,7 @@
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-7.7.1-6366f1?style=for-the-badge)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-7.8.0-6366f1?style=for-the-badge)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/Tests-226%20passed-22c55e?style=for-the-badge)](#-tests--benchmarks)
 [![BEIR](https://img.shields.io/badge/BEIR_SciFact-0.7441_nDCG%4010-a855f7?style=for-the-badge)](#-beir-benchmark-results)
 
@@ -147,6 +147,7 @@ Mem0: "It's our managed platform"                     ❌
 
 **Where MATHIR is competitive:**
 
+- **GPU embedding speed** → bge-large-en-v1.5 on CUDA: 43 ms save, 25 ms recall (1024d, full GPU)
 - **Pure retrieval quality** → MATHIR = FAISS dense-only (0.7441 nDCG@10 on BEIR SciFact, equal to SOTA)
 - **Cross-provider** → 11/12 wins across 3 different LLM architectures
 - **Cross-lingual** → UNIBRI finds English content from French queries
@@ -159,7 +160,7 @@ Mem0: "It's our managed platform"                     ❌
 - Zep docs: [getzep.com](https://www.getzep.com), [help.getzep.com](https://help.getzep.com)
 - Cognee: [cognee.ai](https://www.cognee.ai), [github.com/topoteretes/cognee](https://github.com/topoteretes/cognee)
 - LangMem: [langchain-ai.github.io/langmem](https://langchain-ai.github.io/langmem/)
-- Microsoft GraphRAG: [microsoft.github.io/graphrag](https://microsoft.github.io/graphrag/), arXiv 2404.16130
+- Microsoft GraphRAG: [microsoft.github.io/graphrag/](https://microsoft.github.io/graphrag/), arXiv 2404.16130
 - Supermemory: [supermemory.ai](https://supermemory.ai)
 - Recall: [recall.it](https://www.recall.it)
 - ChatGPT Memory: [openai.com/index/chatgpt-memory-dreaming](https://openai.com/index/chatgpt-memory-dreaming/)
@@ -168,6 +169,97 @@ Mem0: "It's our managed platform"                     ❌
 - Magic AI 100M tokens: [magic.dev/blog/100m-token-context-windows](https://magic.dev/blog/100m-token-context-windows)
 - Chroma Context Rot: [research.trychroma.com/context-rot](https://research.trychroma.com/context-rot)
 - Breunig, "How Long Contexts Fail": [dbreunig.com](https://www.dbreunig.com/2025/06/22/how-contexts-fail-and-how-to-fix-them.html)
+
+---
+
+## 🧩 Embedding Providers (NEW: ONNX support)
+
+MATHIR v7.8.0+ ships with **6 embedding providers**. The new **GPU-accelerated bge-large** provider delivers the best quality/speed ratio at 1024d on CUDA.
+
+### Provider comparison
+
+| Provider | Model | Dim | Speed (single) | Size | Quality | Local | Cost |
+|---|---|:---:|:---:|:---:|:---:|:---:|---|
+| **🆕 HuggingFace (GPU)** | `BAAI/bge-large-en-v1.5` | **1024** | **25 ms** | 1.3 GB | 🟢 High | ✅ | Free |
+| 🆕 ONNX | `Octen-Embedding-0.6B-INT8` | 1024 | 18.8 ms | **5.2 MB** | 🟢 High | ✅ | Free |
+| HuggingFace | `all-MiniLM-L6-v2` | 384 | 5.2 ms | 80 MB | 🟡 Medium | ✅ | Free |
+| HuggingFace | `Qwen/Qwen2.5-7B-Instruct` | 3584 | 10–30 ms (GPU) | 14 GB | 🟢 High | ✅ | Free |
+| Ollama | `llama3.2:3b` | 2048 | 30–80 ms | 2 GB | 🟢 High | ✅ | Free |
+| OpenAI | `text-embedding-3-small` | 1536 | 80–200 ms | Cloud | 🟢 High | ❌ | $0.02/1M |
+
+### ONNX Provider (new in v7.7.2)
+
+```python
+from mathir_lib.providers import get_provider
+
+# Quantized ONNX model (recommended)
+provider = get_provider("onnx", {
+    "model_dir": r"C:\Users\So-i-learn-3D\.config\opencode\models\octen-int8",
+    "provider": "CPUExecutionProvider"  # or "DmlExecutionProvider" for GPU
+})
+
+print(provider.embedding_dim())        # 1024
+print(provider.provider_id())          # ('onnx', 'path', 1024)
+
+embeddings = provider.embed_batch(["Hello", "World"])
+# Shape: (2, 1024), L2-normalized, ready for cosine similarity
+```
+
+### ONNX vs HuggingFace benchmark (5 queries + 8 docs, RTX 4060)
+
+| Metric | ONNX (Octen INT8) | HuggingFace (MiniLM) | Ratio |
+|---|:---:|:---:|:---:|
+| **Batch encode time** | 203 ms | 27 ms | 7.5× |
+| **Single query** | 18.8 ms | 5.2 ms | 3.6× |
+| **Embedding dim** | **1024** | 384 | 2.7× |
+| **Model size** | **5.2 MB** | 80 MB | 15× |
+| **Memory footprint** | 50 % of FP32 | 100 % | 0.5× |
+| **Similarity range** | **[0.42, 0.98]** | [-2.53, 34.34] * | — |
+| **L2-normalized** | ✅ Yes | ❌ No | — |
+
+\* MiniLM embeddings are not L2-normalized by default — cosine similarity requires manual normalization.
+
+### When to use ONNX vs HuggingFace
+
+| Use case | Recommended |
+|---|---|
+| Best quality multilingual embeddings | **ONNX** (Octen) |
+| Smallest model footprint | **ONNX** (5.2 MB) |
+| Fastest single query | HuggingFace (MiniLM) |
+| 1024-dim embeddings for FAISS/pinecone | **ONNX** |
+| 384-dim for legacy systems | HuggingFace |
+| Edge / Jetson Nano | **ONNX** (int8) |
+| No GPU available | Both work; ONNX more compact |
+
+### Download ONNX model
+
+```bash
+# Manual download (recommended — faster than pip)
+# Create folder: C:\Users\So-i-learn-3D\.config\opencode\models\octen-int8\
+# Download from https://huggingface.co/cstr/Octen-Embedding-0.6B-ONNX-INT8/resolve/main/
+#   - model.int8.onnx (5.2 MB)
+#   - model.int8.onnx.data (1.06 GB)
+#   - tokenizer.json
+#   - vocab.txt
+#   - config.json
+```
+
+### MCP Server (easy integration)
+
+```json
+// Add to ~/.config/opencode/opencode.json
+{
+  "mcp": {
+    "mathir": {
+      "command": "python",
+      "args": ["D:\\SECRET_PROJECT\\MATHIR\\mcp_server.py"],
+      "env": { "PYTHONPATH": "D:\\SECRET_PROJECT\\MATHIR" }
+    }
+  }
+}
+```
+
+The MCP server exposes 4 tools: `memory_save`, `memory_recall`, `memory_stats`, `provider_info`.
 
 ---
 
@@ -597,6 +689,54 @@ provider="unknown"  (no stored embedding)  → 3 results via fallback chain   �
 
 The Universal Bridge uses **multi-resolution character n-gram kernels** (Broder 1997) + **Johnson-Lindenstrauss random projection** + **Procrustes SVD** for cross-space alignment. Mathematically grounded, vocabulary-free, language-agnostic.
 
+### ⚡ GPU Embedding Benchmarks (v7.8.0)
+
+Benchmarks on RTX 4060 + CUDA, measuring **save** (store memory) and **recall** (search memory) latency.
+
+| Model | Dimensions | Device | Save | Recall | Notes |
+|---|:---:|---|:---:|:---:|---|
+| **BAAI/bge-large-en-v1.5** | **1024** | **CUDA** | **43 ms** | **25 ms** | ✅ Recommended — best quality/speed |
+| MiniLM-L6-v2 | 384 | CUDA | 22 ms | 53 ms | ⚠️ Faster save, slower recall |
+| Octen INT8 | 1024 | CPU | ~5 000 ms | ~2 700 ms | 🐢 50–100× slower |
+| Octen INT8 | 1024 | CUDA (onnxruntime-gpu) | ~776 ms | — | ⚠️ Partial GPU (ONNX limitation) |
+
+**Key insight:** bge-large-en-v1.5 achieves **25 ms recall at 1024d on full CUDA** — 2.1× faster than MiniLM recall despite 2.7× more dimensions. The larger dimension space produces better similarity scores, and CUDA handles the extra compute efficiently.
+
+### 🏗️ Daemon Architecture (v7.8.0)
+
+MATHIR runs as a **persistent daemon process** — the embedding model stays loaded in GPU RAM between calls.
+
+```
+Client (opencode / Python)
+         │ TCP socket (localhost)
+         ▼
+┌─────────────────────────────────────┐
+│  mathir_daemon.py (persistent)      │
+│  ├── Model loaded ONCE at startup   │
+│  ├── GPU memory held across calls   │
+│  ├── TCP server on localhost        │
+│  └── No model reload per request    │
+└─────────────────────────────────────┘
+         │
+         ▼
+    mathir_client.py (thin client)
+    → 1–2 ms per call (model already in VRAM)
+```
+
+**Why daemon instead of per-request:**
+- Model load: **~3–5 seconds** (bge-large-en-v1.5) → eliminated after first call
+- Per-call overhead: **1–2 ms** (TCP round-trip only)
+- GPU memory: **~2 GB** held continuously (vs 0 MB between calls)
+- No cold starts, no repeated allocation
+
+```bash
+# Start daemon (background, persists across sessions)
+python ~/.config/opencode/bin/mathir_daemon.py &
+
+# Thin client — fast, model already loaded
+python ~/.config/opencode/bin/mathir_client.py recall "query" -k 5
+```
+
 ---
 
 ## 🔬 Why It Works — Theoretical Foundation
@@ -713,6 +853,7 @@ cd vision_testing && python start_ui.py
 | V7.6 | Universal Bridge (UNIBRI) | ✅ |
 | V7.7 | Vision & audio testing + MATHIR memory | ✅ |
 | **V7.7.1** | **SimpleMemory (FTS5) + UI overhaul** | **✅** |
+| **V7.8** | **GPU embeddings (bge-large) + daemon architecture** | **✅** |
 | V8 | Cascade architecture + arXiv paper | 🔜 |
 | V9 | Edge deployment (Jetson / ONNX) | 📋 |
 | V10 | Open-source release (HuggingFace · PyPI) | 📋 |

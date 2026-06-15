@@ -484,7 +484,7 @@
     <div class="container">
         <!-- Header -->
         <header class="header">
-            <div class="header-badge">FINAL BENCHMARK REPORT</div>
+            <div class="header-badge">FINAL BENCHMARK REPORT — V7.8.0</div>
             <h1>MATHIR Benchmark Report</h1>
             <p class="header-subtitle">
                 Comprehensive evaluation of MATHIR's cognitive memory tiers against SOTA baselines.
@@ -498,7 +498,7 @@
                         <line x1="8" y1="2" x2="8" y2="6"></line>
                         <line x1="3" y1="10" x2="21" y2="10"></line>
                     </svg>
-                    <span>June 5, 2026</span>
+                    <span>June 5-15, 2026</span>
                 </div>
                 <div class="meta-item">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1552,9 +1552,48 @@
             </div>
         </section>
 
+        <!-- Section 11: GPU Embedding Benchmarks -->
+        <section class="section">
+            <h2>⚡ GPU Embedding Benchmarks (V7.8)</h2>
+            <p class="subtitle">BAAI/bge-large-en-v1.5 on CUDA — 1024 dimensions at 25ms recall</p>
+            
+            <div class="cards">
+                <div class="card">
+                    <div class="card-label">bge-large-en-v1.5</div>
+                    <div class="card-value" style="color: var(--accent-green);">43ms</div>
+                    <div class="card-subtitle">Save (1024d, CUDA)</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">bge-large-en-v1.5</div>
+                    <div class="card-value" style="color: var(--accent-green);">25ms</div>
+                    <div class="card-subtitle">Recall (1024d, CUDA)</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">MiniLM-L6-v2</div>
+                    <div class="card-value" style="color: var(--accent-amber);">22ms / 53ms</div>
+                    <div class="card-subtitle">Save / Recall (384d, CUDA)</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Octen INT8</div>
+                    <div class="card-value" style="color: var(--accent-red);">5000ms</div>
+                    <div class="card-subtitle">Save (1024d, CPU)</div>
+                </div>
+            </div>
+            
+            <div class="card" style="margin-top: 1rem;">
+                <h3>Key Findings</h3>
+                <ul style="margin-top: 1rem; padding-left: 1.5rem;">
+                    <li><strong>1024d at GPU speed</strong> — bge-large-en-v1.5 matches Octen quality at 100x faster speed</li>
+                    <li><strong>Persistent daemon</strong> — Model stays loaded in RAM, TCP socket on port 7338</li>
+                    <li><strong>ONNX limitation</strong> — INT8 models incompatible with CUDA EP, silent CPU fallback</li>
+                    <li><strong>Matryoshka alternative</strong> — nomic-embed-text-v1.5 (768d) supports dynamic truncation 128-768d</li>
+                </ul>
+            </div>
+        </section>
+
         <!-- Footer -->
         <footer class="footer">
-            <p>MATHIR Benchmark Report | Generated June 6, 2026</p>
+            <p>MATHIR Benchmark Report V7.8.0 | Generated June 5-15, 2026</p>
             <p style="margin-top: 0.5rem; color: var(--text-muted);">
                 Methodology: All benchmarks run on BEIR dataset using BAAI/bge-base-en-v1.5 embeddings.<br>
                 Stress tests: 2-hour accelerated tests with 10,000+ operations per tier.

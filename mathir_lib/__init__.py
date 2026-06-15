@@ -34,6 +34,11 @@ from .plugin import MATHIRPlugin
 from .plugin_v7 import MATHIRPluginV7
 
 # ---------------------------------------------------------------------------
+# Hybrid CPU/GPU Device Manager
+# ---------------------------------------------------------------------------
+from .hybrid_device import HybridDeviceManager
+
+# ---------------------------------------------------------------------------
 # V7.1 — Novel retrieval approaches (closing the 12-14pp quality gap)
 # ---------------------------------------------------------------------------
 from .memory import RawEmbeddingEpisodicMemory  # Approach A: raw 384-dim
@@ -59,10 +64,18 @@ from .config import (
     validate_config,
 )
 
+# ---------------------------------------------------------------------------
+# Dynamic device detection
+# ---------------------------------------------------------------------------
+from .device_utils import detect_device, get_device_info, auto_device_map
+
 
 __all__ = [
     # ===== V7 (Current) =====
     "MATHIRPluginV7",
+
+    # ===== Hybrid Device Manager =====
+    "HybridDeviceManager",
 
     # ===== V6 (Still supported, LLM-agnostic API) =====
     "MATHIRPlugin",
@@ -74,6 +87,11 @@ __all__ = [
     # ===== Core components =====
     "ManifoldConstrainedLinearV2",
     "TurboQuantCompression",
+
+    # ===== Device utilities =====
+    "detect_device",
+    "get_device_info",
+    "auto_device_map",
 
     # ===== Config helpers =====
     "get_default_config",

@@ -6,6 +6,104 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [7.8.0] — 2026-06-15
+
+### GPU Embedding Engine (NEW)
+
+- **Default model changed**: `BAAI/bge-large-en-v1.5` (1024d, CUDA) replaces `all-MiniLM-L6-v2` (384d)
+- **Persistent daemon**: `mathir_daemon.py` keeps model loaded in RAM, serves via TCP port 7338
+- **Fast client**: `mathir_client.py` connects to daemon — no Python startup per call
+- **onnxruntime-gpu 1.26.0**: CUDAExecutionProvider + TensorrtExecutionProvider available
+- **Model saved locally**: `~/.config/opencode/models/bge-large-v1.5/`
+
+### Benchmarks (RTX 4060 Laptop GPU)
+
+| Model | Dims | Save | Recall | Device |
+|---|:---:|:---:|:---:|---|
+| **bge-large-en-v1.5** | **1024** | **43ms** | **25ms** | CUDA |
+| MiniLM-L6-v2 | 384 | 22ms | 53ms | CUDA |
+| nomic-embed-text-v1.5 | 768 | ~21ms | ~20ms | CUDA |
+| Octen INT8 (ONNX) | 1024 | ~5000ms | ~2700ms | CPU |
+| Octen INT8 (ONNX+CUDA) | 1024 | ~776ms | — | Partial GPU |
+
+### MCP Documentation
+
+- New `mcp/` folder with comprehensive integration guides
+- `DIMENSIONS.md` — Embedding dimension explained
+- `MODEL_COMPARISON.md` — All models compared
+- `GPU_SETUP.md` — GPU acceleration setup
+- `DAEMON.md` — Daemon architecture
+- `INTEGRATION.md` — Platform integration guides
+
+### Bug Fixes
+
+- Removed `backend="onnx"` from SentenceTransformer (caused silent CPU fallback, 200x slowdown)
+- Fixed `EMBEDDING_DIM` default from 1024 to match actual model dimensions
+- VecMemory auto-recreates vec0 table on dimension mismatch
+
+---
+
+## [7.7.3] — 2026-06-15
+
+### ONNX Embedding Provider (NEW)
+
+- **`mathir_lib/providers/onnx.py`** — New `ONNXProvider` using ONNX Runtime
+  - Supports INT8 quantized models (5.2 MB vs 80 MB for MiniLM)
+  - L2-normalized output (cosine-ready, unlike HuggingFace)
+  - Configurable execution provider: `CPUExecutionProvider` or `DmlExecutionProvider` (GPU via DirectML)
+  - Mean pooling + L2 normalize pipeline
+  - Auto-detects embedding dim from `config.json` (default 1024)
+- **`mathir_lib/providers/onnx_embedder.py`** — Standalone embedder wrapper
+- **`mathir_lib/providers/__init__.py`** — Registered `onnx` in factory
+- **`mathir_lib/config.py`** — Added `onnx` config section (`model_dir`, `provider`)
+- **`mcp_server.py`** — Easy-to-plug MCP server with 4 tools (`memory_save`, `memory_recall`, `memory_stats`, `provider_info`)
+
+### Benchmarks
+
+| Provider | Model | Dim | Size | Batch (5q+8d) | Single | Normalized |
+|---|---|:---:|:---:|:---:|:---:|:---:|
+| **ONNX (Octen INT8)** | `Octen-Embedding-0.6B-INT8` | **1024** | **5.2 MB** | 203 ms | 18.8 ms | ✅ |
+| HuggingFace | `all-MiniLM-L6-v2` | 384 | 80 MB | 27 ms | 5.2 ms | ❌ |
+| HuggingFace | `Qwen/Qwen2.5-7B-Instruct` | 3584 | 14 GB | ~30 ms (GPU) | ~10 ms (GPU) | ❌ |
+
+**Quality:** Octen INT8 produces similarity scores in `[0.42, 0.98]` (L2-normalized), while MiniLM raw outputs span `[-2.53, 34.34]` (unnormalized, requires post-processing).
+
+### Documentation
+
+- Updated `README.md` with provider comparison table and ONNX section
+- `benchmark_onnx.py` — Reproducible benchmark script
+- `examples/onnx_usage.py` — Usage examples
+- `mcp_server.py` — Drop-in MCP server for Claude/OpenCode
+
+---
+
+## [7.7.2] — 2026-06-11
+
+### Thread Safety
+
+- **Full RLock audit** — All 8 memory modules in `mathir_lib/memory/` now use `threading.RLock` on mutating methods (`store`, `forget`, `reset`)
+  - `working.py`, `episodic.py`, `semantic.py`, `immunological.py` — already had RLock
+  - `ensemble_episodic.py`, `hybrid_episodic.py`, `raw_episodic.py` — **added** RLock
+- **mathir_dropin** — `store.py` and `memory.py` already thread-safe (confirmed during audit)
+- **Thread-safe under concurrent stress** — stress test runs 4-tier memory + BM25 + cross-encoder concurrently without data races
+
+### Stress Test Fixes
+
+- **CPU metric fixed** — Was always 0% due to `psutil.cpu_percent(interval=None)` delta-based measurement from sleeping thread. Replaced with manual `cpu_times()` delta (`process.cpu_times().user + .system` / `time.monotonic()`). Process-wide, thread-independent.
+- **GPU metric fixed** — Was reporting global VRAM (all processes, 241–328 MB). Now uses `torch.cuda.memory_allocated()` for MATHIR-only tensors (36–53 MB).
+- **Clean slate on restart** — `start()` now deletes `stress_memory.db` + WAL/SHM files before reinit. Old data no longer persists between runs.
+- **Start after Stop fixed** — `start()` now recreates `ThreadPoolExecutor` after `stop()` kills it. Root cause of "Start doesn't work after Stop".
+- **Config deep merge** — `start()` preserves `health_thresholds` when merging frontend config.
+
+### Dashboard
+
+- **System Health Bar** — 3-color bar (green/blue/red) scoring CPU, GPU, Recall, Errors, DB Write. Thresholds server-driven via WebSocket `health_config` event.
+- **REST /api/metrics fixed** — Now returns all fields including `cpu_percent`, `peak_ram_mb`, `throughput`, `db_write_latency`, `uptime`.
+- **Frontend error handling** — `startTest()` handles `already_running` response properly.
+- **Changelog page** — Full architecture documentation at `/changelog` with before/after code diffs, benchmarks, file reference. Accessible via "Changelog" button in dashboard header.
+
+---
+
 ## [7.7.1] — 2026-06-06
 
 ### Memory System

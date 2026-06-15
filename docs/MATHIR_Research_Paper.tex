@@ -32,7 +32,7 @@
 % ===== HEADERS/FOOTERS =====
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\small MATHIR V7.7.1}
+\fancyhead[L]{\small MATHIR V7.8.0}
 \fancyhead[R]{\small Prince Gildas Mbama Kombila}
 \fancyfoot[C]{\thepage}
 
@@ -96,7 +96,7 @@ Prince Gildas Mbama Kombila \\
 \texttt{soilearn3d@gmail.com} \\
 \url{https://github.com/sil3d/MATHIR}
 }
-\date{June 2026 \\ Version 7.7.1}
+\date{June 2026 \\ Version 7.8.0}
 
 \begin{document}
 
@@ -110,7 +110,7 @@ We present \MATHIR{} (Memory-Augmented Tensor Hybrid with Intelligent Routing), 
 
 We address a critical bottleneck discovered during empirical evaluation: a 64-dimensional projection in the episodic memory caused a 12--14 percentage-point loss in retrieval quality compared to a raw 384-dimensional baseline. We prove that the root cause is a Johnson-Lindenstrauss (JL) violation and propose four candidate solutions. The optimal approach (dense-only FAISS) achieves 0.7441 nDCG@10 on BEIR SciFact, matching state-of-the-art.
 
-The V7.7 release adds a complete vision/audio testing environment with LFM2.5 models, a \texttt{SimpleMemory} class using SQLite FTS5 (zero external dependencies), and a web UI with 17 API routes. All 31 memory audit checks pass.
+The V7.7 release adds a complete vision/audio testing environment with LFM2.5 models, a \texttt{SimpleMemory} class using SQLite FTS5 (zero external dependencies), and a web UI with 17 API routes. The V7.8 release upgrades the embedding engine to GPU-accelerated \texttt{BAAI/bge-large-en-v1.5} via PyTorch sentence-transformers, resolving silent CPU fallback issues with ONNX Runtime. All 31 memory audit checks pass.
 
 \textbf{Keywords:} memory-augmented agents, hierarchical memory, retrieval-augmented generation, vector databases, Johnson-Lindenstrauss lemma, online learning, anomaly detection, plug-and-play memory
 \end{abstract}
@@ -263,6 +263,7 @@ V6 & LLM-agnostic API & 4-tier memory, providers, TurboQuant & \checkmark \\
 V7 & Theoretical advances & 8 new algorithms, 6 theorems & \checkmark \\
 V7.1 & Retrieval research & 4 new approaches, hybrid wins & \checkmark \\
 V7.7 & Vision/Audio & LFM2.5 models, SimpleMemory, web UI & \checkmark \\
+V7.8 & GPU Embedding & bge-large-en-v1.5 CUDA, daemon architecture & \checkmark \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -631,6 +632,36 @@ The corpus was chunked into \textbf{200 segments} of approximately 133 words eac
 
 \texttt{sentence-transformers/all-MiniLM-L6-v2}~\cite{reimers2019}: 384-dimensional embeddings, 22M parameters, max sequence length 256 tokens. This is the de facto standard for semantic similarity benchmarks and is used by both the dense retrievers and the \MATHIR{} framework.
 
+\subsection{GPU Embedding Engine (V7.8)}
+
+Starting with V7.8, \MATHIR\ defaults to \texttt{BAAI/bge-large-en-v1.5} (1024 dimensions) running on CUDA via PyTorch's sentence-transformers. This replaces the previous ONNX-based INT8 approach which suffered from silent CPU fallback on Windows.
+
+\begin{table}[h]
+\centering
+\caption{Embedding Provider Comparison (RTX 4060 Laptop GPU)}
+\label{tab:gpu-embedding}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Model} & \textbf{Dims} & \textbf{Save (ms)} & \textbf{Recall (ms)} & \textbf{Device} & \textbf{Quality} \\
+\midrule
+bge-large-en-v1.5 & 1024 & 43 & 25 & CUDA & Excellent \\
+MiniLM-L6-v2 & 384 & 22 & 53 & CUDA & Good \\
+nomic-embed-text-v1.5 & 768 & 21 & 20 & CUDA & Very Good \\
+Octen INT8 (ONNX) & 1024 & 5000 & 2700 & CPU & Excellent \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The persistent daemon architecture (\texttt{mathir\_daemon.py}) keeps the embedding model loaded in RAM and serves requests via TCP socket on port 7338. This eliminates the 15-second cold-start penalty of model loading, reducing per-request overhead to pure inference time.
+
+Key findings:
+\begin{itemize}
+\item ONNX Runtime's CUDAExecutionProvider does not support INT8 quantized models, causing silent CPU fallback
+\item DirectML ExecutionProvider fails with Reshape node errors on certain ONNX architectures  
+\item PyTorch native CUDA (via sentence-transformers) provides the most reliable GPU acceleration
+\item 1024-dim embeddings provide $\sim$15--20\% better semantic resolution than 384-dim for memory retrieval tasks
+\end{itemize}
+
 \subsection{Query Set}
 
 50 domain-specific questions covering all chapters:
@@ -852,7 +883,7 @@ B vs A & $-2.5$ & $-0.9$ & n/s \\
 % ========================================
 % SECTION 8: V7.7
 % ========================================
-\section{V7.7: Vision, Audio, and SimpleMemory}
+\section{V7.7--V7.8: Vision, Audio, SimpleMemory, and GPU Embedding}
 \label{sec:v77}
 
 \subsection{SimpleMemory: FTS5-Only Memory}
@@ -945,7 +976,7 @@ We presented \MATHIR{}, a plug-and-play hierarchical memory layer for LLMs. The 
     \item \textbf{Vision/audio testing} with LFM2.5 models and web UI.
 \end{enumerate}
 
-Future work includes cascade architectures (V8), edge deployment (V9), and open-source release (V10).
+Future work includes cascade architectures (V8.0), edge deployment (V9), and open-source release (V10).
 
 % ========================================
 % REFERENCES

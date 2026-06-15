@@ -8,6 +8,7 @@ from .direct import DirectProvider
 from .ollama import OllamaProvider
 from .openai import OpenAIProvider
 from .huggingface import HuggingFaceProvider
+from .onnx import ONNXProvider
 
 
 def get_provider(name: str, config: dict = None) -> EmbeddingProvider:
@@ -15,7 +16,7 @@ def get_provider(name: str, config: dict = None) -> EmbeddingProvider:
     Factory function to create an embedding provider by name.
     
     Args:
-        name: "direct" | "ollama" | "openai" | "huggingface"
+        name: "direct" | "ollama" | "openai" | "huggingface" | "onnx"
         config: provider-specific config dict
         
     Returns:
@@ -26,6 +27,7 @@ def get_provider(name: str, config: dict = None) -> EmbeddingProvider:
         "ollama": OllamaProvider,
         "openai": OpenAIProvider,
         "huggingface": HuggingFaceProvider,
+        "onnx": ONNXProvider,
     }
     
     if name not in providers:
