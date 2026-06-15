@@ -1,14 +1,16 @@
 {
-  "_comment": "Aggregated MATHIR test results across all test runs (V7.5.0 - V7.7.0). Consumed by vision_testing/ui_server.py Tests view and broadcast to every active model so it knows the empirical baseline it must meet or beat.",
-  "version": "7.7.0",
-  "generated": "2026-06-06",
+  "_comment": "Aggregated MATHIR test results (V7.5.0 - V8.0.0). Includes BEIR benchmarks, vision model tests, and vector search comparisons.",
+  "version": "8.0.0",
+  "generated": "2026-06-14",
   "sources": [
     "benchmarks/cross_provider_self_correction_results.json",
     "benchmarks/universal_recall_results.json",
     "benchmarks/ollama_one_by_one.json",
-    "CHANGELOG.md (V7.5.0, V7.5.1, V7.6.0, V7.7.0)",
+    "CHANGELOG.md (V7.5.0 - V8.0.0)",
     "mathir_dropin/tests/ (137 tests across 5 files)",
-    "vision_testing/legacy test_results.json (V7.7 OpenRouter scan)"
+    "vision_testing/legacy test_results.json (V7.7 OpenRouter scan)",
+    "benchmark_beir.py (SciFact 5183 docs, 1109 queries)",
+    "benchmark_unified.py (numpy vs FAISS vs USearch vs sqlite-vec)"
   ],
   "tests": {
     "beir_sciFact": {
@@ -160,6 +162,34 @@
       "cross_provider_verified": true,
       "cross_lingual_verified": true,
       "latin_names_verified": true
+    }
+  },
+  "vector_search_benchmarks": {
+    "_comment": "BEIR SciFact (5183 docs, 1109 queries) + vector backend comparison. RTX 4060, bge-large-en-v1.5 1024d CUDA.",
+    "beir_sciFact": {
+      "corpus_size": 5183,
+      "queries": 1109,
+      "date": "2026-06-14",
+      "results": {
+        "numpy_brute_force": {"avg_ms": 0.83, "recall_at_10": 0.8592, "note": "BEST for N<5K"},
+        "usearch_hnsw": {"avg_ms": 5.33, "recall_at_10": 0.8526, "note": "BEST for N>=5K (mmap)"},
+        "sqlite_vec": {"avg_ms": 37.95, "recall_at_10": 0.8592, "note": "NEVER use for vectors"}
+      }
+    },
+    "faiss_vs_numpy": {
+      "N": 5000,
+      "numpy_ms": 1.25,
+      "faiss_ms": 1.84,
+      "conclusion": "numpy 1.5x faster than FAISS at MATHIR scale"
+    },
+    "gpu_benchmarks": {
+      "device": "RTX 4060 Laptop GPU",
+      "model": "BAAI/bge-large-en-v1.5",
+      "embedding_cuda_ms": 3.1,
+      "embedding_cpu_ms": 22,
+      "save_total_ms": 58,
+      "recall_total_ms": 107,
+      "recall_cached_ms": 0.063
     }
   },
   "accuracy_tests": {

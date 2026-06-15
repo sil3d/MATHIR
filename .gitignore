@@ -41,8 +41,7 @@ vision_testing/bin/
 vision_testing/models/
 vision_testing/logs/
 
-# Archive / deprecated (old files)
-_archive/
+# Deprecated / consolidated legacy files
 _deprecated/
 
 # Editor
