@@ -32,9 +32,9 @@ from dataclasses import dataclass, field, asdict
 from typing import Optional
 from pathlib import Path
 
-# Add parent to path for MATHIR imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-sys.path.insert(0, os.path.expanduser("~/.config/opencode/bin"))
+# Add MATHIR bin to path
+MATHIR_BIN = Path(__file__).parent.parent / "bin"
+sys.path.insert(0, str(MATHIR_BIN))
 
 from memory_risks import MemoryRiskManager, Domain
 

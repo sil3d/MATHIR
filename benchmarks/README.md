@@ -41,7 +41,7 @@ Based on 3 research papers:
 
 ```bash
 # 1. Start MATHIR daemon
-python ~/.config/opencode/bin/mathir_daemon.py
+python /path/to/MATHIR/bin/mathir_daemon.py
 
 # 2. Set API keys
 export GOOGLE_AI_STUDIO_KEY="your-key"
