@@ -23,7 +23,7 @@ MATHIR provides a **4-tier cognitive memory system** as an MCP server:
 - **Embedding auto-detection**: vec0 table recreated on dimension change
 - **Persistent daemon**: model stays loaded in RAM, no cold starts
 - **SQLite-vec**: vector search without external databases
-- **Matryoshka truncation**: use 384d from 768d models without re-embedding
+- **Daemon Push**: proactive memory delivery without explicit recall
 - **4-tier cognitive memory** with KL-constrained router
 
 ## Quick Start
@@ -31,7 +31,7 @@ MATHIR provides a **4-tier cognitive memory system** as an MCP server:
 ### 1. Install
 
 ```bash
-cd D:\SECRET_PROJECT\MATHIR
+cd /path/to/MATHIR
 pip install -r requirements.txt
 ```
 
@@ -46,7 +46,7 @@ python bin/mathir_daemon.py
 
 ```bash
 python bin/mathir_client.py ping
-# {"status": "ok", "model": "nomic-embed-text-v1.5", "dims": 768}
+# Daemon: OK (uptime: ...)
 ```
 
 ### 4. Use via MCP Protocol

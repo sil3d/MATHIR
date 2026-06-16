@@ -14,7 +14,7 @@
 ```python
 import torch
 print(torch.cuda.is_available())  # True
-print(torch.cuda.get_device_name(0))  # "NVIDIA GeForce RTX 3060"
+print(torch.cuda.get_device_name(0))  # "NVIDIA GeForce RTX 4060"
 print(torch.cuda.memory_allocated(0) / 1024**2, "MB")
 ```
 
@@ -53,7 +53,7 @@ pip install onnxruntime-gpu==1.26.0 --no-cache-dir
 
 # Verify
 python -c "import onnxruntime; print(onnxruntime.get_available_providers())"
-# Should include: ['CUDAExecutionProvider', 'CPUExecutionProvider']
+# Should include: ['TensorrtExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider']
 ```
 
 ## Known Issues
@@ -99,9 +99,9 @@ print(f"Free: {free/1024**3:.1f} GB / Total: {total/1024**3:.1f} GB")
 ```
 
 Model VRAM requirements:
-- MiniLM (FP32): ~150 MB
+- bge-large (FP32): ~700 MB ← MATHIR default
 - nomic (FP32): ~300 MB
-- bge-large (FP32): ~700 MB
+- MiniLM (FP32): ~150 MB
 - Qwen2.5-7B (FP32): ~14 GB (requires 16GB+ GPU)
 
 ## Daemon Architecture with GPU
@@ -114,30 +114,31 @@ Model VRAM requirements:
 │  TCP Socket (127.0.0.1:7338)           │
 │  JSON-RPC protocol                     │
 ├─────────────────────────────────────────┤
-│  ONNX Runtime                          │
-│  ├── CUDAExecutionProvider (GPU)       │
-│  └── CPUExecutionProvider (fallback)   │
+│  SentenceTransformer (CUDA)            │
+│  ├── BAAI/bge-large-en-v1.5 (default)  │
+│  └── CPU fallback available             │
 ├─────────────────────────────────────────┤
-│  Model loaded in RAM/VRAM              │
+│  Model loaded in VRAM                  │
 │  (no cold start per request)           │
 ├─────────────────────────────────────────┤
-│  SQLite + vec0                         │
-│  mathir.db                             │
+│  HybridSearch auto-scaling             │
+│  ├── numpy brute-force (N < 5K)        │
+│  └── USearch HNSW mmap (N >= 5K)       │
 └─────────────────────────────────────────┘
 ```
 
 ### Why Persistent Daemon?
 
 Without daemon: each request loads model (~2-5s cold start)
-With daemon: model stays loaded, first request ~20ms, subsequent ~10ms
+With daemon: model stays loaded, first request ~22ms, subsequent ~10ms
 
 ```bash
-# Start daemon (model loads once, stays in RAM)
+# Start daemon (model loads once, stays in VRAM)
 python bin/mathir_daemon.py
 
 # Client requests are instant — model already loaded
 python bin/mathir_client.py ping  # <1ms
-python bin/mathir_client.py save "test content"  # ~20ms
+python bin/mathir_client.py save "test content"  # ~22ms
 ```
 
 ## GPU vs CPU Decision
@@ -146,7 +147,7 @@ python bin/mathir_client.py save "test content"  # ~20ms
 |--------|-----|-----|
 | Setup complexity | Low | Medium |
 | RAM requirement | Model size only | Model + VRAM |
-| Latency (768d) | ~25ms | ~12ms |
+| Latency (1024d) | ~25ms | ~3ms |
 | Throughput | 40 req/s | 200+ req/s |
 | Multi-model | Limited by RAM | Limited by VRAM |
 | Cost | Free | GPU hardware |

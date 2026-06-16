@@ -40,9 +40,9 @@ pip install torch numpy
 from mathir_dropin import MATHIRMemory
 import torch
 
-memory = MATHIRMemory(embedding_dim=384, db_path="agent.db")
-memory_id = memory.store(torch.randn(1, 384), {"text": "hello world"})
-hits = memory.recall(torch.randn(1, 384), k=3)
+memory = MATHIRMemory(embedding_dim=1024, db_path="agent.db")
+memory_id = memory.store(torch.randn(1, 1024), {"text": "hello world"})
+hits = memory.recall(torch.randn(1, 1024), k=3)
 print(memory.get_stats())
 ```
 
@@ -75,10 +75,10 @@ MATHIR stores embeddings from multiple providers simultaneously, so you never ne
 from mathir_dropin import MATHIRMemory
 import torch
 
-memory = MATHIRMemory(embedding_dim=384, db_path="agent.db")
+memory = MATHIRMemory(embedding_dim=1024, db_path="agent.db")
 
 # Store with ALL providers you might use
-emb_primary = torch.randn(1, 384)
+emb_primary = torch.randn(1, 1024)
 emb_cohere = torch.randn(1, 1024)
 emb_voyage = torch.randn(1, 1024)
 
@@ -129,7 +129,7 @@ By default, everything lives in **a single SQLite database file** at
 the path you passed to `db_path`.
 
 ```python
-memory = MATHIRMemory(embedding_dim=384, db_path="my_memory.db")
+memory = MATHIRMemory(embedding_dim=1024, db_path="my_memory.db")
 ```
 
 The file `my_memory.db` is now on disk. Open it with anything:
@@ -197,8 +197,8 @@ So when you ask "where is my data?":
 Pass `db_path=None` (or `":memory:"` for an in-memory SQLite):
 
 ```python
-memory = MATHIRMemory(embedding_dim=384, db_path=None)  # pure RAM
-memory = MATHIRMemory(embedding_dim=384, db_path=":memory:")  # RAM + FTS5
+memory = MATHIRMemory(embedding_dim=1024, db_path=None)  # pure RAM
+memory = MATHIRMemory(embedding_dim=1024, db_path=":memory:")  # RAM + FTS5
 ```
 
 ---
@@ -235,7 +235,7 @@ Persist an embedding. Returns the new `memory_id` (e.g. `"mem_a1b2c3d4"`).
 
 ```python
 mid = memory.store(
-    torch.randn(1, 384),
+    torch.randn(1, 1024),
     {"text": "the user said hello", "user": "alice"},
 )
 ```
@@ -271,7 +271,7 @@ Prune low-utility episodic memories. Returns the number dropped.
 
 ```python
 {
-    "embedding_dim":  384,
+    "embedding_dim":  1024,
     "internal_dim":   272,
     "tier_working":   {"usage": 12, "capacity": 64},
     "tier_episodic":  {"usage": 100, "capacity": 1000},
@@ -306,8 +306,8 @@ The default config is:
 ```python
 DEFAULT_CONFIG = {
     "memory": {
-        "embedding_dim": 384,
-        "internal_dim": 272,
+        "embedding_dim": 1024,
+        "internal_dim": 512,
         "working_capacity": 64,
         "episodic_capacity": 1000,
         "semantic_prototypes": 256,

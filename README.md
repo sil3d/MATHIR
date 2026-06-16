@@ -11,7 +11,7 @@
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-7.8.0-6366f1?style=for-the-badge)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-8.2.0-6366f1?style=for-the-badge)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/Tests-226%20passed-22c55e?style=for-the-badge)](#-tests--benchmarks)
 [![BEIR](https://img.shields.io/badge/BEIR_SciFact-0.7441_nDCG%4010-a855f7?style=for-the-badge)](#-beir-benchmark-results)
 
@@ -105,7 +105,7 @@ Mem0: "It's our managed platform"                     ❌
 - **Working memory** — multi-head attention produces context-dependent results (88 % isolation)
 - **KL-constrained router** — PPO-style routing between 4 tiers, never collapses
 - **Universal Bridge (UNIBRI)** — works across LLM providers and languages, no retraining
-- **Edge-deployable** — ~500 MB VRAM (GPU) or 80 MB (CPU with INT8 quantization); works on Jetson Orin, Raspberry Pi (CPU fallback with MiniLM 384d)
+- **Edge-deployable** — ~500 MB VRAM (GPU) or 80 MB (CPU with INT8 quantization); works on Jetson Orin, Raspberry Pi (CPU fallback with ONNX INT8)
 - **Zero external dependencies** (`SimpleMemory` uses only SQLite FTS5)
 
 ---
@@ -135,7 +135,7 @@ Mem0: "It's our managed platform"                     ❌
 **3 things only MATHIR does, as of June 2026:**
 
 1. **Anomaly detection on inputs** (immunological tier, AUC = 1.0). No competitor in this list has it.
-2. **Edge deployment in ~500 MB VRAM**. All others need cloud or heavy local infra. Jetson Orin ✅ (full CUDA), Raspberry Pi ⚠️ (CPU fallback with MiniLM 384d).
+2. **Edge deployment in ~500 MB VRAM**. All others need cloud or heavy local infra. Jetson Orin ✅ (full CUDA), Raspberry Pi ⚠️ (CPU fallback with ONNX INT8).
 3. **MIT-licensed, fully open source, no managed service**. The only true OSS option with a 4-tier cognitive architecture.
 
 **Things others do that MATHIR doesn't (honesty):**
@@ -252,14 +252,14 @@ embeddings = provider.embed_batch(["Hello", "World"])
   "mcp": {
     "mathir": {
       "command": "python",
-      "args": ["D:\\SECRET_PROJECT\\MATHIR\\mcp_server.py"],
-      "env": { "PYTHONPATH": "D:\\SECRET_PROJECT\\MATHIR" }
+      "args": ["/path/to/MATHIR/mcp_server.py"],
+      "env": { "PYTHONPATH": "/path/to/MATHIR" }
     }
   }
 }
 ```
 
-The MCP server exposes 4 tools: `memory_save`, `memory_recall`, `memory_stats`, `provider_info`.
+The MCP server exposes 6 tools: `memory_save`, `memory_recall`, `memory_smart_search`, `memory_stats`, `memory_delete`, `memory_push`.
 
 ---
 
@@ -271,13 +271,13 @@ MATHIR supports multiple deployment targets. The embedding model you choose dete
 |----------|-------|------|----------------|--------|
 | **Desktop GPU (CUDA)** | bge-large-en-v1.5 (1024d) | ~500 MB | 25 ms | ✅ Recommended |
 | **Jetson Orin (CUDA)** | bge-large-en-v1.5 (1024d) | ~500 MB | ~30 ms | ✅ Supported |
-| **CPU only** | MiniLM-L6-v2 (384d) | 0 MB | ~50 ms | ✅ Supported |
-| **Raspberry Pi** | MiniLM-L6-v2 (384d) | 0 MB | ~200 ms | ⚠️ Experimental |
+| **CPU only** | bge-large-en-v1.5 (1024d) | 0 MB | ~200 ms | ✅ Supported |
+| **Raspberry Pi** | ONNX INT8 (1024d) | 0 MB | ~500 ms | ⚠️ Experimental |
 
 **Notes:**
 - **MATHIR internal memory** (working/episodic/semantic/immunological tiers) is ~60 KB regardless of platform — this is always true (Theorem 1, bounded capacity).
-- **Embedding model VRAM** varies by model: ~500 MB for bge-large on GPU, 0 MB for CPU-only MiniLM/ONNX.
-- **Raspberry Pi** requires CPU fallback — use MiniLM-L6-v2 (384d) or ONNX INT8. The bge-large model (1024d) is too large for Pi-class ARM devices without GPU.
+- **Embedding model VRAM** varies by model: ~500 MB for bge-large on GPU, 0 MB for CPU-only ONNX.
+- **Raspberry Pi** requires CPU fallback — use ONNX INT8. The bge-large model (1024d) is too large for Pi-class ARM devices without GPU.
 - **Jetson Orin** has CUDA support and runs bge-large at near-desktop speeds.
 
 ---
@@ -644,6 +644,57 @@ python ~/.config/opencode/bin/mathir_daemon.py &
 # Thin client — fast, model already loaded
 python ~/.config/opencode/bin/mathir_client.py recall "query" -k 5
 ```
+
+### Daemon Push (NEW in v8.2.0)
+
+MATHIR v8.2.0 introduces **proactive memory delivery** — the daemon can push relevant memories to clients without explicit recall requests. This enables automatic context injection for ongoing conversations.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Daemon Push Flow                             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Client                    Daemon                              │
+│    │                         │                                 │
+│    │  push --auto            │                                 │
+│    ├────────────────────────►│  Analyze context                │
+│    │                         │  Query 4-tier memory            │
+│    │                         │  Rank by relevance              │
+│    │  ◄──────────────────────┤                                 │
+│    │  [memory1, memory2, ...] │  Return ranked memories        │
+│    │                         │                                 │
+│  Push Modes:                                                    │
+│  ┌─────────────┬─────────────────────────────────────────────┐ │
+│  │ --auto      │ Daemon analyzes context, returns JSON array │ │
+│  │ --json      │ Returns structured {memories: [...]}        │ │
+│  │ --simple    │ Returns plain text memories                 │ │
+│  └─────────────┴─────────────────────────────────────────────┘ │
+│                                                                 │
+│  Use Cases:                                                     │
+│  • Auto-inject relevant context before each LLM call           │
+│  • Proactive memory suggestions during conversations           │
+│  • Background context enrichment for long sessions             │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Push commands:**
+```bash
+# Auto mode — daemon pushes relevant memories based on context
+python ~/.config/opencode/bin/mathir_client.py push "contexte ici" --auto
+
+# JSON mode — returns structured memory suggestions
+python ~/.config/opencode/bin/mathir_client.py push "contexte ici" --json
+
+# Simple mode — returns plain text memories (default)
+python ~/.config/opencode/bin/mathir_client.py push "contexte ici"
+```
+
+**Why push instead of pull:**
+- **Latency**: Memories delivered proactively, no recall delay
+- **Context**: Daemon analyzes full conversation history, not just current query
+- **Automatic**: No need to remember to call recall — daemon delivers relevant memories
+- **Efficient**: Cache prevents redundant embedding computations
 
 ### KL-constrained router
 

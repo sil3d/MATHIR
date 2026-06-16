@@ -6,6 +6,46 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [8.2.0] — 2026-06-16
+
+### Daemon Push (NEW)
+
+- **Proactive memory delivery** — daemon pushes relevant memories without explicit recall requests
+- **Push modes**:
+  - `--auto`: Daemon analyzes context, returns text ready for system prompt injection
+  - `--json`: Returns structured `{memories: [...]}` with metadata
+  - (default): Returns human-readable `[block/agent] label: content` format
+- **Cache system** — LRU cache with TTL (300s) prevents redundant embedding computations
+- **Use cases**:
+  - Auto-inject relevant context before each LLM call
+  - Proactive memory suggestions during conversations
+  - Background context enrichment for long sessions
+
+### Push Architecture
+
+```
+Client → push "context" → Daemon analyzes context → Extracts queries → Searches memory → Returns ranked memories
+```
+
+### Commands Added
+
+```bash
+# Push (proactive memory delivery)
+python ~/.config/opencode/bin/mathir_client.py push "contexte ici" --auto
+python ~/.config/opencode/bin/mathir_client.py push "contexte ici" --json
+python ~/.config/opencode/bin/mathir_client.py push "contexte ici"
+
+# Cache stats (via daemon)
+python ~/.config/opencode/bin/mathir_client.py push "" --json 2>&1 | head -1
+```
+
+### Documentation Updates
+
+- `README.md` — New Daemon Push section with architecture diagram
+- `GLOBAL_INSTRUCTIONS.md` — Added push commands to MEMORY PROTOCOL and AGENT MEMORY BLOCKS sections
+
+---
+
 ## [8.0.0] — 2026-06-15
 
 ### HybridSearch Auto-Scaling Backend (NEW)

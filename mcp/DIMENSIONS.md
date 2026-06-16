@@ -36,35 +36,37 @@ Storage:  384d ██░░░░░░░░░░░ 15%
 
 | Use Case | Recommended | Why |
 |----------|-------------|-----|
-| Fast agent memory | 384d (MiniLM) | Lowest latency, good enough for recall |
-| Balanced (default) | 768d (nomic) | Best speed/quality ratio, Matryoshka support |
-| High-quality retrieval | 1024d (bge-large) | Best MTEB score under 1024d |
-| Research / maximum quality | 3584d (Qwen2.5-7B) | Highest accuracy, needs GPU |
+| Default (MATHIR) | 1024d (bge-large) | Best balance, CUDA ~3ms/text |
+| Balanced alternative | 768d (nomic) | Good speed/quality ratio |
+| Maximum quality | 3584d (Qwen2.5-7B) | Highest accuracy, needs GPU |
+| Edge / minimal | 384d (MiniLM) | Smallest, but lowest quality |
 
-### Speed Benchmarks
+### Speed Benchmarks (RTX 4060, CUDA)
 
 | Model | Dims | Save Latency | Recall Latency (k=10) |
 |-------|------|-------------|----------------------|
 | MiniLM-L6-v2 | 384 | 22ms | 53ms |
 | nomic-embed-text-v1.5 | 768 | 21ms | 27ms |
-| bge-large-en-v1.5 | 1024 | 43ms | 25ms |
+| bge-large-en-v1.5 | 1024 | 3ms (CUDA) | 3ms (CUDA) |
+| e5-large-v2 | 1024 | 2.9ms (CUDA) | 2.9ms (CUDA) |
 | Qwen2.5-7B | 3584 | ~30ms (GPU) | ~40ms (GPU) |
 
-> Note: nomic-embed saves faster than MiniLM despite higher dims because ONNX optimization is better.
+> bge-large on CUDA: 3ms/text embedding, 22ms total save (embedding + DB), 25ms total recall.
 
 ## Matryoshka Embedding
 
 Some models (nomic, bge) support **Matryoshka representation learning (MRL)** — you can truncate embeddings without re-embedding:
 
 ```python
-# nomic-embed outputs 768d, but you can use first 384d
-embedding = model.encode("text")  # shape: (768,)
+# bge-large outputs 1024d, but you can use first 768d or 384d
+embedding = model.encode("text")  # shape: (1024,)
+truncated = embedding[:768]       # shape: (768,) — still valid!
 truncated = embedding[:384]       # shape: (384,) — still valid!
 ```
 
 This lets you:
-1. Start at 768d for quality
-2. Drop to 384d if speed matters later
+1. Start at 1024d for quality
+2. Drop to 768d or 384d if speed matters later
 3. No re-embedding of existing memories
 
 ## Storage Implications
@@ -72,9 +74,9 @@ This lets you:
 SQLite-vec creates an index per dimension. Storage grows linearly:
 
 ```
-1,000 memories × 768d × 4 bytes = 3 MB
-10,000 memories × 768d × 4 bytes = 30 MB
-100,000 memories × 768d × 4 bytes = 300 MB
+1,000 memories × 1024d × 4 bytes = 4 MB
+10,000 memories × 1024d × 4 bytes = 40 MB
+100,000 memories × 1024d × 4 bytes = 400 MB
 ```
 
 With HNSW index overhead (~1.5x), multiply by 1.5.
@@ -103,8 +105,7 @@ if existing_dim and existing_dim[0] != model_dim:
 
 | Priority | Recommendation |
 |----------|---------------|
-| Speed first | 384d MiniLM |
-| Balance first | 768d nomic (default) |
-| Quality first | 1024d bge-large |
-| Accuracy first | 3584d Qwen2.5-7B (GPU required) |
-| Unknown | 768d nomic (safe default) |
+| Default (MATHIR) | 1024d bge-large (CUDA ~3ms) |
+| Balance first | 768d nomic |
+| Quality first | 3584d Qwen2.5-7B (GPU required) |
+| Edge / minimal | 384d MiniLM (CPU only) |

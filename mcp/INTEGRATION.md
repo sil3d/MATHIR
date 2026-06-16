@@ -36,7 +36,7 @@ powershell ~/.config/opencode/bin/start-config-server.ps1
 In OpenCode session:
 ```bash
 python ~/.config/opencode/bin/mathir_client.py ping
-# {"status": "ok", "model": "nomic-embed-text-v1.5", "dims": 768}
+# Daemon: OK (uptime: ...)
 ```
 
 ## Claude Desktop Integration

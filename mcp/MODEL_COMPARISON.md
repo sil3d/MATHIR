@@ -2,45 +2,44 @@
 
 ## Benchmark Table
 
-| Model | Dims | Size | CPU Save | CPU Recall | GPU Save | MTEB Avg | License |
-|-------|------|------|----------|-----------|----------|----------|---------|
-| MiniLM-L6-v2 | 384 | 80 MB | 22ms | 53ms | — | 56.26 | Apache-2.0 |
-| nomic-embed-text-v1.5 | 768 | 137 MB | 21ms | 27ms | ~12ms | 62.38 | Apache-2.0 |
-| bge-large-en-v1.5 | 1024 | 335 MB | 43ms | 25ms | ~15ms | 64.23 | MIT |
-| e5-large-v2 | 1024 | 1.3 GB | 68ms | 45ms | ~18ms | 63.13 | MIT |
-| Octen-MiniLM-L6-INT8 | 384 | 22 MB | 8ms | 18ms | — | ~55 | Apache-2.0 |
-| Qwen2.5-7B-emb | 3584 | 4.7 GB | — | — | ~30ms | 71.5 | Apache-2.0 |
+| Model | Dims | Size | CPU Save | CPU Recall | GPU Save | GPU Recall | MTEB Avg | License |
+|-------|------|------|----------|-----------|----------|------------|----------|---------|
+| MiniLM-L6-v2 | 384 | 80 MB | 22ms | 53ms | — | — | 56.26 | Apache-2.0 |
+| nomic-embed-text-v1.5 | 768 | 137 MB | 21ms | 27ms | ~12ms | ~10ms | 62.38 | Apache-2.0 |
+| bge-large-en-v1.5 | 1024 | 335 MB | 43ms | 25ms | **3ms** | **3ms** | 64.23 | MIT |
+| e5-large-v2 | 1024 | 1.3 GB | 68ms | 45ms | ~18ms | ~15ms | 63.13 | MIT |
+| Octen-MiniLM-L6-INT8 | 384 | 22 MB | 8ms | 18ms | — | — | ~55 | Apache-2.0 |
+| Qwen2.5-7B-emb | 3584 | 4.7 GB | — | — | ~30ms | ~25ms | 71.5 | Apache-2.0 |
 
-> Latencies are approximate for encoding a 128-token chunk on a mid-range CPU (Ryzen 7 / i7-12700).
-> GPU times assume RTX 3060+ with onnxruntime-gpu.
+> GPU times: RTX 4060 Laptop GPU, CUDA 12.4, torch 2.6.0+cu124.
+> CPU times: mid-range CPU (Ryzen 7 / i7-12700).
 
 ## Model Profiles
 
-### MiniLM-L6-v2 (384d)
-- **Best for**: Fast agent memory, real-time recall
-- **Pros**: Tiny, fastest on CPU, 80MB RAM
-- **Cons**: Lowest quality, limited nuance
+### bge-large-en-v1.5 (1024d) — MATHIR DEFAULT
+- **Best for**: Default choice, production systems
+- **Pros**: Best quality under 1024d, CUDA ~3ms/text, Matryoshka support
+- **Cons**: 335MB, slower on CPU (43ms)
 - **Install**: `pip install sentence-transformers`
-- **ONNX**: Built-in via Optimum
+- **GPU**: CUDA via SentenceTransformer (no ONNX needed)
 
 ### nomic-embed-text-v1.5 (768d)
-- **Best for**: Default balanced choice, most projects
+- **Best for**: Balanced alternative, most projects
 - **Pros**: Best speed/quality ratio, Matryoshka support, Apache-2.0
 - **Cons**: Requires Optimum for ONNX export
 - **Install**: `pip install optimum`
 - **ONNX**: Export via `optimum-cli export onnx`
 
-### bge-large-en-v1.5 (1024d)
-- **Best for**: High-quality retrieval, production systems
-- **Pros**: Highest MTEB under 1024d, Matryoshka support
-- **Cons**: 335MB, slower on CPU
+### MiniLM-L6-v2 (384d)
+- **Best for**: Edge deployment, minimal resources
+- **Pros**: Tiny, 80MB RAM, fastest on CPU
+- **Cons**: Lowest quality, limited nuance
 - **Install**: `pip install sentence-transformers`
-- **ONNX**: Via Optimum
 
 ### e5-large-v2 (1024d)
-- **Best for**: Research, maximum MTEB score
+- **Best for**: Research, alternative to bge-large
 - **Pros**: Strong retrieval performance
-- **Cons**: 1.3GB, slowest on CPU, no INT8 quantization
+- **Cons**: 1.3GB, slowest on CPU
 - **Install**: `pip install sentence-transformers`
 
 ### Octen-MiniLM-L6-INT8 (384d)
@@ -60,10 +59,9 @@
 
 | Scenario | Model | Why |
 |----------|-------|-----|
-| Local agent, speed matters | MiniLM-L6-v2 | 22ms save, 80MB |
-| Default for most projects | nomic-embed-text-v1.5 | Best balance, Matryoshka |
-| Production with quality SLA | bge-large-en-v1.5 | 64.23 MTEB, 1024d |
-| Edge / IoT device | Octen-INT8 | 22MB, 8ms |
+| Default for MATHIR | bge-large-en-v1.5 | 1024d, CUDA 3ms, 64.23 MTEB |
+| Alternative balanced | nomic-embed-text-v1.5 | 768d, best speed/quality ratio |
+| Edge / IoT device | Octen-INT8 | 22MB, 8ms CPU |
 | GPU server, max quality | Qwen2.5-7B-emb | 71.5 MTEB, 3584d |
 | Research benchmarks | e5-large-v2 | Strong MTEB |
 
@@ -84,7 +82,7 @@ Model               1K memories    10K memories   100K memories
 ────────────────────────────────────────────────────────────────
 MiniLM (384d)       2 MB           20 MB          200 MB
 nomic (768d)        4 MB           40 MB          400 MB
-bge-large (1024d)   5 MB           50 MB          500 MB
+bge-large (1024d)   5 MB           50 MB          500 MB  ← MATHIR default
 Qwen2.5 (3584d)     18 MB          180 MB         1.8 GB
 ```
 

@@ -188,7 +188,7 @@ def api_overview(project: str | None = None) -> dict:
         "db_size_mb": round(db_size / (1024 * 1024), 2),
         "db_path": db_path,
         "config": {
-            "embedding_dim": config.get("embedding_dim", 384),
+            "embedding_dim": config.get("embedding_dim", 1024),
             "working_capacity": config.get("working_capacity", 64),
             "episodic_capacity": config.get("episodic_capacity", 1000),
             "semantic_prototypes": config.get("semantic_prototypes", 256),

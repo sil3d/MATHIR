@@ -4,7 +4,7 @@
 
 The MATHIR daemon is a **persistent background process** that:
 
-1. Loads the ONNX embedding model once at startup
+1. Loads the embedding model once at startup (SentenceTransformer + CUDA)
 2. Keeps the model in RAM/VRAM for instant access
 3. Serves requests via TCP socket (JSON-RPC)
 4. Manages the SQLite database with vec0 vector index
@@ -47,8 +47,8 @@ Check if daemon is alive and model is loaded.
 ```json
 {
   "status": "ok",
-  "model": "nomic-embed-text-v1.5",
-  "dims": 768,
+  "model": "BAAI/bge-large-en-v1.5",
+  "dims": 1024,
   "uptime_seconds": 3600
 }
 ```
@@ -71,7 +71,7 @@ Save a memory block with embedding.
 ```json
 {
   "memory_id": "42",
-  "dims": 768,
+  "dims": 1024,
   "tier": "semantic"
 }
 ```
@@ -253,5 +253,5 @@ python bin/mathir_client.py delete <id> --reason "test cleanup"
 | Connection refused | Daemon not running | `python bin/mathir_daemon.py` |
 | Timeout | Model loading (first start) | Wait 2-5s, check `nvidia-smi` |
 | OOM | Model too large for RAM/VRAM | Use smaller model or CPU |
-| Slow first request | Cold ONNX session | Normal, subsequent requests are fast |
+| Slow first request | Cold model load (first start only) | Normal, subsequent requests are fast |
 | Port in use | Another daemon running | Kill existing or use `--port 7339` |
