@@ -1,5 +1,32 @@
 # MATHIR Benchmarks
 
+## Directory Structure
+
+```
+benchmarks/
+├── README.md                     ← You are here
+├── cross-llm/                    ← Cross-LLM memory benchmark
+│   └── benchmark.py              ← Main cross-provider test
+├── risks/                        ← Memory risk mitigation
+│   └── memory_risks.py           ← Leakage, sycophancy, PII detection
+├── scripts/                      ← Existing benchmark scripts
+│   ├── benchmark_beir.py
+│   ├── benchmark_unified.py
+│   └── ...
+├── data/                         ← BEIR datasets + embedding caches
+│   ├── beir_data/
+│   └── controlled_emb_cache/
+└── results/                      ← All results (consolidated)
+    ├── final/                    ← Final results
+    │   ├── beir/
+    │   ├── memory_tiers/
+    │   ├── stress_tests/
+    │   └── gpu_vec_benchmark.json
+    ├── reports/                  ← HTML reports
+    │   └── MATHIR_FINAL_REPORT.html
+    └── *.json                    ← Old results
+```
+
 ## What Is This?
 
 Cross-LLM memory benchmark that tests MATHIR's unique value: **persistent memory across LLM provider switches**.
@@ -49,9 +76,9 @@ export MINIMAX_API_KEY="your-key"
 export NVIDIA_API_KEY="your-key"
 export OPENCODE_ZEN_KEY="your-key"
 
-# 3. Run benchmark
+# 3. Run cross-LLM benchmark
 cd /path/to/MATHIR/benchmarks
-python cross_llm_benchmark.py --providers google nvidia minimax
+python cross-llm/benchmark.py --providers google nvidia minimax
 ```
 
 ## Risk Mitigation (from PersistBench)
@@ -80,11 +107,3 @@ Results saved to `benchmark_results.json`:
   }
 }
 ```
-
-## Files
-
-| File | What it does |
-|------|-------------|
-| `cross_llm_benchmark.py` | Main benchmark runner |
-| `memory_risks.py` | Risk mitigation (leakage, sycophancy, PII) |
-| `README.md` | This file |
