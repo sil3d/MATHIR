@@ -14,7 +14,7 @@ A real-time web dashboard that visualizes your MATHIR neural memory system:
 ### 1. Start the Server
 
 ```bash
-cd D:\SECRET_PROJECT\MATHIR\mcp
+cd /path/to/MATHIR/mcp
 python dashboard_server.py
 ```
 
@@ -37,13 +37,7 @@ The dashboard auto-refreshes every 30 seconds.
 
 **PowerShell:**
 ```powershell
-cd D:\SECRET_PROJECT\MATHIR\mcp
-python dashboard_server.py
-```
-
-**Command Prompt:**
-```cmd
-cd D:\SECRET_PROJECT\MATHIR\mcp
+cd /path/to/MATHIR/mcp
 python dashboard_server.py
 ```
 
@@ -121,6 +115,102 @@ python3 dashboard_server.py
 launchctl load ~/Library/LaunchAgents/com.mathir.dashboard.plist
 ```
 
+## Agent Integration — How Your Agent Should Use MATHIR
+
+### The 3 Rules
+
+1. **ALWAYS recall before acting** — never start a task without checking memory
+2. **ALWAYS save after completing** — every task completion gets saved
+3. **NEVER say "pre-existing error"** — fix it or escalate with full context
+
+### Agent Workflow
+
+```
+SESSION START
+    ↓
+1. Recall existing memories (what do I know?)
+    ↓
+2. Work on task
+    ↓
+3. Save what I learned (skills, patterns, fixes)
+    ↓
+SESSION END
+```
+
+### Commands for Agents
+
+**At session start — recall what you know:**
+```bash
+# Via daemon (fast, model already loaded)
+python /path/to/MATHIR/bin/mathir_client.py recall "project context" -k 10
+
+# Via MCP (if using MCP integration)
+memory_recall(query="project context", k=10)
+```
+
+**After completing a task — save what you did:**
+```bash
+# Via daemon
+python /path/to/MATHIR/bin/mathir_client.py save "Task completed: [what was done]" \
+  --agent [your_agent_name] --type episodic --label task-[short-description] --priority 7
+
+# Via MCP
+memory_save(content="Task completed: [what was done]", agent="[your_agent_name]",
+            block_type="episodic", label="task-[short-description]", priority=7)
+```
+
+**When you discover a pattern — save it as a skill:**
+```bash
+python /path/to/MATHIR/bin/mathir_client.py save "SKILL: [Problem Title]
+
+PROBLEM:
+- What: [Exact description]
+- When: [When does it happen?]
+
+ROOT CAUSE:
+- Why: [Technical explanation]
+
+SOLUTION:
+- Step 1: [Exact command or code]
+- Verification: [How to verify]
+
+PREVENTION:
+- How to avoid: [What to do differently]
+
+EXAMPLES:
+- Bad: [Code that causes problem]
+- Good: [Code that avoids problem]" \
+  --agent [your_agent_name] --type semantic --label skill-[problem-slug] --priority 9
+```
+
+### Memory Types — When to Use Each
+
+| Type | When | Example |
+|------|------|---------|
+| `working_memory` | Active task, current bug | "Bug: null pointer in auth.py:42" |
+| `episodic` | After completing a task | "Fixed login refresh token bug in PR #42" |
+| `semantic` | Discovery about the project | "This project uses JWT tokens in Authorization header" |
+| `procedural` | Workflow that works well | "How to debug auth issues: 1. Check token, 2. Check CORS..." |
+
+### What NOT to Save
+
+- ❌ Temporary state ("I'm currently looking at file X")
+- ❌ Duplicate of existing memory (search first!)
+- ❌ Vague notes ("something is wrong with auth")
+- ❌ Implementation details that will change
+
+### Proactive Memory Delivery (Daemon Push)
+
+If the daemon supports push mode, your agent can get relevant memories automatically:
+
+```bash
+# Get memories relevant to current context
+python /path/to/MATHIR/bin/mathir_client.py push "current task context" --auto
+
+# JSON mode for structured consumption
+python /path/to/MATHIR/bin/mathir_client.py push "current task context" --json
+```
+
 ## Configuration
 
 ### Environment Variables
@@ -147,7 +237,7 @@ Point to a specific database:
 
 ```bash
 # Windows
-set MATHIR_DB=D:\my_project\.mathir\mathir.db
+set MATHIR_DB=C:\my_project\.mathir\mathir.db
 python dashboard_server.py
 
 # Linux/Mac
