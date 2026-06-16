@@ -32,9 +32,11 @@ from dataclasses import dataclass, field, asdict
 from typing import Optional
 from pathlib import Path
 
-# Add MATHIR bin to path
+# Add MATHIR bin and risks to path
 MATHIR_BIN = Path(__file__).parent.parent / "bin"
+MATHIR_RISKS = Path(__file__).parent.parent / "02_memory_risks"
 sys.path.insert(0, str(MATHIR_BIN))
+sys.path.insert(0, str(MATHIR_RISKS))
 
 from memory_risks import MemoryRiskManager, Domain
 
