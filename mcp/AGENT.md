@@ -407,3 +407,66 @@ pip install onnxruntime-gpu         # ONNX edge deployment
 | "Port in use" | Another daemon running | `--port 8080` or kill existing |
 | "Slow first request" | Cold model load | Normal, subsequent requests are fast |
 | "No database found" | `.mathir/` doesn't exist | Created automatically on first save |
+
+---
+
+## Platform Integration
+
+### OpenCode
+
+Add to `~/.config/opencode/opencode.json`:
+```json
+{
+  "mcp": {
+    "mathir": {
+      "type": "local",
+      "command": ["python", "C:\\Users\\So-i-learn-3D\\.config\\opencode\\bin\\mathir_mcp_server.py"],
+      "environment": {
+        "MATHIR_DB": "C:\\Users\\So-i-learn-3D\\.config\\opencode\\data\\mathir.db",
+        "MATHIR_CONFIG": "C:\\Users\\So-i-learn-3D\\.config\\opencode\\config\\mathir.json",
+        "MATHIR_EMBEDDING_DIM": "1024"
+      },
+      "enabled": true
+    }
+  }
+}
+```
+
+### MiMo Code
+
+Add to `~/.config/mimocode/mimocode.json`:
+```json
+{
+  "mcp": {
+    "mathir": {
+      "type": "local",
+      "command": ["python", "C:\\Users\\So-i-learn-3D\\.config\\opencode\\bin\\mathir_mcp_server.py"],
+      "environment": {
+        "MATHIR_DB": "C:\\Users\\So-i-learn-3D\\.config\\opencode\\data\\mathir.db",
+        "MATHIR_CONFIG": "C:\\Users\\So-i-learn-3D\\.config\\opencode\\config\\mathir.json",
+        "MATHIR_EMBEDDING_DIM": "1024"
+      },
+      "enabled": true
+    }
+  }
+}
+```
+
+### Claude Code
+
+Add to `~/.claude/claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "mathir": {
+      "command": "python",
+      "args": ["C:\\Users\\So-i-learn-3D\\.config\\opencode\\bin\\mathir_mcp_server.py"],
+      "env": {
+        "MATHIR_DB": "C:\\Users\\So-i-learn-3D\\.config\\opencode\\data\\mathir.db",
+        "MATHIR_CONFIG": "C:\\Users\\So-i-learn-3D\\.config\\opencode\\config\\mathir.json",
+        "MATHIR_EMBEDDING_DIM": "1024"
+      }
+    }
+  }
+}
+```
