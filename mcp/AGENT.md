@@ -292,8 +292,8 @@ python dashboard_server.py
 
 ```
 your_project/
-├── mathir_daemon.py    ← Copy from MATHIR/bin/ or OpenCode/bin/
-├── mathir_client.py    ← Copy from MATHIR/bin/ or OpenCode/bin/
+├── mathir_daemon.py    ← Copy from MATHIR/bin/
+├── mathir_client.py    ← Copy from MATHIR/bin/
 ├── mathir.json         ← Create with your config
 └── .mathir/            ← Created automatically
     └── mathir.db       ← Created automatically
@@ -381,10 +381,10 @@ pip install onnxruntime-gpu         # ONNX edge deployment
 
 | File | Required | What It Does |
 |------|----------|-------------|
-| `mathir_daemon.py` | ✅ YES | Persistent daemon, keeps model loaded |
-| `mathir_client.py` | ✅ YES | Fast client commands |
+| `bin/mathir_daemon.py` | ✅ YES | Persistent daemon, keeps model loaded |
+| `bin/mathir_client.py` | ✅ YES | Fast client commands |
 | `mathir.json` | ✅ YES | Config (model, dims, paths) |
-| `mathir_push.py` | Recommended | Proactive memory delivery |
+| `bin/mathir_push.py` | Recommended | Proactive memory delivery |
 | `mathir_mcp_server.py` | Recommended | MCP server (6 tools) |
 | `dashboard_server.py` | Optional | Dashboard backend |
 | `dashboard.html` | Optional | Dashboard frontend |
