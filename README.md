@@ -261,6 +261,28 @@ embeddings = provider.embed_batch(["Hello", "World"])
 
 The MCP server exposes 6 tools: `memory_save`, `memory_recall`, `memory_smart_search`, `memory_stats`, `memory_delete`, `memory_push`.
 
+### Compatible With
+
+All major AI coding tools support MCP — MATHIR works with all of them:
+
+| Tool | MCP | Transport | Config |
+|------|-----|-----------|--------|
+| **OpenCode** | ✅ Native | TCP + SSE | `opencode.json` → `mcpServers` |
+| **OpenClaude** | ✅ Native | stdio/HTTP | `/mcp` command or config JSON |
+| **Kilo Code** | ✅ Native | HTTP Stream | Settings → MCP → Add Server |
+| **MiMo Code** | ✅ Native | stdio + HTTP | Config `mcp` section |
+| **Claude Code** | ✅ Native | stdio/HTTP | `claude_desktop_config.json` |
+
+**One daemon, 5 tools, same memory.** Start the daemon once, connect from any tool:
+
+```bash
+# Start daemon (once)
+python /path/to/MATHIR/bin/mathir_daemon.py
+
+# Then add to any MCP-compatible tool:
+# URL: http://127.0.0.1:7338/sse
+```
+
 ---
 
 ## 🚀 Deployment Options

@@ -99,8 +99,13 @@ Add to `~/.config/opencode/opencode.json`:
 └─────────────┘                        └──────┬───────┘
                                               │
                                      ┌────────▼────────┐
-                                     │  ONNX Runtime   │
-                                     │  (embedding)    │
+                                     │ SentenceTransformer│
+                                     │  (CUDA / CPU)   │
+                                     └────────┬────────┘
+                                              │
+                                     ┌────────▼────────┐
+                                     │  HybridSearch   │
+                                     │  numpy / USearch│
                                      └────────┬────────┘
                                               │
                                      ┌────────▼────────┐
@@ -108,6 +113,20 @@ Add to `~/.config/opencode/opencode.json`:
                                      │  mathir.db      │
                                      └─────────────────┘
 ```
+
+## Compatible With
+
+All major AI coding tools support MCP — MATHIR works with all of them:
+
+| Tool | MCP | Transport | How to Add |
+|------|-----|-----------|------------|
+| **OpenCode** | ✅ Native | TCP + SSE | `opencode.json` → `mcpServers` |
+| **OpenClaude** | ✅ Native | stdio/HTTP | `/mcp add mathir http://127.0.0.1:7338/sse` |
+| **Kilo Code** | ✅ Native | HTTP Stream | VS Code Settings → MCP → Add Server |
+| **MiMo Code** | ✅ Native | stdio + HTTP | `~/.config/mimocode/config.json` → `mcp` |
+| **Claude Code** | ✅ Native | stdio/HTTP | `claude_desktop_config.json` → `mcpServers` |
+
+**One daemon, 5 tools, same memory.**
 
 ## Documentation
 
