@@ -420,10 +420,9 @@ Add to `~/.config/opencode/opencode.json`:
   "mcp": {
     "mathir": {
       "type": "local",
-      "command": ["python", "C:\\Users\\So-i-learn-3D\\.config\\opencode\\bin\\mathir_mcp_server.py"],
+      "command": ["python", "/path/to/MATHIR/bin/mathir_mcp_server.py"],
       "environment": {
-        "MATHIR_DB": "C:\\Users\\So-i-learn-3D\\.config\\opencode\\data\\mathir.db",
-        "MATHIR_CONFIG": "C:\\Users\\So-i-learn-3D\\.config\\opencode\\config\\mathir.json",
+        "MATHIR_CONFIG": "/path/to/config/mathir.json",
         "MATHIR_EMBEDDING_DIM": "1024"
       },
       "enabled": true
@@ -440,10 +439,9 @@ Add to `~/.config/mimocode/mimocode.json`:
   "mcp": {
     "mathir": {
       "type": "local",
-      "command": ["python", "C:\\Users\\So-i-learn-3D\\.config\\opencode\\bin\\mathir_mcp_server.py"],
+      "command": ["python", "/path/to/MATHIR/bin/mathir_mcp_server.py"],
       "environment": {
-        "MATHIR_DB": "C:\\Users\\So-i-learn-3D\\.config\\opencode\\data\\mathir.db",
-        "MATHIR_CONFIG": "C:\\Users\\So-i-learn-3D\\.config\\opencode\\config\\mathir.json",
+        "MATHIR_CONFIG": "/path/to/config/mathir.json",
         "MATHIR_EMBEDDING_DIM": "1024"
       },
       "enabled": true
@@ -460,10 +458,9 @@ Add to `~/.claude/claude_desktop_config.json`:
   "mcpServers": {
     "mathir": {
       "command": "python",
-      "args": ["C:\\Users\\So-i-learn-3D\\.config\\opencode\\bin\\mathir_mcp_server.py"],
+      "args": ["/path/to/MATHIR/bin/mathir_mcp_server.py"],
       "env": {
-        "MATHIR_DB": "C:\\Users\\So-i-learn-3D\\.config\\opencode\\data\\mathir.db",
-        "MATHIR_CONFIG": "C:\\Users\\So-i-learn-3D\\.config\\opencode\\config\\mathir.json",
+        "MATHIR_CONFIG": "/path/to/config/mathir.json",
         "MATHIR_EMBEDDING_DIM": "1024"
       }
     }
