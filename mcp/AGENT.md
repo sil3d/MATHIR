@@ -299,6 +299,12 @@ your_project/
     └── mathir.db       ← Created automatically
 ```
 
+**Database Detection (priority order):**
+1. `.mathir/mathir.db` in CWD → agent working IN a project gets that DB
+2. Registry lookup → daemon started from home uses registered project DBs
+3. Home directory is NEVER treated as a project → prevents stale home DBs
+4. Fallback → first available registry DB when CWD is home
+
 **Steps:**
 ```bash
 # 1. Copy files
@@ -362,6 +368,79 @@ Then add to your MCP tool's config:
 
 ---
 
+## Agent Injection — Make Memory Automatic
+
+**Problem:** Agents don't use MATHIR automatically. They need memory recall baked into their system_prompt, not just in global instructions.
+
+**Solution:** Create a `_MATHIR_INJECT.md` template and inject it into each agent's system_prompt.
+
+### Step 1: Create the injection template
+
+```markdown
+# MATHIR MEMORY — AUTO-RECALL BLOCK
+
+## YOUR MEMORY IS ALWAYS ACTIVE
+
+You don't "load" your memory. You consult it naturally.
+
+### RECALL — Before every significant action
+
+```bash
+python [MATHIR_PATH]/mathir_client.py recall "subject" -k 5
+```
+
+**MANDATORY triggers:**
+- Given a task → `recall "task name"`
+- Find an error → `recall "exact error"`
+- Don't know how → `recall "how to do X"`
+- Working on a file → `recall "filename"`
+- Making a decision → `recall "choice between X and Y"`
+
+**You don't ask permission. You just do it.**
+
+### SAVE — After learning something
+
+```bash
+python [MATHIR_PATH]/mathir_client.py save "what I learned" -a [agent] -t semantic -l [label] -p 8
+```
+```
+
+### Step 2: Inject into all agents
+
+```python
+# inject_mathir.py
+import os
+from pathlib import Path
+
+AGENTS_DIR = Path("~/.config/opencode/agents").expanduser()
+MATHIR_BLOCK = (AGENTS_DIR / "_MATHIR_INJECT.md").read_text()
+MARKER = "<!-- MATHIR_INJECTED -->"
+
+for agent_file in AGENTS_DIR.glob("*.md"):
+    if agent_file.name.startswith("_"):
+        continue
+    content = agent_file.read_text()
+    if MARKER in content:
+        continue
+    if content.startswith("---"):
+        parts = content.split("---", 2)
+        if len(parts) >= 3:
+            new_content = f"---{parts[1]}---\n{MARKER}\n{MATHIR_BLOCK}\n{parts[2]}"
+            agent_file.write_text(new_content)
+            print(f"  + {agent_file.name}")
+```
+
+### Step 3: Update all agents
+
+```bash
+python inject_mathir.py
+# Injected into 33 agents
+```
+
+**Why this works:** The MATHIR block is the FIRST thing the agent reads in its system_prompt. Before its identity. Before its protocol. The agent sees "YOUR MEMORY IS ALWAYS ACTIVE" before anything else.
+
+---
+
 ## Dependencies
 
 ```bash
@@ -407,6 +486,8 @@ pip install onnxruntime-gpu         # ONNX edge deployment
 | "Port in use" | Another daemon running | `--port 8080` or kill existing |
 | "Slow first request" | Cold model load | Normal, subsequent requests are fast |
 | "No database found" | `.mathir/` doesn't exist | Created automatically on first save |
+| "No project database found" | CWD is home, no registry entries | Set `MATHIR_PROJECT` env var or cd into a project dir |
+| Wrong DB used | Home dir has `.mathir/mathir.db` | Home dir is skipped; registry DB used instead |
 
 ---
 
