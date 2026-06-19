@@ -5,7 +5,7 @@
 **Author:** Prince Gildas Mbama Kombila
 **Affiliation:** MATHIR Project, Independent Research
 **Date:** June 2, 2026
-**Project Version:** MATHIR V8.0.0 (HybridSearch + full integration)
+**Project Version:** MATHIR V8.3.0 (HybridSearch + daemon + brain architecture)
 **Domain:** Machine Learning, Memory-Augmented Neural Networks, Information Retrieval, Stochastic Approximation
 
 ---
@@ -1363,7 +1363,7 @@ This paper has presented the V7.1 release of MATHIR, which adds four novel retri
 
 Several directions remain for future research:
 
-1. **V8: Production cascade architecture.** Build a unified `MATHIRPluginV8` that uses the two-stage cascade (FAISS fast filter → Approach D re-rank) as the default retrieval strategy. This requires a calibrator that decides when to short-circuit (skip re-ranking) based on the FAISS score: if the top-1 FAISS score exceeds 0.9, the calibrator returns the FAISS result directly.
+1. **V8: Production cascade architecture.** ✅ Done. MATHIR V8.0 introduced `HybridSearch` with auto-scaling backends (numpy → USearch HNSW), SQLite WAL metadata store, and LRU result cache (80-85% hit rate). V8.2 added daemon push API. V8.3 fixed hybrid search thread safety and added direct SQLite backend for cross-thread access.
 
 2. **V9: Edge deployment.** The current implementation requires CPU. A Rust/PyO3 port of the cross-encoder would enable edge deployment on Jetson and Raspberry Pi. Expected speedup: 10–50× for the cross-encoder, bringing Approach D's latency from 494 ms to approximately 10–50 ms.
 
@@ -1381,16 +1381,31 @@ All code, tests, and benchmark scripts are available at the project repository:
 - **Test scripts:** `tests/test_hybrid.py`, `tests/test_raw_embedding.py`, `tests/test_ensemble.py`, `tests/test_faiss_memory.py`
 - **Benchmark scripts:** `benchmarks/compare_all_approaches.py`, `benchmarks/approach_d_vs_faiss.py`
 - **Results:** `compare_all_approaches_results.json`, `approach_d_vs_faiss_results.json`, `v6_vs_v7_results.json`
+- **Daemon:** `bin/mathir_daemon.py` (TCP socket server, port 7338)
+- **Hybrid search:** `mathir_search.py` (HybridSearch with BM25 + RRF fusion)
 
 To reproduce the results:
 
 ```bash
 cd D:/SECRET_PROJECT/MATHIR
 pip install -e .
-pip install sentence-transformers rank_bm25 faiss-cpu PyMuPDF
+pip install sentence-transformers rank_bm25 faiss-cpu PyMuPDF usearch
 python benchmarks/compare_all_approaches.py --chunks 200 --queries 50
 python benchmarks/approach_d_vs_faiss.py --chunks 200 --queries 50
 python benchmarks/v6_vs_v7.py
+
+# Daemon stress test (V8.3)
+Start-Process python bin/mathir_daemon.py -WindowStyle Hidden
+# Wait 30s for model load, then:
+python -c "import socket,json; s=socket.socket(); s.connect(('127.0.0.1',7338)); s.sendall(json.dumps({'method':'ping','params':{}}).encode()); print(s.recv(4096).decode())"
+
+# Hybrid search test
+python -c "
+import socket, json
+s = socket.socket(); s.connect(('127.0.0.1', 7338))
+s.sendall(json.dumps({'method': 'memory_hybrid_search', 'params': {'query': 'auth bug', 'k': 5}}).encode())
+print(json.loads(s.recv(65536).decode()))
+"
 ```
 
 Expected runtime: < 2 minutes on CPU. The benchmarks are deterministic given the same random seed.
@@ -1906,7 +1921,7 @@ This appendix provides the implementation details of the four approaches, includ
 
 ### Appendix C: Test Configurations
 
-This appendix provides the test configurations and the test results for each of the 195 tests.
+This appendix provides the test configurations and the test results for each of the tests.
 
 #### C.1 Test Suite Overview
 
@@ -1918,7 +1933,22 @@ This appendix provides the test configurations and the test results for each of 
 | `tests/test_ensemble.py` | 36 | 36/36 PASS |
 | `tests/test_faiss_memory.py` | 32 | 32/32 PASS |
 | `tests/test_hybrid.py` | 34 | 34/34 PASS |
-| **Total V7.1** | **195** | **193/195 PASS (99%)** |
+| `mathir_dropin/` audit | 31 | 31/31 PASS |
+| **Total V7.1 suite** | **226** | **224/226 PASS (99%)** |
+
+#### C.1.1 Daemon Stress Tests (V8.3)
+
+| Test | Requests | Status | Latency |
+|------|----------|--------|---------|
+| memory_save (rapid fire) | 20/20 | ✅ PASS | 50–120ms |
+| ping (rapid fire) | 20/20 | ✅ PASS | 2–23ms |
+| memory_recall (rapid fire) | 10/10 | ✅ PASS | 47–94ms |
+| memory_hybrid_search | 10/10 | ✅ PASS | 47–65ms |
+| **Total daemon** | **50/50** | **✅ PASS** | **~60ms avg** |
+
+The daemon stress tests verify that the TCP socket server handles concurrent requests without thread-safety issues. V8.3 fixed two critical bugs:
+1. **3rd-request hang**: Local imports shadowed global `get_embedder_dim`, causing `UnboundLocalError` in the `ping` handler → daemon thread crashed silently.
+2. **Hybrid search timeout**: `VecMemory` created in main thread was used in handler threads → `ProgrammingError: SQLite objects created in a thread can only be used in that same thread`. Fixed with `check_same_thread=False` and per-request SQLite connections for hybrid search.
 
 #### C.2 Configuration
 
@@ -2064,6 +2094,12 @@ pytest tests/test_faiss_memory.py -v
 pytest tests/test_hybrid.py -v
 
 # Expected output: 193/195 PASS (99%)
+
+# Daemon stress test (V8.3)
+Start-Process python bin/mathir_daemon.py -WindowStyle Hidden
+# Wait 30s for model load, then:
+python -c "import socket,json; s=socket.socket(); s.connect(('127.0.0.1',7338)); s.sendall(json.dumps({'method':'ping','params':{}}).encode()); print(s.recv(4096).decode())"
+# Expected: {"pong": true, "dim": 384, ...}
 ```
 
 #### E.3 Running the Benchmarks
