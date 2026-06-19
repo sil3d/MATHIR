@@ -3,8 +3,12 @@
 
   "bin_dir": "bin",
   "models_dir": "models",
-  "memory_dir": "memory",
-  "memory_db": "memory/vision_test.db",
+  "memory": {
+    "backend": "daemon",
+    "daemon_port": 7338,
+    "mem_type": "episodic",
+    "label": "vision_test"
+  },
 
   "llama_server": {
     "_comment": "Default llama-server settings - can be overridden per model",

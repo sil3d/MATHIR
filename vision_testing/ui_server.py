@@ -32,8 +32,20 @@ from flask_cors import CORS
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))  # Add MATHIR root
 
+# SimpleMemory — FTS5-only, no torch, no daemon needed
+from mathir_dropin.simple import SimpleMemory
+
 import warnings
 warnings.filterwarnings("ignore")
+
+
+# ============================================================
+# Global memory (SimpleMemory — FTS5-only, no daemon)
+# ============================================================
+
+MEMORY_DB = str(HERE / "memory" / "vision_memory.db")
+Path(MEMORY_DB).parent.mkdir(parents=True, exist_ok=True)
+memory = SimpleMemory(db_path=MEMORY_DB)
 
 
 # ============================================================
@@ -152,7 +164,7 @@ def build_system_message() -> str:
             model_capabilities=", ".join(active_caps) if active_caps else "text",
             date=datetime.now().strftime("%Y-%m-%d"),
             platform=sys.platform,
-            memory_db_path=str(resolve_path(state["config"].get("memory_db", "memory/vision_test.db"))),
+            memory_db_path=MEMORY_DB,
         )
     except Exception:
         context_line = ""
@@ -221,30 +233,16 @@ def record_event(event_type: str, **kwargs):
             for qt in qtypes:
                 learning_data["query_types"][qt] = learning_data["query_types"].get(qt, 0) + 1
 
-            # Memory growth snapshot
-            if state.get("active_tester") and state["active_tester"].memory:
-                try:
-                    stats = state["active_tester"].memory.get_stats()
-                    count = stats.get("total_memories", 0) if isinstance(stats, dict) else 0
-                    learning_data["memory_timeline"].append({
-                        "timestamp": datetime.now().isoformat(),
-                        "count": count,
-                    })
-                    if len(learning_data["memory_timeline"]) > 500:
-                        learning_data["memory_timeline"] = learning_data["memory_timeline"][-500:]
-                except Exception:
-                    pass
-
-            # DB size snapshot
+            # Memory count snapshot via SimpleMemory
             try:
-                db_path = resolve_path(state["config"].get("memory_db", "memory/vision_test.db"))
-                if db_path.exists():
-                    learning_data["storage_timeline"].append({
-                        "timestamp": datetime.now().isoformat(),
-                        "size_bytes": db_path.stat().st_size,
-                    })
-                    if len(learning_data["storage_timeline"]) > 500:
-                        learning_data["storage_timeline"] = learning_data["storage_timeline"][-500:]
+                stats = memory.get_stats()
+                count = stats.get("total_memories", 0)
+                learning_data["memory_timeline"].append({
+                    "timestamp": datetime.now().isoformat(),
+                    "count": count,
+                })
+                if len(learning_data["memory_timeline"]) > 500:
+                    learning_data["memory_timeline"] = learning_data["memory_timeline"][-500:]
             except Exception:
                 pass
 
@@ -353,7 +351,7 @@ def get_system_context_endpoint():
 
     # Inline model-info block (mirrors the block injected on /api/chat)
     try:
-        db_path_str = str(resolve_path(state["config"].get("memory_db", "memory/vision_test.db")))
+        db_path_str = MEMORY_DB
     except Exception:
         db_path_str = ""
     model_info = {
@@ -643,13 +641,12 @@ def chat():
     # Build messages
     start = time.time()
     try:
-        # RECALL relevant memories from MATHIR
+        # RECALL relevant memories from MATHIR daemon
         memory_context = ""
-        if tester.memory and message:
+        if message:
             try:
-                recalled = tester.memory.universal_recall(query=message, k=5)
-                # Also always get the last 3 memories for context
-                last_memories = tester.memory.get_last(n=3)
+                recalled = memory.recall(message, k=5)
+                last_memories = memory.get_last(n=3)
                 # Merge and deduplicate
                 seen_ids = set()
                 all_memories = []
@@ -661,7 +658,7 @@ def chat():
                 if all_memories:
                     mem_lines = []
                     for r in all_memories[:5]:
-                        txt = r.get("metadata", {}).get("text", "")
+                        txt = r.get("text", "") or r.get("metadata", {}).get("text", "")
                         if txt:
                             mem_lines.append(f"- {txt}")
                     if mem_lines:
@@ -707,36 +704,34 @@ def chat():
         duration = time.time() - start
 
         # Store in MATHIR memory — full conversation, not truncated
-        if tester.memory:
-            try:
-                # Skip trivial messages
-                skip_words = {"hi", "hello", "ok", "thanks", "thank you", "bye", "yes", "no", "hey"}
-                is_trivial = (message or "").strip().lower() in skip_words
-                is_short = len((message or "").strip()) < 5
+        try:
+            # Skip trivial messages
+            skip_words = {"hi", "hello", "ok", "thanks", "thank you", "bye", "yes", "no", "hey"}
+            is_trivial = (message or "").strip().lower() in skip_words
+            is_short = len((message or "").strip()) < 5
+            
+            if not is_trivial and not is_short:
+                # Build memory text: full conversation
+                mem_text = f"User: {message or '[image/audio]'}\nAssistant: {str(response)}"
                 
-                if not is_trivial and not is_short:
-                    # Build memory text: full conversation
-                    mem_text = f"User: {message or '[image/audio]'}\nAssistant: {str(response)}"
-                    
-                    # Add file/image info if present
-                    if has_image:
-                        mem_text = f"[IMAGE ATTACHED] {mem_text}"
-                    if has_audio:
-                        mem_text = f"[AUDIO ATTACHED] {mem_text}"
-                    
-                    tester.store_memory(
-                        mem_text,
-                        metadata={
-                            "query_type": query_type,
-                            "modality": modality,
-                            "has_image": has_image,
-                            "has_audio": has_audio,
-                            "model": tester.model_name,
-                            "duration": round(duration, 3),
-                        },
-                    )
-            except Exception as e:
-                print(f"  [WARN] Memory store failed: {e}")
+                # Add file/image info if present
+                if has_image:
+                    mem_text = f"[IMAGE ATTACHED] {mem_text}"
+                if has_audio:
+                    mem_text = f"[AUDIO ATTACHED] {mem_text}"
+                
+                memory.store(text=mem_text, metadata={
+                    "query_type": query_type,
+                    "modality": modality,
+                    "has_image": has_image,
+                    "has_audio": has_audio,
+                    "model": tester.model_name,
+                    "duration": round(duration, 3),
+                    "agent": "vision_ui",
+                    "label": "vision_chat",
+                })
+        except Exception as e:
+            print(f"  [WARN] Memory store failed: {e}")
 
         # Record learning event (back-compat: keep query_types as a list)
         record_event("chat", model=tester.model_name, duration=duration,
@@ -872,19 +867,20 @@ def ask_about_camera():
 
     duration = time.time() - start
 
-    if tester.memory:
-        try:
-            tester.store_memory(
-                f"Q(cam): {question} | A: {str(response)[:200]}",
-                metadata={
-                    "query_type": classify_query(question, has_image=True, has_audio=False),
-                    "modality": "vision",
-                    "has_image": True,
-                    "has_audio": False,
-                },
-            )
-        except Exception:
-            pass
+    try:
+        memory.store(
+            text=f"Q(cam): {question} | A: {str(response)[:200]}",
+            metadata={
+                "query_type": classify_query(question, has_image=True, has_audio=False),
+                "modality": "vision",
+                "has_image": True,
+                "has_audio": False,
+                "agent": "vision_ui",
+                "label": "camera_ask",
+            },
+        )
+    except Exception:
+        pass
 
     cam_qtype = classify_query(question, has_image=True, has_audio=False)
     record_event("chat", model=tester.model_name, duration=duration,
@@ -953,20 +949,21 @@ def count_objects():
 
     duration = time.time() - start
 
-    if tester.memory:
-        try:
-            tester.store_memory(
-                f"Q(cam count {obj}): {full_q} | A: {str(response)[:200]}",
-                metadata={
-                    "query_type": "count_objects",
-                    "modality": "vision",
-                    "has_image": True,
-                    "has_audio": False,
-                    "count_object": obj,
-                },
-            )
-        except Exception:
-            pass
+    try:
+        memory.store(
+            text=f"Q(cam count {obj}): {full_q} | A: {str(response)[:200]}",
+            metadata={
+                "query_type": "count_objects",
+                "modality": "vision",
+                "has_image": True,
+                "has_audio": False,
+                "count_object": obj,
+                "agent": "vision_ui",
+                "label": "camera_count",
+            },
+        )
+    except Exception:
+        pass
 
     record_event("chat", model=tester.model_name, duration=duration,
                  modality="vision", query_types=["count_objects"])
@@ -989,57 +986,21 @@ def count_objects():
 
 @app.route("/api/memory/recall", methods=["POST"])
 def memory_recall():
-    import sqlite3 as _sqlite3
     data = request.json or {}
     query = data.get("query", "")
     k = data.get("k", 5)
-    db_path = str(resolve_path(state["config"].get("memory_db", "memory/vision_test.db")))
-
     try:
-        conn = _sqlite3.connect(db_path)
-        conn.row_factory = _sqlite3.Row
-        if query:
-            try:
-                rows = conn.execute(
-                    "SELECT m.id, m.text, m.metadata, m.created_at, rank FROM memories_fts fts JOIN memories m ON m.id = fts.rowid WHERE memories_fts MATCH ? ORDER BY rank LIMIT ?",
-                    (query, k)
-                ).fetchall()
-            except Exception:
-                rows = conn.execute(
-                    "SELECT id, text, metadata, created_at, 0 as rank FROM memories WHERE text LIKE ? ORDER BY id DESC LIMIT ?",
-                    (f"%{query}%", k)
-                ).fetchall()
-        else:
-            rows = conn.execute(
-                "SELECT id, text, metadata, created_at, 0 as rank FROM memories ORDER BY id DESC LIMIT ?",
-                (k,)
-            ).fetchall()
-        conn.close()
-
-        out = []
-        for r in rows:
-            meta = json.loads(r["metadata"]) if r["metadata"] else {}
-            out.append({
-                "memory_id": r["id"],
-                "text": r["text"],
-                "model": meta.get("model", ""),
-                "timestamp": meta.get("timestamp", r["created_at"]),
-                "score": abs(r["rank"]) if r["rank"] else 0.0,
-            })
-        return jsonify({"results": out, "query": query, "k": k})
+        results = memory.recall(query, k=k)
+        return jsonify({"results": results, "total": len(results)})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/memory/stats", methods=["GET"])
 def memory_stats():
-    import sqlite3 as _sqlite3
-    db_path = str(resolve_path(state["config"].get("memory_db", "memory/vision_test.db")))
     try:
-        conn = _sqlite3.connect(db_path)
-        count = conn.execute("SELECT COUNT(*) FROM memories").fetchone()[0]
-        conn.close()
-        return jsonify({"total_memories": count})
+        stats = memory.get_stats()
+        return jsonify(stats)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -1047,31 +1008,15 @@ def memory_stats():
 @app.route("/api/memory/delete", methods=["POST"])
 def memory_delete():
     """Delete a memory by ID or clear all memories."""
-    import sqlite3 as _sqlite3
     data = request.json or {}
-    memory_id = data.get("id")
     clear_all = data.get("clear_all", False)
-    db_path = str(resolve_path(state["config"].get("memory_db", "memory/vision_test.db")))
-    
-    try:
-        conn = _sqlite3.connect(db_path)
-        if clear_all:
-            conn.execute("DELETE FROM memories")
-            conn.execute("DELETE FROM memories_fts")
-            conn.commit()
-            conn.close()
-            return jsonify({"status": "cleared", "deleted": "all"})
-        elif memory_id:
-            conn.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
-            conn.execute("DELETE FROM memories_fts WHERE rowid = ?", (memory_id,))
-            conn.commit()
-            conn.close()
-            return jsonify({"status": "deleted", "id": memory_id})
-        else:
-            conn.close()
-            return jsonify({"error": "Provide 'id' or 'clear_all: true'"}), 400
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    if clear_all:
+        try:
+            memory.__init__(db_path=MEMORY_DB)
+            return jsonify({"cleared": True})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    return jsonify({"error": "delete by id not supported in SimpleMemory"}), 400
 
 
 # ============================================================
@@ -1119,47 +1064,22 @@ def learning_data_endpoint():
 # Learning stats - structured view for graphs (TASK 2)
 # ============================================================
 
-def _memory_growth_from_db(db_path: Path) -> List[Dict[str, Any]]:
-    """Aggregate memory_embeddings.created_at into {date, count} cumulative growth.
+def _memory_growth_from_mathir() -> List[Dict[str, Any]]:
+    """Get memory growth data from SimpleMemory.
 
-    Reads directly from the SQLite DB (memory_embeddings table). Groups by
-    calendar day (UTC) and returns a list with cumulative count, ordered
-    chronologically. Returns an empty list if the DB or table is missing.
+    Returns a list of {date, count} for cumulative memory growth.
     """
-    out: List[Dict[str, Any]] = []
-    if not db_path.exists():
-        return out
     try:
-        import sqlite3
-        # Use a short-lived read-only connection so we don't fight with
-        # the main app's connection (which is in check_same_thread=False mode).
-        uri = f"file:{db_path}?mode=ro"
-        with sqlite3.connect(uri, uri=True, timeout=5) as conn:
-            cur = conn.execute(
-                "SELECT date(created_at, 'unixepoch') AS day, COUNT(*) AS n "
-                "FROM memory_embeddings GROUP BY day ORDER BY day ASC"
-            )
-            rows = cur.fetchall()
-    except Exception:
-        return out
-
-    cumulative = 0
-    for day, n in rows:
-        if not day:
-            continue
-        cumulative += int(n or 0)
-        out.append({"date": str(day), "count": cumulative})
-    return out
-
-
-def _storage_size_bytes(db_path: Path) -> int:
-    """Return current DB file size in bytes (0 if missing)."""
-    try:
-        if db_path.exists():
-            return int(db_path.stat().st_size)
+        stats = memory.get_stats()
+        total = stats.get("total_memories", 0)
+        if total > 0:
+            return [{"date": datetime.now().strftime("%Y-%m-%d"), "count": total}]
     except Exception:
         pass
-    return 0
+    # Fallback: return in-memory timeline
+    with learning_lock:
+        return list(learning_data.get("memory_timeline", []))
+
 
 
 def _model_performance_from_inmem() -> List[Dict[str, Any]]:
@@ -1213,16 +1133,19 @@ def learning_stats():
       - query_types: {type: count}
       - recall_accuracy: {successful, total, accuracy}
     """
-    try:
-        db_path = resolve_path(state["config"].get("memory_db", "memory/vision_test.db"))
-    except Exception:
-        db_path = HERE / "memory" / "vision_test.db"
-
-    memory_growth = _memory_growth_from_db(db_path)
-    storage_size = _storage_size_bytes(db_path)
+    memory_growth = _memory_growth_from_mathir()
     model_performance = _model_performance_from_inmem()
     query_types = _query_types_from_inmem()
     recall_accuracy = _recall_accuracy_from_inmem()
+
+    # Get storage size from SimpleMemory DB file
+    storage_size = 0
+    try:
+        db_file = Path(MEMORY_DB)
+        if db_file.exists():
+            storage_size = db_file.stat().st_size
+    except Exception:
+        pass
 
     return jsonify({
         "memory_growth": memory_growth,
@@ -1230,7 +1153,6 @@ def learning_stats():
         "model_performance": model_performance,
         "query_types": query_types,
         "recall_accuracy": recall_accuracy,
-        "db_path": str(db_path),
         "generated_at": datetime.now().isoformat(),
     })
 
@@ -1615,7 +1537,7 @@ def system_info():
         "ui_config_path": str(HERE / "ui_config.json"),
         "system_context_path": str(HERE / "system_context.json"),
         "test_results_path": str(HERE / "test_results.json"),
-        "memory_db_path": str(resolve_path(state["config"].get("memory_db", "memory/vision_test.db"))),
+        "memory_db_path": MEMORY_DB,
     }
     return jsonify(info)
 

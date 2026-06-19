@@ -31,6 +31,11 @@ from typing import List, Dict, Optional, Any
 HERE = Path(__file__).resolve().parent
 CONFIG_PATH = HERE / "config.json"
 
+# MATHIR drop-in — direct import, no daemon needed
+MATHIR_ROOT = HERE.parent
+sys.path.insert(0, str(MATHIR_ROOT))
+from mathir_dropin.simple import SimpleMemory
+
 
 def load_config():
     """Load config from config.json (relative to this file)."""
@@ -360,15 +365,15 @@ class VisionTester:
         self.server = None
         self.room = VirtualRoom()
         self.memory = None
-        self._st_model = None
 
-    def setup_memory(self):
-        """Set up MATHIR memory (uses relative path from config). Preserves existing DB."""
-        from mathir_dropin import MATHIRMemory
-        db_path = resolve_path(self.config["memory_db"])
-        # DO NOT delete existing DB — preserve memories across restarts
-        self.memory = MATHIRMemory(embedding_dim=384, db_path=str(db_path))
-        print(f"  MATHIR memory initialized: {db_path}")
+    def setup_memory(self, db_path=None):
+        """Initialize SimpleMemory with a local SQLite DB."""
+        if db_path is None:
+            db_path = str(HERE / "memory.db")
+        self.memory = SimpleMemory(db_path=db_path)
+        stats = self.memory.get_stats()
+        print(f"  Memory DB: {db_path}")
+        print(f"  Stored memories: {stats['total_memories']}")
 
     def start_server(self):
         """Start llama-server for the current model."""
@@ -390,24 +395,21 @@ class VisionTester:
         self.start_server()
 
     def store_memory(self, text, metadata=None):
-        """Store interaction in MATHIR memory using FTS5 (no embeddings needed)."""
-        if not self.memory:
+        """Store interaction in local SimpleMemory DB."""
+        if self.memory is None:
+            print("  [WARN] Memory not initialized — call setup_memory() first")
             return
         try:
             meta = {
-                "text": text,
                 "model": self.model_name,
                 "timestamp": datetime.now().isoformat(),
             }
             if metadata:
                 meta.update(metadata)
-            self.memory.store(
-                metadata=meta,
-                provider="fts5",
-                model="text"
-            )
+            content = f"[model={self.model_name}] {text}"
+            self.memory.store(text=content, metadata=meta)
         except Exception as e:
-            print(f"  [WARN] Memory store failed: {e}")
+            print(f"  [WARN] Memory save failed: {e}")
 
     def ask_model(self, question, image_path=None):
         """Ask the model a question and return response."""
@@ -450,6 +452,20 @@ def main():
     print(f"Bin dir: {bin_dir}")
     print(f"Models dir: {models_dir}")
     print(f"Memory DB: {memory_db}")
+
+    # Check SimpleMemory DB
+    print(f"\n[MEMORY] Checking local DB...")
+    if memory_db.exists():
+        mem = SimpleMemory(db_path=str(memory_db))
+        stats = mem.get_stats()
+        print(f"  DB: OK | {stats['total_memories']} memories stored")
+        last = mem.get_last(n=3)
+        if last:
+            print(f"  Recent memories:")
+            for r in last:
+                print(f"    - [{r.get('created_at', '?')}] {r.get('text', '')[:80]}")
+    else:
+        print(f"  DB: NEW (will be created at {memory_db})")
 
     # Show available models
     print(f"\n[1] Available Models (from config.json):")
