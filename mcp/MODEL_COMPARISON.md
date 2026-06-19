@@ -4,6 +4,7 @@
 
 | Model | Dims | Size | CPU Save | CPU Recall | GPU Save | GPU Recall | MTEB Avg | License |
 |-------|------|------|----------|-----------|----------|------------|----------|---------|
+| paraphrase-multilingual-MiniLM-L12-v2 | 384 | 471 MB / 239 MB fp16 | ~104ms/sent | ~140ms | ~104ms/sent | ~140ms | ~49.7 (Eng) / 49.4 (Multi) | Apache-2.0 |
 | MiniLM-L6-v2 | 384 | 80 MB | 22ms | 53ms | — | — | 56.26 | Apache-2.0 |
 | nomic-embed-text-v1.5 | 768 | 137 MB | 21ms | 27ms | ~12ms | ~10ms | 62.38 | Apache-2.0 |
 | bge-large-en-v1.5 | 1024 | 335 MB | 43ms | 25ms | **3ms** | **3ms** | 64.23 | MIT |
@@ -16,12 +17,13 @@
 
 ## Model Profiles
 
-### bge-large-en-v1.5 (1024d) — MATHIR DEFAULT
-- **Best for**: Default choice, production systems
-- **Pros**: Best quality under 1024d, CUDA ~3ms/text, Matryoshka support
-- **Cons**: 335MB, slower on CPU (43ms)
+### paraphrase-multilingual-MiniLM-L12-v2 (384d) — MATHIR DEFAULT
+- **Best for**: Multilingual projects (FR/EN/DE/ES/JA/ZH), low VRAM
+- **Pros**: 50+ languages, Apache-2.0, 43.8M downloads, 471MB CPU / 239MB fp16 GPU
+- **Cons**: Lower MTEB English (~49.7 vs bge-large 64.2), 128 token max (chunking needed)
 - **Install**: `pip install sentence-transformers`
-- **GPU**: CUDA via SentenceTransformer (no ONNX needed)
+- **GPU**: CUDA fp16 via SentenceTransformer
+- **Verified**: 0.929 cosine sim "Bonjour le monde" ↔ "Hello world" (cross-lingual)
 
 ### nomic-embed-text-v1.5 (768d)
 - **Best for**: Balanced alternative, most projects
@@ -59,11 +61,12 @@
 
 | Scenario | Model | Why |
 |----------|-------|-----|
-| Default for MATHIR | bge-large-en-v1.5 | 1024d, CUDA 3ms, 64.23 MTEB |
-| Alternative balanced | nomic-embed-text-v1.5 | 768d, best speed/quality ratio |
+| Default for MATHIR | paraphrase-multilingual-MiniLM-L12-v2 | 384d, 50+ languages, low VRAM (239MB fp16) |
+| Alternative balanced | nomic-embed-text-v1.5 | 768d, best speed/quality ratio, Apache-2.0 |
 | Edge / IoT device | Octen-INT8 | 22MB, 8ms CPU |
 | GPU server, max quality | Qwen2.5-7B-emb | 71.5 MTEB, 3584d |
 | Research benchmarks | e5-large-v2 | Strong MTEB |
+| High-quality English (previous default) | bge-large-en-v1.5 | 1024d, CUDA 3ms, 64.23 MTEB |
 
 ## MTEB Scores (Retrieval)
 
@@ -81,8 +84,9 @@
 Model               1K memories    10K memories   100K memories
 ────────────────────────────────────────────────────────────────
 MiniLM (384d)       2 MB           20 MB          200 MB
+paraphrase-multilingual (384d) 2 MB   20 MB          200 MB  ← MATHIR default
 nomic (768d)        4 MB           40 MB          400 MB
-bge-large (1024d)   5 MB           50 MB          500 MB  ← MATHIR default
+bge-large (1024d)   5 MB           50 MB          500 MB
 Qwen2.5 (3584d)     18 MB          180 MB         1.8 GB
 ```
 

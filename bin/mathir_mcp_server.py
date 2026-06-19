@@ -174,7 +174,7 @@ def get_memory(project_name: str = None):
         config=config,
         db_path=str(db_path),
         provider="mathir-mcp",
-        model=config.get("embedding", {}).get("model", "BAAI/bge-large-en-v1.5"),
+        model=config.get("embedding", {}).get("model", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"),
     )
     log.info(f"MATHIRMemory initialized for project '{project_name}': db={db_path}")
     _memory_cache[project_name] = memory
@@ -193,7 +193,7 @@ def get_embedder():
     
     config = load_config()
     prefer_octen = config.get("embedding", {}).get("prefer_octen", False)
-    model_name = config.get("embedding", {}).get("model", "BAAI/bge-large-en-v1.5")
+    model_name = config.get("embedding", {}).get("model", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
     
     import torch
     from sentence_transformers import SentenceTransformer

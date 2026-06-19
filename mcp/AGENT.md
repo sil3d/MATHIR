@@ -47,7 +47,7 @@ MATHIR/
 │   └── auto_config_mathir_yaml.py← Auto-config generator
 │
 ├── config/                       ← YAML configs
-│   ├── default.yaml              ← Default config (bge-large 1024d)
+│   ├── default.yaml              ← Default config (paraphrase-multilingual 384d)
 │   ├── edge.yaml                 ← Edge device config (ONNX INT8)
 │   ├── research.yaml             ← Research config (Qwen2.5-7B)
 │   └── v7.yaml                   ← Legacy v7 config
@@ -80,7 +80,7 @@ MATHIR/
 ### 1. `mathir_daemon.py` — The Daemon (REQUIRED)
 
 **What it does:**
-- Loads the embedding model ONCE at startup (bge-large-en-v1.5, 1024d)
+- Loads the embedding model ONCE at startup (paraphrase-multilingual-MiniLM-L12-v2, 384d)
 - Keeps model in VRAM/RAM for instant access
 - Serves requests via TCP socket (port 7338)
 - Manages SQLite database with vector search
@@ -108,7 +108,7 @@ Start-Process python -ArgumentList "mathir_daemon.py" -WindowStyle Hidden
 python mathir_daemon.py --port 8080
 
 # Custom model
-python mathir_daemon.py --model BAAI/bge-large-en-v1.5
+python mathir_daemon.py --model sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
 ```
 
 ---
@@ -164,9 +164,9 @@ python mathir_client.py delete 42 --reason "outdated"
 **Default config:**
 ```json
 {
-  "model": "BAAI/bge-large-en-v1.5",
+  "model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
   "device": "cuda",
-  "embedding_dim": 1024,
+  "embedding_dim": 384,
   "internal_dim": 512,
   "port": 7338,
   "db_path": ".mathir/mathir.db",
@@ -314,9 +314,9 @@ cp /path/to/MATHIR/bin/mathir_client.py .
 # 2. Create config
 cat > mathir.json << 'EOF'
 {
-  "model": "BAAI/bge-large-en-v1.5",
+  "model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
   "device": "cuda",
-  "embedding_dim": 1024,
+  "embedding_dim": 384,
   "port": 7338,
   "db_path": ".mathir/mathir.db"
 }

@@ -147,7 +147,7 @@ Mem0: "It's our managed platform"                     ❌
 
 **Where MATHIR is competitive:**
 
-- **GPU embedding speed** → bge-large-en-v1.5 on CUDA: 43 ms save, 25 ms recall (1024d, full GPU)
+- **GPU embedding speed** → paraphrase-multilingual-MiniLM-L12-v2 on CUDA fp16: ~104ms/sent (384d, 50+ languages, 239MB VRAM)
 - **Pure retrieval quality** → MATHIR = FAISS dense-only (0.7441 nDCG@10 on BEIR SciFact, equal to SOTA)
 - **Cross-provider** → 11/12 wins across 3 different LLM architectures
 - **Cross-lingual** → UNIBRI finds English content from French queries
@@ -174,15 +174,16 @@ Mem0: "It's our managed platform"                     ❌
 
 ## 🧩 Embedding Providers (NEW: ONNX support)
 
-MATHIR v7.8.0+ ships with **6 embedding providers**. The new **GPU-accelerated bge-large** provider delivers the best quality/speed ratio at 1024d on CUDA.
+MATHIR v8.x+ ships with **6 embedding providers**. The default is now **paraphrase-multilingual-MiniLM-L12-v2** — 384d, 50+ languages, low VRAM (239MB fp16).
 
 ### Provider comparison
 
 | Provider | Model | Dim | Speed (single) | Size | Quality | Local | Cost |
 |---|---|:---:|:---:|:---:|:---:|:---:|---|
-| **🆕 HuggingFace (GPU)** | `BAAI/bge-large-en-v1.5` | **1024** | **25 ms** | 1.3 GB | 🟢 High | ✅ | Free |
+| **🆕 HuggingFace (GPU) — DEFAULT** | `paraphrase-multilingual-MiniLM-L12-v2` | **384** | ~104ms/sent | 471 MB (239 fp16) | 🟢 Multilingual 50+ | ✅ | Free |
+| HuggingFace (GPU) | `BAAI/bge-large-en-v1.5` | 1024 | 25 ms | 1.3 GB | 🟢 High (EN) | ✅ | Free |
 | 🆕 ONNX | `Octen-Embedding-0.6B-INT8` | 1024 | 18.8 ms | **5.2 MB** | 🟢 High | ✅ | Free |
-| HuggingFace | `all-MiniLM-L6-v2` | 384 | 5.2 ms | 80 MB | 🟡 Medium | ✅ | Free |
+| HuggingFace | `all-MiniLM-L6-v2` | 384 | 5.2 ms | 80 MB | 🟡 Medium (EN) | ✅ | Free |
 | HuggingFace | `Qwen/Qwen2.5-7B-Instruct` | 3584 | 10–30 ms (GPU) | 14 GB | 🟢 High | ✅ | Free |
 | Ollama | `llama3.2:3b` | 2048 | 30–80 ms | 2 GB | 🟢 High | ✅ | Free |
 | OpenAI | `text-embedding-3-small` | 1536 | 80–200 ms | Cloud | 🟢 High | ❌ | $0.02/1M |

@@ -47,8 +47,8 @@ Check if daemon is alive and model is loaded.
 ```json
 {
   "status": "ok",
-  "model": "BAAI/bge-large-en-v1.5",
-  "dims": 1024,
+  "model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+  "dims": 384,
   "uptime_seconds": 3600
 }
 ```
