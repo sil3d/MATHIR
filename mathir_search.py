@@ -1,15 +1,17 @@
-"""MATHIR Hybrid Vector Search — Auto-Scaling Backend (Numpy / USearch / SQLite)."""
+"""MATHIR Hybrid Search — Vector + BM25 + RRF Fusion."""
 
 from __future__ import annotations
 
 import json
 import os
+import re
 import sqlite3
 import threading
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
+from rank_bm25 import BM25Okapi
 
 NUMPY_THRESHOLD = 5000
 MMAP_DIR = "mathir_indexes"
@@ -20,6 +22,11 @@ def _normalize(arr: np.ndarray) -> np.ndarray:
     arr = np.asarray(arr, dtype=np.float32).reshape(-1)
     norm = np.linalg.norm(arr)
     return arr / norm if norm > 0 else arr
+
+
+def _tokenize(text: str) -> List[str]:
+    """Simple whitespace + lowercase tokenization for BM25."""
+    return re.findall(r'\w+', text.lower())
 
 
 def _make_result(memory_id: str, score: float, meta: Dict[str, Any]) -> Dict[str, Any]:
@@ -77,6 +84,87 @@ class _NumpyBackend:
 
     def count(self) -> int:
         return len(self._ids)
+
+
+# ---------------------------------------------------------------------------
+# BM25 Backend — Lexical search for hybrid mode
+# ---------------------------------------------------------------------------
+
+class _BM25Backend:
+    """BM25 lexical search over memory content. Rebuilt on each query (cheap for N<100k)."""
+
+    def __init__(self):
+        self._corpus: List[str] = []
+        self._ids: List[str] = []
+        self._bm25: Optional[BM25Okapi] = None
+        self._lock = threading.RLock()
+
+    def build(self, items: List[Dict[str, Any]]) -> None:
+        with self._lock:
+            self._corpus = [it.get("text", "") for it in items]
+            self._ids = [it["memory_id"] for it in items]
+            tokenized = [_tokenize(t) for t in self._corpus]
+            self._bm25 = BM25Okapi(tokenized) if tokenized else None
+
+    def add(self, memory_id: str, text: str) -> None:
+        with self._lock:
+            self._corpus.append(text)
+            self._ids.append(memory_id)
+            tokenized = [_tokenize(t) for t in self._corpus]
+            self._bm25 = BM25Okapi(tokenized)
+
+    def remove(self, memory_id: str) -> bool:
+        with self._lock:
+            if memory_id not in self._ids:
+                return False
+            idx = self._ids.index(memory_id)
+            self._ids.pop(idx)
+            self._corpus.pop(idx)
+            tokenized = [_tokenize(t) for t in self._corpus]
+            self._bm25 = BM25Okapi(tokenized) if tokenized else None
+            return True
+
+    def search(self, query: str, k: int = 5) -> List[Tuple[str, float]]:
+        with self._lock:
+            if not self._bm25 or not self._ids:
+                return []
+            tokens = _tokenize(query)
+            scores = self._bm25.get_scores(tokens)
+            if len(scores) == 0:
+                return []
+            k = min(k, len(scores))
+            top_idx = np.argpartition(scores, -k)[-k:]
+            top_idx = top_idx[np.argsort(scores[top_idx])[::-1]]
+            return [(self._ids[i], float(scores[i])) for i in top_idx if scores[i] > 0]
+
+    def count(self) -> int:
+        return len(self._ids)
+
+
+# ---------------------------------------------------------------------------
+# RRF Fusion — Combine vector + BM25 rankings
+# ---------------------------------------------------------------------------
+
+def rrf_fusion(vector_results: List[Tuple[str, float]],
+               bm25_results: List[Tuple[str, float]],
+               k: int = 60,
+               vector_weight: float = 1.0,
+               bm25_weight: float = 1.0) -> List[Tuple[str, float]]:
+    """Reciprocal Rank Fusion: combines two ranked lists into one.
+
+    RRF score = sum(weight / (k + rank)) for each list.
+    k=60 is the standard constant from the original RRF paper.
+    """
+    scores: Dict[str, float] = {}
+
+    for rank, (mid, _) in enumerate(vector_results):
+        scores[mid] = scores.get(mid, 0) + vector_weight / (k + rank + 1)
+
+    for rank, (mid, _) in enumerate(bm25_results):
+        scores[mid] = scores.get(mid, 0) + bm25_weight / (k + rank + 1)
+
+    sorted_ids = sorted(scores.keys(), key=lambda x: scores[x], reverse=True)
+    return [(mid, scores[mid]) for mid in sorted_ids]
 
 
 # ---------------------------------------------------------------------------
@@ -155,7 +243,7 @@ class _USearchBackend:
 # ---------------------------------------------------------------------------
 
 class HybridSearch:
-    """Auto-scaling vector search: numpy (small N) → USearch HNSW (large N) + SQLite.
+    """Hybrid Search: Vector (cosine) + BM25 (lexical) + RRF Fusion.
 
     Parameters: dim, db_path, strategy ("auto"|"numpy"|"usearch"|None), index_dir.
     """
@@ -163,9 +251,10 @@ class HybridSearch:
     _SQL = {
         "create": ("CREATE TABLE IF NOT EXISTS memories ("
                     "id INTEGER PRIMARY KEY AUTOINCREMENT, memory_id TEXT UNIQUE, "
-                    "metadata TEXT, agent TEXT, tier TEXT, timestamp REAL, embedding BLOB)"),
+                    "metadata TEXT, agent TEXT, tier TEXT, timestamp REAL, "
+                    "embedding BLOB, text TEXT)"),
         "insert": ("INSERT OR REPLACE INTO memories "
-                   "(memory_id, metadata, agent, tier, timestamp, embedding) VALUES (?,?,?,?,?,?)"),
+                   "(memory_id, metadata, agent, tier, timestamp, embedding, text) VALUES (?,?,?,?,?,?,?)"),
         "get": "SELECT * FROM memories WHERE memory_id=?",
         "get_all": "SELECT * FROM memories",
         "delete": "DELETE FROM memories WHERE memory_id=?",
@@ -182,6 +271,7 @@ class HybridSearch:
         self.index_dir = index_dir or os.path.join(os.path.dirname(db_path) or ".", MMAP_DIR)
         self._numpy: Optional[_NumpyBackend] = None
         self._usearch: Optional[_USearchBackend] = None
+        self._bm25: Optional[_BM25Backend] = _BM25Backend()
         self._current: Optional[_NumpyBackend | _USearchBackend] = None
         self._current_name = "numpy"
         # SQLite — always-on metadata store
@@ -195,13 +285,13 @@ class HybridSearch:
         self._lock = threading.Lock()
         self._init_from_db()
 
-    def _meta_store(self, memory_id: str, embedding: np.ndarray, metadata: Dict[str, Any]):
+    def _meta_store(self, memory_id: str, embedding: np.ndarray, metadata: Dict[str, Any], text: str = ""):
         meta = metadata or {}
         blob = np.asarray(embedding, dtype=np.float32).tobytes()
         with self._lock:
             self._conn.execute(self._SQL["insert"],
                 (memory_id, json.dumps(meta, ensure_ascii=False, default=str),
-                 meta.get("agent", ""), meta.get("tier", "episodic"), time.time(), blob))
+                 meta.get("agent", ""), meta.get("tier", "episodic"), time.time(), blob, text))
             self._conn.commit()
 
     def _meta_store_batch(self, items: List[Dict[str, Any]]):
@@ -211,7 +301,8 @@ class HybridSearch:
                 blob = np.asarray(it["embedding"], dtype=np.float32).tobytes()
                 self._conn.execute(self._SQL["insert"],
                     (it["memory_id"], json.dumps(meta, ensure_ascii=False, default=str),
-                     meta.get("agent", ""), meta.get("tier", "episodic"), time.time(), blob))
+                     meta.get("agent", ""), meta.get("tier", "episodic"), time.time(), blob,
+                     it.get("text", "")))
             self._conn.commit()
 
     def _meta_get(self, memory_id: str) -> Optional[Dict[str, Any]]:
@@ -222,7 +313,8 @@ class HybridSearch:
                 "metadata": json.loads(row["metadata"]) if row["metadata"] else {},
                 "agent": row["agent"], "tier": row["tier"],
                 "timestamp": row["timestamp"],
-                "embedding": np.frombuffer(row["embedding"], dtype=np.float32) if row["embedding"] else None}
+                "embedding": np.frombuffer(row["embedding"], dtype=np.float32) if row["embedding"] else None,
+                "text": row["text"] if "text" in row.keys() else ""}
 
     def _meta_get_all(self, limit: int = 100_000) -> List[Dict[str, Any]]:
         rows = self._conn.execute(
@@ -230,7 +322,8 @@ class HybridSearch:
         return [{"memory_id": r["memory_id"],
                  "metadata": json.loads(r["metadata"]) if r["metadata"] else {},
                  "agent": r["agent"], "tier": r["tier"], "timestamp": r["timestamp"],
-                 "embedding": np.frombuffer(r["embedding"], dtype=np.float32) if r["embedding"] else None}
+                 "embedding": np.frombuffer(r["embedding"], dtype=np.float32) if r["embedding"] else None,
+                 "text": r["text"] if "text" in r.keys() else ""}
                 for r in rows]
 
     def _meta_delete(self, memory_id: str) -> bool:
@@ -254,7 +347,11 @@ class HybridSearch:
                 self._usearch = _USearchBackend(self.dim, os.path.join(self.index_dir, f"mathir_{self.dim}d.usearch"))
             self._current = self._usearch; self._current_name = "usearch"
         if count > 0:
-            self._current.build(self._meta_get_all())
+            all_items = self._meta_get_all()
+            self._current.build(all_items)
+            # Build BM25 index from text content
+            if self._bm25:
+                self._bm25.build(all_items)
 
     def _maybe_switch(self):
         if self.strategy != "auto" or self._current_name != "numpy":
@@ -263,14 +360,19 @@ class HybridSearch:
             if self._usearch is None:
                 self._usearch = _USearchBackend(self.dim, os.path.join(self.index_dir, f"mathir_{self.dim}d.usearch"))
             self._current = self._usearch; self._current_name = "usearch"
-            self._current.build(self._meta_get_all()); self._usearch.save()
+            all_items = self._meta_get_all()
+            self._current.build(all_items); self._usearch.save()
+            if self._bm25:
+                self._bm25.build(all_items)
 
     # -- Public API ----------------------------------------------------------
 
     def store(self, memory_id: str, embedding: np.ndarray,
-              metadata: Optional[Dict[str, Any]] = None) -> None:
-        self._meta_store(memory_id, embedding, metadata or {})
+              metadata: Optional[Dict[str, Any]] = None, text: str = "") -> None:
+        self._meta_store(memory_id, embedding, metadata or {}, text)
         self._current.add(memory_id, embedding)
+        if self._bm25:
+            self._bm25.add(memory_id, text)
         self._maybe_switch()
 
     def store_batch(self, items: List[Dict[str, Any]]) -> int:
@@ -279,6 +381,8 @@ class HybridSearch:
         self._meta_store_batch(items)
         for it in items:
             self._current.add(it["memory_id"], it["embedding"])
+            if self._bm25:
+                self._bm25.add(it["memory_id"], it.get("text", ""))
         self._maybe_switch()
         return len(items)
 
@@ -295,8 +399,56 @@ class HybridSearch:
                     break
         return results
 
+    def hybrid_search(self, query_text: str, query_embedding: np.ndarray,
+                      k: int = 5, vector_weight: float = 1.0,
+                      bm25_weight: float = 1.0,
+                      agent_filter: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Hybrid search: Vector cosine + BM25 lexical + RRF fusion.
+
+        Combines semantic understanding (vector) with exact keyword matching (BM25)
+        using Reciprocal Rank Fusion. Better than either alone.
+        """
+        fetch_k = min(k * 3, self._current.count())
+
+        # Vector results
+        vector_pairs = self._current.search(query_embedding, k=fetch_k)
+        vector_results = []
+        for mid, score in vector_pairs:
+            meta = self._meta_get(mid)
+            if meta and (not agent_filter or meta.get("agent", "") == agent_filter):
+                vector_results.append((mid, score))
+
+        # BM25 results
+        bm25_results = []
+        if self._bm25:
+            bm25_pairs = self._bm25.search(query_text, k=fetch_k)
+            for mid, score in bm25_pairs:
+                if not agent_filter or (self._meta_get(mid) or {}).get("agent", "") == agent_filter:
+                    bm25_results.append((mid, score))
+
+        # RRF fusion
+        fused = rrf_fusion(vector_results, bm25_results,
+                           vector_weight=vector_weight, bm25_weight=bm25_weight)
+
+        # Build final results with metadata
+        results = []
+        for mid, rrf_score in fused[:k]:
+            meta = self._meta_get(mid)
+            if meta:
+                results.append({
+                    "memory_id": mid,
+                    "rrf_score": rrf_score,
+                    "metadata": meta.get("metadata", {}),
+                    "agent": meta.get("agent", ""),
+                    "tier": meta.get("tier", "episodic"),
+                    "text": meta.get("text", ""),
+                })
+        return results
+
     def delete(self, memory_id: str) -> bool:
         self._current.remove(memory_id)
+        if self._bm25:
+            self._bm25.remove(memory_id)
         return self._meta_delete(memory_id)
 
     def count(self) -> int:
@@ -304,6 +456,7 @@ class HybridSearch:
 
     def stats(self) -> Dict[str, Any]:
         return {"backend": self._current_name, "dim": self.dim, "count": self.count(),
+                "bm25_count": self._bm25.count() if self._bm25 else 0,
                 "db_path": self.db_path, "threshold": NUMPY_THRESHOLD}
 
     def save(self) -> None:
