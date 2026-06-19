@@ -6,6 +6,38 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [8.3.0] — 2026-06-19
+
+### HybridSearch — Direct SQLite Backend (FIX)
+
+- **Bug fix**: `memory_hybrid_search` returned 0 results because it used a separate empty `_hybrid.db` file
+- **Root cause**: VecMemory was created in the daemon's main thread, then used in handler threads → `ProgrammingError: SQLite objects created in a thread can only be used in that same thread`
+- **Fix**: Hybrid handler now creates its own SQLite connection with `check_same_thread=False`, reads directly from the main vector DB
+- **Schema auto-detection**: Handler detects old schema (`modality_text`) vs new schema (`content`) automatically
+- **Performance**: ~60ms per hybrid search (was timeout/unusable before)
+
+### Daemon Thread Safety (FIX)
+
+- **Bug fix**: 3rd request always timed out (daemon hung after 2 successful requests)
+- **Root cause**: `from mathir_mcp_server import get_embedder_dim` inside handler methods created a local variable that shadowed the global function → `UnboundLocalError` on `ping` → crash in `handle_client` while-True loop
+- **Fix**: All `get_project_db_path`, `get_project_name`, `get_embedder` moved to top-level imports (line 50)
+- **VecMemory**: Added `check_same_thread=False` to `sqlite3.connect()` for cross-thread access
+- **Stress test**: 50/50 requests (20 saves + 20 pings + 10 recalls), 0 errors
+
+### Embedding Model
+
+- **paraphrase-multilingual-MiniLM-L12-v2** (384d) is now the confirmed production model
+- All 4 MATHIR databases migrated from 1024d (bge-large-en-v1.5) to 384d
+- 239MB VRAM fp16, 0.929 cosine FR↔EN, 50+ languages
+
+### Changes
+
+- `mathir_daemon.py` — Hybrid handler uses direct SQLite, global imports, `_get_vec_mem` cache
+- `mathir_vec.py` — `check_same_thread=False` for cross-thread SQLite access
+- `mathir_search.py` — HybridSearch BM25 + RRF fusion (unchanged, was already correct)
+
+---
+
 ## [8.2.0] — 2026-06-16
 
 ### Daemon Push (NEW)

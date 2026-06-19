@@ -781,6 +781,19 @@ TOTAL                          226    ✅ 224/226  99 %
 pytest mathir_dropin/tests/ -v
 ```
 
+### 🐍 Daemon stress test — 50/50 pass (V8.3)
+
+```
+Test                          Requests  Status    Latency
+──────────────────────────    ────────  ────────  ────────
+memory_save (rapid fire)         20/20  ✅ PASS   50-120ms
+ping (rapid fire)                20/20  ✅ PASS   2-23ms
+memory_recall (rapid fire)       10/10  ✅ PASS   47-94ms
+memory_hybrid_search             10/10  ✅ PASS   47-65ms
+──────────────────────────    ────────  ────────  ────────
+TOTAL                            50/50  ✅ PASS   ~60ms avg
+```
+
 ### 📈 BEIR benchmark results (nDCG@10)
 
 | System | SciFact | NFCorpus | ArguAna | Verdict |

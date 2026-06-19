@@ -11,7 +11,7 @@
 |:---:|---|---|
 | 1 | [`README.md`](../README.md) | Hero pitch, quick start, benchmarks, 2026 competitor comparison |
 | 2 | [`MATHIR_FINAL_REPORT.md`](../MATHIR_FINAL_REPORT.md) | 10-section visual report of all benchmark results |
-| 3 | [`CHANGELOG.md`](../CHANGELOG.md) | Version history, what changed in V8.0.0 |
+| 3 | [`CHANGELOG.md`](../CHANGELOG.md) | Version history, what changed in V8.3 |
 
 ---
 

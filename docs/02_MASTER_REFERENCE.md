@@ -665,6 +665,21 @@ memory = MATHIRMemory(embedding_dim=384, db_path="shared.db")
 
 # Thread-safe: RLock around writes
 # SQLite: serialized writes + parallel reads (WAL mode)
+# check_same_thread=False for cross-thread access
+```
+
+### Thread Safety in the Daemon (V8.3)
+
+The daemon uses a **one-thread-per-connection** model. Key fixes in V8.3:
+
+1. **VecMemory `check_same_thread=False`**: SQLite connections can be used across threads (was causing `ProgrammingError` before V8.3)
+2. **Hybrid handler creates its own connection**: Avoids cross-thread lock contention on the shared VecMemory instance
+3. **Global imports**: All `get_project_db_path`, `get_project_name`, `get_embedder` are imported at module level (prevents `UnboundLocalError` from local imports shadowing globals)
+
+**Test results (V8.3)**:
+```
+50/50 requests (20 saves + 20 pings + 10 recalls), 0 errors
+10/10 hybrid searches, 0 errors, ~60ms each
 ```
 
 ### Reset / Clear / Delete API

@@ -300,7 +300,7 @@ memory_id = memory.store(emb, metadata={"user": "alice"})  # returns ID
 **A:** YES. The dropin is designed to be backend-agnostic. Replace `store.py` with a Redis/Postgres/MongoDB version. The `memory.py` interface stays the same.
 
 ### Q: Is this thread-safe?
-**A:** YES. SQLite supports concurrent reads. Writes are serialized but fast (<1ms).
+**A:** YES. SQLite supports concurrent reads. Writes are serialized but fast (<1ms). VecMemory uses `check_same_thread=False` and `threading.RLock` for cross-thread access. The daemon creates per-request SQLite connections for hybrid search to avoid lock contention.
 
 ### Q: Is this async-compatible?
 **A:** YES. The `store()` and `recall()` methods are async-friendly. Wrap in `asyncio.to_thread()` if you need non-blocking I/O.

@@ -534,6 +534,8 @@ MATHIRPluginV7(embedding_dim=4096)  # LLaMA-3
 - 36 ensemble tests
 - 32 FAISS-backed tests
 
+Plus daemon stress tests (50/50 pass in V8.3) and hybrid search integration tests.
+
 ### Q14.3: How do I run the tests?
 **A:**
 ```bash

@@ -275,8 +275,15 @@ python dashboard_server.py
 **What it does:**
 - SQLite-vec wrapper with WAL optimization
 - Vector search via `MATCH` syntax
+- `check_same_thread=False` for cross-thread daemon access (V8.3 fix)
+- Auto-detects old schema (`modality_text`) vs new schema (`content`)
 
 **When to use:** Default vector backend (used by daemon).
+
+**Thread safety (V8.3)**:
+- VecMemory uses `check_same_thread=False` so instances can be shared across threads
+- For hybrid search, the daemon creates its own SQLite connection per request (avoids lock contention)
+- All mutating operations use `threading.RLock`
 
 ---
 

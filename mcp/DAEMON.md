@@ -143,6 +143,120 @@ Soft-delete (archive) a memory.
 {"deleted": true, "memory_id": "42"}
 ```
 
+### `memory_hybrid_search`
+
+Hybrid search: vector cosine + BM25 lexical + RRF fusion. Better than either alone.
+
+**Params**:
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| query | string | yes | Search query text |
+| k | int | no | Number of results (default 5, max 100) |
+| agent | string | no | Filter by agent |
+| vector_weight | float | no | Vector result weight for RRF (default 1.0) |
+| bm25_weight | float | no | BM25 result weight for RRF (default 1.0) |
+
+**Returns**:
+```json
+{
+  "results": [
+    {
+      "memory_id": "mem_abc123",
+      "content": "Fixed auth bug: token refresh was failing",
+      "rrf_score": 0.0318,
+      "score": 0.0318,
+      "agent": "coder",
+      "tier": "episodic",
+      "created_at": "2026-06-19T08:30:00"
+    }
+  ],
+  "query": "auth bug fix",
+  "total": 5,
+  "project": "myproject",
+  "mode": "hybrid",
+  "vector_hits": 15,
+  "bm25_hits": 15
+}
+```
+
+**How it works**:
+1. Creates its own SQLite connection (thread-safe, `check_same_thread=False`)
+2. Detects schema automatically (old: `modality_text`, new: `content`)
+3. Vector search via sqlite-vec (cosine distance)
+4. BM25 lexical search via `rank_bm25` (token frequency)
+5. RRF fusion combines both ranked lists (k=60)
+
+### `memory_push`
+
+Proactive memory delivery — daemon analyzes context and returns relevant memories.
+
+**Params**:
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| context | string | yes | Context text to analyze |
+| k | int | no | Max memories to return (default 10) |
+| agent | string | no | Filter by agent |
+
+**Returns**:
+```json
+{
+  "memories": [
+    {
+      "memory_id": "mem_abc123",
+      "content": "This project uses React + TypeScript",
+      "score": 0.89,
+      "agent": "coder",
+      "label": "tech-stack"
+    }
+  ],
+  "queries_used": ["react typescript project"],
+  "total": 1,
+  "cached": false
+}
+```
+
+### `memory_risk_check`
+
+Check memory content for privacy risks (PersistBench findings: 53% leakage, >90% sycophancy).
+
+**Params**:
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| content | string | yes | Content to check |
+
+**Returns**:
+```json
+{
+  "domain": "medical",
+  "leakage_risk": 0.9,
+  "sycophancy_risk": 0.1,
+  "sensitivity": "high",
+  "reasons": ["SSN detected"],
+  "safe_to_store": false
+}
+```
+
+## Threading Model
+
+The daemon uses **one thread per connection** with these safety measures:
+
+1. **VecMemory cache** (`_vec_cache`): Shared instances with `check_same_thread=False` for non-hybrid handlers
+2. **Hybrid handler**: Creates its own SQLite connection per request (avoids cross-thread lock contention)
+3. **Push cache**: Thread-safe LRU with `threading.Lock`
+4. **Connection limit**: Max 50 concurrent connections (prevents thread exhaustion DoS)
+5. **Client timeout**: 30s idle timeout per connection
+
+```
+Main thread: accept() → spawn handler thread
+Handler thread: recv() → process → send() → loop (while True)
+```
+
+**Key safety rules**:
+- All `VecMemory` instances use `check_same_thread=False`
+- `HybridSearch` uses `threading.RLock` on all mutating operations
+- Push cache uses `threading.Lock` for shared state
+- SQLite WAL mode enables concurrent reads + serialized writes
+
 ## Client Usage
 
 ### mathir_client.py
