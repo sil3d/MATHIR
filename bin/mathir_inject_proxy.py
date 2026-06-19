@@ -232,11 +232,6 @@ async def proxy_handler(client_request, target_url):
             return resp.status, dict(resp.headers), response_body
 
 
-async def main_async(target_url: str, port: int, host: str = "127.0.0.1"):
-    """Not used — see main() below for the actual entry point."""
-    pass
-
-
 def main():
     parser = argparse.ArgumentParser(description='MATHIR Auto-Inject Proxy')
     parser.add_argument('--target', default='http://localhost:8181', help='Target LLM API URL')

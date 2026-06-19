@@ -759,7 +759,7 @@ The router **learns** its allocation strategy over time (no hard-coded rules):
 
 ## 📊 Tests & Benchmarks
 
-All results reproducible. Scripts in [`benchmarks/`](benchmarks/), full HTML report in [`benchmarks/MATHIR_FINAL_REPORT.html`](benchmarks/MATHIR_FINAL_REPORT.html).
+All results reproducible. Scripts in [`benchmarks/`](benchmarks/), full HTML report in [`benchmarks/06_results/current/MATHIR_FINAL_REPORT.html`](benchmarks/06_results/current/MATHIR_FINAL_REPORT.html).
 
 ### 🧪 Test suite — 226 tests, 99 % pass
 
@@ -778,7 +778,6 @@ TOTAL                          226    ✅ 224/226  99 %
 ```
 
 ```bash
-pytest tests/ -v
 pytest mathir_dropin/tests/ -v
 ```
 
@@ -988,7 +987,7 @@ Real-world benchmarks on RTX 4060 + CUDA, measuring **save** (store memory) and 
 | KL Router | KL-divergence penalty (PPO-style) prevents tier collapse; max-entropy ensures exploration | Schulman 2017 |
 | UNIBRI | **Theorems 1–4** give OOV / cross-lingual / cross-provider stability guarantees | Broder 1997, J-L 1984, Wedin 1972 |
 
-Full mathematical proofs in [`docs/09_THEORY_V7.md`](docs/09_THEORY_V7.md).
+Full mathematical proofs in [`docs/01_MASTER_RESEARCH_PAPER.md`](docs/01_MASTER_RESEARCH_PAPER.md).
 
 ---
 
@@ -1013,10 +1012,10 @@ MATHIR/
 │   └── playground.html        # Multi-session chat playground
 │
 ├── 📊 benchmarks/             # Reproducible benchmarks + HTML report
-│   ├── MATHIR_FINAL_REPORT.html   # Full visual report
-│   └── MATHIR_FINAL_REPORT.md     # Markdown version
+│   └── 06_results/current/     # Benchmark reports
+│       └── MATHIR_FINAL_REPORT.html   # Full visual report
 │
-├── 🧪 tests/                  # 226 tests
+├── 🧪 mathir_dropin/tests/    # 226 tests
 ├── 📚 docs/                   # Tutorials · theory · LaTeX paper
 ├── 🔧 examples/               # Demo scripts
 └── ⚙️ config/                 # Configuration
@@ -1029,12 +1028,6 @@ MATHIR/
 ```bash
 # Zero-dep memory (works without torch)
 python examples/simple_memory_demo.py
-
-# 8 algorithms, 6 theorems (~15s)
-python examples/v7_advanced_demo.py
-
-# Multimodal (text + image + audio)
-python examples/multimodal_demo.py
 
 # Vision + audio UI
 cd vision_testing && python start_ui.py
@@ -1055,11 +1048,11 @@ cd vision_testing && python start_ui.py
 | # | Document | Lines | What it is |
 |:---:|---|:---:|---|
 | 1 | [`README.md`](README.md) | 510 | The pitch (you are here) |
-| 2 | [`MATHIR_FINAL_REPORT.md`](MATHIR_FINAL_REPORT.md) | 348 | All benchmark numbers |
+| 2 | [`MATHIR_FINAL_REPORT.html`](benchmarks/06_results/current/MATHIR_FINAL_REPORT.html) | 348 | All benchmark numbers |
 | 3 | [`docs/03_MASTER_QA_GUIDE.md`](docs/03_MASTER_QA_GUIDE.md) | **637** | **63 Q&A** for CTO defense |
 | 4 | [`docs/07_MATHIR_VS_VECTORDB_USE_CASES.md`](docs/07_MATHIR_VS_VECTORDB_USE_CASES.md) | **454** | **MATHIR vs FAISS** on chat + autonomous driving |
 | 5 | [`docs/MATHIR_Research_Paper.tex`](docs/MATHIR_Research_Paper.tex) | **1 130** | **LaTeX paper** — peer-review ready |
-| 6 | [`docs/09_THEORY_V7.md`](docs/09_THEORY_V7.md) | **699** | **6 theorems with proofs** |
+| 6 | [`docs/01_MASTER_RESEARCH_PAPER.md`](docs/01_MASTER_RESEARCH_PAPER.md) | **699** | **6 theorems with proofs** |
 | 7 | [`docs/01_MASTER_RESEARCH_PAPER.md`](docs/01_MASTER_RESEARCH_PAPER.md) | **2 155** | **Doctoral research paper** — 145 KB |
 
 ### Quick links
@@ -1068,13 +1061,13 @@ cd vision_testing && python start_ui.py
 |---|---|
 | 📄 [`docs/MATHIR_Research_Paper.tex`](docs/MATHIR_Research_Paper.tex) | LaTeX paper for scientific review |
 | 📖 [`docs/01_MASTER_RESEARCH_PAPER.md`](docs/01_MASTER_RESEARCH_PAPER.md) | Full research paper (Markdown, 145 KB) |
-| 📊 [`benchmarks/MATHIR_FINAL_REPORT.html`](benchmarks/MATHIR_FINAL_REPORT.html) | Visual benchmark report (HTML, interactive charts) |
+| 📊 [`benchmarks/MATHIR_FINAL_REPORT.html`](benchmarks/06_results/current/MATHIR_FINAL_REPORT.html) | Visual benchmark report (HTML, interactive charts) |
 | 📊 [`benchmarks/MATHIR_FINAL_REPORT.md`](benchmarks/MATHIR_FINAL_REPORT.md) | Benchmark report (Markdown) |
 | 🎯 [`docs/03_MASTER_QA_GUIDE.md`](docs/03_MASTER_QA_GUIDE.md) | 63 Q&A for defense / evaluation |
 | 🆚 [`docs/07_MATHIR_VS_VECTORDB_USE_CASES.md`](docs/07_MATHIR_VS_VECTORDB_USE_CASES.md) | MATHIR vs FAISS use cases |
-| 🔬 [`docs/09_THEORY_V7.md`](docs/09_THEORY_V7.md) | Mathematical proofs (6 theorems) |
-| 📘 [`docs/12_V7_TUTORIAL.md`](docs/12_V7_TUTORIAL.md) | V7 usage tutorial |
-| 🤖 [`AGENT.md`](AGENT.md) | Quick reference for AI agents |
+| 🔬 [`docs/01_MASTER_RESEARCH_PAPER.md`](docs/01_MASTER_RESEARCH_PAPER.md) | Mathematical proofs (6 theorems) |
+| 📘 [`docs/04_DEV_INTEGRATION_GUIDE.md`](docs/04_DEV_INTEGRATION_GUIDE.md) | V7 usage tutorial |
+| 🤖 [`mcp/AGENT.md`](mcp/AGENT.md) | Quick reference for AI agents |
 | 👁️ [`vision_testing/README.md`](vision_testing/README.md) | Vision/audio testing docs |
 | 📦 [`mathir_dropin/README.md`](mathir_dropin/README.md) | Drop-in memory docs |
 | 📋 [`CHANGELOG.md`](CHANGELOG.md) | Version history |

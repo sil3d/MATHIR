@@ -37,6 +37,7 @@ htmlcov/
 *.gguf
 *.dll
 *.so.*
+models/
 vision_testing/bin/
 vision_testing/models/
 vision_testing/logs/

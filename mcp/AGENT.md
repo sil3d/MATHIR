@@ -24,7 +24,6 @@ MATHIR/
 ├── mcp/                          ← YOU ARE HERE (docs + dashboard)
 │   ├── AGENT.md                  ← This file
 │   ├── GLOBAL_INSTRUCTIONS.md    ← Copy into your agent's instructions
-│   ├── BRAIN_ARCHITECTURE.md     ← 5-phase brain stack (proxy, watchdog, etc.)
 │   ├── README.md                 ← MCP integration overview
 │   ├── DAEMON.md                 ← Daemon protocol docs
 │   ├── DIMENSIONS.md             ← Embedding dimension guide
@@ -36,6 +35,9 @@ MATHIR/
 │   ├── dashboard.html            ← Dashboard frontend (Chart.js)
 │   ├── mathir_push.py            ← Push module (proactive delivery)
 │   └── test_daemon_push.py       ← Push tests
+│
+├── docs/                         ← Documentation + paper
+│   └── BRAIN_ARCHITECTURE.md     ← 5-phase brain stack (proxy, watchdog, etc.)
 │
 ├── mathir_lib/                   ← Core library (optional, for advanced use)
 │   ├── __init__.py               ← Package init
@@ -61,7 +63,6 @@ MATHIR/
 ├── tests/                        ← Unit tests
 ├── benchmarks/                   ← Benchmark scripts
 ├── examples/                     ← Usage examples
-├── docs/                         ← Documentation + paper
 ├── vision_testing/               ← Vision model tests (5 models)
 ├── stress_test/                  ← Stress tests
 ├── results/                      ← Benchmark results
@@ -446,7 +447,7 @@ python inject_mathir.py
 
 **Problem:** Even with the injection block above, agents sometimes forget to recall, and daemon crashes = total memory loss.
 
-**Solution:** Run the 5-phase brain stack. See [BRAIN_ARCHITECTURE.md](BRAIN_ARCHITECTURE.md) for full details.
+**Solution:** Run the 5-phase brain stack. See [docs/BRAIN_ARCHITECTURE.md](../docs/BRAIN_ARCHITECTURE.md) for full details.
 
 ### One-command setup
 
