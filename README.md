@@ -105,8 +105,9 @@ Mem0: "It's our managed platform"                     ❌
 - **Working memory** — multi-head attention produces context-dependent results (88 % isolation)
 - **KL-constrained router** — PPO-style routing between 4 tiers, never collapses
 - **Universal Bridge (UNIBRI)** — works across LLM providers and languages, no retraining
-- **Edge-deployable** — ~500 MB VRAM (GPU) or 80 MB (CPU with INT8 quantization); works on Jetson Orin, Raspberry Pi (CPU fallback with ONNX INT8)
+- **Edge-deployable** — ~240 MB VRAM (GPU fp16) with paraphrase-multilingual-MiniLM-L12-v2, works on Jetson Orin, Raspberry Pi (CPU fallback with paraphrase-multilingual 384d)
 - **Zero external dependencies** (`SimpleMemory` uses only SQLite FTS5)
+- **🧠 BRAIN ARCHITECTURE (v8.3+)** — 5-phase proactive system: auto-inject proxy, daemon watchdog, spreading activation, sleep consolidation, pre-cognitive priming. See [docs/BRAIN_ARCHITECTURE.md](docs/BRAIN_ARCHITECTURE.md)
 
 ---
 

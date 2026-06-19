@@ -24,6 +24,7 @@ MATHIR/
 ├── mcp/                          ← YOU ARE HERE (docs + dashboard)
 │   ├── AGENT.md                  ← This file
 │   ├── GLOBAL_INSTRUCTIONS.md    ← Copy into your agent's instructions
+│   ├── BRAIN_ARCHITECTURE.md     ← 5-phase brain stack (proxy, watchdog, etc.)
 │   ├── README.md                 ← MCP integration overview
 │   ├── DAEMON.md                 ← Daemon protocol docs
 │   ├── DIMENSIONS.md             ← Embedding dimension guide
@@ -438,6 +439,58 @@ python inject_mathir.py
 ```
 
 **Why this works:** The MATHIR block is the FIRST thing the agent reads in its system_prompt. Before its identity. Before its protocol. The agent sees "YOUR MEMORY IS ALWAYS ACTIVE" before anything else.
+
+---
+
+## Brain Architecture — Make Memory Proactive (v8.3+)
+
+**Problem:** Even with the injection block above, agents sometimes forget to recall, and daemon crashes = total memory loss.
+
+**Solution:** Run the 5-phase brain stack. See [BRAIN_ARCHITECTURE.md](BRAIN_ARCHITECTURE.md) for full details.
+
+### One-command setup
+
+```bash
+# Start the full brain stack
+python mathir_brain.py start
+
+# Verify
+python mathir_brain.py status
+#   Daemon (port 7338): ALIVE
+#   Proxy (port 8182): LISTENING
+#     Forward to: http://localhost:8181
+```
+
+### What each component does
+
+| Phase | Script | Purpose |
+|---|---|---|
+| 1 | `mathir_inject_proxy.py` | HTTP proxy that auto-injects top-3 memories into every LLM call. Run on port 8182, forward to your LLM on 8181. |
+| 2 | `mathir_watchdog.py` | Background process that pings daemon and restarts on crash (7s recovery). |
+| 3 | `mathir_spread.py` | Builds link graph between related memories (cosine > 0.7). Spreading activation brings related context. |
+| 4 | `mathir_consolidate.py` | Nightly "sleep": merge duplicates (>0.95), decay unused (5%/month), archive dead. |
+| 5 | `mathir_prime.py` | Senses cwd/git/recent-files BEFORE user query for project-aware recall. |
+
+### Point your LLM client to the proxy
+
+After `mathir_brain.py start`, change your client's `baseUrl` from `http://localhost:8181` to `http://localhost:8182`. The proxy:
+1. Takes the last user message
+2. Calls `daemon.recall(k=3)` in <300ms
+3. Injects memories as `{{MATHIR_CONTEXT}}` in the system prompt
+4. Forwards to your real LLM
+
+**The agent never needs to call recall. Memories are pre-injected.**
+
+### Migration from manual recall to brain stack
+
+If you have an existing project with 100s of memories, run once:
+```bash
+python mathir_spread.py build_all      # Build link graph (~30s for 300 memories)
+python mathir_consolidate.py dry        # Preview what would be cleaned up
+python mathir_consolidate.py            # Actually clean up
+```
+
+Schedule `mathir_consolidate.py` to run nightly via Windows Task Scheduler or cron.
 
 ---
 

@@ -2,7 +2,7 @@
 # Balanced for general-purpose LLM use (CPU/GPU).
 
 memory:
-  embedding_dim: 1024
+  embedding_dim: 384
   internal_dim: 272
   working_capacity: 64
   episodic_capacity: 1000
@@ -56,12 +56,45 @@ hybrid_search:
     cache_capacity: 512   # LRU query cache entries
     cache_ttl: 120.0      # Seconds before cache expiry
 
-  # USearch HNSW tuning (for 1024d embeddings)
+  # USearch HNSW tuning (for 384d embeddings)
   usearch:
     metric: cosine
     connectivity: 32       # HNSW M parameter (default ~16)
     expansion_add: 256     # ef_construction (default ~128)
     expansion_search: 128  # ef search (default ~64)
+
+# Brain Architecture (v8.3+) — 5-phase proactive memory
+# See docs/BRAIN_ARCHITECTURE.md for full details
+brain:
+  enabled: true
+  inject_proxy:
+    enabled: true
+    target: http://localhost:8181  # Your LLM API
+    port: 8182                      # Proxy port
+    timeout_ms: 300                 # Max recall time per request
+    max_memories: 3                 # Top-K to inject
+  watchdog:
+    enabled: true
+    interval_seconds: 15            # Ping interval
+    cooldown_seconds: 10            # Wait after restart
+    max_restarts: 0                 # 0 = infinite
+  spread:
+    enabled: true
+    link_threshold: 0.7             # Cosine similarity to build link
+    max_links_per_memory: 10
+    hops: 2                         # Spreading depth
+    decay: 0.5                      # Per-hop decay
+  consolidate:
+    enabled: true
+    duplicate_threshold: 0.95
+    decay_rate: 0.05                # 5%/month for unused
+    archive_threshold: 0.05
+  prime:
+    enabled: true
+    include_git: true
+    include_recent_files: true
+    recent_files_hours: 24
+    max_recent_files: 5
 
 providers:
   default: direct

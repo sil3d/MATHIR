@@ -3,6 +3,9 @@
 **Copy these instructions into your agent's global instructions file.**
 MATHIR works with OpenCode, OpenClaude, Kilo Code, MiMo Code, Claude Code, and any MCP-compatible tool.
 
+> **NEW (v8.3+): MATHIR Brain Architecture** — 5-phase system that makes memory PROACTIVE. See [BRAIN_ARCHITECTURE.md](BRAIN_ARCHITECTURE.md).
+> TL;DR: Memories are auto-injected into every LLM call. You don't need to call recall. Just start the brain with `python mathir_brain.py start`.
+
 ---
 
 ## MATHIR — YOUR MEMORY IS ALWAYS ACTIVE
@@ -146,7 +149,13 @@ MATHIR/
 │   ├── mathir_daemon.py        # Persistent daemon (keeps model in RAM)
 │   ├── mathir_client.py        # Fast client (connects to daemon)
 │   ├── mathir_mcp_server.py    # MCP server (for Claude/OpenCode/etc)
-│   └── mathir_push.py          # Push module (proactive delivery)
+│   ├── mathir_push.py          # Push module (proactive delivery)
+│   ├── mathir_inject_proxy.py  # Phase 1: auto-inject memories into LLM calls
+│   ├── mathir_watchdog.py      # Phase 2: daemon watchdog (auto-restart)
+│   ├── mathir_spread.py        # Phase 3: spreading activation (link graph)
+│   ├── mathir_consolidate.py   # Phase 4: sleep consolidation (merge, decay)
+│   ├── mathir_prime.py         # Phase 5: pre-cognitive priming (cwd, git, files)
+│   └── mathir_brain.py         # All-in-one launcher (start/stop/status)
 │
 ├── mathir_vec.py               # VecMemory (sqlite-vec wrapper)
 ├── mathir_search.py            # HybridSearch (numpy + USearch)
@@ -154,6 +163,61 @@ MATHIR/
 │
 └── mcp/                        # Documentation + dashboard
 ```
+
+---
+
+## 🧠 MATHIR BRAIN ARCHITECTURE (v8.3+)
+
+**5-phase system that makes MATHIR proactive, never-blocking, and brain-like.**
+
+### Quick start
+```bash
+# Start the full brain stack (daemon + watchdog + proxy)
+python mathir_brain.py start
+
+# Point your LLM client (OpenCode, MiMo) to the proxy:
+#   baseUrl: http://127.0.0.1:8182
+#   (instead of http://127.0.0.1:8181)
+
+# Verify everything is alive
+python mathir_brain.py status
+```
+
+### What changes for agents
+
+**Before (v8.2 and earlier):**
+- Agent told "you can call `recall` when needed"
+- LLM forgets 80% of the time
+- Daemon crash = no memory
+
+**After (v8.3+ brain stack):**
+- Top-3 memories are **pre-injected** into every LLM call via the proxy
+- Agent NEVER needs to call recall (it can, for deep dives)
+- Watchdog auto-restarts daemon within 7s if it crashes
+- Spreading activation finds related memories (graph with 498+ links)
+- Consolidation runs nightly (merges dupes, decays unused)
+- Pre-cognitive priming adds cwd/git context to recall
+
+### The 5 phases
+
+| Phase | Module | Solves |
+|---|---|---|
+| 1. Auto-inject proxy | `mathir_inject_proxy.py` | "LLM forgets to recall" |
+| 2. Watchdog | `mathir_watchdog.py` | "Daemon crash = no memory" |
+| 3. Spreading activation | `mathir_spread.py` | "Need related context" |
+| 4. Consolidation | `mathir_consolidate.py` | "Memory grows stale" |
+| 5. Pre-cognitive priming | `mathir_prime.py` | "Wrong project context" |
+
+### Manual commands (if proxy is not running)
+
+```bash
+python mathir_client.py recall "topic" -k 5
+python mathir_client.py save "what you learned" -a agent -t semantic -l label -p 8
+python mathir_client.py search "exact text" -k 5
+python mathir_client.py stats
+```
+
+See [BRAIN_ARCHITECTURE.md](BRAIN_ARCHITECTURE.md) for full details.
 
 **Performance:**
 - Recall: ~22ms (GPU embedding + vector search)
