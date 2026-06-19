@@ -17,6 +17,13 @@ from typing import Optional
 # Add bin to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# Risk mitigation (PersistBench findings: 53% leakage, >90% sycophancy)
+try:
+    from memory_risks import DomainClassifier, LeakageDetector, SycophancyDetector
+    _risk_enabled = True
+except ImportError:
+    _risk_enabled = False
+
 # Security limits
 MAX_CONNECTIONS = 50        # Max concurrent client connections (prevents thread exhaustion DoS)
 CLIENT_TIMEOUT = 30         # Seconds before idle client is disconnected
@@ -191,49 +198,80 @@ def handle_client(conn, addr):
                     from mathir_vec import VecMemory
                     from mathir_mcp_server import get_project_db_path
                     dim = get_embedder_dim()
-                    vec_mem = VecMemory(get_project_db_path(), dim)
+                    db_path = get_project_db_path()
+                    if db_path is None:
+                        result = {'error': 'No project database found. Set MATHIR_PROJECT env var or run from a project directory.'}
+                    else:
+                        vec_mem = VecMemory(db_path, dim)
 
-                    embedder = get_embedder()
-                    query = params.get('query', '')
-                    k = min(params.get('k', 5), 1000)
-                    query_emb = embedder.encode(query)
-                    query_np = _embedding_to_numpy(query_emb)
-                    results = vec_mem.search(
-                        query_embedding=query_np,
-                        k=k,
-                        agent_filter=params.get('agent'),
-                        block_type_filter=params.get('block_type')
-                    )
-                    result = {'results': results, 'query': query, 'total': len(results)}
+                        embedder = get_embedder()
+                        query = params.get('query', '')
+                        k = min(params.get('k', 5), 1000)
+                        query_emb = embedder.encode(query)
+                        query_np = _embedding_to_numpy(query_emb)
+                        results = vec_mem.search(
+                            query_embedding=query_np,
+                            k=k,
+                            agent_filter=params.get('agent'),
+                            block_type_filter=params.get('block_type')
+                        )
+                        result = {'results': results, 'query': query, 'total': len(results)}
                 elif method == 'memory_save':
                     from mathir_mcp_server import get_project_db_path, get_project_name
                     from mathir_vec import VecMemory
                     dim = get_embedder_dim()
-                    vec_mem = VecMemory(get_project_db_path(), dim)
+                    db_path = get_project_db_path()
+                    if db_path is None:
+                        result = {'error': 'No project database found. Set MATHIR_PROJECT env var or run from a project directory.'}
+                    else:
+                        vec_mem = VecMemory(db_path, dim)
 
-                    content = params['content']
-                    embedder = get_embedder()
-                    emb = embedder.encode(content)
-                    emb_np = _embedding_to_numpy(emb)
+                        content = params['content']
+                        
+                        # Risk mitigation: check before storing
+                        risk_warnings = []
+                        if _risk_enabled:
+                            try:
+                                classifier = DomainClassifier()
+                                leakage = LeakageDetector()
+                                sycophancy = SycophancyDetector()
+                                domain = classifier.classify(content)
+                                leak_risk = leakage.check_leakage(domain, domain, content)
+                                syco_risk = sycophancy.check_sycophancy(content)
+                                if leak_risk.leakage_risk > 0.5:
+                                    risk_warnings.append(f"leakage_risk={leak_risk.leakage_risk:.1f}: {'; '.join(leak_risk.reasons)}")
+                                if syco_risk.sycophancy_risk > 0.5:
+                                    risk_warnings.append(f"sycophancy_risk={syco_risk.sycophancy_risk:.1f}: {'; '.join(syco_risk.reasons)}")
+                            except Exception:
+                                pass  # Risk check is best-effort, never block save
+                        
+                        embedder = get_embedder()
+                        emb = embedder.encode(content)
+                        emb_np = _embedding_to_numpy(emb)
 
-                    import uuid
-                    memory_id = f"mem_{uuid.uuid4().hex[:8]}"
-                    metadata = {
-                        'agent': params.get('agent', 'unknown'),
-                        'block_type': params.get('block_type', 'episodic'),
-                        'label': params.get('label', ''),
-                        'priority': params.get('priority', 5),
-                        'content': content,
-                        'project': get_project_name()
-                    }
-                    vec_mem.store(memory_id, emb_np, metadata)
-                    result = {'memory_id': memory_id, 'saved': True, 'metadata': metadata}
+                        import uuid
+                        memory_id = f"mem_{uuid.uuid4().hex[:8]}"
+                        metadata = {
+                            'agent': params.get('agent', 'unknown'),
+                            'block_type': params.get('block_type', 'episodic'),
+                            'label': params.get('label', ''),
+                            'priority': params.get('priority', 5),
+                            'content': content,
+                            'project': get_project_name(),
+                            'risk_warnings': risk_warnings if risk_warnings else None
+                        }
+                        vec_mem.store(memory_id, emb_np, metadata)
+                        result = {'memory_id': memory_id, 'saved': True, 'metadata': metadata, 'risk_warnings': risk_warnings}
                 elif method == 'memory_stats':
                     from mathir_mcp_server import get_project_db_path
                     from mathir_vec import VecMemory
                     dim = get_embedder_dim()
-                    vec_mem = VecMemory(get_project_db_path(), dim)
-                    result = vec_mem.stats()
+                    db_path = get_project_db_path()
+                    if db_path is None:
+                        result = {'error': 'No project database found. Set MATHIR_PROJECT env var or run from a project directory.'}
+                    else:
+                        vec_mem = VecMemory(db_path, dim)
+                        result = vec_mem.stats()
                 elif method == 'memory_push':
                     from mathir_vec import VecMemory
                     from mathir_mcp_server import get_project_db_path
@@ -262,67 +300,105 @@ def handle_client(conn, addr):
                             log.info(f"Push: extracted {len(queries)} queries: {queries}")
 
                             dim = get_embedder_dim()
-                            vec_mem = VecMemory(get_project_db_path(), dim)
-                            embedder = get_embedder()
+                            db_path = get_project_db_path()
+                            if db_path is None:
+                                result = {'error': 'No project database found. Set MATHIR_PROJECT env var or run from a project directory.'}
+                            else:
+                                vec_mem = VecMemory(db_path, dim)
+                                embedder = get_embedder()
 
-                            all_memories = []
-                            for q in queries:
-                                q_emb = embedder.encode(q)
-                                q_np = _embedding_to_numpy(q_emb)
-                                results = vec_mem.search(
-                                    query_embedding=q_np,
-                                    k=max(3, k // max(len(queries), 1) + 1),
-                                    agent_filter=agent,
-                                )
-                                all_memories.extend(results)
+                                all_memories = []
+                                for q in queries:
+                                    q_emb = embedder.encode(q)
+                                    q_np = _embedding_to_numpy(q_emb)
+                                    results = vec_mem.search(
+                                        query_embedding=q_np,
+                                        k=max(3, k // max(len(queries), 1) + 1),
+                                        agent_filter=agent,
+                                    )
+                                    all_memories.extend(results)
 
-                            deduped = deduplicate_memories(all_memories)
-                            deduped.sort(key=lambda m: m.get('score', 0), reverse=True)
-                            top_memories = deduped[:k]
+                                deduped = deduplicate_memories(all_memories)
+                                deduped.sort(key=lambda m: m.get('score', 0), reverse=True)
+                                top_memories = deduped[:k]
 
-                            with _push_lock:
-                                _push_cache.set(c_hash, top_memories)
+                                with _push_lock:
+                                    _push_cache.set(c_hash, top_memories)
 
-                            result = {
-                                'memories': top_memories,
-                                'queries_used': queries,
-                                'total': len(top_memories),
-                                'cached': False,
-                            }
+                                result = {
+                                    'memories': top_memories,
+                                    'queries_used': queries,
+                                    'total': len(top_memories),
+                                    'cached': False,
+                                }
 
                 elif method == 'memory_smart_search':
                     from mathir_vec import VecMemory
                     from mathir_mcp_server import get_project_db_path, get_project_name
                     dim = get_embedder_dim()
-                    vec_mem = VecMemory(get_project_db_path(), dim)
-                    embedder = get_embedder()
+                    db_path = get_project_db_path()
+                    if db_path is None:
+                        result = {'error': 'No project database found. Set MATHIR_PROJECT env var or run from a project directory.'}
+                    else:
+                        vec_mem = VecMemory(db_path, dim)
+                        embedder = get_embedder()
 
-                    query = params.get('query', '')
-                    k = min(params.get('k', 10), 1000)
-                    agent_filter = params.get('agent')
+                        query = params.get('query', '')
+                        k = min(params.get('k', 10), 1000)
+                        agent_filter = params.get('agent')
 
-                    q_emb = embedder.encode(query)
-                    q_np = _embedding_to_numpy(q_emb)
+                        q_emb = embedder.encode(query)
+                        q_np = _embedding_to_numpy(q_emb)
 
-                    results = vec_mem.search(
-                        query_embedding=q_np,
-                        k=k,
-                        agent_filter=agent_filter,
-                    )
-                    result = {'results': results, 'query': query, 'total': len(results), 'project': get_project_name()}
+                        results = vec_mem.search(
+                            query_embedding=q_np,
+                            k=k,
+                            agent_filter=agent_filter,
+                        )
+                        result = {'results': results, 'query': query, 'total': len(results), 'project': get_project_name()}
 
                 elif method == 'memory_delete':
                     from mathir_vec import VecMemory
                     from mathir_mcp_server import get_project_db_path, get_project_name
                     dim = get_embedder_dim()
-                    vec_mem = VecMemory(get_project_db_path(), dim)
-
-                    memory_id = params.get('memory_id')
-                    if not memory_id:
-                        result = {'error': 'memory_id required'}
+                    db_path = get_project_db_path()
+                    if db_path is None:
+                        result = {'error': 'No project database found. Set MATHIR_PROJECT env var or run from a project directory.'}
                     else:
-                        deleted = vec_mem.delete(memory_id)
-                        result = {'memory_id': memory_id, 'deleted': deleted, 'project': get_project_name()}
+                        vec_mem = VecMemory(db_path, dim)
+
+                        memory_id = params.get('memory_id')
+                        if not memory_id:
+                            result = {'error': 'memory_id required'}
+                        else:
+                            deleted = vec_mem.delete(memory_id)
+                            result = {'memory_id': memory_id, 'deleted': deleted, 'project': get_project_name()}
+
+                elif method == 'memory_risk_check':
+                    if not _risk_enabled:
+                        result = {'error': 'risk mitigation not available (memory_risks module not found)'}
+                    else:
+                        content = params.get('content', '')
+                        if not content:
+                            result = {'error': 'content required'}
+                        else:
+                            try:
+                                classifier = DomainClassifier()
+                                leakage = LeakageDetector()
+                                sycophancy = SycophancyDetector()
+                                domain = classifier.classify(content)
+                                leak_risk = leakage.check_leakage(domain, domain, content)
+                                syco_risk = sycophancy.check_sycophancy(content)
+                                result = {
+                                    'domain': domain.value,
+                                    'leakage_risk': leak_risk.leakage_risk,
+                                    'sycophancy_risk': syco_risk.sycophancy_risk,
+                                    'sensitivity': leak_risk.sensitivity,
+                                    'reasons': leak_risk.reasons + syco_risk.reasons,
+                                    'safe_to_store': leak_risk.leakage_risk < 0.7 and syco_risk.sycophancy_risk < 0.7
+                                }
+                            except Exception as e:
+                                result = {'error': f'risk check failed: {e}'}
 
                 elif method == 'push_cache_stats':
                     with _push_lock:
@@ -359,7 +435,7 @@ def get_embedder_dim():
         return embedder.dim
     if hasattr(embedder, 'get_sentence_embedding_dimension'):
         return embedder.get_sentence_embedding_dimension()
-    return int(os.environ.get('MATHIR_EMBEDDING_DIM', '1024'))
+    return int(os.environ.get('MATHIR_EMBEDDING_DIM', '384'))
 
 
 def main():
