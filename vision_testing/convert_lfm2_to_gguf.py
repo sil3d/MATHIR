@@ -19,8 +19,16 @@ sys.path.insert(0, site_packages)
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
-MERGED_MODEL = "C:/Users/So-i-learn-3D/Desktop/SECRET_CODE/mindtree/mycerise-700m-gguf-v8/merged_model"
-OUTPUT_GGUF = "C:/Users/So-i-learn-3D/Desktop/SECRET_CODE/mindtree/mycerise-700m-gguf-v8/LFM2-700M-Mycerise-V8-F16.gguf"
+MERGED_MODEL = None  # Set via --input or environment variable
+OUTPUT_GGUF = None    # Set via --output or environment variable
+
+import argparse
+parser = argparse.ArgumentParser(description="Convert merged LFM2 model to GGUF")
+parser.add_argument("--input", required=True, help="Path to merged model directory")
+parser.add_argument("--output", required=True, help="Output GGUF file path")
+args = parser.parse_args()
+MERGED_MODEL = args.input
+OUTPUT_GGUF = args.output
 
 print("=" * 70)
 print("CONVERT LFM2-700M TO GGUF (FIXED TENSOR NAMES)")
