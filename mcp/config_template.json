@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "mathir": {
+      "type": "local",
+      "command": ["python", "~/.config/MATHIR/mathir_lib/mathir_mcp_server.py"],
+      "environment": {
+        "MATHIR_EMBEDDING_DIM": "384"
+      },
+      "enabled": true
+    }
+  }
+}

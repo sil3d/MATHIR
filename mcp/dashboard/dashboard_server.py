@@ -42,10 +42,18 @@ def _candidate_dirs() -> list[Path]:
         cwd.parent,
         home,
     ]
-    for subdir in ("Documents", "Desktop", "Projects", "dev", "Code"):
-        d = home / subdir
-        if d.exists():
-            candidates.append(d)
+    # Configurable via MATHIR_SCAN_DIRS (colon-separated on Unix, semicolon on Windows)
+    scan_dirs_env = os.environ.get("MATHIR_SCAN_DIRS", "")
+    if scan_dirs_env:
+        for d in scan_dirs_env.split(os.pathsep):
+            p = Path(d.strip())
+            if p.exists():
+                candidates.append(p)
+    else:
+        for subdir in ("Documents", "Projects", "dev", "Code"):
+            d = home / subdir
+            if d.exists():
+                candidates.append(d)
     return candidates
 
 
@@ -188,7 +196,7 @@ def api_overview(project: str | None = None) -> dict:
         "db_size_mb": round(db_size / (1024 * 1024), 2),
         "db_path": db_path,
         "config": {
-            "embedding_dim": config.get("embedding_dim", 1024),
+            "embedding_dim": config.get("embedding_dim", 384),
             "working_capacity": config.get("working_capacity", 64),
             "episodic_capacity": config.get("episodic_capacity", 1000),
             "semantic_prototypes": config.get("semantic_prototypes", 256),

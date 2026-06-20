@@ -64,11 +64,29 @@ def get_project_name() -> str:
 
 
 def get_project_db_path(project_name: str = None) -> Path:
-    """Get database path for a specific project - stored IN the project directory."""
+    """Get database path for a specific project - stored IN the project directory.
+    
+    Priority:
+    1. Check .mathir/mathir.db in current working directory (the project the agent is in)
+    2. Check registry for known project name
+    3. Scan common directories for project name
+    4. Fall back to current working directory
+    """
     if project_name is None:
         project_name = get_project_name()
     
-    # First check central registry
+    # FIRST: Check if there's a .mathir/mathir.db in the current working directory
+    # But NOT if CWD is the home directory (that's not a real project)
+    cwd = Path.cwd()
+    home = Path.home()
+    cwd_db = cwd / ".mathir" / "mathir.db"
+    if cwd_db.exists() and cwd != home:
+        log.info(f"Found .mathir/mathir.db in CWD: {cwd_db}")
+        # Register for future lookups
+        register_project(project_name, str(cwd_db), str(cwd))
+        return cwd_db
+    
+    # SECOND: Check central registry
     registry = load_registry()
     if project_name in registry.get("projects", {}):
         info = registry["projects"][project_name]
@@ -77,17 +95,18 @@ def get_project_db_path(project_name: str = None) -> Path:
             log.info(f"Found project '{project_name}' in registry: {db_path}")
             return db_path
     
-    # Fallback: scan common directories
-    home = Path.home()
-    common_dirs = [
-        home / "Documents",
-        home / "Desktop",
-        home / "Desktop" / "SECRET_CODE",
-        home / "Projects",
-        home / "dev",
-        home / "Code",
-        Path.cwd(),  # Current working directory
-    ]
+    # THIRD: Scan MATHIR_SCAN_DIRS env var or common directories
+    scan_dirs_env = os.environ.get("MATHIR_SCAN_DIRS", "")
+    if scan_dirs_env:
+        common_dirs = [Path(d) for d in scan_dirs_env.split(os.pathsep) if d.strip()]
+    else:
+        home = Path.home()
+        common_dirs = [
+            home / "Documents",
+            home / "Projects",
+            home / "dev",
+            home / "Code",
+        ]
     
     for parent_dir in common_dirs:
         if not parent_dir.exists():
@@ -105,14 +124,24 @@ def get_project_db_path(project_name: str = None) -> Path:
         except PermissionError:
             continue
     
-    # Fallback to current working directory
-    project_dir = Path(os.getcwd())
-    mathir_dir = project_dir / ".mathir"
+    # FALLBACK: Create in current working directory
+    # But NOT in home directory — use first available project DB instead
+    if cwd == home:
+        registry = load_registry()
+        for pname, info in registry.get("projects", {}).items():
+            db_path = Path(info.get("db_path", ""))
+            if db_path.exists():
+                log.info(f"CWD is home, using first available project DB: {pname} -> {db_path}")
+                return db_path
+        log.warning(f"Project '{project_name}' not found and no registry DBs available.")
+        return None
+    
+    mathir_dir = cwd / ".mathir"
     mathir_dir.mkdir(exist_ok=True)
     db_path = mathir_dir / "mathir.db"
     
     # Register for future lookups
-    register_project(project_name, str(db_path), str(project_dir))
+    register_project(project_name, str(db_path), str(cwd))
     
     return db_path
 
@@ -137,10 +166,15 @@ def save_registry(registry: dict):
 
 def register_project(project_name: str, db_path: str, cwd: str = None):
     """Register a project in the central registry."""
+    # Don't register the home directory as a project
+    actual_cwd = cwd or os.getcwd()
+    if Path(actual_cwd) == Path.home():
+        log.debug(f"Skipping registry: '{project_name}' is home directory")
+        return
     registry = load_registry()
     registry["projects"][project_name] = {
         "db_path": db_path,
-        "cwd": cwd or os.getcwd(),
+        "cwd": actual_cwd,
         "last_used": datetime.now().isoformat(),
         "name": project_name
     }
@@ -164,7 +198,7 @@ def get_memory(project_name: str = None):
     if project_name in _memory_cache:
         return _memory_cache[project_name]
     
-    from mathir_lib.memory import MATHIRMemory
+    from mathir_dropin.memory import MATHIRMemory
     config = load_config()
     db_path = get_project_db_path(project_name)
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -174,7 +208,7 @@ def get_memory(project_name: str = None):
         config=config,
         db_path=str(db_path),
         provider="mathir-mcp",
-        model=config.get("embedding", {}).get("model", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"),
+        model=config.get("embedding", {}).get("model", "BAAI/bge-large-en-v1.5"),
     )
     log.info(f"MATHIRMemory initialized for project '{project_name}': db={db_path}")
     _memory_cache[project_name] = memory
@@ -193,7 +227,7 @@ def get_embedder():
     
     config = load_config()
     prefer_octen = config.get("embedding", {}).get("prefer_octen", False)
-    model_name = config.get("embedding", {}).get("model", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+    model_name = config.get("embedding", {}).get("model", "BAAI/bge-large-en-v1.5")
     
     import torch
     from sentence_transformers import SentenceTransformer
@@ -347,7 +381,7 @@ def handle_memory_save(args: dict) -> dict:
     memory_id = f"mem_{uuid.uuid4().hex[:8]}"
     
     # Store in sqlite-vec accelerated memory
-    from mathir_lib.vec import get_vec_memory
+    from mathir_vec import get_vec_memory
     vec_mem = get_vec_memory(project, embedding_dim=EMBEDDING_DIM)
     
     metadata = {
@@ -392,7 +426,7 @@ def handle_memory_recall(args: dict) -> dict:
         query_np = np.array(query_embedding, dtype=np.float32).reshape(-1)
     
     # Search using sqlite-vec accelerated memory
-    from mathir_lib.vec import get_vec_memory
+    from mathir_vec import get_vec_memory
     vec_mem = get_vec_memory(project, embedding_dim=EMBEDDING_DIM)
     
     results = vec_mem.search(
@@ -454,8 +488,11 @@ def handle_memory_export(args: dict) -> dict:
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
     export = {}
-    for table in ["memory_blocks", "session_log", "memory_embeddings", "memory_embeddings_meta"]:
+    # SECURITY: whitelist of allowed table names — never interpolate user input into SQL
+    ALLOWED_TABLES = frozenset({"memory_blocks", "session_log", "memory_embeddings", "memory_embeddings_meta"})
+    for table in ALLOWED_TABLES:
         try:
+            # Table name is from a frozen whitelist, not user input — safe to interpolate
             rows = conn.execute(f"SELECT * FROM {table}").fetchall()
             export[table] = [dict(r) for r in rows]
         except Exception:

@@ -1,0 +1,27 @@
+{
+  "memory": {
+    "embedding_dim": 384,
+    "internal_dim": 512,
+    "working_capacity": 64,
+    "episodic_capacity": 1000,
+    "semantic_prototypes": 256,
+    "immunological_capacity": 100,
+    "kl_coefficient": 0.01,
+    "anomaly_threshold": 2.0,
+    "decay_rate": 0.95
+  },
+  "router": {
+    "type": "kl_constrained",
+    "kl_coefficient": 0.01,
+    "hidden_dim": 128
+  },
+  "storage": {
+    "type": "sqlite",
+    "db_path": "~/.config/opencode/data/mathir.db",
+    "auto_save": true
+  },
+  "embedding": {
+    "model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "device": "cuda"
+  }
+}

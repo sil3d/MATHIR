@@ -14,7 +14,12 @@ A real-time web dashboard that visualizes your MATHIR neural memory system:
 ### 1. Start the Server
 
 ```bash
-cd /path/to/MATHIR/mcp
+# From global install
+cd ~/.config/MATHIR/dashboard
+python dashboard_server.py
+
+# Or from project
+cd /path/to/MATHIR/mcp/dashboard
 python dashboard_server.py
 ```
 

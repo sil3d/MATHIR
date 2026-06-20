@@ -1,0 +1,5 @@
+numpy
+torch
+sentence-transformers
+sqlite-vec
+rank-bm25

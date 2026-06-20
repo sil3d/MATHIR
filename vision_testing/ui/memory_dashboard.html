@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MATHIR Memory Dashboard</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  --bg-0:#06080d; --bg-1:#0c1018; --bg-2:#121824; --bg-3:#1a2236;
+  --border:#1e2a40; --text-0:#e8ecf4; --text-1:#8892a8; --text-2:#5a6478;
+  --cyan:#22d3ee; --violet:#a78bfa; --green:#34d399; --orange:#fb923c; --red:#f87171;
+  --cyan-g:rgba(34,211,238,0.12); --violet-g:rgba(167,139,250,0.12);
+  --green-g:rgba(52,211,153,0.12); --orange-g:rgba(251,146,60,0.12);
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+
+body{font-family:'Outfit',sans-serif;background:var(--bg-0);color:var(--text-0);min-height:100vh;overflow-x:hidden}
+
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 0%,rgba(34,211,238,0.04) 0%,transparent 50%),radial-gradient(ellipse at 80% 100%,rgba(167,139,250,0.03) 0%,transparent 50%);pointer-events:none;z-index:0}
+
+.container{max-width:1400px;margin:0 auto;padding:40px 32px;position:relative;z-index:1}
+
+body::after{content:'';position:fixed;inset:0;background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");pointer-events:none;z-index:9999}
+
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:48px;padding-bottom:32px;border-bottom:1px solid var(--border)}
+.logo{display:flex;align-items:center;gap:16px}
+.logo-icon{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,var(--cyan),var(--violet));display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:var(--bg-0);box-shadow:0 0 40px rgba(34,211,238,0.25),inset 0 1px 0 rgba(255,255,255,0.1);animation:logoGlow 3s ease-in-out infinite alternate}
+@keyframes logoGlow{0%{box-shadow:0 0 40px rgba(34,211,238,0.25)}100%{box-shadow:0 0 60px rgba(167,139,250,0.3)}}
+.logo h1{font-size:26px;font-weight:700;letter-spacing:-0.5px}
+.logo h1 span{color:var(--text-2);font-weight:400;font-size:14px;margin-left:10px;letter-spacing:1px;text-transform:uppercase}
+.header-right{display:flex;align-items:center;gap:16px}
+.status-pill{display:flex;align-items:center;gap:8px;background:var(--bg-2);border:1px solid var(--border);padding:6px 14px;border-radius:20px;font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--text-1)}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.5;transform:scale(0.8)}}
+.refresh-btn{background:var(--bg-2);border:1px solid var(--border);color:var(--text-1);padding:8px 18px;border-radius:10px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:500;transition:all 0.25s;position:relative;overflow:hidden}
+.refresh-btn::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,var(--cyan),var(--violet));opacity:0;transition:opacity 0.25s}
+.refresh-btn:hover{border-color:var(--cyan);color:var(--text-0);transform:translateY(-1px)}
+.refresh-btn:hover::before{opacity:0.1}
+.refresh-btn:active{transform:translateY(0)}
+
+.back-link{color:var(--text-2);text-decoration:none;font-size:13px;font-weight:500;transition:color 0.2s;display:flex;align-items:center;gap:6px}
+.back-link:hover{color:var(--cyan)}
+
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:40px}
+.stat-card{background:var(--bg-1);border:1px solid var(--border);border-radius:18px;padding:28px;position:relative;overflow:hidden;transition:all 0.35s cubic-bezier(0.4,0,0.2,1)}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:3px 3px 0 0}
+.stat-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:60px;pointer-events:none;opacity:0;transition:opacity 0.35s}
+.stat-card:hover{border-color:rgba(255,255,255,0.08);transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,0.3)}
+.stat-card:hover::after{opacity:1}
+.stat-card.total::before{background:linear-gradient(90deg,var(--cyan),var(--violet))}
+.stat-card.search::before{background:linear-gradient(90deg,var(--green),rgba(52,211,153,0.3))}
+.stat-card.storage::before{background:linear-gradient(90deg,var(--orange),rgba(251,146,60,0.3))}
+.stat-card.total::after{background:linear-gradient(transparent,var(--cyan-g))}
+.stat-card.search::after{background:linear-gradient(transparent,var(--green-g))}
+.stat-card.storage::after{background:linear-gradient(transparent,var(--orange-g))}
+.stat-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:16px}
+.total .stat-icon{background:var(--cyan-g);color:var(--cyan)}
+.search .stat-icon{background:var(--green-g);color:var(--green)}
+.storage .stat-icon{background:var(--orange-g);color:var(--orange)}
+.stat-label{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--text-2);margin-bottom:6px;font-weight:500}
+.stat-value{font-size:42px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
+.total .stat-value{color:var(--cyan)}
+.search .stat-value{color:var(--green)}
+.storage .stat-value{color:var(--orange)}
+.stat-sub{font-size:12px;color:var(--text-2);margin-top:8px;font-family:'JetBrains Mono',monospace}
+
+.count-up{transition:all 0.6s cubic-bezier(0.4,0,0.2,1)}
+
+.section{margin-bottom:40px}
+.section-header{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.section-header h2{font-size:17px;font-weight:600;letter-spacing:-0.3px}
+.section-header .badge{background:var(--bg-2);border:1px solid var(--border);padding:4px 12px;border-radius:8px;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text-2)}
+.section-desc{font-size:13px;color:var(--text-2);margin-bottom:16px;line-height:1.6;max-width:800px}
+
+.provider-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;margin-bottom:40px}
+.provider-card{background:var(--bg-1);border:1px solid var(--border);border-radius:18px;padding:28px;position:relative;overflow:hidden;transition:all 0.35s cubic-bezier(0.4,0,0.2,1)}
+.provider-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:3px 3px 0 0}
+.provider-card:hover{border-color:rgba(255,255,255,0.08);transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,0.3)}
+.provider-card.p0::before{background:linear-gradient(90deg,var(--cyan),rgba(34,211,238,0.3))}
+.provider-card.p1::before{background:linear-gradient(90deg,var(--violet),rgba(167,139,250,0.3))}
+.provider-card.p2::before{background:linear-gradient(90deg,var(--green),rgba(52,211,153,0.3))}
+.provider-card.p3::before{background:linear-gradient(90deg,var(--orange),rgba(251,146,60,0.3))}
+.provider-card.p4::before{background:linear-gradient(90deg,var(--red),rgba(248,113,113,0.3))}
+.provider-name{font-size:16px;font-weight:700;font-family:'JetBrains Mono',monospace;margin-bottom:4px}
+.provider-card.p0 .provider-name{color:var(--cyan)}
+.provider-card.p1 .provider-name{color:var(--violet)}
+.provider-card.p2 .provider-name{color:var(--green)}
+.provider-card.p3 .provider-name{color:var(--orange)}
+.provider-card.p4 .provider-name{color:var(--red)}
+.provider-count{font-size:36px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1;margin-bottom:8px}
+.provider-bar{height:6px;background:var(--bg-3);border-radius:3px;margin:12px 0;overflow:hidden}
+.provider-fill{height:100%;border-radius:3px;transition:width 1.2s cubic-bezier(0.4,0,0.2,1)}
+.provider-card.p0 .provider-fill{background:linear-gradient(90deg,var(--cyan),rgba(34,211,238,0.5))}
+.provider-card.p1 .provider-fill{background:linear-gradient(90deg,var(--violet),rgba(167,139,250,0.5))}
+.provider-card.p2 .provider-fill{background:linear-gradient(90deg,var(--green),rgba(52,211,153,0.5))}
+.provider-card.p3 .provider-fill{background:linear-gradient(90deg,var(--orange),rgba(251,146,60,0.5))}
+.provider-card.p4 .provider-fill{background:linear-gradient(90deg,var(--red),rgba(248,113,113,0.5))}
+
+.timeline-card{background:var(--bg-1);border:1px solid var(--border);border-radius:18px;padding:28px;overflow:hidden}
+.tl-wrap{display:flex;align-items:flex-end;gap:6px;height:140px;padding:8px 0}
+.tl-bar{flex:1;min-width:20px;border-radius:6px 6px 0 0;position:relative;cursor:pointer;transition:all 0.4s cubic-bezier(0.4,0,0.2,1);animation:barGrow 0.8s cubic-bezier(0.4,0,0.2,1) backwards}
+@keyframes barGrow{from{transform:scaleY(0);transform-origin:bottom}}
+.tl-bar:hover{filter:brightness(1.2);transform:scaleY(1.05);transform-origin:bottom}
+.tl-stack{width:100%;display:flex;flex-direction:column;justify-content:flex-end;height:100%}
+.tl-seg{transition:height 0.5s}
+.tl-tip{display:none;position:absolute;bottom:calc(100% + 10px);left:50%;transform:translateX(-50%);background:var(--bg-3);border:1px solid var(--border);border-radius:10px;padding:10px 14px;font-size:11px;white-space:nowrap;z-index:20;font-family:'JetBrains Mono',monospace;color:var(--text-0);box-shadow:0 8px 24px rgba(0,0,0,0.4)}
+.tl-tip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:6px solid transparent;border-top-color:var(--bg-3)}
+.tl-bar:hover .tl-tip{display:block}
+.tl-labels{display:flex;gap:6px;margin-top:10px;font-size:10px;color:var(--text-2);font-family:'JetBrains Mono',monospace}
+.tl-labels span{flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis}
+.tl-empty{text-align:center;padding:40px;color:var(--text-2);font-size:13px}
+
+.search-section{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:40px}
+.search-card{background:var(--bg-1);border:1px solid var(--border);border-radius:18px;padding:32px}
+.search-input-wrap{display:flex;gap:12px;margin-bottom:20px}
+.search-input{flex:1;background:var(--bg-2);border:1px solid var(--border);color:var(--text-0);padding:12px 16px;border-radius:12px;font-family:'Outfit',sans-serif;font-size:14px;transition:all 0.25s}
+.search-input:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 20px rgba(34,211,238,0.15)}
+.search-input::placeholder{color:var(--text-2)}
+.search-btn{background:linear-gradient(135deg,var(--cyan),var(--violet));border:none;color:var(--bg-0);padding:12px 24px;border-radius:12px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:14px;font-weight:600;transition:all 0.25s}
+.search-btn:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(34,211,238,0.3)}
+.search-btn:active{transform:translateY(0)}
+.search-results{max-height:400px;overflow-y:auto}
+.search-result{background:var(--bg-2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;transition:all 0.2s}
+.search-result:hover{border-color:rgba(255,255,255,0.06)}
+.search-result-score{font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--green);margin-bottom:6px}
+.search-result-text{font-size:13px;color:var(--text-0);line-height:1.6}
+.search-result-meta{display:flex;gap:12px;margin-top:8px;font-size:10px;color:var(--text-2);font-family:'JetBrains Mono',monospace}
+.search-result-delete{background:transparent;border:1px solid var(--border);color:var(--text-2);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:10px;font-family:'JetBrains Mono',monospace;transition:all 0.2s;margin-left:auto}
+.search-result-delete:hover{border-color:var(--red);color:var(--red);background:rgba(248,113,113,0.08)}
+
+.config-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+.cfg-item{background:var(--bg-1);border:1px solid var(--border);border-radius:14px;padding:18px;transition:all 0.25s}
+.cfg-item:hover{border-color:rgba(255,255,255,0.06)}
+.cfg-key{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-2);margin-bottom:6px;font-family:'JetBrains Mono',monospace}
+.cfg-val{font-size:18px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--cyan)}
+
+.feature-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.feature-item{background:var(--bg-1);border:1px solid var(--border);border-radius:14px;padding:18px;display:flex;align-items:center;gap:12px;transition:all 0.25s}
+.feature-item:hover{border-color:rgba(255,255,255,0.06)}
+.feature-dot{width:8px;height:8px;border-radius:50%}
+.feature-dot.on{background:var(--green);box-shadow:0 0 10px var(--green)}
+.feature-dot.off{background:var(--red);box-shadow:0 0 10px var(--red)}
+.feature-name{font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--text-1)}
+
+.mem-wrap{background:var(--bg-1);border:1px solid var(--border);border-radius:18px;overflow:hidden}
+.mem-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.mem-tbl th{background:var(--bg-2);padding:14px 18px;text-align:left;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-2);border-bottom:1px solid var(--border)}
+.mem-tbl td{padding:14px 18px;border-bottom:1px solid var(--border);vertical-align:middle;transition:background 0.2s}
+.mem-tbl tr:last-child td{border-bottom:none}
+.mem-tbl tr:hover td{background:rgba(255,255,255,0.02)}
+.mem-id{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-2);opacity:0.7}
+.mem-text{max-width:380px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-0)}
+.mem-provider{font-family:'JetBrains Mono',monospace;font-size:11px;padding:3px 10px;border-radius:6px;background:var(--bg-3);display:inline-block}
+.mem-model{font-family:'JetBrains Mono',monospace;font-size:11px;padding:3px 10px;border-radius:6px;display:inline-block;font-weight:500}
+.mem-model.fts5{background:var(--cyan-g);color:var(--cyan)}
+.mem-model.embedding{background:var(--violet-g);color:var(--violet)}
+.mem-date{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-2)}
+.del-btn{background:transparent;border:1px solid var(--border);color:var(--text-2);padding:5px 10px;border-radius:8px;cursor:pointer;font-size:10px;font-family:'JetBrains Mono',monospace;transition:all 0.2s;font-weight:500}
+.del-btn:hover{border-color:var(--red);color:var(--red);background:rgba(248,113,113,0.08)}
+.del-btn.confirm{border-color:var(--red);color:var(--red);background:rgba(248,113,113,0.12);animation:shake 0.3s}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
+
+.filters{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.f-btn{background:var(--bg-2);border:1px solid var(--border);color:var(--text-1);padding:7px 16px;border-radius:10px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;font-weight:500;transition:all 0.25s}
+.f-btn:hover,.f-btn.active{background:var(--bg-3);color:var(--text-0);border-color:var(--cyan)}
+.f-btn.active{box-shadow:0 0 12px rgba(34,211,238,0.15)}
+
+.ld{display:flex;align-items:center;justify-content:center;padding:60px;color:var(--text-2);font-size:13px}
+.ld::before{content:'';width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--cyan);border-radius:50%;margin-right:12px;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+@media(max-width:1000px){.stats-grid{grid-template-columns:repeat(2,1fr)}.search-section{grid-template-columns:1fr}}
+@media(max-width:600px){.container{padding:20px 16px}.stats-grid{grid-template-columns:1fr}header{flex-direction:column;gap:16px;align-items:flex-start}}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="logo">
+      <div class="logo-icon">M</div>
+      <h1>MATHIR<span>Memory Dashboard</span></h1>
+    </div>
+    <div class="header-right">
+      <a href="/" class="back-link">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        Back to Vision UI
+      </a>
+      <div class="status-pill"><div class="status-dot"></div><span id="dbInfo">Loading...</span></div>
+      <button class="refresh-btn" onclick="loadAll()">&#x21bb; Refresh</button>
+    </div>
+  </header>
+
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-card total"><div class="stat-icon">&#9883;</div><div class="stat-label">Total Memories</div><div class="stat-value count-up" id="vTotal">0</div><div class="stat-sub" id="sTotal">Loading...</div></div>
+    <div class="stat-card search"><div class="stat-icon">&#9733;</div><div class="stat-label">FTS5 Search</div><div class="stat-value count-up" id="vSearch">Active</div><div class="stat-sub">Full-text search enabled</div></div>
+    <div class="stat-card storage"><div class="stat-icon">&#9670;</div><div class="stat-label">DB Storage</div><div class="stat-value count-up" id="vStorage">0 KB</div><div class="stat-sub" id="sStorage">Loading...</div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><h2>Providers</h2><div class="badge" id="providerBadge"></div></div>
+    <div class="section-desc">Memory storage providers used. Each provider represents a different storage backend.</div>
+    <div class="provider-grid" id="providerGrid"><div class="ld">Loading...</div></div>
+  </div>
+
+  <div class="search-section">
+    <div class="search-card">
+      <div class="section-header"><h2>Search</h2></div>
+      <div class="section-desc">Full-text search using FTS5. Type keywords to find relevant memories.</div>
+      <div class="search-input-wrap">
+        <input type="text" class="search-input" id="searchInput" placeholder="Search memories (e.g. 'model', 'architecture', 'bug')..." onkeypress="if(event.key==='Enter')doSearch()">
+        <button class="search-btn" onclick="doSearch()">Search</button>
+      </div>
+      <div class="search-results" id="searchResults">
+        <div class="ld">Type a query to search</div>
+      </div>
+    </div>
+    <div class="search-card">
+      <div class="section-header"><h2>Timeline</h2><div class="badge" id="timelineBadge"></div></div>
+      <div class="section-desc">Memory creation timeline — shows when memories were stored.</div>
+      <div class="timeline-card" id="timelineChart" style="border:none;padding:0;background:transparent"><div class="ld">Loading...</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><h2>Configuration</h2></div>
+    <div class="section-desc">System parameters — backend type, features, database info.</div>
+    <div class="config-grid" id="cfgGrid"><div class="ld">Loading...</div></div>
+    <div style="margin-top:16px">
+      <div class="section-header" style="margin-bottom:12px"><h2>Features</h2></div>
+      <div class="feature-grid" id="featureGrid"><div class="ld">Loading...</div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><h2>Stored Memories</h2><div class="badge" id="memBadge"></div></div>
+    <div class="section-desc">All memories stored in MATHIR. Use the search to find specific types. Click DEL to remove outdated memories.</div>
+    <div class="filters">
+      <button class="f-btn active" onclick="fMem(null,this)">All</button>
+      <button class="f-btn" onclick="fMem('fts5',this)">FTS5</button>
+      <button class="f-btn" onclick="fMem('embedding',this)">Embedding</button>
+    </div>
+    <div class="mem-wrap">
+      <table class="mem-tbl"><thead><tr><th>ID</th><th>Content</th><th>Provider</th><th>Model</th><th>Date</th><th></th></tr></thead>
+      <tbody id="memBody"><tr><td colspan="6" class="ld">Loading...</td></tr></tbody></table>
+    </div>
+  </div>
+</div>
+
+<script>
+const A=window.location.origin;
+const PC=['#22d3ee','#a78bfa','#34d399','#fb923c','#f87171','#fbbf24','#818cf8','#2dd4bf'];
+
+async function jf(p,o){const r=await fetch(A+p,o);return r.json()}
+
+function fd(s){if(!s)return'--';const d=new Date(s);return isNaN(d)?'--':d.toLocaleDateString('en-US',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}
+function fs(b){return b<1024?b+' B':b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(2)+' MB'}
+
+function anim(el,to){const from=parseInt(el.textContent)||0;const dur=600;const start=performance.now();function step(t){const p=Math.min((t-start)/dur,1);const ease=1-Math.pow(1-p,3);el.textContent=Math.round(from+(to-from)*ease);if(p<1)requestAnimationFrame(step)}requestAnimationFrame(step)}
+
+async function loadOverview(){
+  const d=await jf('/api/dashboard/overview');
+  if(d.error){return}
+  anim(document.getElementById('vTotal'),d.total_memories||0);
+  document.getElementById('sTotal').textContent=Object.keys(d.models||{}).length+' model(s), '+Object.keys(d.metadata_keys||{}).length+' meta keys';
+  document.getElementById('vStorage').textContent=fs(d.db_size_bytes||0);
+  document.getElementById('sStorage').textContent=d.db_path||'--';
+  document.getElementById('dbInfo').textContent=(d.total_memories||0)+' memories · '+fs(d.db_size_bytes||0);
+}
+
+async function loadProviders(){
+  const d=await jf('/api/dashboard/overview');
+  if(d.error){return}
+  const g=document.getElementById('providerGrid');
+  const provs=Object.entries(d.providers||{}).sort(function(a,b){return b[1]-a[1]});
+  const total=d.total_memories||1;
+  document.getElementById('providerBadge').textContent=provs.length+' provider(s)';
+  if(!provs.length){g.innerHTML='<div class="ld">No providers</div>';return;}
+  let h='';
+  provs.forEach(function(kv,i){
+    const name=kv[0],count=kv[1];
+    const pct=(count/total)*100;
+    h+='<div class="provider-card p'+(i%5)+'"><div class="provider-name">'+name+'</div><div class="provider-count">'+count+'</div><div class="provider-bar"><div class="provider-fill" style="width:'+pct+'%"></div></div><div class="stat-sub">'+count+' memories ('+pct.toFixed(1)+'%)</div></div>';
+  });
+  g.innerHTML=h;
+}
+
+async function loadTimeline(){
+  const d=await jf('/api/dashboard/timeline');
+  var el=document.getElementById('timelineChart');
+  var tl=d.timeline||[];
+  document.getElementById('timelineBadge').textContent=tl.length+' period(s)';
+  if(!tl.length){el.innerHTML='<div class="tl-empty">No data yet — memories will appear here as they are stored</div>';return;}
+  var max=Math.max.apply(null,tl.map(function(t){return t.count}).concat([1]));
+  var h='<div class="tl-wrap">';
+  tl.forEach(function(b,i){
+    var bh=Math.max((b.count/max)*100,8);
+    h+='<div class="tl-bar" style="height:'+bh+'%;animation-delay:'+i*0.1+'s;background:var(--cyan);border-radius:2px"><div class="tl-tip">'+b.time+'<br>Count: '+b.count+'</div></div>';
+  });
+  h+='</div><div class="tl-labels">';
+  tl.forEach(function(b){var s=b.time.split('T')[1]||b.time;h+='<span>'+s+'</span>'});
+  h+='</div>';
+  el.innerHTML=h;
+}
+
+async function loadConfig(){
+  const d=await jf('/api/dashboard/config');
+  if(d.error){return}
+  var items=[['Backend',d.backend],['DB Size',fs(d.db_size_bytes||0)],['DB Path',d.db_path||'--'],['Embedding Dim',d.embedding_dim]];
+  document.getElementById('cfgGrid').innerHTML=items.map(function(kv){return'<div class="cfg-item"><div class="cfg-key">'+kv[0]+'</div><div class="cfg-val">'+kv[1]+'</div></div>'}).join('');
+  
+  var features=Object.entries(d.features||{});
+  document.getElementById('featureGrid').innerHTML=features.map(function(kv){
+    return'<div class="feature-item"><div class="feature-dot '+(kv[1]?'on':'off')+'"></div><div class="feature-name">'+kv[0]+'</div></div>';
+  }).join('');
+}
+
+var cFilt=null;
+async function loadMemories(provider){
+  var u='/api/dashboard/memories?limit=100';
+  if(provider)u+='&search='+encodeURIComponent(provider);
+  var d=await jf(u);
+  var b=document.getElementById('memBody');
+  document.getElementById('memBadge').textContent=d.total+' memories';
+  if(!d.memories.length){b.innerHTML='<tr><td colspan="6" class="ld" style="justify-content:center">No memories</td></tr>';return;}
+  b.innerHTML=d.memories.map(function(m){
+    var txt=(m.text||'').substring(0,80);
+    var prov=m.provider||'--';var mdl=m.model||'--';
+    var mdlClass=mdl==='fts5'?'fts5':'embedding';
+    var esc=(m.text||'').replace(/"/g,'&quot;');
+    return'<tr><td><span class="mem-id">#'+m.id+'</span></td><td><span class="mem-text" title="'+esc+'">'+txt+'</span></td><td><span class="mem-provider">'+prov+'</span></td><td><span class="mem-model '+mdlClass+'">'+mdl+'</span></td><td><span class="mem-date">'+fd(m.created_at)+'</span></td><td><button class="del-btn" onclick="delMem('+m.id+',this)" title="Delete">DEL</button></td></tr>';
+  }).join('');
+}
+
+function fMem(t,btn){document.querySelectorAll('.f-btn').forEach(function(b){b.classList.remove('active')});btn.classList.add('active');cFilt=t;loadMemories(t)}
+
+async function delMem(id,btn){
+  if(!btn.classList.contains('confirm')){btn.classList.add('confirm');btn.textContent='CONFIRM?';setTimeout(function(){btn.classList.remove('confirm');btn.textContent='DEL'},3000);return}
+  await jf('/api/memory/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({memory_id:id})});
+  loadMemories(cFilt);loadOverview();loadProviders();loadTimeline();
+}
+
+async function doSearch(){
+  var q=document.getElementById('searchInput').value.trim();
+  if(!q)return;
+  var el=document.getElementById('searchResults');
+  el.innerHTML='<div class="ld">Searching...</div>';
+  var d=await jf('/api/dashboard/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({query:q,k:20})});
+  if(!d.results||!d.results.length){el.innerHTML='<div class="tl-empty">No results found for "'+q+'"</div>';return;}
+  el.innerHTML=d.results.map(function(r){
+    return'<div class="search-result"><div class="search-result-score">Score: '+r.score.toFixed(3)+'</div><div class="search-result-text">'+r.text+'</div><div class="search-result-meta"><span>ID: #'+r.memory_id+'</span><span>Provider: '+(r.metadata?.provider||'--')+'</span><span>Model: '+(r.metadata?.model||'--')+'</span><span>Created: '+fd(r.created_at)+'</span><button class="search-result-delete" onclick="delMem('+r.memory_id+',this);this.closest(\'.search-result\').remove()">DEL</button></div></div>';
+  }).join('');
+}
+
+async function loadAll(){
+  await Promise.all([loadOverview(),loadProviders(),loadTimeline(),loadConfig(),loadMemories(cFilt)]);
+}
+loadAll();setInterval(loadAll,30000);
+</script>
+</body>
+</html>

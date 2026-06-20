@@ -20,6 +20,7 @@ import base64
 import threading
 import subprocess
 import shutil
+import sqlite3
 import urllib.request
 import urllib.error
 from pathlib import Path
@@ -303,6 +304,12 @@ def index():
 @app.route("/<path:filename>")
 def static_files(filename):
     return send_from_directory(str(HERE / "ui"), filename)
+
+
+@app.route("/dashboard")
+def memory_dashboard():
+    """Serve the Memory Dashboard HTML."""
+    return send_from_directory(str(HERE / "ui"), "memory_dashboard.html")
 
 
 # ============================================================
@@ -1009,6 +1016,7 @@ def memory_stats():
 def memory_delete():
     """Delete a memory by ID or clear all memories."""
     data = request.json or {}
+    memory_id = data.get("memory_id")
     clear_all = data.get("clear_all", False)
     if clear_all:
         try:
@@ -1016,7 +1024,221 @@ def memory_delete():
             return jsonify({"cleared": True})
         except Exception as e:
             return jsonify({"error": str(e)}), 500
-    return jsonify({"error": "delete by id not supported in SimpleMemory"}), 400
+    if memory_id:
+        try:
+            conn = sqlite3.connect(MEMORY_DB)
+            cursor = conn.execute("DELETE FROM memories WHERE id = ?", (memory_id,))
+            deleted = cursor.rowcount > 0
+            conn.commit()
+            conn.close()
+            return jsonify({"memory_id": memory_id, "deleted": deleted})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+    return jsonify({"error": "provide memory_id or clear_all"}), 400
+
+
+# ============================================================
+# Dashboard API — Memory Dashboard (mirrors MCP dashboard)
+# ============================================================
+
+def _get_db_conn():
+    """Get a SQLite connection to the SimpleMemory DB."""
+    conn = sqlite3.connect(MEMORY_DB)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+@app.route("/api/dashboard/overview", methods=["GET"])
+def dashboard_overview():
+    """Overview: total memories, metadata summary, DB size."""
+    try:
+        conn = _get_db_conn()
+        total = conn.execute("SELECT COUNT(*) FROM memories").fetchone()[0]
+        
+        # Count by provider
+        providers = {}
+        for row in conn.execute("SELECT provider, COUNT(*) as cnt FROM memories GROUP BY provider"):
+            providers[row["provider"]] = row["cnt"]
+        
+        # Count by model
+        models = {}
+        for row in conn.execute("SELECT model, COUNT(*) as cnt FROM memories GROUP BY model"):
+            models[row["model"]] = row["cnt"]
+        
+        # Count by metadata keys
+        metadata_keys = {}
+        for row in conn.execute("SELECT metadata FROM memories WHERE metadata IS NOT NULL"):
+            try:
+                meta = json.loads(row["metadata"])
+                for k in meta.keys():
+                    metadata_keys[k] = metadata_keys.get(k, 0) + 1
+            except Exception:
+                pass
+        
+        # DB size
+        db_size = Path(MEMORY_DB).stat().st_size if Path(MEMORY_DB).exists() else 0
+        
+        conn.close()
+        return jsonify({
+            "total_memories": total,
+            "providers": providers,
+            "models": models,
+            "metadata_keys": metadata_keys,
+            "db_size_bytes": db_size,
+            "db_size_mb": round(db_size / (1024 * 1024), 2),
+            "db_path": MEMORY_DB,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/dashboard/memories", methods=["GET"])
+def dashboard_memories():
+    """List memories with pagination and optional search."""
+    try:
+        limit = int(request.args.get("limit", 100))
+        offset = int(request.args.get("offset", 0))
+        search = request.args.get("search", "")
+        
+        conn = _get_db_conn()
+        
+        if search:
+            # Use FTS5 search
+            try:
+                rows = conn.execute("""
+                    SELECT m.id, m.text, m.metadata, m.provider, m.model, m.created_at, rank
+                    FROM memories_fts fts
+                    JOIN memories m ON m.id = fts.rowid
+                    WHERE memories_fts MATCH ?
+                    ORDER BY rank
+                    LIMIT ? OFFSET ?
+                """, (search, limit, offset)).fetchall()
+                total = conn.execute("""
+                    SELECT COUNT(*) FROM memories_fts WHERE memories_fts MATCH ?
+                """, (search,)).fetchone()[0]
+            except Exception:
+                rows = conn.execute("""
+                    SELECT id, text, metadata, provider, model, created_at, 0 as rank
+                    FROM memories WHERE text LIKE ?
+                    ORDER BY id DESC LIMIT ? OFFSET ?
+                """, (f"%{search}%", limit, offset)).fetchall()
+                total = conn.execute(
+                    "SELECT COUNT(*) FROM memories WHERE text LIKE ?",
+                    (f"%{search}%",)
+                ).fetchone()[0]
+        else:
+            rows = conn.execute(
+                "SELECT id, text, metadata, provider, model, created_at, 0 as rank FROM memories ORDER BY id DESC LIMIT ? OFFSET ?",
+                (limit, offset)
+            ).fetchall()
+            total = conn.execute("SELECT COUNT(*) FROM memories").fetchone()[0]
+        
+        memories = []
+        for row in rows:
+            meta = {}
+            try:
+                meta = json.loads(row["metadata"]) if row["metadata"] else {}
+            except Exception:
+                pass
+            memories.append({
+                "id": row["id"],
+                "text": row["text"][:200] if row["text"] else "",
+                "metadata": meta,
+                "provider": row["provider"],
+                "model": row["model"],
+                "created_at": row["created_at"],
+                "score": abs(row["rank"]) if row["rank"] else 0.0,
+            })
+        
+        conn.close()
+        return jsonify({
+            "memories": memories,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/dashboard/timeline", methods=["GET"])
+def dashboard_timeline():
+    """Timeline: memories bucketed by hour/day."""
+    try:
+        conn = _get_db_conn()
+        rows = conn.execute(
+            "SELECT created_at FROM memories WHERE created_at IS NOT NULL ORDER BY created_at"
+        ).fetchall()
+        conn.close()
+        
+        buckets = {}
+        for row in rows:
+            try:
+                ts = row["created_at"]
+                if ts:
+                    # Bucket by hour
+                    key = ts[:13] + ":00"  # "2026-06-19T14:00"
+                    buckets[key] = buckets.get(key, 0) + 1
+            except Exception:
+                pass
+        
+        timeline = [{"time": k, "count": v} for k, v in sorted(buckets.items())]
+        return jsonify({"timeline": timeline})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/dashboard/providers", methods=["GET"])
+def dashboard_providers():
+    """Provider breakdown."""
+    try:
+        conn = _get_db_conn()
+        providers = {}
+        for row in conn.execute("SELECT provider, COUNT(*) as cnt FROM memories GROUP BY provider"):
+            providers[row["provider"]] = row["cnt"]
+        conn.close()
+        return jsonify({"providers": providers})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/dashboard/search", methods=["POST"])
+def dashboard_search():
+    """Search memories using FTS5."""
+    try:
+        data = request.json or {}
+        query = data.get("query", "")
+        k = data.get("k", 10)
+        
+        if not query:
+            return jsonify({"results": [], "total": 0})
+        
+        results = memory.recall(query, k=k)
+        return jsonify({"results": results, "total": len(results)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/dashboard/config", methods=["GET"])
+def dashboard_config():
+    """Memory configuration."""
+    try:
+        return jsonify({
+            "backend": "SimpleMemory (FTS5)",
+            "embedding_dim": 0,
+            "db_path": MEMORY_DB,
+            "db_exists": Path(MEMORY_DB).exists(),
+            "db_size_bytes": Path(MEMORY_DB).stat().st_size if Path(MEMORY_DB).exists() else 0,
+            "features": {
+                "fts5_search": True,
+                "vector_search": False,
+                "tier_system": False,
+                "agent_tracking": True,
+                "metadata": True,
+            }
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # ============================================================
