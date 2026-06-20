@@ -1,0 +1,461 @@
+{
+  "timestamp": 1780691454.3617053,
+  "num_queries": 33,
+  "working_memory_capacity": 64,
+  "query_results": [
+    {
+      "query_id": "108",
+      "query_text": "Amitriptyline is an effective treatment for chronic tension-type headaches.",
+      "context_docs": [
+        1145,
+        3391,
+        3509
+      ],
+      "mathir_overlap": 0.8,
+      "faiss_overlap": 0.8,
+      "avg_score_shift": 1.375,
+      "embedding_similarity": 0.013891023583710194
+    },
+    {
+      "query_id": "178",
+      "query_text": "Birth-weight is negatively associated with breast cancer.",
+      "context_docs": [
+        2613,
+        3955,
+        3464,
+        2733
+      ],
+      "mathir_overlap": 0.7,
+      "faiss_overlap": 0.8,
+      "avg_score_shift": 0.8571428571428571,
+      "embedding_similarity": -0.09013275802135468
+    },
+    {
+      "query_id": "263",
+      "query_text": "Citrullinated proteins externalized in neutrophil extracellular traps act indirectly to disrupt the inflammatory cycle.",
+      "context_docs": [
+        1901,
+        4153,
+        2445
+      ],
+      "mathir_overlap": 0.4,
+      "faiss_overlap": 0.5,
+      "avg_score_shift": 3.5,
+      "embedding_similarity": -0.10298502445220947
+    },
+    {
+      "query_id": "378",
+      "query_text": "Energy balance requires hypothalamic glutamate neurotransmission.",
+      "context_docs": [
+        4946,
+        1794,
+        1975,
+        3687,
+        2703
+      ],
+      "mathir_overlap": 0.2,
+      "faiss_overlap": 0.7,
+      "avg_score_shift": 0.5,
+      "embedding_similarity": 0.048464298248291016
+    },
+    {
+      "query_id": "472",
+      "query_text": "Glucose restriction to 0.05% reduces RLS (replicative life span) by 20-40% in S. cerevisiae.",
+      "context_docs": [
+        1310,
+        3894,
+        815
+      ],
+      "mathir_overlap": 0.6,
+      "faiss_overlap": 0.6,
+      "avg_score_shift": 3.6666666666666665,
+      "embedding_similarity": -0.037976354360580444
+    },
+    {
+      "query_id": "529",
+      "query_text": "Human embryonic stem cells give rise to cell types from all three embryonic germ layers.",
+      "context_docs": [
+        1798,
+        3743,
+        4518
+      ],
+      "mathir_overlap": 0.7,
+      "faiss_overlap": 0.9,
+      "avg_score_shift": 2.7142857142857144,
+      "embedding_similarity": -0.06073414161801338
+    },
+    {
+      "query_id": "530",
+      "query_text": "Human embryonic stem cells give rise to cell types from the outer embryonic germ layer, but not the other two layers.",
+      "context_docs": [
+        1798,
+        3743,
+        4518,
+        5126
+      ],
+      "mathir_overlap": 0.6,
+      "faiss_overlap": 0.7,
+      "avg_score_shift": 2.1666666666666665,
+      "embedding_similarity": -0.10911604762077332
+    },
+    {
+      "query_id": "531",
+      "query_text": "Human embryonic stem cells have the capacity to give rise to differentiated progeny representative of all three embryonic germ layers.",
+      "context_docs": [
+        1798,
+        3743,
+        4518
+      ],
+      "mathir_overlap": 0.5,
+      "faiss_overlap": 0.8,
+      "avg_score_shift": 2.0,
+      "embedding_similarity": 0.013029594905674458
+    },
+    {
+      "query_id": "541",
+      "query_text": "Hypothalamic glutamate neurotransmission is unrelated to energy balance.",
+      "context_docs": [
+        4946,
+        1975,
+        3687
+      ],
+      "mathir_overlap": 0.4,
+      "faiss_overlap": 0.6,
+      "avg_score_shift": 3.0,
+      "embedding_similarity": 0.003322301432490349
+    },
+    {
+      "query_id": "738",
+      "query_text": "MICAL redox enzymes regulate actin dynamics.",
+      "context_docs": [
+        2639,
+        1222,
+        4361
+      ],
+      "mathir_overlap": 0.7,
+      "faiss_overlap": 0.9,
+      "avg_score_shift": 2.5714285714285716,
+      "embedding_similarity": 0.027535323053598404
+    },
+    {
+      "query_id": "945",
+      "query_text": "Physical activity level has no association with the difference in maximal oxygen consumption between black and white youth.",
+      "context_docs": [
+        1499,
+        3878,
+        872,
+        2144
+      ],
+      "mathir_overlap": 0.6,
+      "faiss_overlap": 0.8,
+      "avg_score_shift": 1.8333333333333333,
+      "embedding_similarity": -0.001874096691608429
+    },
+    {
+      "query_id": "946",
+      "query_text": "Physical activity level is associated with the difference in maximal oxygen consumption between black and white youth.",
+      "context_docs": [
+        1499,
+        3878,
+        872,
+        2144
+      ],
+      "mathir_overlap": 0.6,
+      "faiss_overlap": 0.8,
+      "avg_score_shift": 0.8333333333333334,
+      "embedding_similarity": 0.04760241135954857
+    },
+    {
+      "query_id": "962",
+      "query_text": "Post-transcriptional handling of mitochondrial transcripts occurs in mitochondrial RNA granules.",
+      "context_docs": [
+        2292,
+        169,
+        740
+      ],
+      "mathir_overlap": 0.6,
+      "faiss_overlap": 0.7,
+      "avg_score_shift": 1.8333333333333333,
+      "embedding_similarity": -0.06198837608098984
+    },
+    {
+      "query_id": "972",
+      "query_text": "Primary cervical cancer screening with HPV detection has lower longitudinal sensitivity than conventional cytology to detect cervical intraepithelial neoplasia grade 2.",
+      "context_docs": [
+        5001,
+        4019,
+        4065,
+        1699
+      ],
+      "mathir_overlap": 0.9,
+      "faiss_overlap": 0.8,
+      "avg_score_shift": 1.0,
+      "embedding_similarity": 0.08659658581018448
+    },
+    {
+      "query_id": "973",
+      "query_text": "Primary cervical cytology screening with HPV detection has higher longitudinal sensitivity to detect severe cervical intraepithelial neoplasia than conventional cytology.",
+      "context_docs": [
+        3986,
+        4019,
+        4065,
+        1699
+      ],
+      "mathir_overlap": 0.8,
+      "faiss_overlap": 0.8,
+      "avg_score_shift": 1.75,
+      "embedding_similarity": 0.05740997940301895
+    },
+    {
+      "query_id": "1003",
+      "query_text": "RAD52 is involved in break-induced DNA replication (BIR).",
+      "context_docs": [
+        2361,
+        745,
+        941
+      ],
+      "mathir_overlap": 0.5,
+      "faiss_overlap": 0.7,
+      "avg_score_shift": 0.6,
+      "embedding_similarity": 0.0784473642706871
+    },
+    {
+      "query_id": "1004",
+      "query_text": "RANK-RANKL pathway signalling has no known association with development of Aire-expressing medullary thymic epithelial cells.",
+      "context_docs": [
+        50,
+        505,
+        712
+      ],
+      "mathir_overlap": 0.5,
+      "faiss_overlap": 0.9,
+      "avg_score_shift": 1.6,
+      "embedding_similarity": -0.06452850252389908
+    },
+    {
+      "query_id": "1005",
+      "query_text": "RANK-RANKL pathway signalling is linked to development of Aire-expressing medullary thymic epithelial cells.",
+      "context_docs": [
+        50,
+        505,
+        712
+      ],
+      "mathir_overlap": 0.6,
+      "faiss_overlap": 0.6,
+      "avg_score_shift": 0.6666666666666666,
+      "embedding_similarity": -0.05413723737001419
+    },
+    {
+      "query_id": "1046",
+      "query_text": "Ribosomal protein (RP) expression is controlled in part by stress-activated regulators.",
+      "context_docs": [
+        78,
+        752,
+        2656
+      ],
+      "mathir_overlap": 0.5,
+      "faiss_overlap": 0.6,
+      "avg_score_shift": 1.4,
+      "embedding_similarity": 0.08496447652578354
+    },
+    {
+      "query_id": "1119",
+      "query_text": "Sympathetic nerve activity is elevated throughout normal pregnancy.",
+      "context_docs": [
+        1003,
+        2895,
+        2280
+      ],
+      "mathir_overlap": 0.5,
+      "faiss_overlap": 0.7,
+      "avg_score_shift": 0.0,
+      "embedding_similarity": -0.0013126414269208908
+    },
+    {
+      "query_id": "1120",
+      "query_text": "Sympathetic nerve activity is reduced throughout normal pregnancy.",
+      "context_docs": [
+        1003,
+        2895,
+        2280
+      ],
+      "mathir_overlap": 0.6,
+      "faiss_overlap": 0.8,
+      "avg_score_shift": 0.3333333333333333,
+      "embedding_similarity": -0.012430505827069283
+    },
+    {
+      "query_id": "1181",
+      "query_text": "The RANK-RANK-Ligand (RANKL) pathway is involved in the development of Aire-expressing medullary thymic epithelial cells (mTECs).",
+      "context_docs": [
+        50,
+        505,
+        4656,
+        712
+      ],
+      "mathir_overlap": 0.7,
+      "faiss_overlap": 0.7,
+      "avg_score_shift": 1.4285714285714286,
+      "embedding_similarity": -0.030257713049650192
+    },
+    {
+      "query_id": "1334",
+      "query_text": "Type 1 Diabetes is associated with subtle perturbations in T reg development.",
+      "context_docs": [
+        2291,
+        2297,
+        1977
+      ],
+      "mathir_overlap": 0.4,
+      "faiss_overlap": 0.6,
+      "avg_score_shift": 1.0,
+      "embedding_similarity": 0.04669991135597229
+    },
+    {
+      "query_id": "1380",
+      "query_text": "Women with a lower birth weight are more likely to develop breast cancer later in life.",
+      "context_docs": [
+        2613,
+        3464,
+        2733
+      ],
+      "mathir_overlap": 0.7,
+      "faiss_overlap": 0.9,
+      "avg_score_shift": 3.2857142857142856,
+      "embedding_similarity": 0.030546199530363083
+    },
+    {
+      "query_id": "133",
+      "query_text": "Assembly of invadopodia is triggered by focal generation of phosphatidylinositol-3,4-biphosphate and the activation of the nonreceptor tyrosine kinase Src.",
+      "context_docs": [
+        4620,
+        1279,
+        2786,
+        2609,
+        2071
+      ],
+      "mathir_overlap": 0.2,
+      "faiss_overlap": 0.5,
+      "avg_score_shift": 2.5,
+      "embedding_similarity": 0.03496185317635536
+    },
+    {
+      "query_id": "179",
+      "query_text": "Birth-weight is positively associated with breast cancer.",
+      "context_docs": [
+        2613,
+        3955,
+        3464,
+        2733
+      ],
+      "mathir_overlap": 0.5,
+      "faiss_overlap": 0.7,
+      "avg_score_shift": 1.8,
+      "embedding_similarity": 0.013046473264694214
+    },
+    {
+      "query_id": "275",
+      "query_text": "Combining phosphatidylinositide 3-kinase and MEK 1/2 inhibitors is effective at treating KRAS mutant tumors.",
+      "context_docs": [
+        953,
+        2349,
+        2437
+      ],
+      "mathir_overlap": 0.4,
+      "faiss_overlap": 0.6,
+      "avg_score_shift": 1.25,
+      "embedding_similarity": 0.04241994395852089
+    },
+    {
+      "query_id": "597",
+      "query_text": "Incidence rates of cervical cancer have decreased.",
+      "context_docs": [
+        2091,
+        4498,
+        3802
+      ],
+      "mathir_overlap": 0.4,
+      "faiss_overlap": 0.7,
+      "avg_score_shift": 2.25,
+      "embedding_similarity": 0.009774958714842796
+    },
+    {
+      "query_id": "873",
+      "query_text": "Obesity is determined solely by environmental factors.",
+      "context_docs": [
+        208,
+        2919,
+        3979,
+        4090,
+        591
+      ],
+      "mathir_overlap": 0.5,
+      "faiss_overlap": 0.5,
+      "avg_score_shift": 0.6,
+      "embedding_similarity": -0.04964560270309448
+    },
+    {
+      "query_id": "971",
+      "query_text": "Primary cervical cancer screening with HPV detection has higher longitudinal sensitivity than conventional cytology to detect cervical intraepithelial neoplasia grade 2.",
+      "context_docs": [
+        5001,
+        4019,
+        4065,
+        1699
+      ],
+      "mathir_overlap": 0.8,
+      "faiss_overlap": 0.8,
+      "avg_score_shift": 2.25,
+      "embedding_similarity": -0.06937145441770554
+    },
+    {
+      "query_id": "1029",
+      "query_text": "Reduced responsiveness to interleukin-2 in regulatory T cells is associated with greater resistance to autoimmune diseases such as Type 1 Diabetes.",
+      "context_docs": [
+        2291,
+        2297,
+        1977
+      ],
+      "mathir_overlap": 0.5,
+      "faiss_overlap": 0.7,
+      "avg_score_shift": 1.4,
+      "embedding_similarity": -0.07127144932746887
+    },
+    {
+      "query_id": "1274",
+      "query_text": "The tip of the inner tube of the toxic type VI secretion system (T6SS) antibacterial effector in Escherichia coli (E. coli) carries toxic effector proteins.",
+      "context_docs": [
+        2047,
+        4010,
+        806
+      ],
+      "mathir_overlap": 0.8,
+      "faiss_overlap": 0.7,
+      "avg_score_shift": 2.375,
+      "embedding_similarity": -0.017453297972679138
+    },
+    {
+      "query_id": "1379",
+      "query_text": "Women with a higher birth weight are more likely to develop breast cancer later in life.",
+      "context_docs": [
+        2613,
+        3955,
+        3464,
+        2733
+      ],
+      "mathir_overlap": 0.6,
+      "faiss_overlap": 0.6,
+      "avg_score_shift": 2.1666666666666665,
+      "embedding_similarity": -0.056767288595438004
+    }
+  ],
+  "summary": {
+    "mathir_mean_overlap": 0.5696969696969697,
+    "mathir_std_overlap": 0.16234054831489544,
+    "faiss_mean_overlap": 0.7121212121212122,
+    "faiss_std_overlap": 0.11483209285755407,
+    "mathir_mean_score_shift": 1.7123376623376625,
+    "mean_embedding_similarity_with_ctx": -0.007674842226234349,
+    "interpretation": "WORKING MEMORY HAS SIGNIFICANT EFFECT (0.5 < overlap < 0.7). FAISS baseline: 0.712 overlap. MATHIR: 0.570 overlap. Working memory effect is larger to FAISS."
+  }
+}
