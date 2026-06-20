@@ -14,5 +14,10 @@
     "type": "ollama",
     "url": "http://localhost:11434",
     "model": "nomic-embed-text"
+  },
+  "brain": {
+    "enabled": false,
+    "proxy_port": 8182,
+    "llm_port": 8181
   }
 }

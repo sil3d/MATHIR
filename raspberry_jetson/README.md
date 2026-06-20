@@ -1,35 +1,25 @@
 # MATHIR — Raspberry Pi / Jetson
 
-**Self-contained MATHIR package for edge devices. Plug and play.**
+**Plug-and-play MATHIR package for edge devices. Connect your local LLM.**
 
 ---
 
-## What's Inside
+## What This Is
 
-This is a COMPLETE MATHIR installation, ready to deploy:
+This is a **complete, self-contained MATHIR installation** ready to deploy to Raspberry Pi or Jetson. Everything is copied from the real MATHIR project — no generic code, no placeholders.
 
 ```
 raspberry_jetson/
-├── mathir_lib/              ← Real MATHIR daemon + client + MCP
-│   ├── mathir_daemon.py     ← Persistent daemon (keeps model loaded)
-│   ├── mathir_client.py     ← CLI client (save/recall/search)
-│   ├── mathir_mcp_server.py ← MCP server (9 tools)
-│   ├── mathir_vec.py        ← VecMemory (SQLite + vectors)
-│   ├── mathir_search.py     ← HybridSearch (vector + BM25)
-│   ├── mathir_push.py       ← Proactive memory delivery
-│   ├── memory_risks.py      ← Risk mitigation
-│   └── mathir_onnx_embedder.py ← ONNX INT8 embedder
-├── providers/               ← LLM providers
-│   ├── base.py              ← Abstract provider
-│   ├── ollama.py            ← Ollama API
-│   ├── onnx.py              ← ONNX Runtime
-│   └── onnx_embedder.py     ← Octen INT8 embedder
-├── config/
-│   ├── mathir.json          ← Pre-configured for edge
-│   └── edge.yaml            ← Edge device config
-├── start.sh                 ← Start script (ollama/llamacpp/onnx)
-├── requirements.txt         ← Python dependencies
-└── README.md                ← This file
+├── mathir_lib/              ← Real MATHIR daemon + client + MCP (9 tools)
+├── providers/               ← Real LLM providers (Ollama, ONNX)
+├── brain/                   ← Brain architecture (auto-inject memories into LLM)
+├── dashboard/               ← Real-time monitoring dashboard
+├── benchmarks/              ← Performance benchmarks for your device
+├── config/                  ← Pre-configured for edge
+├── scripts/                 ← Auto-download + setup
+├── docs/                    ← GPU vs CPU, when to use what
+├── start.sh                 ← ./start.sh ollama|onnx|llamacpp [cpu|gpu]
+└── requirements.txt         ← Python dependencies
 ```
 
 ---
@@ -37,100 +27,150 @@ raspberry_jetson/
 ## Quick Start (3 Commands)
 
 ```bash
-# 1. Copy to your device
+# 1. Copy to device
 scp -r raspberry_jetson/ pi@raspberrypi:~/mathir
 
-# 2. SSH into device
+# 2. Setup (installs everything)
 ssh pi@raspberrypi
+cd ~/mathir
+chmod +x scripts/*.sh start.sh
+./scripts/setup.sh ollama cpu
 
 # 3. Start
-cd ~/mathir
-chmod +x start.sh
-./start.sh ollama
+./start.sh ollama cpu
 ```
 
 ---
 
-## Setup Ollama (Recommended)
+## What Connects to What
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Your Device (RPi / Jetson)                │
+│                                                              │
+│  ┌──────────────┐    ┌──────────────┐    ┌────────────────┐ │
+│  │  LLM Server  │    │  MATHIR      │    │  Dashboard     │ │
+│  │              │    │              │    │                │ │
+│  │  Ollama      │───▶│  daemon      │───▶│  :7420         │ │
+│  │  llama.cpp   │    │  :7338       │    │  (browser)     │ │
+│  │  ONNX        │    │              │    │                │ │
+│  └──────────────┘    └──────────────┘    └────────────────┘ │
+│         │                   │                    │           │
+│    Port 11434          Port 7338            Auto-created     │
+│                                                              │
+│  ┌──────────────┐    ┌──────────────┐    ┌────────────────┐ │
+│  │  Brain Proxy │    │  Benchmarks  │    │  Database      │ │
+│  │              │    │              │    │                │ │
+│  │  :8182       │    │  CPU/GPU     │    │  .mathir/      │ │
+│  │  (optional)  │    │  testing     │    │  mathir.db     │ │
+│  └──────────────┘    └──────────────┘    └────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Provider Options
+
+| Provider | Setup | GPU | Best For |
+|----------|-------|-----|----------|
+| **Ollama** | `ollama pull` | Auto | Simple, embedding + chat |
+| **llama.cpp** | Build from source | Manual | Max GPU performance |
+| **ONNX** | `pip install` | CPU only | Minimal RAM/CPU |
+
+**See `docs/WHEN_TO_USE.md` for detailed comparison.**
+
+---
+
+## GPU vs CPU
+
+| Device | CPU Speed | GPU Speed | Use GPU? |
+|--------|-----------|-----------|----------|
+| Raspberry Pi 4 | ~100ms | N/A | No GPU |
+| Raspberry Pi 5 | ~50ms | N/A | No GPU |
+| Jetson Nano | ~80ms | ~30ms | YES |
+| Jetson Orin | ~40ms | ~10ms | YES |
+
+**See `docs/GPU_VS_CPU.md` for optimization guide.**
+
+---
+
+## Auto-Download Models
 
 ```bash
-# On the device
-curl -fsSL https://ollama.ai/install.sh | sh
-ollama pull nomic-embed-text
-ollama serve &
+# Ollama (recommended)
+./scripts/download_model.sh ollama small   # ~274MB embedding
+./scripts/download_model.sh ollama medium  # ~274MB embedding + 1.3GB chat
+./scripts/download_model.sh ollama large   # ~670MB embedding + 4.7GB chat
 
-# Start MATHIR
-./start.sh ollama
+# ONNX
+./scripts/download_model.sh onnx medium   # ~600MB INT8
+
+# llama.cpp
+./scripts/download_model.sh llamacpp medium  # Manual GGUF download
 ```
 
 ---
 
-## Setup llama.cpp
+## Dashboard
 
 ```bash
-# On the device
-git clone https://github.com/ggerganov/llama.cpp
-cd llama.cpp && cmake -B build -DLLAMA_NATIVE=ON && cmake --build build -j4
+# Start dashboard
+python3 dashboard/dashboard_server.py
 
-# Download model (GGUF format)
-# ...
-
-# Start server
-./build/bin/llama-server -m model.gguf --port 8080 &
-
-# Start MATHIR
-./start.sh llamacpp
+# Open in browser
+# http://<device-ip>:7420
 ```
+
+Shows: 4-tier memory, per-agent stats, timeline, search.
 
 ---
 
-## Test
+## Benchmarks
 
 ```bash
-# Ping daemon
-python3 mathir_lib/mathir_client.py ping
+# Run all benchmarks
+python3 benchmarks/benchmark_edge.py --provider all --device cpu
 
-# Save a memory
-python3 mathir_lib/mathir_client.py save "Hello from Raspberry Pi" -a test -t semantic -l test
+# Specific provider
+python3 benchmarks/benchmark_edge.py --provider ollama --device gpu
 
-# Recall
-python3 mathir_lib/mathir_client.py recall "Hello" -k 1
-
-# Stats
-python3 mathir_lib/mathir_client.py stats
+# Save results
+python3 benchmarks/benchmark_edge.py --output results.json
 ```
+
+Measures: cold start, warm embedding, batch, recall, memory usage.
 
 ---
 
-## Config
+## Brain Proxy (Optional)
 
-Edit `config/mathir.json` to change provider:
+Connect MATHIR to your LLM so memories are auto-injected into every call:
 
-```json
-{
-  "model": "ollama",
-  "device": "cpu",
-  "embedding_dim": 768,
-  "port": 7338,
-  "provider": {
-    "type": "ollama",
-    "url": "http://localhost:11434",
-    "model": "nomic-embed-text"
-  }
+```bash
+# Enable in config/mathir.json
+"brain": {
+  "enabled": true,
+  "proxy_port": 8182,
+  "llm_port": 8181
 }
+
+# Start brain stack
+python3 brain/mathir_brain.py start
+
+# Point your LLM client to port 8182 instead of 8181
 ```
 
 ---
 
-## Model Recommendations
+## Documentation
 
-| Device | Provider | Model | Dims | Speed |
-|--------|----------|-------|------|-------|
-| Raspberry Pi 4 (2GB) | Ollama | llama3.2:1b | 768 | ~200ms |
-| Raspberry Pi 4 (4GB) | Ollama | nomic-embed-text | 768 | ~100ms |
-| Raspberry Pi 5 | Ollama | nomic-embed-text | 768 | ~50ms |
-| Jetson Nano | llama.cpp | llama3.2:3b | 768 | ~80ms |
-| Jetson Orin | Ollama | nomic-embed-text | 768 | ~20ms |
+| File | Description |
+|------|-------------|
+| `docs/WHEN_TO_USE.md` | ONNX vs Ollama vs llama.cpp |
+| `docs/GPU_VS_CPU.md` | Performance guide |
+| `benchmarks/benchmark_edge.py` | Device benchmarks |
+| `scripts/setup.sh` | Full setup script |
+| `scripts/download_model.sh` | Auto-download models |
 
 ---
 
@@ -138,7 +178,8 @@ Edit `config/mathir.json` to change provider:
 
 | Problem | Fix |
 |---------|-----|
-| "Connection refused" | Start Ollama/llama.cpp first |
-| "Model not found" | Check `ollama list` |
-| "CUDA out of memory" | Use `--device cpu` |
-| "Slow" | Expected on CPU, use smaller model |
+| "Ollama not running" | `ollama serve` |
+| "Model not found" | `ollama pull nomic-embed-text` |
+| "CUDA not available" | `pip3 install torch torchvision --index-url ...` |
+| "Slow on CPU" | Use ONNX: `pip3 install onnxruntime` |
+| "Out of memory" | Use smaller model: `ollama pull llama3.2:1b` |

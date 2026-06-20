@@ -1,8 +1,8 @@
 # MATHIR edge deployment config (constrained hardware)
-# Ollama or ONNX for Raspberry Pi / Jetson.
+# Smallest embedding, fewer slots, ONNX int8, episodic-only compression.
 
 memory:
-  embedding_dim: 768
+  embedding_dim: 1024
   internal_dim: 272
   working_capacity: 32
   episodic_capacity: 256
@@ -19,9 +19,9 @@ compression:
   episodic_only: true
 
 inference:
-  backend: ollama
+  backend: onnx
   device: cpu
-  precision: fp32
+  precision: int8
 
 router:
   type: kl_constrained
@@ -33,4 +33,4 @@ providers:
   default: ollama
   ollama:
     url: http://localhost:11434
-    model: nomic-embed-text
+    model: llama3.2:1b
