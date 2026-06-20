@@ -226,7 +226,21 @@ def get_embedder():
         return _embedder
     
     config = load_config()
-    prefer_octen = config.get("embedding", {}).get("prefer_octen", False)
+    model_type = config.get("model", "sentence-transformers")
+    
+    # ONNX mode — lightweight, no torch needed
+    if model_type == "onnx":
+        try:
+            from mathir_onnx_embedder import OctenEmbedder
+            model_dir = config.get("provider", {}).get("model_dir", None)
+            _embedder = OctenEmbedder(model_dir)
+            log.info(f"ONNX embedder loaded: {_embedder.embedding_dim}d")
+            _embedder_loaded_at = datetime.now().isoformat()
+            return _embedder
+        except Exception as e:
+            log.warning(f"ONNX embedder failed: {e}, falling back to SentenceTransformer")
+    
+    # SentenceTransformer mode (default)
     model_name = config.get("embedding", {}).get("model", "BAAI/bge-large-en-v1.5")
     
     import torch

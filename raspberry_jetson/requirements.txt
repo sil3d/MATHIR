@@ -1,0 +1,8 @@
+numpy
+onnxruntime
+transformers
+sentence-transformers
+rank-bm25
+aiohttp
+psutil
+sqlite-vec

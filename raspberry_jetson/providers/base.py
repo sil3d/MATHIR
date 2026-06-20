@@ -3,9 +3,12 @@ Embedding Provider Base Class
 Abstract interface for getting embeddings from any LLM.
 """
 
+from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import List
-import torch
+from typing import List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import torch
 
 
 class EmbeddingProvider(ABC):
@@ -33,7 +36,7 @@ class EmbeddingProvider(ABC):
         pass
     
     @abstractmethod
-    def embed_text(self, text: str) -> torch.Tensor:
+    def embed_text(self, text: str):
         """
         Get embedding for a single text string.
         
@@ -41,12 +44,12 @@ class EmbeddingProvider(ABC):
             text: input text
             
         Returns:
-            [1, D] tensor
+            [1, D] tensor or list
         """
         pass
     
     @abstractmethod
-    def embed_batch(self, texts: List[str]) -> torch.Tensor:
+    def embed_batch(self, texts: List[str]):
         """
         Get embeddings for a batch of texts.
         
@@ -54,7 +57,7 @@ class EmbeddingProvider(ABC):
             texts: list of input texts
             
         Returns:
-            [B, D] tensor
+            [B, D] tensor or list
         """
         pass
     

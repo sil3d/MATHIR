@@ -172,4 +172,6 @@ echo -e "${GREEN}Port: 7338 | Device: $DEVICE${NC}"
 echo -e "${YELLOW}Press Ctrl+C to stop${NC}"
 echo ""
 
-python3 "$LIB_DIR/mathir_daemon.py" --config "$CONFIG_DIR/mathir.json"
+# Set config path via env var (daemon reads this)
+export MATHIR_CONFIG="$CONFIG_DIR/mathir.json"
+python3 "$LIB_DIR/mathir_daemon.py"
