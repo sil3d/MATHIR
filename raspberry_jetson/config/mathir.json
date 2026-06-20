@@ -1,0 +1,18 @@
+{
+  "model": "ollama",
+  "device": "cpu",
+  "embedding_dim": 768,
+  "port": 7338,
+  "db_path": ".mathir/mathir.db",
+  "memory": {
+    "working_capacity": 32,
+    "episodic_capacity": 256,
+    "semantic_prototypes": 64,
+    "immunological_capacity": 32
+  },
+  "provider": {
+    "type": "ollama",
+    "url": "http://localhost:11434",
+    "model": "nomic-embed-text"
+  }
+}
