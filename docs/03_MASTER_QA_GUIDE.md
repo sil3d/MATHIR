@@ -8,7 +8,7 @@
 
 1. [Fundamentals: What is MATHIR?](#1-fundamentals)
 2. [Architecture vs Model](#2-architecture-vs-model)
-3. [Version Evolution (V1-V8.0.0)](#3-versions)
+3. [Version Evolution (V1-V8.3.0)](#3-versions)
 4. [Memory Tiers (4-tier hierarchical)](#4-memory-tiers)
 5. [Theoretical Foundations (6 theorems)](#5-theorems)
 6. [V7 New Algorithms (8 novel)](#6-v7-algorithms)
@@ -94,7 +94,7 @@ MATHIR is the **Architecture + Framework** — like "Transformer + HuggingFace" 
 
 ---
 
-## 3. Version Evolution (V1 → V8.0.0) {#3-versions}
+## 3. Version Evolution (V1 → V8.3.0) {#3-versions}
 
 ### Q3.1: What is the history of MATHIR versions?
 **A:**
@@ -108,7 +108,8 @@ MATHIR is the **Architecture + Framework** — like "Transformer + HuggingFace" 
 | V7 | 8 new algorithms + 6 theorems | Current |
 | V7.1 | 4 retrieval approaches (A/B/C/D) | Current |
 | V7.2 | Latency optimization (cache + adaptive) | Supported |
-| V8.0.0 | HybridSearch auto-backend, full HybridSearch integration | **Current latest** |
+| V8.0.0 | HybridSearch auto-backend, full HybridSearch integration | Current |
+| **V8.3.0** | **HybridSearch thread-safety fix + daemon push + brain architecture (5 phases)** | **Current latest** |
 
 ### Q3.2: What's the difference between V6 and V7?
 **A:** V7 adds:
@@ -131,17 +132,20 @@ MATHIR is the **Architecture + Framework** — like "Transformer + HuggingFace" 
 **A:**
 | Tier | Capacity | Function | Update Rate |
 |------|----------|----------|-------------|
-| **Working** | 64 slots | Immediate context (last N steps) | Every step |
-| **Episodic** | 1000 slots | Past experiences (key-value store) | On event |
-| **Semantic** | 256 prototypes | Learned concepts (online k-means) | Every 100 steps |
-| **Immunological** | 100 slots | Anomaly detection (Mahalanobis) | On event |
+| **working_memory** | 64 slots | Immediate context (last N steps) | Every step |
+| **episodic** | 1000 slots | Past experiences (key-value store) | On event |
+| **semantic** | 256 prototypes | Learned concepts (online k-means) | Every 100 steps |
+| **procedural** | 128 slots | Skills and how-to patterns | On event |
+
+Plus a separate **immunological anomaly bank** (100 slots, Mahalanobis detector) — *not* one of the 4 canonical tiers, but a safety layer consulted on every input to flag anomalies.
 
 ### Q4.2: Why is this inspired by the brain?
-**A:** The 4 tiers mirror the **Complementary Learning Systems (CLS)** theory of McClelland, McNaughton, and O'Reilly (1995):
-- Working memory ↔ Prefrontal cortex
-- Episodic memory ↔ Hippocampus
-- Semantic memory ↔ Neocortex
-- Immunological memory ↔ Amygdala (threat detection)
+**A:** The 4 canonical tiers mirror the **Complementary Learning Systems (CLS)** theory of McClelland, McNaughton, and O'Reilly (1995):
+- working_memory ↔ Prefrontal cortex
+- episodic ↔ Hippocampus
+- semantic ↔ Neocortex
+- procedural ↔ Basal ganglia (skills, habits)
+- immunological (separate bank) ↔ Amygdala (threat detection)
 
 ### Q4.3: How does the router decide which tier to use?
 **A:** A **KL-constrained softmax** over 4 weights. A trust-region penalty prevents collapse to a single tier (always using one memory type).
@@ -276,7 +280,7 @@ But for **most workloads**, the cache alone is sufficient and simpler.
 
 ### Q9.0: What is the HybridSearch architecture?
 
-**A:** MATHIR V8.0.0 introduces `HybridSearch` — an auto-selecting backend that picks the optimal vector index based on collection size. The flow:
+**A:** MATHIR V8.3.0 introduces `HybridSearch` — an auto-selecting backend that picks the optimal vector index based on collection size. The flow:
 
 ```
 User Query

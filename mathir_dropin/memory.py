@@ -1408,12 +1408,29 @@ class MATHIRMemory(nn.Module):
         """
         if self._store is None:
             return
+        # Embeddings are always persisted on CPU (see ``store()`` which
+        # does ``x_in.detach().cpu().reshape(-1)``) but ``input_proj``
+        # may live on CUDA when ``device_map="auto"`` placed the whole
+        # module on a detected GPU.  Without this transfer the linear
+        # projection would raise ``RuntimeError: Expected all tensors
+        # to be on the same device, but found at least two devices,
+        # cuda:0 and cpu``.  We use the device of the first parameter
+        # of ``input_proj`` as the source of truth (rather than the
+        # module-level ``device`` attribute) so the fix also covers
+        # any ``to(device)`` calls made after construction.
+        proj_device = next(self.input_proj.parameters()).device
         rows = self._store.all_ids()
         for mid in rows:
             row = self._store.get(mid)
             if row is None or row["embedding"] is None:
                 continue
             emb = torch.as_tensor(row["embedding"], dtype=torch.float32).unsqueeze(0)
+            # Move the loaded tensor onto the projection device.  For
+            # the common CPU-only path this is a cheap no-op (same
+            # device); on CUDA it is the only way to avoid the
+            # cross-device crash described above.
+            if emb.device != proj_device:
+                emb = emb.to(proj_device)
             try:
                 self._check_dim(emb)
             except DimensionMismatchError:

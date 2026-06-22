@@ -1,0 +1,11 @@
+2026-06-22 19:48:23,924 [MATHIR-DAEMON] INFO Starting MATHIR daemon...
+2026-06-22 19:48:24,020 [MATHIR-DAEMON] INFO Pre-loading embedder...
+C:\Users\So-i-learn-3D\AppData\Local\Programs\Python\Python311\Lib\site-packages\torch\cuda\__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
+  import pynvml  # type: ignore[import]
+2026-06-22 19:48:35,260 [MATHIR-DAEMON] INFO JAX version 0.4.30 available.
+2026-06-22 19:48:37,190 [MATHIR-DAEMON] INFO GPU detected: NVIDIA GeForce RTX 4060 Laptop GPU — using CUDA acceleration
+2026-06-22 19:48:38,290 [MATHIR-DAEMON] INFO Loading SentenceTransformer model from sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2.
+2026-06-22 19:48:45,420 [MATHIR-DAEMON] INFO Embedder loaded: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 on cuda
+2026-06-22 19:48:45,428 [MATHIR-DAEMON] INFO Embedder ready
+2026-06-22 19:48:45,430 [MATHIR-DAEMON] INFO Using embedding dim: 384
+2026-06-22 19:48:45,430 [MATHIR-DAEMON] INFO MATHIR daemon listening on 127.0.0.1:17401

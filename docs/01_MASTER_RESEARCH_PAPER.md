@@ -1381,7 +1381,7 @@ All code, tests, and benchmark scripts are available at the project repository:
 - **Test scripts:** `tests/test_hybrid.py`, `tests/test_raw_embedding.py`, `tests/test_ensemble.py`, `tests/test_faiss_memory.py`
 - **Benchmark scripts:** `benchmarks/compare_all_approaches.py`, `benchmarks/approach_d_vs_faiss.py`
 - **Results:** `compare_all_approaches_results.json`, `approach_d_vs_faiss_results.json`, `v6_vs_v7_results.json`
-- **Daemon:** `bin/mathir_daemon.py` (TCP socket server, port 7338)
+- **Daemon:** `mathir_mcp/mathir_lib/mathir_daemon.py` (TCP socket server, port 7338)
 - **Hybrid search:** `mathir_search.py` (HybridSearch with BM25 + RRF fusion)
 
 To reproduce the results:
@@ -1395,7 +1395,7 @@ python benchmarks/approach_d_vs_faiss.py --chunks 200 --queries 50
 python benchmarks/v6_vs_v7.py
 
 # Daemon stress test (V8.3)
-Start-Process python bin/mathir_daemon.py -WindowStyle Hidden
+Start-Process python -m mathir_mcp -WindowStyle Hidden
 # Wait 30s for model load, then:
 python -c "import socket,json; s=socket.socket(); s.connect(('127.0.0.1',7338)); s.sendall(json.dumps({'method':'ping','params':{}}).encode()); print(s.recv(4096).decode())"
 
@@ -2096,7 +2096,7 @@ pytest tests/test_hybrid.py -v
 # Expected output: 193/195 PASS (99%)
 
 # Daemon stress test (V8.3)
-Start-Process python bin/mathir_daemon.py -WindowStyle Hidden
+Start-Process python -m mathir_mcp -WindowStyle Hidden
 # Wait 30s for model load, then:
 python -c "import socket,json; s=socket.socket(); s.connect(('127.0.0.1',7338)); s.sendall(json.dumps({'method':'ping','params':{}}).encode()); print(s.recv(4096).decode())"
 # Expected: {"pong": true, "dim": 384, ...}

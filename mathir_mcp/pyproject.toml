@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mathir-mcp"
+version = "8.3.0"
+description = "MATHIR Memory MCP Server - portable cognitive memory for LLM agents"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "sentence-transformers>=2.2.0",
+    "sqlite-vec>=0.1.0",
+    "numpy>=1.24",
+    "aiohttp>=3.9",
+    "pyzmq>=25.0",
+]
+license = {text = "MIT"}
+
+[project.scripts]
+mathir-daemon = "mathir_lib.mathir_daemon:main"
+mathir-mcp = "mathir_lib.mathir_mcp_server:main"
+mathir-client = "mathir_cli:main"
+mathir-brain = "mathir_brain:main"
+mathir-watchdog = "mathir_watchdog:main"
+mathir-prime = "mathir_prime:main"
+
+[tool.setuptools.packages.find]
+where = ["mathir_lib"]
+include = ["mathir_lib*"]

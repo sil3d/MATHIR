@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MATHIR Memory Dashboard</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #0d1117;
+            color: #c9d1d9;
+            padding: 24px;
+            line-height: 1.6;
+        }
+        h1 { color: #58a6ff; margin-bottom: 8px; font-size: 24px; }
+        h2 { color: #8b949e; margin: 24px 0 12px; font-size: 16px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .meta { color: #8b949e; font-size: 13px; margin-bottom: 24px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+        }
+        .card .label { color: #8b949e; font-size: 12px; text-transform: uppercase; }
+        .card .value { color: #58a6ff; font-size: 32px; font-weight: 600; margin-top: 4px; }
+        .tier-bar { background: #21262d; border-radius: 4px; height: 8px; overflow: hidden; margin-top: 8px; }
+        .tier-bar > div { height: 100%; transition: width 0.3s; }
+        .tier-working { background: #58a6ff; }
+        .tier-episodic { background: #f78166; }
+        .tier-semantic { background: #a371f7; }
+        .tier-procedural { background: #3fb950; }
+        table { width: 100%; border-collapse: collapse; background: #161b22; border: 1px solid #30363d; border-radius: 8px; overflow: hidden; }
+        th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid #21262d; }
+        th { background: #21262d; color: #8b949e; font-size: 12px; text-transform: uppercase; }
+        tr:last-child td { border-bottom: none; }
+        .pill { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; }
+        .pill-working { background: rgba(88,166,255,0.15); color: #58a6ff; }
+        .pill-episodic { background: rgba(247,129,102,0.15); color: #f78166; }
+        .pill-semantic { background: rgba(163,113,247,0.15); color: #a371f7; }
+        .pill-procedural { background: rgba(63,185,80,0.15); color: #3fb950; }
+        code { background: #161b22; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+        .empty { padding: 40px; text-align: center; color: #8b949e; }
+    </style>
+</head>
+<body>
+    <h1>MATHIR Memory Dashboard</h1>
+    <div class="meta" id="meta">Loading…</div>
+
+    <h2>Tiers</h2>
+    <div class="grid" id="tiers"></div>
+
+    <h2>Recent Memories</h2>
+    <div id="memories"></div>
+
+    <script>
+        const TIER_NAMES = ["working", "episodic", "semantic", "procedural"];
+        const TIER_CLASSES = {
+            working_memory: "tier-working",
+            working: "tier-working",
+            episodic: "tier-episodic",
+            semantic: "tier-semantic",
+            procedural: "tier-procedural",
+        };
+        const TIER_PILLS = {
+            working_memory: "pill-working",
+            working: "pill-working",
+            episodic: "pill-episodic",
+            semantic: "pill-semantic",
+            procedural: "pill-procedural",
+        };
+
+        async function fetchJSON(url) {
+            const r = await fetch(url);
+            if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+            return r.json();
+        }
+
+        async function load() {
+            try {
+                const stats = await fetchJSON("/api/stats");
+                document.getElementById("meta").textContent =
+                    `Version ${stats.version || "8.3.0"} · ${stats.total_memories || 0} memories · ${stats.projects || 0} projects · Daemon ${stats.daemon_alive ? "ALIVE" : "DOWN"}`;
+
+                const tiers = document.getElementById("tiers");
+                tiers.innerHTML = "";
+                const tierData = stats.tiers || {};
+                for (const t of TIER_NAMES) {
+                    const count = tierData[t] || 0;
+                    const total = stats.total_memories || 1;
+                    const pct = Math.min(100, (count / Math.max(total, 1)) * 100);
+                    tiers.insertAdjacentHTML("beforeend", `
+                        <div class="card">
+                            <div class="label">${t}</div>
+                            <div class="value">${count}</div>
+                            <div class="tier-bar"><div class="tier-${t.replace("_memory","")}" style="width:${pct}%"></div></div>
+                        </div>
+                    `);
+                }
+
+                const mems = await fetchJSON("/api/recall?q=&k=20").catch(() => ({ memories: [] }));
+                const list = mems.memories || [];
+                const container = document.getElementById("memories");
+                if (list.length === 0) {
+                    container.innerHTML = '<div class="empty">No memories yet. Save one with <code>memory_save</code>.</div>';
+                } else {
+                    container.innerHTML = `
+                        <table>
+                            <thead><tr><th>ID</th><th>Tier</th><th>Agent</th><th>Label</th><th>Content</th></tr></thead>
+                            <tbody>${list.map(m => `
+                                <tr>
+                                    <td><code>${(m.memory_id || m.id || "").slice(0, 12)}</code></td>
+                                    <td><span class="pill ${TIER_PILLS[m.block_type] || ""}">${m.block_type || "?"}</span></td>
+                                    <td>${m.agent || "—"}</td>
+                                    <td>${m.label || "—"}</td>
+                                    <td>${(m.content || m.modality_text || "").slice(0, 200)}</td>
+                                </tr>
+                            `).join("")}</tbody>
+                        </table>
+                    `;
+                }
+            } catch (e) {
+                document.getElementById("meta").textContent = `Error: ${e.message}`;
+            }
+        }
+        load();
+        setInterval(load, 5000);
+    </script>
+</body>
+</html>

@@ -132,12 +132,12 @@ After this, every LLM call gets `{{MATHIR_CONTEXT}}` replaced with the 3 most re
 
 ## Files
 
-- `bin/mathir_inject_proxy.py` — Phase 1: auto-injection
-- `bin/mathir_watchdog.py` — Phase 2: daemon watchdog
-- `bin/mathir_spread.py` — Phase 3: spreading activation
-- `bin/mathir_consolidate.py` — Phase 4: sleep consolidation
-- `bin/mathir_prime.py` — Phase 5: pre-cognitive priming
-- `bin/mathir_brain.py` — All-in-one launcher
+- `mathir_mcp/brain/mathir_inject_proxy.py` — Phase 1: auto-injection
+- `mathir_mcp/brain/mathir_watchdog.py` — Phase 2: daemon watchdog
+- `mathir_mcp/brain/mathir_spread.py` — Phase 3: spreading activation
+- `mathir_mcp/brain/mathir_consolidate.py` — Phase 4: sleep consolidation
+- `mathir_mcp/brain/mathir_prime.py` — Phase 5: pre-cognitive priming
+- `mathir_mcp/brain/mathir_brain.py` — All-in-one launcher
 
 ## Dependencies
 

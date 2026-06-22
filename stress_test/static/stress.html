@@ -538,7 +538,7 @@
                 <div class="tooltip">Process CPU usage. Embedding generation is CPU-bound. High % = bottleneck in torch or FTS5.</div>
             </div>
             <div class="metric-card">
-                <div class="label">Tier Distribution</div>
+                <div class="label">Router Weights</div>
                 <div class="tier-bars" id="tierBars">
                     <div class="tier-bar working" id="barWorking" style="width:0%"></div>
                     <div class="tier-bar episodic" id="barEpisodic" style="width:0%"></div>
@@ -546,12 +546,13 @@
                     <div class="tier-bar immune" id="barImmune" style="width:0%"></div>
                 </div>
                 <div class="tier-legend">
-                    <span class="l-working" id="lblWorking">W:0</span>
-                    <span class="l-episodic" id="lblEpisodic">E:0</span>
-                    <span class="l-semantic" id="lblSemantic">S:0</span>
-                    <span class="l-immune" id="lblImmune">I:0</span>
+                    <span class="l-working" id="lblWorking">W:—</span>
+                    <span class="l-episodic" id="lblEpisodic">E:—</span>
+                    <span class="l-semantic" id="lblSemantic">S:—</span>
+                    <span class="l-immune" id="lblImmune">I:—</span>
                 </div>
-                <div class="tooltip">Distribution of conversations across tiers. Working=blue, Episodic=purple, Semantic=green, Immune=red.</div>
+                <div class="label" style="margin-top:8px;font-size:10px;color:#888;">Anomaly Score: <span id="valAnomalyScore">0.0000</span></div>
+                <div class="tooltip">KL router 4-way blend weights [Working, Episodic, Semantic, Immune]. Anomaly score: L2 distance to nearest normal — higher = more anomalous.</div>
             </div>
             <div class="metric-card">
                 <div class="label">System Health</div>
@@ -566,7 +567,7 @@
                     <span class="hl-bad">Critical</span>
                 </div>
                 <div class="health-status hs-good" id="healthStatus">Analyzing...</div>
-                <div class="tooltip">Overall system health based on CPU, GPU, Recall, and Errors. Green=optimal, Blue=moderate load, Red=needs attention.</div>
+                <div class="tooltip">Overall system health: CPU, GPU, Recall, Hybrid, Anomaly, Errors, DB Write. Green=optimal, Blue=moderate load, Red=needs attention.</div>
             </div>
         </div>
 
@@ -616,13 +617,15 @@
         const socket = io();
         let prevState = null;
 
-        // Health thresholds — defaults, overwritten by server on connect
+        // Health thresholds — must match server.py config["health_thresholds"]
         let healthThresholds = {
-            cpu_percent:       [30, 70],
-            gpu_mb:            [200, 500],
-            recall_latency_ms: [5, 20],
-            errors:            [0, 5],
-            db_write_latency_ms: [10, 50],
+            cpu_percent:         [50, 85],
+            gpu_mb:              [2000, 4000],
+            recall_latency_ms:   [5, 20],
+            hybrid_latency_ms:   [50, 200],
+            errors:              [0, 10],
+            db_write_latency_ms: [30, 100],
+            anomaly_score_avg:   [0.5, 2.0],
         };
 
         socket.on('connect', () => addLog('info', 'Connected to server'));
@@ -791,18 +794,27 @@
             // GPU chart
             updateGPUChart(data.gpu_util_percent || 0);
 
-            // Tier distribution bars
-            const total = (data.tier_working || 0) + (data.tier_episodic || 0) + (data.tier_semantic || 0) + (data.tier_immune || 0);
-            if (total > 0) {
-                document.getElementById('barWorking').style.width = ((data.tier_working / total) * 100) + '%';
-                document.getElementById('barEpisodic').style.width = ((data.tier_episodic / total) * 100) + '%';
-                document.getElementById('barSemantic').style.width = ((data.tier_semantic / total) * 100) + '%';
-                document.getElementById('barImmune').style.width = ((data.tier_immune / total) * 100) + '%';
+            // Router weights from perceive() — KL 4-way blend [working, episodic, semantic, immune]
+            // router_weights_avg is a single float (avg weight per tier over recent history)
+            const rwAvg = data.router_weights_avg || 0;
+            if (rwAvg > 0) {
+                const wWorking = rwAvg * 100;
+                const wEpisodic = rwAvg * 100;
+                const wSemantic = rwAvg * 100;
+                const wImmune = rwAvg * 100;
+                document.getElementById('barWorking').style.width = wWorking + '%';
+                document.getElementById('barEpisodic').style.width = wEpisodic + '%';
+                document.getElementById('barSemantic').style.width = wSemantic + '%';
+                document.getElementById('barImmune').style.width = wImmune + '%';
+                document.getElementById('lblWorking').textContent = `W:${(rwAvg * 100).toFixed(1)}%`;
+                document.getElementById('lblEpisodic').textContent = `E:${(rwAvg * 100).toFixed(1)}%`;
+                document.getElementById('lblSemantic').textContent = `S:${(rwAvg * 100).toFixed(1)}%`;
+                document.getElementById('lblImmune').textContent = `I:${(rwAvg * 100).toFixed(1)}%`;
             }
-            document.getElementById('lblWorking').textContent = `W:${formatNumber(data.tier_working || 0)}`;
-            document.getElementById('lblEpisodic').textContent = `E:${formatNumber(data.tier_episodic || 0)}`;
-            document.getElementById('lblSemantic').textContent = `S:${formatNumber(data.tier_semantic || 0)}`;
-            document.getElementById('lblImmune').textContent = `I:${formatNumber(data.tier_immune || 0)}`;
+
+            // Anomaly score from immune tier
+            const anomalyAvg = data.anomaly_score_avg || 0;
+            document.getElementById('valAnomalyScore').textContent = anomalyAvg.toFixed(4);
 
             // Deltas
             if (prevState) {
@@ -852,11 +864,13 @@
 
         function updateHealth(data) {
             const metrics = [
-                { key: 'cpu_percent',       val: data.cpu_percent },
-                { key: 'gpu_mb',            val: data.gpu_mb },
-                { key: 'recall_latency_ms', val: data.recall_latency_ms },
-                { key: 'errors',            val: data.errors },
-                { key: 'db_write_latency_ms', val: data.db_write_latency_ms },
+                { key: 'cpu_percent',           val: data.cpu_percent },
+                { key: 'gpu_mb',                val: data.gpu_mb },
+                { key: 'recall_latency_ms',     val: data.recall_latency_ms },
+                { key: 'hybrid_latency_ms',     val: data.hybrid_latency_ms },
+                { key: 'errors',                val: data.errors },
+                { key: 'db_write_latency_ms',   val: data.db_write_latency_ms },
+                { key: 'anomaly_score_avg',     val: data.anomaly_score_avg },
             ];
 
             const scores = metrics.map(m => scoreMetric(m.val, healthThresholds[m.key]));

@@ -29,10 +29,9 @@ class MetricsSnapshot:
     db_write_latency_ms: float = 0.0
     uptime_seconds: float = 0.0
     gpu_util_percent: float = 0.0
-    tier_working: int = 0
-    tier_episodic: int = 0
-    tier_semantic: int = 0
-    tier_immune: int = 0
+    router_weights_avg: float = 0.0
+    anomaly_score_avg: float = 0.0
+    hybrid_latency_ms: float = 0.0
 
 
 class MetricsCollector:
@@ -46,15 +45,11 @@ class MetricsCollector:
         self.total_conversations = 0
         self.total_tokens = 0
         self.peak_ram_mb = 0.0
-        self.tier_counts: Dict[str, int] = {
-            "working": 0, "episodic": 0, "semantic": 0, "immune": 0
-        }
+        self.router_weights_history: List[List[float]] = []
+        self.anomaly_scores: List[float] = []
         self._last_write_time = 0.0
         self._write_latencies: List[float] = []
         self._gpu_util = 0.0
-        # Manual CPU tracking via cpu_times() delta — process-wide, thread-independent,
-        # works correctly regardless of which thread calls it (metrics vs storage).
-        # psutil.Process().cpu_percent() is unreliable when called from a sleeping thread.
         self._process = psutil.Process()
         self._last_cpu_times = None
         self._last_cpu_mono = None
@@ -104,10 +99,11 @@ class MetricsCollector:
             db_write_latency_ms=avg_write_ms,
             uptime_seconds=round(uptime, 1),
             gpu_util_percent=gpu_util,
-            tier_working=self.tier_counts["working"],
-            tier_episodic=self.tier_counts["episodic"],
-            tier_semantic=self.tier_counts["semantic"],
-            tier_immune=self.tier_counts["immune"],
+            router_weights_avg=round(
+                sum(sum(w) for w in self.router_weights_history) / len(self.router_weights_history) / 4
+                if self.router_weights_history else 0.0, 4),
+            anomaly_score_avg=round(sum(self.anomaly_scores) / len(self.anomaly_scores) if self.anomaly_scores else 0.0, 4),
+            hybrid_latency_ms=0.0,
         )
 
         self.history.append(snapshot)
@@ -115,12 +111,19 @@ class MetricsCollector:
 
     def record_write_latency(self, seconds: float):
         """Enregistre la latence d'une opération d'écriture DB"""
-        self._write_latencies.append(seconds * 1000)  # convert to ms
+        self._write_latencies.append(seconds * 1000)
 
-    def increment_tier(self, tier: str):
-        """Incrémenter le compteur d'un tier"""
-        if tier in self.tier_counts:
-            self.tier_counts[tier] += 1
+    def record_router_weights(self, weights: List[float]):
+        """Enregistre les router_weights de perceive() [w_working, w_episodic, w_semantic, w_immune]"""
+        self.router_weights_history.append(weights)
+        if len(self.router_weights_history) > 200:
+            self.router_weights_history = self.router_weights_history[-200:]
+
+    def record_anomaly_score(self, score: float):
+        """Enregistre le score d'anomalie de l'immune tier"""
+        self.anomaly_scores.append(score)
+        if len(self.anomaly_scores) > 200:
+            self.anomaly_scores = self.anomaly_scores[-200:]
 
     def _get_gpu_usage(self) -> tuple:
         """GPU VRAM (MB) and utilization (%) for THIS process only.
@@ -256,9 +259,9 @@ class MetricsCollector:
 
         with open(filepath, "w", encoding="utf-8") as f:
             f.write("timestamp,datetime,ram_mb,ram_percent,cpu_percent,gpu_mb,gpu_util_percent,"
-                    "db_size_mb,conversations,tokens,recall_latency_ms,errors,"
+                    "db_size_mb,conversations,tokens,recall_latency_ms,hybrid_latency_ms,errors,"
                     "peak_ram_mb,throughput_conv_per_sec,db_write_latency_ms,"
-                    "uptime_seconds,tier_working,tier_episodic,tier_semantic,tier_immune,"
+                    "uptime_seconds,router_weights_avg,anomaly_score_avg,"
                     "ram_mb_per_hour,db_mb_per_hour\n")
 
             rates = self.get_growth_rates()
@@ -269,10 +272,10 @@ class MetricsCollector:
                         f"{s.cpu_percent},{s.gpu_mb},{s.gpu_util_percent},"
                         f"{s.db_size_mb},"
                         f"{s.conversations_total},{s.tokens_total},"
-                        f"{s.recall_latency_ms},{s.errors},"
+                        f"{s.recall_latency_ms},{s.hybrid_latency_ms},{s.errors},"
                         f"{s.peak_ram_mb},{s.throughput_conv_per_sec},"
                         f"{s.db_write_latency_ms},{s.uptime_seconds},"
-                        f"{s.tier_working},{s.tier_episodic},{s.tier_semantic},{s.tier_immune},"
+                        f"{s.router_weights_avg},{s.anomaly_score_avg},"
                         f"{rates['ram_mb_per_hour']},{rates['db_mb_per_hour']}\n")
 
         return filepath

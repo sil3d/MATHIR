@@ -4,110 +4,105 @@
 
 ### Memory-Augmented Tensor Hybrid with Intelligent Routing
 
-**A drop-in cognitive memory layer with 4 tiers (working, episodic, semantic, immunological) — runs on edge (with model-specific VRAM), plugs into any LLM, MIT-licensed.**
+**Plug & play via MCP — 2 lines to connect any LLM.**
 
 <br/>
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-8.2.0-6366f1?style=for-the-badge)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/Tests-226%20passed-22c55e?style=for-the-badge)](#-tests--benchmarks)
-[![BEIR](https://img.shields.io/badge/BEIR_SciFact-0.7441_nDCG%4010-a855f7?style=for-the-badge)](#-beir-benchmark-results)
+[![Version](https://img.shields.io/badge/Version-8.3.0-6366f1?style=for-the-badge)](CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/Tests-147%20passed-22c55e?style=for-the-badge)](#-tests--benchmarks)
 
 <br/>
 
-[**⚡ Quick Start**](#-quick-start-30-seconds) · [**🎬 Demo**](#-live-demo) · [**🏗️ Architecture**](#-architecture) · [**🆚 vs Alternatives**](#-vs-alternatives-honest-2026-comparison) · [**📊 Benchmarks**](#-tests--benchmarks) · [**📄 Paper**](docs/MATHIR_Research_Paper.tex)
-
-<br/>
-
-```
-   +37.8%        AUC = 1.0       88% isolation     100% uptime
-   online         anomaly         context-aware     2-hour stress
-   learning       detection       retrieval         without crash
-```
+[**🔌 MCP Plug & Play**](#-mcp-plug--play--2-lines) · [**📖 The Story**](#-the-story-that-hurts) · [**⚡ Quick Start**](#-quick-start-30-seconds) · [**🏗️ Architecture**](#-architecture) · [**🆚 vs Alternatives**](#-vs-alternatives-honest-2026-comparison)
 
 </div>
 
 ---
 
-## 😱 The REAL Problem in 2026 (it's not what you think)
+## The story that hurts
 
-> **Most "LLM has no memory" articles are wrong as of 2026.** ChatGPT remembers, Claude Projects remembers, Gemini remembers. So what's actually broken?
-
-### The thing that actually keeps breaking
+### 🧑‍💻 The developer
 
 ```
-You: "I'm Alice, I work on Python, building a RAG system"
-Claude/ChatGPT: "Got it, I'll remember that"        ✅ (vendor-side memory)
+Monday morning. You open Claude. You tell it:
+  "My name is Thomas, I'm building a RAG with Python, FastAPI + Postgres."
+Claude says: "Got it, I'll remember that."
 
-... 3 months later, you switch from Claude to a local Llama 3.1 ...
-Llama 3.1: "Hi! Who are you?"                         ❌
-            ↑ All that "memory"? Gone. Vendor-locked.
+3 months later. You switch to Cursor + Llama 3.1.
+  Llama: "Hi! Who are you?"
+  ↑ Everything Claude "remembered"? Gone. Vendor-locked.
 
-... you try Mem0, which costs $79/mo ...
-Mem0: "Here's what I remember about you"              ✅ (portable, but $$$)
-
-... you want anomaly detection on weird prompts ...
-Mem0: "Sorry, that's not what we do"                  ❌
-
-... you want it on a Jetson Nano with no internet ...
-Mem0: "... we'll get back to you with an enterprise quote"  ❌
-
-... you want the source code to audit it ...
-Mem0: "It's our managed platform"                     ❌
+You try Mem0. $79/month. Not open source. You can't audit what it does with your data.
+You want to run on your Jetson for offline. "We'll get back to you with an enterprise quote."
+You want to detect prompt injection. "That's not what we do."
 ```
 
-### What's actually broken in 2026
+**6 months of memory. Wiped in 3 seconds.** Because your memory doesn't belong to you.
 
-| Real problem | Why it's broken | Who fixes it |
-|---|---|---|
-| **Vendor lock-in on memory** | ChatGPT's memory doesn't follow you to Claude. Claude Projects don't export to Gemini. | **MATHIR** (local SQLite, yours forever) |
-| **Context rot** | 200K-token windows are advertised. Effective is ~32K. Beyond that, hallucinations, repetition, contradictions appear. ([Chroma Context Rot, Jul 2025](https://research.trychroma.com/context-rot)) | MATHIR (curated synthesis, not raw context) |
-| **KV cache explodes** | 100M context = 638 H100s per user. ([Magic AI, Aug 2024](https://magic.dev/blog/100m-token-context-windows)) | MATHIR (memory extracted, not stuffed in) |
-| **Anomaly detection doesn't exist** | No major LLM (GPT, Claude, Gemini) flags weird/prompt-injection inputs in real time | **MATHIR** (immunological tier, AUC = 1.0) |
-| **Memory APIs cost $20–$400/mo** | Mem0 starts at $19, Zep at $104/mo, Cognee Cloud at $35/mo | **MATHIR** (MIT, free) |
-| **Most OSS memory libs are just RAG** | mem0, Letta, Cognee, LangMem = vector DB + extraction. Not a "cognitive architecture". | **MATHIR** (4 cognitive tiers, KL router, Mahalanobis detector) |
-| **Can't run on edge** | Mem0 / Zep / Cognee = cloud. Recall / Supermemory = SaaS. | **MATHIR** (Jetson Orin ✅, Raspberry Pi ⚠️ with CPU fallback) |
-| **Cross-language recall** | "clotures python" (French) doesn't find "Python closures" (English) in vanilla RAG | **MATHIR UNIBRI** (character n-gram kernel + J-L projection) |
-
-### The 4 documented failure modes of long context (Breunig, 2025)
+### 🚗 The autonomous vehicle
 
 ```
-   1. Context poisoning       2. Context distraction    3. Context confusion       4. Context clash
-   hallucination gets         model fixates on          superfluous content        multi-turn info
-   re-referenced              repeating past actions    degrades responses         contradicts itself
-   (Gemini 2.5 Pokémon)       (beyond 100K tokens)       (8B fails with 46 tools)   (o3: 98.1 → 64.1)
-        ↓                         ↓                         ↓                          ↓
-   ╔══════════════════════════════════════════════════════════════════════════════════════╗
-   ║  Long context ≠ memory. A 1M-token window is a liability if you don't structure it.  ║
-   ╚══════════════════════════════════════════════════════════════════════════════════════╝
+2:32 PM. The Tesla learns that a yellow pedestrian marker at a crosswalk
+  = slow down. Pattern stored in local memory.
+
+2:33 PM. OTA restart. Memory is wiped.
+  The model no longer "remembers" the pattern.
+  Next time, it won't slow down.
+
+2:34 PM. A truck ahead sends corrupted data on the CAN bus.
+  The sensor reports 0 km/h while actually doing 80.
+  No system flags the anomaly. The vehicle accelerates.
+
+2:35 PM. 80 km/h. Zero detection. Zero alerts. Zero memory.
 ```
 
-> **MATHIR's position is honest:** We're not a "ChatGPT memory clone". We're a **cognitive architecture** for any LLM — with **4 memory tiers**, **online learning**, **anomaly detection**, and **edge deployment** — that you can actually read, audit, and run yourself.
+**A car that doesn't remember = a car that doesn't understand.**
+
+### What MATHIR changes
+
+```
+✅ Memory that follows you everywhere — SQLite local, MIT, zero vendor lock-in.
+✅ Memory that improves — +37.8% online learning, not static facts.
+✅ Anomaly detected in <1ms — immunological tier, AUC = 1.0, zero false positives.
+✅ Runs on edge — 240 MB VRAM, Jetson Orin ✅, Raspberry Pi ⚠️, zero cloud.
+```
 
 ---
 
-## ✅ What MATHIR Does
+## 🔌 MCP Plug & Play — 2 lines
 
-```
-   ┌─────────────────────────────────────────────────────────────────────────────┐
-   │                                                                             │
-   │   +37.8 %           AUC = 1.0          88 % isolation     100 % uptime     │
-   │   online learning   anomaly detection  context-aware      2-hour stress    │
-   │   (episodic tier)   (immune tier)      (working tier)     without crash   │
-   │                                                                             │
-   └─────────────────────────────────────────────────────────────────────────────┘
+**One daemon, 10 tools, same memory.** Connect any LLM in 2 steps:
+
+```bash
+# 1. Start the daemon (once)
+python -m mathir_mcp
 ```
 
-- **Episodic memory** — stores experiences and replays them to boost future recall (+37.8 %)
-- **Immunological memory** — learns "normal" patterns, flags anomalies in real-time (AUC = 1.0)
-- **Working memory** — multi-head attention produces context-dependent results (88 % isolation)
-- **KL-constrained router** — PPO-style routing between 4 tiers, never collapses
-- **Universal Bridge (UNIBRI)** — works across LLM providers and languages, no retraining
-- **Edge-deployable** — ~240 MB VRAM (GPU fp16) with paraphrase-multilingual-MiniLM-L12-v2, works on Jetson Orin, Raspberry Pi (CPU fallback with paraphrase-multilingual 384d)
-- **Zero external dependencies** (`SimpleMemory` uses only SQLite FTS5)
-- **🧠 BRAIN ARCHITECTURE (v8.3+)** — 5-phase proactive system: auto-inject proxy, daemon watchdog, spreading activation, sleep consolidation, pre-cognitive priming. See [docs/BRAIN_ARCHITECTURE.md](docs/BRAIN_ARCHITECTURE.md)
+```jsonc
+// 2. Add to your MCP tool (opencode.json, claude_desktop_config, etc.)
+{
+  "mcp": {
+    "mathir": {
+      "command": "python",
+      "args": ["-m", "mathir_mcp"]
+    }
+  }
+}
+```
+
+**That's it.** `memory_save`, `memory_recall`, `memory_smart_search`, `memory_hybrid_search` — available in all your tools.
+
+| Tool | MCP | Config |
+|------|-----|--------|
+| **OpenCode** | ✅ Native | `opencode.json` → `mcpServers` |
+| **Claude Code** | ✅ Native | `claude_desktop_config.json` |
+| **Kilo Code** | ✅ Native | Settings → MCP → Add Server |
+| **MiMo Code** | ✅ Native | Config `mcp` section |
+
+**Supports:** OpenAI · Anthropic · Gemini · Groq · Ollama · llama_cpp · any LLM.
 
 ---
 
@@ -246,44 +241,9 @@ embeddings = provider.embed_batch(["Hello", "World"])
 #   - config.json
 ```
 
-### MCP Server (easy integration)
+### MCP Server
 
-```json
-// Add to ~/.config/opencode/opencode.json
-{
-  "mcp": {
-    "mathir": {
-      "command": "python",
-      "args": ["/path/to/MATHIR/mcp_server.py"],
-      "env": { "PYTHONPATH": "/path/to/MATHIR" }
-    }
-  }
-}
-```
-
-The MCP server exposes 6 tools: `memory_save`, `memory_recall`, `memory_smart_search`, `memory_stats`, `memory_delete`, `memory_push`.
-
-### Compatible With
-
-All major AI coding tools support MCP — MATHIR works with all of them:
-
-| Tool | MCP | Transport | Config |
-|------|-----|-----------|--------|
-| **OpenCode** | ✅ Native | TCP + SSE | `opencode.json` → `mcpServers` |
-| **OpenClaude** | ✅ Native | stdio/HTTP | `/mcp` command or config JSON |
-| **Kilo Code** | ✅ Native | HTTP Stream | Settings → MCP → Add Server |
-| **MiMo Code** | ✅ Native | stdio + HTTP | Config `mcp` section |
-| **Claude Code** | ✅ Native | stdio/HTTP | `claude_desktop_config.json` |
-
-**One daemon, 5 tools, same memory.** Start the daemon once, connect from any tool:
-
-```bash
-# Start daemon (once)
-python /path/to/MATHIR/bin/mathir_daemon.py
-
-# Then add to any MCP-compatible tool:
-# URL: http://127.0.0.1:7338/sse
-```
+Voir la section [🔌 MCP Plug & Play](#-mcp-plug--play--2-lignes) en haut de page.
 
 ---
 
@@ -299,7 +259,7 @@ MATHIR supports multiple deployment targets. The embedding model you choose dete
 | **Raspberry Pi** | ONNX INT8 (1024d) | 0 MB | ~500 ms | ⚠️ Experimental |
 
 **Notes:**
-- **MATHIR internal memory** (working/episodic/semantic/immunological tiers) is ~60 KB regardless of platform — this is always true (Theorem 1, bounded capacity).
+- **MATHIR internal memory** (working_memory/episodic/semantic/procedural tiers + immunological anomaly bank) is ~60 KB regardless of platform — this is always true (Theorem 1, bounded capacity).
 - **Embedding model VRAM** varies by model: ~500 MB for bge-large on GPU, 0 MB for CPU-only ONNX.
 - **Raspberry Pi** requires CPU fallback — use ONNX INT8. The bge-large model (1024d) is too large for Pi-class ARM devices without GPU.
 - **Jetson Orin** has CUDA support and runs bge-large at near-desktop speeds.
@@ -380,6 +340,29 @@ print(output["router_weights"])      # 4-tier allocation: [0.4, 0.3, 0.2, 0.1]
 print(output["anomaly_score"])       # novelty detection (0.0–1.0)
 print(output["episodic_context"])    # retrieved past experiences
 ```
+
+---
+
+## 📚 Documentation Map
+
+| Doc | Purpose | Audience |
+|-----|---------|----------|
+| [README.md](README.md) | Overview, quick start, vs alternatives | Everyone |
+| [CHANGELOG.md](CHANGELOG.md) | Version history (source of truth for version) | Maintainers |
+| [docs/01_MASTER_RESEARCH_PAPER.md](docs/01_MASTER_RESEARCH_PAPER.md) | Doctoral paper (147KB) | Researchers |
+| [docs/03_MASTER_QA_GUIDE.md](docs/03_MASTER_QA_GUIDE.md) | 63 defense Q&A | Decision-makers |
+| [docs/05_SHIPPING_GUIDE.md](docs/05_SHIPPING_GUIDE.md) | Production shipping FAQ | DevOps |
+| [docs/06_MULTIMODAL_MEMORY_GUIDE.md](docs/06_MULTIMODAL_MEMORY_GUIDE.md) | Modality details | Integrators |
+| [docs/07_MATHIR_VS_VECTORDB_USE_CASES.md](docs/07_MATHIR_VS_VECTORDB_USE_CASES.md) | MATHIR vs FAISS | Architects |
+| [docs/08_WHY_SAME_RESULTS.md](docs/08_WHY_SAME_RESULTS.md) | Math proof A=FAISS | Theorists |
+| [docs/BRAIN_ARCHITECTURE.md](docs/BRAIN_ARCHITECTURE.md) | 5-phase brain stack | Engineers |
+| [mathir_mcp/README.md](mathir_mcp/README.md) | MCP install + 3-step quick start | MCP users |
+| [mathir_mcp/GLOBAL_INSTRUCTIONS.md](mathir_mcp/GLOBAL_INSTRUCTIONS.md) | Injected into agent prompts | Agent devs |
+| [mathir_mcp/docs/AGENT.md](mathir_mcp/docs/AGENT.md) | Per-agent MCP config | MCP integrators |
+| [mathir_mcp/docs/DAEMON.md](mathir_mcp/docs/DAEMON.md) | Daemon JSON-RPC protocol | Backend devs |
+| [mathir_mcp/docs/DIMENSIONS.md](mathir_mcp/docs/DIMENSIONS.md) | Embedding model selection | ML engineers |
+| [mathir_mcp/docs/GPU_SETUP.md](mathir_mcp/docs/GPU_SETUP.md) | GPU acceleration | GPU users |
+| [mathir_mcp/docs/DASHBOARD_GUIDE.md](mathir_mcp/docs/DASHBOARD_GUIDE.md) | Dashboard setup | Admins |
 
 ---
 
@@ -534,7 +517,7 @@ output = plugin.perceive(input_embedding, metadata={"user": "alice"})
 
 # What just happened:
 print(f"Router picked: {output['router_weights']}")
-# → [0.4, 0.3, 0.2, 0.1]  (working, episodic, semantic, immune)
+# → [0.4, 0.3, 0.2, 0.1]  (working_memory, episodic, semantic, procedural)
 
 print(f"Context used: {output['episodic_context']}")
 # → "User asked about Python closures 3 days ago..."
@@ -561,8 +544,9 @@ print(f"Enhanced embedding: {output['enhanced_embedding'].shape}")
 │           🧠  MATHIR PLUGIN                │
 │    ~500 MB VRAM (GPU) · ~107 ms · edge-ready │
 │                                             │
-│   NOTE: MATHIR internal memory (working/    │
-│   episodic/semantic/immunological tiers)    │
+│   NOTE: MATHIR internal memory (working_   │
+│   memory/episodic/semantic/procedural +    │
+│   immunological anomaly bank)              │
 │   is ~60 KB (always, Theorem 1). VRAM usage │
 │   is the embedding model, not the tiers.    │
 │                                             │
@@ -663,10 +647,10 @@ Client (opencode / Python)
 
 ```bash
 # Start daemon (background, persists across sessions)
-python ~/.config/opencode/bin/mathir_daemon.py &
+python -m mathir_mcp &
 
 # Thin client — fast, model already loaded
-python ~/.config/opencode/bin/mathir_client.py recall "query" -k 5
+python ~/.config/opencode/mathir_mcp/mathir_lib/mathir_client.py recall "query" -k 5
 ```
 
 ### Daemon Push (NEW in v8.2.0)
@@ -705,13 +689,13 @@ MATHIR v8.2.0 introduces **proactive memory delivery** — the daemon can push r
 **Push commands:**
 ```bash
 # Auto mode — daemon pushes relevant memories based on context
-python ~/.config/opencode/bin/mathir_client.py push "contexte ici" --auto
+python ~/.config/opencode/mathir_mcp/mathir_lib/mathir_client.py push "contexte ici" --auto
 
 # JSON mode — returns structured memory suggestions
-python ~/.config/opencode/bin/mathir_client.py push "contexte ici" --json
+python ~/.config/opencode/mathir_mcp/mathir_lib/mathir_client.py push "contexte ici" --json
 
 # Simple mode — returns plain text memories (default)
-python ~/.config/opencode/bin/mathir_client.py push "contexte ici"
+python ~/.config/opencode/mathir_mcp/mathir_lib/mathir_client.py push "contexte ici"
 ```
 
 **Why push instead of pull:**
@@ -1054,7 +1038,7 @@ cd vision_testing && python start_ui.py
 
 ## 📚 Documentation
 
-> **📖 New here? See the [Complete Documentation Index](docs/00_README.md)** — 45+ documents organized by audience (CTO / researcher / developer / theorist), with reading paths for 10 min, 1 hour, 3 hours, and full deep-dive.
+> **📖 New here? See the [Documentation Map](#-documentation-map) above** — full doc index by audience and purpose. (The old `docs/00_README.md` index was removed in v8.3.0 — it's now in this README.)
 
 ### Top 7 "Hidden Gems"
 
@@ -1079,8 +1063,7 @@ cd vision_testing && python start_ui.py
 | 🎯 [`docs/03_MASTER_QA_GUIDE.md`](docs/03_MASTER_QA_GUIDE.md) | 63 Q&A for defense / evaluation |
 | 🆚 [`docs/07_MATHIR_VS_VECTORDB_USE_CASES.md`](docs/07_MATHIR_VS_VECTORDB_USE_CASES.md) | MATHIR vs FAISS use cases |
 | 🔬 [`docs/01_MASTER_RESEARCH_PAPER.md`](docs/01_MASTER_RESEARCH_PAPER.md) | Mathematical proofs (6 theorems) |
-| 📘 [`docs/04_DEV_INTEGRATION_GUIDE.md`](docs/04_DEV_INTEGRATION_GUIDE.md) | V7 usage tutorial |
-| 🤖 [`mcp/AGENT.md`](mcp/AGENT.md) | Quick reference for AI agents |
+| 🤖 [`mathir_mcp/docs/AGENT.md`](mathir_mcp/docs/AGENT.md) | Quick reference for AI agents |
 | 👁️ [`vision_testing/README.md`](vision_testing/README.md) | Vision/audio testing docs |
 | 📦 [`mathir_dropin/README.md`](mathir_dropin/README.md) | Drop-in memory docs |
 | 📋 [`CHANGELOG.md`](CHANGELOG.md) | Version history |

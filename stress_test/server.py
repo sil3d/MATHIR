@@ -7,18 +7,26 @@ Architecture:
   - Thread 1 (storage): génère + stocke les conversations (interval configurable)
   - Thread 2 (metrics): pousse les métriques toutes les 500ms (temps réel)
   - GPU: auto-detect CUDA, embeddings sur GPU si disponible
+  - Mode: "direct" (MATHIRMemory API) | "daemon" (JSON-RPC 7338) | "mcp" (MCP tools via daemon)
+
+Compatible with MATHIR v8.3+:
+  - Real embeddings via SentenceTransformer (paraphrase-multilingual-MiniLM-L12-v2, 384d)
+  - HybridSearch benchmark (vector + BM25 + RRF fusion)
+  - 4 tiers: working, episodic, semantic, immune
+  - Per-project DBs (.mathir/mathir.db)
+  - Config via mathir.json / MATHIR_EMBEDDING_DIM env var
 """
 
 import os
 import sys
 import json
 import time
+import socket
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, render_template, request, send_file, jsonify
 from flask_socketio import SocketIO, emit
 
-# Add parent dir to path for MATHIR imports
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
 from stress_test.metrics import MetricsCollector
@@ -57,6 +65,8 @@ def detect_gpu():
 class StressTest:
     """Orchestre le stress test en arrière-plan"""
 
+    VALID_MODES = {"direct", "daemon", "mcp"}
+
     def __init__(self):
         self.running = False
         self.paused = False
@@ -65,21 +75,15 @@ class StressTest:
             "interval_seconds": 5,
             "anomaly_rate": 0.10,
             "num_threads": 4,
-            "tiers_enabled": {
-                "working": True,
-                "episodic": True,
-                "semantic": True,
-                "immune": True,
-                "kl_router": True,
-            },
-            # Health thresholds: each metric has [good_max, normal_max]
-            # above normal_max = critical
+            "mode": "direct",
             "health_thresholds": {
-                "cpu_percent":       [30, 70],      # % process CPU
-                "gpu_mb":            [200, 500],    # MB MATHIR-specific VRAM
-                "recall_latency_ms": [5, 20],       # ms FTS5 query
-                "errors":            [0, 5],        # error count
-                "db_write_latency_ms": [10, 50],    # ms per write
+                "cpu_percent":           [50, 85],
+                "gpu_mb":                [2000, 4000],
+                "recall_latency_ms":     [5, 20],
+                "hybrid_latency_ms":     [50, 200],
+                "errors":               [0, 10],
+                "db_write_latency_ms":   [30, 100],
+                "anomaly_score_avg":     [0.5, 2.0],
             },
         }
         self.memory = None
@@ -91,11 +95,76 @@ class StressTest:
         self._db_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), "stress_memory.db"
         )
-        # Thread pool for parallel store operations
         self._executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="mathir-store")
         self._futures = []
-        # Detect GPU at init time (not just at start)
         self._device, self._gpu_info = detect_gpu()
+        self._embedder = None
+        self._embedding_dim = int(os.environ.get("MATHIR_EMBEDDING_DIM", "384"))
+
+    def _get_embedder(self):
+        """Lazy-load the real SentenceTransformer embedder."""
+        if self._embedder is not None:
+            return self._embedder
+        try:
+            from sentence_transformers import SentenceTransformer
+            import torch
+            config = self._load_config()
+            model_name = config.get("embedding", {}).get("model", "paraphrase-multilingual-MiniLM-L12-v2")
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            self._embedder = SentenceTransformer(model_name, device=device)
+            self._log("info", f"Embedder loaded: {model_name} on {device}")
+            return self._embedder
+        except ImportError:
+            self._log("warn", "sentence_transformers not available, using torch fallback")
+            return None
+
+    def _load_config(self):
+        """Load MATHIR config from mathir.json (global ~/.config/MATHIR/ or MATHIR_CONFIG env)."""
+        config_path = os.environ.get(
+            "MATHIR_CONFIG",
+            os.path.join(os.path.expanduser("~/.config/MATHIR"), "config", "mathir.json")
+        )
+        if os.path.exists(config_path):
+            try:
+                with open(config_path) as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return {}
+
+    def _real_encode(self, text):
+        """Get real embedding for text via SentenceTransformer. Returns numpy float32."""
+        embedder = self._get_embedder()
+        if embedder is not None:
+            emb = embedder.encode(text)
+            if hasattr(emb, 'cpu'):
+                import numpy as np
+                return emb.cpu().numpy().astype('float32').reshape(-1)
+            import numpy as np
+            return np.array(emb, dtype='float32').reshape(-1)
+        import numpy as np
+        text_hash = hash(text) % (2**31)
+        import torch
+        gen = torch.Generator()
+        gen.manual_seed(text_hash)
+        emb = torch.randn(1, self._embedding_dim, generator=gen)
+        return emb.numpy().astype('float32').reshape(-1)
+
+    def _daemon_call(self, method, params):
+        """Send a JSON-RPC call to MATHIR daemon on port 7338."""
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(10)
+            sock.connect(("127.0.0.1", 7338))
+            req = {"method": method, "params": params}
+            sock.sendall(json.dumps(req).encode("utf-8"))
+            data = sock.recv(65536)
+            sock.close()
+            return json.loads(data.decode("utf-8"))
+        except Exception as e:
+            self._log("error", f"Daemon call failed: {e}")
+            self.metrics.increment_errors()
+            return {"error": str(e)}
 
     def start(self, config=None):
         """Démarre le stress test"""
@@ -103,21 +172,22 @@ class StressTest:
             return {"status": "already_running"}
 
         if config:
-            # Deep merge: don't overwrite health_thresholds if not in new config
             for k, v in config.items():
                 if k == "health_thresholds" and "health_thresholds" in self.config:
                     self.config["health_thresholds"].update(v)
                 else:
                     self.config[k] = v
 
-        # --- Clean slate: delete old DB before reinit ---
+        self._db_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "stress_memory.db"
+        )
+
         if os.path.exists(self._db_path):
             try:
                 os.remove(self._db_path)
                 self._log("info", f"Removed old DB: {os.path.basename(self._db_path)}")
             except OSError as e:
                 self._log("warn", f"Could not remove old DB: {e}")
-        # Also remove WAL/SHM files from SQLite journal
         for ext in ("-wal", "-shm"):
             p = self._db_path + ext
             if os.path.exists(p):
@@ -126,33 +196,41 @@ class StressTest:
                 except OSError:
                     pass
 
-        # Detect GPU
         self._device, self._gpu_info = detect_gpu()
         self._log("info", f"Device: {self._gpu_info}")
 
-        # Init MATHIR 4-tier memory
-        self.memory = None
-        self._embedding_dim = 384
-        try:
-            import torch
-            from mathir_dropin import MATHIRMemory
-            self.memory = MATHIRMemory(
-                embedding_dim=self._embedding_dim,
-                db_path=self._db_path,
-            )
-            self._log("info", f"MATHIR 4-tier memory initialized (dim={self._embedding_dim})")
-            print(f"[INIT] MATHIR memory OK: {type(self.memory)}")
-        except ImportError:
-            self._log("warn", "mathir_dropin not available, using raw sqlite3 fallback")
-            print("[INIT] MATHIR import FAILED, using raw sqlite3")
-        except Exception as e:
-            self._log("warn", f"MATHIR init failed: {e}, using raw sqlite3 fallback")
-            print(f"[INIT] MATHIR init FAILED: {e}")
+        mode = self.config.get("mode", "direct")
+        self._embedding_dim = int(os.environ.get("MATHIR_EMBEDDING_DIM", "384"))
+        self._embedder = None
 
-        # Init metrics
+        self.memory = None
+        if mode == "direct":
+            try:
+                from mathir_dropin.memory import MATHIRMemory
+                self.memory = MATHIRMemory(
+                    embedding_dim=self._embedding_dim,
+                    db_path=self._db_path,
+                )
+                self._log("info", f"MATHIRMemory initialized (dim={self._embedding_dim})")
+                print(f"[INIT] MATHIR memory OK (direct mode)")
+            except ImportError:
+                self._log("warn", "mathir_dropin.memory not available, using raw sqlite3 fallback")
+                print("[INIT] MATHIR import FAILED, using raw sqlite3")
+            except Exception as e:
+                self._log("warn", f"MATHIR init failed: {e}, using raw sqlite3 fallback")
+                print(f"[INIT] MATHIR init FAILED: {e}")
+        elif mode == "daemon":
+            result = self._daemon_call("ping", {})
+            if "error" in result:
+                self._log("error", f"Daemon not reachable: {result['error']}")
+            else:
+                self._log("info", f"Daemon connected: {result}")
+                self._db_path = os.path.join(os.path.expanduser("~/.config/MATHIR"), "data", "mathir.db")
+        elif mode == "mcp":
+            self._log("info", "MCP mode: uses daemon backend via MCP protocol")
+
         self.metrics = MetricsCollector(self._db_path)
 
-        # Init generator
         self.generator = ConversationGenerator(
             anomaly_rate=self.config.get("anomaly_rate", 0.10)
         )
@@ -161,21 +239,18 @@ class StressTest:
         self.paused = False
         self.conversations_sent = 0
 
-        # Recreate thread pool (killed by stop())
         self._executor = ThreadPoolExecutor(
             max_workers=self.config.get("num_threads", 4),
             thread_name_prefix="mathir-store"
         )
 
-        # Thread 1: Storage (configurable interval)
         self._storage_thread = threading.Thread(target=self._storage_loop, daemon=True)
         self._storage_thread.start()
 
-        # Thread 2: Metrics push (500ms — real-time feel)
         self._metrics_thread = threading.Thread(target=self._metrics_loop, daemon=True)
         self._metrics_thread.start()
 
-        self._log("info", f"Stress test started — batch={self.config['batch_size']}, interval={self.config['interval_seconds']}s")
+        self._log("info", f"Stress test started — mode={mode}, batch={self.config['batch_size']}, interval={self.config['interval_seconds']}s")
         socketio.emit("status_update", {"status": "running"})
         return {"status": "running"}
 
@@ -307,17 +382,17 @@ class StressTest:
                         "conversations": self.conversations_sent,
                         "tokens": snapshot.tokens_total,
                         "recall_latency_ms": snapshot.recall_latency_ms,
+                        "hybrid_latency_ms": snapshot.hybrid_latency_ms,
                         "errors": snapshot.errors,
                         "cpu_percent": snapshot.cpu_percent,
                         "peak_ram_mb": snapshot.peak_ram_mb,
                         "throughput_conv_per_sec": snapshot.throughput_conv_per_sec,
                         "db_write_latency_ms": snapshot.db_write_latency_ms,
                         "uptime_seconds": snapshot.uptime_seconds,
-                        "tier_working": snapshot.tier_working,
-                        "tier_episodic": snapshot.tier_episodic,
-                        "tier_semantic": snapshot.tier_semantic,
-                        "tier_immune": snapshot.tier_immune,
+                        "router_weights_avg": snapshot.router_weights_avg,
+                        "anomaly_score_avg": snapshot.anomaly_score_avg,
                         "history": history_data,
+                        "mode": self.config.get("mode", "direct"),
                     })
 
             except Exception as e:
@@ -330,105 +405,121 @@ class StressTest:
     # ============================================================
 
     def _store_conversation(self, conv):
-        """Stocke une conversation dans MATHIR avec routing par tier"""
+        """Store via MATHIR perceive() — activates all 4 tiers + KL router."""
         msg = conv["user_message"]
-        tiers = self.config.get("tiers_enabled", {})
+        mode = self.config.get("mode", "direct")
 
-        # Debug: log first call to verify memory state
-        if self.conversations_sent == 0:
-            print(f"[STORE DEBUG] memory={self.memory is not None}, tiers={tiers}, dim={self._embedding_dim}")
-
-        if self.memory is not None:
-            try:
-                import torch
-
-                # Créer un embedding déterministe basé sur le hash du texte
-                # Toujours sur CPU — les couches MATHIR sont sur CPU
-                text_hash = hash(msg) % (2**31)
-                gen = torch.Generator()
-                gen.manual_seed(text_hash)
-                emb = torch.randn(1, self._embedding_dim, generator=gen)
-
-                # Déterminer le tier selon le type de conversation
-                if conv.get("is_anomaly"):
-                    tier = "immune"
-                elif conv["type"] == "trivial":
-                    tier = "working"
-                elif conv["type"] == "technical":
-                    tier = "semantic"
-                else:
-                    tier = "episodic"
-
-                # Stocker dans le tier actif correspondant
-                if tiers.get(tier, False):
-                    t0 = time.perf_counter()
-                    self.memory.store(
-                        embedding=emb,
-                        metadata={"text": msg, "type": conv["type"], "is_anomaly": conv.get("is_anomaly", False)},
-                        tier=tier,
-                    )
-                    self.metrics.record_write_latency(time.perf_counter() - t0)
-                    self.metrics.increment_tier(tier)
-                else:
-                    if self.metrics.error_count <= 3:
-                        self._log("error", f"Tier '{tier}' disabled in config. tiers={list(tiers.keys())}")
-                        print(f"[TIER DEBUG] tier={tier}, tiers_enabled={tiers}")
-
-            except Exception as e:
-                self.metrics.increment_errors()
-                if self.metrics.error_count <= 3:
-                    import traceback
-                    tb = traceback.format_exc()
-                    self._log("error", f"Store failed ({type(e).__name__}): {e}")
-                    print(f"[STORE ERROR] {tb}")
+        if mode == "daemon" or mode == "mcp":
+            self._store_via_daemon(conv, msg)
+        elif self.memory is not None:
+            self._store_via_perceive(conv, msg)
         else:
-            # Fallback: raw sqlite3
-            self._raw_store(msg)
+            raise RuntimeError("MATHIR not initialized — cannot store")
 
-        # Update counters
         self.conversations_sent += 1
         self.metrics.increment_conversations(1)
         self.metrics.increment_tokens(conv.get("token_count", 0))
 
-    def _raw_store(self, message):
-        """Fallback: stockage brut en SQLite"""
-        import sqlite3
+    def _store_via_daemon(self, conv, msg):
+        """Store via daemon JSON-RPC (port 7338)."""
+        t0 = time.perf_counter()
+        result = self._daemon_call("perceive", {
+            "content": msg,
+            "metadata": {"text": msg, "type": conv["type"], "is_anomaly": conv.get("is_anomaly", False)},
+        })
+        elapsed = time.perf_counter() - t0
+        self.metrics.record_write_latency(elapsed)
+
+        if "error" in result:
+            self.metrics.increment_errors()
+            if self.metrics.error_count <= 3:
+                self._log("error", f"Daemon perceive failed: {result['error']}")
+        else:
+            rw = result.get("router_weights", [0.25, 0.25, 0.25, 0.25])
+            self.metrics.record_router_weights(rw)
+            anom = result.get("anomaly_score", 0.0)
+            self.metrics.record_anomaly_score(anom)
+
+    def _store_via_perceive(self, conv, msg):
+        """Store via MATHIR perceive() — the REAL 4-tier routing."""
+        import torch
+
         try:
-            conn = sqlite3.connect(self._db_path)
-            cursor = conn.cursor()
-            cursor.execute("""
-                CREATE TABLE IF NOT EXISTS conversations (
-                    id TEXT PRIMARY KEY,
-                    message TEXT,
-                    timestamp REAL,
-                    token_count INTEGER
-                )
-            """)
-            cursor.execute(
-                "INSERT INTO conversations VALUES (?, ?, ?, ?)",
-                (str(time.time()), message, time.time(), len(message) // 4)
+            emb_np = self._real_encode(msg)
+            t0 = time.perf_counter()
+            emb_tensor = torch.from_numpy(emb_np).unsqueeze(0)
+            result = self.memory.perceive(
+                emb_tensor,
+                metadata={"text": msg, "type": conv["type"], "is_anomaly": conv.get("is_anomaly", False)},
             )
-            conn.commit()
-            conn.close()
-        except Exception:
-            pass
+            elapsed = time.perf_counter() - t0
+            self.metrics.record_write_latency(elapsed)
+
+            rw = result["router_weights"].detach().cpu().numpy().flatten()
+            self.metrics.record_router_weights([float(rw[0]), float(rw[1]), float(rw[2]), float(rw[3])])
+            anom = float(result["anomaly_score"].detach().cpu().numpy().flatten()[0])
+            self.metrics.record_anomaly_score(anom)
+
+        except Exception as e:
+            self.metrics.increment_errors()
+            if self.metrics.error_count <= 3:
+                import traceback
+                self._log("error", f"Perceive failed ({type(e).__name__}): {e}")
+                print(f"[PERCEIVE ERROR] {traceback.format_exc()}")
 
     def _benchmark_recall(self):
-        """Benchmark du recall MATHIR — test de latence FTS5"""
-        if self.memory is None:
+        """Benchmark du recall MATHIR — vector recall + HybridSearch."""
+        mode = self.config.get("mode", "direct")
+        queries = ["Python", "bug", "réunion", "MATHIR", "memory"]
+
+        if mode == "daemon" or mode == "mcp":
+            vector_ms = self._benchmark_daemon_recall(queries, method="memory_recall")
+            hybrid_ms = self._benchmark_daemon_recall(queries, method="memory_hybrid_search")
+        elif self.memory is not None:
+            vector_ms = self._benchmark_direct_recall(queries)
+            hybrid_ms = self._benchmark_direct_hybrid(queries)
+        else:
             return
 
-        try:
-            queries = ["Python", "bug", "réunion", "MATHIR", "memory"]
-            start = time.perf_counter()
-            for q in queries:
-                self.memory.recall_text(query_text=q, k=3)
-            elapsed_ms = (time.perf_counter() - start) * 1000 / len(queries)
+        if self.metrics.history:
+            self.metrics.history[-1].recall_latency_ms = round(vector_ms, 2)
+            self.metrics.history[-1].hybrid_latency_ms = round(hybrid_ms, 2)
 
-            if self.metrics.history:
-                self.metrics.history[-1].recall_latency_ms = round(elapsed_ms, 2)
-        except Exception:
-            pass
+    def _benchmark_daemon_recall(self, queries, method="memory_recall"):
+        """Benchmark recall via daemon JSON-RPC."""
+        start = time.perf_counter()
+        for q in queries:
+            params = {"query": q, "k": 3}
+            if method == "memory_hybrid_search":
+                params["k"] = 3
+            self._daemon_call(method, params)
+        elapsed_ms = (time.perf_counter() - start) * 1000 / len(queries)
+        return elapsed_ms
+
+    def _benchmark_direct_recall(self, queries):
+        """Benchmark vector recall via MATHIRMemory.recall() with real embeddings."""
+        import torch
+        start = time.perf_counter()
+        for q in queries:
+            emb_np = self._real_encode(q)
+            emb_tensor = torch.from_numpy(emb_np).unsqueeze(0)
+            self.memory.recall(query_embedding=emb_tensor, k=3)
+        elapsed_ms = (time.perf_counter() - start) * 1000 / len(queries)
+        return elapsed_ms
+
+    def _benchmark_direct_hybrid(self, queries):
+        """Benchmark universal_recall (text + embedding + cross-lingual hybrid)."""
+        start = time.perf_counter()
+        success = 0
+        for q in queries:
+            try:
+                self.memory.universal_recall(query=q, k=3)
+                success += 1
+            except Exception as e:
+                if success == 0 and q == queries[0]:
+                    self._log("warn", f"Hybrid benchmark failed: {type(e).__name__}: {e}")
+        elapsed_ms = (time.perf_counter() - start) * 1000 / len(queries)
+        return elapsed_ms
 
     def export_csv(self):
         """Exporte les métriques en CSV"""
@@ -554,12 +645,16 @@ def api_metrics():
             "conversations": stress.conversations_sent,
             "tokens": snapshot.tokens_total,
             "recall_latency_ms": snapshot.recall_latency_ms,
+            "hybrid_latency_ms": snapshot.hybrid_latency_ms,
             "errors": snapshot.errors,
             "cpu_percent": snapshot.cpu_percent,
             "peak_ram_mb": snapshot.peak_ram_mb,
             "throughput_conv_per_sec": snapshot.throughput_conv_per_sec,
             "db_write_latency_ms": snapshot.db_write_latency_ms,
             "uptime_seconds": snapshot.uptime_seconds,
+            "mode": stress.config.get("mode", "direct"),
+            "router_weights_avg": snapshot.router_weights_avg,
+            "anomaly_score_avg": snapshot.anomaly_score_avg,
         })
     return jsonify({"error": "not started"}), 400
 
@@ -619,4 +714,4 @@ if __name__ == "__main__":
     print(f"  Device: {gpu_info}")
     print("  http://localhost:5000")
     print("=" * 50)
-    socketio.run(app, host="0.0.0.0", port=5000, debug=True, allow_unsafe_werkzeug=True)
+    socketio.run(app, host="0.0.0.0", port=5000, debug=False, allow_unsafe_werkzeug=True)

@@ -63,12 +63,12 @@ Client → push "context" → Daemon analyzes context → Extracts queries → S
 
 ```bash
 # Push (proactive memory delivery)
-python ~/.config/opencode/bin/mathir_client.py push "contexte ici" --auto
-python ~/.config/opencode/bin/mathir_client.py push "contexte ici" --json
-python ~/.config/opencode/bin/mathir_client.py push "contexte ici"
+python ~/.config/opencode/mcp/mathir_lib/mathir_client.py push "contexte ici" --auto
+python ~/.config/opencode/mcp/mathir_lib/mathir_client.py push "contexte ici" --json
+python ~/.config/opencode/mcp/mathir_lib/mathir_client.py push "contexte ici"
 
 # Cache stats (via daemon)
-python ~/.config/opencode/bin/mathir_client.py push "" --json 2>&1 | head -1
+python ~/.config/opencode/mcp/mathir_lib/mathir_client.py push "" --json 2>&1 | head -1
 ```
 
 ### Documentation Updates

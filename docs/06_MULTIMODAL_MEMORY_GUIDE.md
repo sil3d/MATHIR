@@ -2,7 +2,7 @@
 
 **Does MATHIR accept video, audio, text from an LLM? How does it store data as a memory?**
 
-*Master's-thesis-grade technical reference · MATHIR V8.0.0 · 2026*
+*Master's-thesis-grade technical reference · MATHIR V8.3.0 · 2026*
 
 ---
 
@@ -10,7 +10,7 @@
 
 - **Yes, MATHIR accepts every modality** — text, audio, image, video, and any mix thereof. It is **modality-agnostic** by design because it stores **embeddings (vectors)**, not raw data.
 - **The pipeline is universal**: *raw modality → modality-specific encoder (CLIP, CLAP, Whisper, sentence-transformers) → fixed-dim embedding vector → MATHIR's 4-tier memory*. MATHIR never sees the original bytes.
-- **Storage is a 4-tier numerical bank**: working (64 slots), episodic (1000 slots), semantic (256 prototypes), immunological (100 normal patterns). All slots are `float32` tensors of `internal_dim=272` by default (or raw-embedding dim when `use_raw_embedding=True`). 1000 embeddings at 512-dim cost **≈ 2 MB**; V7 sparse coding compresses that by **9.3×** to ~117 KB.
+- **Storage is a 4-tier numerical bank**: working_memory (64 slots), episodic (1000 slots), semantic (256 prototypes), procedural (128 slots). All slots are `float32` tensors of `internal_dim=272` by default (or raw-embedding dim when `use_raw_embedding=True`). 1000 embeddings at 512-dim cost **≈ 2 MB**; V7 sparse coding compresses that by **9.3×** to ~117 KB. Plus a separate **anomaly bank: immunological 100 patterns** (Mahalanobis detector, consulted on every input).
 
 ---
 
@@ -641,7 +641,7 @@ All of these share the same skeleton: *encode → store → encode(query) → re
 - **Native temporal memory**: a 5th tier that stores *trajectories* of embeddings (variational state-space model) for video and streaming use-cases, enabling "what happened between t=12s and t=15s?" queries.
 - **Learned cross-modal bridges**: an optional adapter that maps between text-only encoders (e.g. e5-large, 1024-d) and CLIP-class spaces, trained on the user's own data via InfoNCE.
 - **Multi-vector retrieval (ColBERT-style)**: replacing the single-vector per slot with a small set of late-interaction vectors, useful for long documents and long videos.
-- **On-disk tier**: an HNSW-backed disk store for episodic memory > 1 M slots, while keeping working/semantic/immunological in RAM for low latency.
+- **On-disk tier**: an HNSW-backed disk store for episodic memory > 1 M slots, while keeping working_memory/semantic/procedural + immunological anomaly bank in RAM for low latency.
 
 ---
 

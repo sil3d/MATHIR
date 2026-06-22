@@ -1,8 +1,3 @@
-numpy
-onnxruntime
-transformers
-sentence-transformers
-rank-bm25
-aiohttp
-psutil
-sqlite-vec
+# Pi/Jetson-specific pip extras (the base mcp/ is installed via pyproject.toml)
+numpy>=1.24
+onnxruntime>=1.16
