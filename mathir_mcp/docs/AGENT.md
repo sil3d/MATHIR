@@ -1,4 +1,22 @@
-# MATHIR — Agent Deployment Guide (v8.3+)
+# MATHIR — Agent Deployment Guide (v8.4.0)
+
+**Universal install: one folder, 50+ agents, zero config.**
+
+**v8.4.0 highlights**: Living memory — 4 tiers, full Ebbinghaus lifecycle, link graph, recall@5 +52% measured on 15×10 AI benchmark. See [CHANGELOG.md](../../CHANGELOG.md) for details.
+
+---
+
+## TL;DR
+
+```
+You need 3 things:
+1. Install MATHIR: ~/.config/MATHIR/ (global, once)
+2. Run installer:  python ~/.config/MATHIR/install_smart.py
+3. That's it.
+
+The installer auto-detects your coding agents and configures them.
+Each project gets its own database at .mathir/mathir.db.
+```
 
 **Universal install: one folder, 50 agents, zero config.**
 
@@ -216,7 +234,8 @@ nano ~/.config/MATHIR/config/mathir.json
 python ~/.config/MATHIR/dev/migrate_db.py --db .mathir/mathir.db --new-dim 768
 
 # 3. Restart daemon
-python -m mathir_lib.mathir_client stop
+# Kill the running daemon then start fresh
+pkill -f "mathir_mcp" || true
 python -m mathir_mcp
 ```
 
@@ -232,55 +251,82 @@ Vector + BM25 + RRF fusion (k=60). ~60ms per search.
 |--------|----------|
 | `memory_recall` | Semantic similarity (vector) |
 | `memory_smart_search` | Hybrid (vector + text, best quality) |
+| `memory_hybrid_search` | Explicit vector+BM25 fusion with tunable weights |
 
-Note: `memory_search` was removed in v8.3 — functionality folded into `memory_smart_search` (auto-tuned weights, default k=10). `memory_hybrid_search` is still available for explicit vector+BM25 fusion (10 tools total).
+Note: `memory_search` was removed in v8.3 — functionality folded into `memory_smart_search` (auto-tuned weights, default k=10). v8.4.0 has **17 tools total** (10 basic + 7 lifecycle).
 
 ---
 
-## MCP Tools (9)
+## MCP Tools (17 in v8.4.0)
 
+### Basic (every day)
 | Tool | Description |
 |------|-------------|
-| `memory_save` | Save a memory block |
-| `memory_recall` | Search by similarity |
-| `memory_smart_search` | Hybrid search (vector + BM25 + RRF) |
+| `memory_save` | Save a memory (4 tiers: working_memory, episodic, semantic, procedural) |
+| `memory_recall` | Semantic search — auto-touches: increments recall_count, boosts stability |
+| `memory_smart_search` | Daemon-native search (faster for high-throughput) |
+| `memory_hybrid_search` | Vector + BM25 + RRF fusion (best for exact match queries) |
 | `memory_audit` | View memory audit trail |
 | `memory_export` | Export all memory data as JSON |
-| `memory_delete` | Soft-delete a memory |
+| `memory_delete` | Soft-delete a memory (sets tier='archived') |
 | `memory_sessions` | List recent memory sessions |
-| `memory_stats` | Get statistics |
+| `memory_stats` | Get statistics by tier/agent/project |
 | `memory_dashboard` | Launch / check Neural Memory Dashboard |
 
-Canonical list — matches `mathir_lib/mathir_mcp_server.py` TOOLS array (lines 249–358).
+### Lifecycle (v8.4.0 NEW — living memory)
+| Tool | Description |
+|------|-------------|
+| `memory_promote` | Move a memory to the next tier (Ebbinghaus rules) |
+| `memory_auto_promote` | Scan and promote all eligible memories |
+| `memory_decay` | Apply Ebbinghaus decay (5%/30d), archive when stability < floor |
+| `memory_consolidate` | Merge near-duplicates (cosine > threshold) |
+| `memory_link` | Add an edge in the link graph (spreading activation) |
+| `memory_get_links` | BFS traversal of the link graph |
+| `memory_build_links` | Build the graph from cosine similarities |
+
+### 4 memory tiers
+| Tier | Use for |
+|------|---------|
+| `working_memory` | Current session scratchpad |
+| `episodic` | Events: bugs fixed, decisions, sessions |
+| `semantic` | Stable facts that apply broadly |
+| `procedural` | How-to recipes (label must start with `how-to:` or `recipe:`) |
+
+Canonical list — matches `mathir_lib/mathir_mcp_server.py` TOOLS array.
 
 ---
 
-## Brain Architecture (5 Phases)
+## Brain Architecture (5 Phases, v8.4.0)
 
 | Phase | Script | Purpose |
 |---|---|---|
-| 1 | `mathir_inject_proxy.py` | Auto-inject top-3 memories into every LLM call (port 8182) |
+| 1 | `mathir_inject_proxy.py` | Optional auto-inject proxy (port 8182) — only for agents that proxy LLM traffic |
 | 2 | `mathir_watchdog.py` | Auto-restart daemon on crash (7s recovery) |
 | 3 | `mathir_spread.py` | Spreading activation (related memories via link graph) |
 | 4 | `mathir_consolidate.py` | Nightly: merge duplicates, decay unused, archive dead |
 | 5 | `mathir_prime.py` | Pre-cognitive: senses cwd/git before user query |
 
-### One-command brain stack
+### How memory works in v8.4.0
 
-```bash
-python ~/.config/MATHIR/brain/mathir_brain.py start
-python ~/.config/MATHIR/brain/mathir_brain.py status
-```
+**Two paths, both supported:**
 
-### How auto-injection works
+**Path A — MCP tools (recommended for OpenCode, Claude Code, Cursor):**
+The agent calls `memory_recall(query, k=5)` directly. Each call:
+- Auto-touches the memory (increments recall_count, boosts stability)
+- Returns top-k relevant memories
+- <100ms latency
 
+**Path B — Inject proxy (port 8182, optional):**
+For agents that can't call MCP tools directly:
 1. Proxy listens on port 8182
 2. Takes last user message from LLM request
 3. Calls `daemon.recall(k=3)` in <300ms
 4. Injects memories as `{{MATHIR_CONTEXT}}` in system prompt
 5. Forwards to your real LLM (8181)
 
-**The agent never needs to call recall. Memories are pre-injected.**
+> **Note:** OpenCode doesn't support `baseUrl` configuration, so Path A (direct MCP tools) is the only working path. Other agents (Claude Code, Cursor, MiMo) can use either path.
+
+**In both paths, the agent has 17 tools (10 basic + 7 lifecycle) at its disposal — no manual `memory_recall` is strictly required if instructions are properly loaded.**
 
 ---
 
@@ -342,13 +388,18 @@ Config: `~/.config/opencode/opencode.json`
   "mcp": {
     "mathir": {
       "type": "local",
-      "command": ["python", "-m", "mathir_lib.mathir_mcp_server"],
-      "environment": { "MATHIR_EMBEDDING_DIM": "384" },
+      "command": ["python", "-m", "mathir_mcp"],
+      "environment": {
+        "MATHIR_EMBEDDING_DIM": "384",
+        "MATHIR_PORT": "7338"
+      },
       "enabled": true
     }
   }
 }
 ```
+
+> v8.4.0: entry point renamed from `python -m mathir_lib.mathir_mcp_server` to `python -m mathir_mcp`. The old form still works (backward compat) but new installs should use the new form.
 
 ### MiMo
 
@@ -358,7 +409,7 @@ Config: `~/.config/mimocode/mimocode.json`
   "mcpServers": {
     "mathir": {
       "command": "python",
-      "args": ["-m", "mathir_lib.mathir_mcp_server"],
+      "args": ["-m", "mathir_mcp"],
       "env": { "MATHIR_EMBEDDING_DIM": "384" }
     }
   }
@@ -378,7 +429,7 @@ Config: `~/.claude.json`
   "mcpServers": {
     "mathir": {
       "command": "python",
-      "args": ["-m", "mathir_lib.mathir_mcp_server"],
+      "args": ["-m", "mathir_mcp"],
       "env": { "MATHIR_EMBEDDING_DIM": "384" }
     }
   }
@@ -393,7 +444,7 @@ Config: `~/.cursor/mcp.json`
   "mcpServers": {
     "mathir": {
       "command": "python",
-      "args": ["-m", "mathir_lib.mathir_mcp_server"],
+      "args": ["-m", "mathir_mcp"],
       "env": { "MATHIR_EMBEDDING_DIM": "384" }
     }
   }
