@@ -1,0 +1,646 @@
+{
+  "config": {
+    "experiences": 30,
+    "questions": 15,
+    "dim": 384,
+    "seed": 42,
+    "duration_min": 15,
+    "llm_backend": "ollama"
+  },
+  "phase_A": {
+    "experiences_generated": 30,
+    "memories_stored": 60,
+    "wall_s": 297.83
+  },
+  "phase_B_baseline": {
+    "questions_answered": 15,
+    "wall_s": 453.07,
+    "metrics_summary": {
+      "recall_at_5_mean": 0.0,
+      "precision_at_5_mean": 0.0,
+      "mrr_mean": 0.0,
+      "has_answer_rate": 0.0
+    },
+    "answers": [
+      {
+        "q": "Where in the code does MCP tool registration order issue manifest?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "MCP tool registration order issue"
+      },
+      {
+        "q": "What was the issue with SQL injection vector in search query?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "SQL injection vector in search query"
+      },
+      {
+        "q": "What was the root cause of promote rules not catching mature memories?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "promote rules not catching mature memories"
+      },
+      {
+        "q": "What was the root cause of JSON serialization crash on null fields?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "JSON serialization crash on null fields"
+      },
+      {
+        "q": "What did we learn from decay archive threshold too aggressive?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "decay archive threshold too aggressive"
+      },
+      {
+        "q": "What was the root cause of CORS preflight failure for POST requests?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "CORS preflight failure for POST requests"
+      },
+      {
+        "q": "What was the issue with session cookie not being set on iOS?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "session cookie not being set on iOS"
+      },
+      {
+        "q": "Where in the code does rate limiting issue in API gateway manifest?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "rate limiting issue in API gateway"
+      },
+      {
+        "q": "What did we learn from database connection pool exhausted?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "database connection pool exhausted"
+      },
+      {
+        "q": "What was the issue with session memory not shared across agents?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "session memory not shared across agents"
+      },
+      {
+        "q": "Where in the code does JWT token expiration edge case manifest?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "JWT token expiration edge case"
+      },
+      {
+        "q": "What was the issue with GPU embedder not loading in WSL?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "GPU embedder not loading in WSL"
+      },
+      {
+        "q": "What did we learn from N+1 query problem in user dashboard?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "N+1 query problem in user dashboard"
+      },
+      {
+        "q": "What was the root cause of daemon port conflict on restart?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "daemon port conflict on restart"
+      },
+      {
+        "q": "What did we learn from authentication bug in login flow?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "authentication bug in login flow"
+      }
+    ]
+  },
+  "phase_C_maintenance": {
+    "decay": {
+      "result": {
+        "decayed": 0,
+        "archived": 0,
+        "by_tier": {},
+        "skipped": true,
+        "reason": "no_stability_column",
+        "schema": "new"
+      },
+      "wall_s": 0.01
+    },
+    "promote": {
+      "promoted": 0,
+      "wall_s": 0.07
+    },
+    "consolidate": {
+      "result": {
+        "dry_run": false,
+        "threshold": 0.95,
+        "merged": 18,
+        "candidates": 100,
+        "by_tier": {
+          "archived": 18,
+          "episodic": 42
+        },
+        "events": [
+          {
+            "canonical_id": "bench_290b0786",
+            "merged_from": "bench_eaa06898",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_eaa06898",
+              "archived bench_eaa06898"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_164ec61b",
+            "merged_from": "bench_290b0786",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_290b0786",
+              "archived bench_290b0786"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_164ec61b",
+            "merged_from": "bench_4ee700ed",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_4ee700ed",
+              "archived bench_4ee700ed"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_164ec61b",
+            "merged_from": "bench_5b062967",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_5b062967",
+              "archived bench_5b062967"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_164ec61b",
+            "merged_from": "bench_5ce1d238",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_5ce1d238",
+              "archived bench_5ce1d238"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_164ec61b",
+            "merged_from": "bench_21fccb91",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_21fccb91",
+              "archived bench_21fccb91"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_164ec61b",
+            "merged_from": "bench_353216d0",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_353216d0",
+              "archived bench_353216d0"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_009a21ce",
+            "merged_from": "bench_164ec61b",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_164ec61b",
+              "archived bench_164ec61b"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_009a21ce",
+            "merged_from": "bench_0c2c55f1",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_0c2c55f1",
+              "archived bench_0c2c55f1"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_009a21ce",
+            "merged_from": "bench_d8451812",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_d8451812",
+              "archived bench_d8451812"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_009a21ce",
+            "merged_from": "bench_d6b42e29",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_d6b42e29",
+              "archived bench_d6b42e29"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_009a21ce",
+            "merged_from": "bench_148c432c",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_148c432c",
+              "archived bench_148c432c"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_009a21ce",
+            "merged_from": "bench_a8d0b267",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_a8d0b267",
+              "archived bench_a8d0b267"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_009a21ce",
+            "merged_from": "bench_94727423",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_94727423",
+              "archived bench_94727423"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_009a21ce",
+            "merged_from": "bench_3b976d57",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_3b976d57",
+              "archived bench_3b976d57"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_009a21ce",
+            "merged_from": "bench_1e9aefac",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_1e9aefac",
+              "archived bench_1e9aefac"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_009a21ce",
+            "merged_from": "bench_370155f3",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_370155f3",
+              "archived bench_370155f3"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_009a21ce",
+            "merged_from": "bench_b360740c",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_b360740c",
+              "archived bench_b360740c"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          }
+        ]
+      },
+      "wall_s": 0.44
+    },
+    "build_links": {
+      "result": {
+        "links_created": 1722,
+        "memories_scanned": 42
+      },
+      "wall_s": 0.04
+    }
+  },
+  "phase_D_after": {
+    "questions_answered": 15,
+    "wall_s": 616.4,
+    "metrics_summary": {
+      "recall_at_5_mean": 0.0,
+      "precision_at_5_mean": 0.0,
+      "mrr_mean": 0.0,
+      "has_answer_rate": 0.0
+    },
+    "answers": [
+      {
+        "q": "What was the root cause of MCP tool registration order issue?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "MCP tool registration order issue"
+      },
+      {
+        "q": "What did we learn from SQL injection vector in search query?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "SQL injection vector in search query"
+      },
+      {
+        "q": "How did we fix promote rules not catching mature memories?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "promote rules not catching mature memories"
+      },
+      {
+        "q": "What was the issue with JSON serialization crash on null fields?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "JSON serialization crash on null fields"
+      },
+      {
+        "q": "What was the issue with decay archive threshold too aggressive?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "decay archive threshold too aggressive"
+      },
+      {
+        "q": "How did we fix CORS preflight failure for POST requests?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "CORS preflight failure for POST requests"
+      },
+      {
+        "q": "What was the root cause of session cookie not being set on iOS?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "session cookie not being set on iOS"
+      },
+      {
+        "q": "What was the issue with rate limiting issue in API gateway?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "rate limiting issue in API gateway"
+      },
+      {
+        "q": "How did we fix database connection pool exhausted?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "database connection pool exhausted"
+      },
+      {
+        "q": "What was the issue with session memory not shared across agents?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "session memory not shared across agents"
+      },
+      {
+        "q": "Where in the code does JWT token expiration edge case manifest?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "JWT token expiration edge case"
+      },
+      {
+        "q": "What was the root cause of GPU embedder not loading in WSL?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "GPU embedder not loading in WSL"
+      },
+      {
+        "q": "Where in the code does N+1 query problem in user dashboard manifest?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "N+1 query problem in user dashboard"
+      },
+      {
+        "q": "What was the root cause of daemon port conflict on restart?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "daemon port conflict on restart"
+      },
+      {
+        "q": "How did we fix authentication bug in login flow?",
+        "a": "",
+        "metrics": {
+          "recall_at_5": 0,
+          "precision_at_5": 0,
+          "mrr": 0,
+          "has_answer": false
+        },
+        "topic": "authentication bug in login flow"
+      }
+    ]
+  },
+  "comparison": {
+    "recall_at_5": {
+      "before": 0.0,
+      "after": 0.0,
+      "delta": 0.0
+    },
+    "precision_at_5": {
+      "before": 0.0,
+      "after": 0.0,
+      "delta": 0.0
+    },
+    "mrr": {
+      "before": 0.0,
+      "after": 0.0,
+      "delta": 0.0
+    },
+    "has_answer_rate": {
+      "before": 0.0,
+      "after": 0.0,
+      "delta": 0.0
+    }
+  }
+}
