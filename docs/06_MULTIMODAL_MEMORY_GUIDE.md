@@ -43,6 +43,8 @@ MATHIR is a **memory layer for LLMs that operates on numerical embeddings**, not
 
 ## 4. Architecture Diagram
 
+![MATHIR Architecture](assets/Mathir_architecture.png)
+
 ```
    ┌──────────────────────────────────────────────────────────────────────┐
    │                       RAW INPUT  (any modality)                       │
