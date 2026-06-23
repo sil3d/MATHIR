@@ -3,7 +3,7 @@
 ## What Is This?
 
 A real-time web dashboard that visualizes your MATHIR neural memory system:
-- 4-tier memory breakdown (working, episodic, semantic, procedural)
+- 5-tier memory breakdown (working, episodic, semantic, procedural, immunological)
 - Per-agent statistics
 - Memory creation timeline
 - Router weight visualization
@@ -196,6 +196,7 @@ EXAMPLES:
 | `episodic` | After completing a task | "Fixed login refresh token bug in PR #42" |
 | `semantic` | Discovery about the project | "This project uses JWT tokens in Authorization header" |
 | `procedural` | Workflow that works well | "How to debug auth issues: 1. Check token, 2. Check CORS..." |
+| `immunological` | Toxic/biased/unsafe content detected | "Auto-quarantined: memory contains PII, blocked from recall" |
 
 ### What NOT to Save
 

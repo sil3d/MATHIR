@@ -1,4 +1,4 @@
-# Daemon Architecture (v8.3.0)
+# Daemon Architecture (v8.4.1)
 
 ## What the Daemon Does
 
@@ -8,7 +8,7 @@ The MATHIR daemon is a **persistent background process** that:
 2. Keeps the model in RAM/VRAM for instant access
 3. Serves requests via TCP socket (JSON-RPC)
 4. Manages the SQLite database with vec0 vector index
-5. Handles 4-tier cognitive memory routing
+5. Handles 5-tier cognitive memory routing
 
 Without daemon: each embedding request loads the model (~2-5s)
 With daemon: model stays loaded, requests complete in ~20ms
@@ -62,7 +62,7 @@ Save a memory block with embedding.
 |-------|------|----------|-------------|
 | content | string | yes | Text content to store |
 | agent | string | yes | Agent identifier |
-| block_type | string | yes | working_memory / episodic / semantic / procedural |
+| block_type | string | yes | working_memory / episodic / semantic / procedural / immunological |
 | label | string | yes | Unique label for this memory |
 | priority | int | no | 1-10, default 5 |
 | metadata | dict | no | Additional key-value pairs |
@@ -117,7 +117,8 @@ Get memory statistics.
     "working_memory": 23,
     "episodic": 456,
     "semantic": 678,
-    "procedural": 90
+    "procedural": 90,
+    "immunological": 12
   },
   "by_agent": {
     "coder": 512,

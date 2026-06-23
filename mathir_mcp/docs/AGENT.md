@@ -1,8 +1,8 @@
-# MATHIR — Agent Deployment Guide (v8.4.0)
+# MATHIR — Agent Deployment Guide (v8.4.1)
 
 **Universal install: one folder, 50+ agents, zero config.**
 
-**v8.4.0 highlights**: Living memory — 5 tiers, full Ebbinghaus lifecycle, link graph, recall@5 +52% measured on 15×10 AI benchmark. See [CHANGELOG.md](../../CHANGELOG.md) for details.
+**v8.4.1 highlights**: Living memory — 5 tiers, full Ebbinghaus lifecycle, link graph, recall@5 +52% measured on 15×10 AI benchmark. See [CHANGELOG.md](../../CHANGELOG.md) for details.
 
 ---
 
@@ -253,16 +253,16 @@ Vector + BM25 + RRF fusion (k=60). ~60ms per search.
 | `memory_smart_search` | Hybrid (vector + text, best quality) |
 | `memory_hybrid_search` | Explicit vector+BM25 fusion with tunable weights |
 
-Note: `memory_search` was removed in v8.3 — functionality folded into `memory_smart_search` (auto-tuned weights, default k=10). v8.4.0 has **17 tools total** (10 basic + 7 lifecycle).
+Note: `memory_search` was removed in v8.3 — functionality folded into `memory_smart_search` (auto-tuned weights, default k=10). v8.4.1 has **17 tools total** (10 basic + 7 lifecycle).
 
 ---
 
-## MCP Tools (17 in v8.4.0)
+## MCP Tools (17 in v8.4.1)
 
 ### Basic (every day)
 | Tool | Description |
 |------|-------------|
-| `memory_save` | Save a memory (4 tiers: working_memory, episodic, semantic, procedural) |
+| `memory_save` | Save a memory (5 tiers: working_memory, episodic, semantic, procedural, immunological) |
 | `memory_recall` | Semantic search — auto-touches: increments recall_count, boosts stability |
 | `memory_smart_search` | Daemon-native search (faster for high-throughput) |
 | `memory_hybrid_search` | Vector + BM25 + RRF fusion (best for exact match queries) |
@@ -273,7 +273,7 @@ Note: `memory_search` was removed in v8.3 — functionality folded into `memory_
 | `memory_stats` | Get statistics by tier/agent/project |
 | `memory_dashboard` | Launch / check Neural Memory Dashboard |
 
-### Lifecycle (v8.4.0 NEW — living memory)
+### Lifecycle (v8.4.1 NEW — living memory)
 | Tool | Description |
 |------|-------------|
 | `memory_promote` | Move a memory to the next tier (Ebbinghaus rules) |
@@ -284,19 +284,20 @@ Note: `memory_search` was removed in v8.3 — functionality folded into `memory_
 | `memory_get_links` | BFS traversal of the link graph |
 | `memory_build_links` | Build the graph from cosine similarities |
 
-### 4 memory tiers
+### 5 memory tiers
 | Tier | Use for |
 |------|---------|
 | `working_memory` | Current session scratchpad |
 | `episodic` | Events: bugs fixed, decisions, sessions |
 | `semantic` | Stable facts that apply broadly |
 | `procedural` | How-to recipes (label must start with `how-to:` or `recipe:`) |
+| `immunological` | Immune response — auto-quarantines toxic, biased, or unsafe memories |
 
 Canonical list — matches `mathir_lib/mathir_mcp_server.py` TOOLS array.
 
 ---
 
-## Brain Architecture (5 Phases, v8.4.0)
+## Brain Architecture (5 Phases, v8.4.1)
 
 | Phase | Script | Purpose |
 |---|---|---|
@@ -306,7 +307,7 @@ Canonical list — matches `mathir_lib/mathir_mcp_server.py` TOOLS array.
 | 4 | `mathir_consolidate.py` | Nightly: merge duplicates, decay unused, archive dead |
 | 5 | `mathir_prime.py` | Pre-cognitive: senses cwd/git before user query |
 
-### How memory works in v8.4.0
+### How memory works in v8.4.1
 
 **Two paths, both supported:**
 
@@ -399,7 +400,7 @@ Config: `~/.config/opencode/opencode.json`
 }
 ```
 
-> v8.4.0: entry point is `python -m mathir_mcp`. The legacy top-level module path was removed when `mathir_lib/` was nested inside `mathir_mcp/`.
+> v8.4.1: entry point is `python -m mathir_mcp`. The legacy top-level module path was removed when `mathir_lib/` was nested inside `mathir_mcp/`.
 
 ### MiMo
 
