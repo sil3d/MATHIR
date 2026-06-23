@@ -1,6 +1,38 @@
 <!-- SEO: meta tags for search engines -->
 <!-- mathir,memory-augmented,llm-memory,cognitive-memory,vector-database,ai-agent,rag,mcp,model-context-protocol,knowledge-graph,ai-memory,long-term-memory,open-source,mit,sqlite,local-ai,edge-ai,jetson,raspberry-pi,neuroscience,ebbinghaus,tier-promotion,memory-consolidation,prompt-injection,anomaly-detection,mahalanobis,onnx,sentence-transformers,python,llama,claude,chatgpt,gemini,opencode,cursor,windsurf,kilocode -->
 
+> ## ⚠️ DISCLAIMER — Read before use
+>
+> **MATHIR has NOT undergone formal security testing or third-party audits.**
+> It was built by an independent developer for the AI community. Use at your own risk in production environments.
+>
+> **What this means for you:**
+> - 🔒 **No penetration testing** has been performed on the daemon, MCP server, or HTTP endpoints
+> - 🛡️ The **immunological tier** is a research prototype, not a certified security layer
+> - 🐛 There may be **undiscovered vulnerabilities** in memory persistence, IPC, or daemon networking
+> - ⚡ The codebase has **173 tests** but they cover functionality, not adversarial security
+>
+> **Why open source?**
+> - 🌍 Built for the community, by one person
+> - 🤝 Feel free to use, modify, fork, and improve
+> - 📝 **PRs and security reports welcome** — please open an issue or pull request
+> - 💡 If you find a vulnerability, please report it privately first if possible
+>
+> **Recommended for production:**
+> - Run MATHIR behind a firewall
+> - Don't expose the daemon (port 7338) directly to the internet
+> - Validate all inputs at your application layer
+> - Monitor for unusual memory patterns
+>
+> **Not recommended for:**
+> - ❌ Handling sensitive PII without additional encryption layer
+> - ❌ Mission-critical systems without fallback
+> - ❌ Production AI agents without sandboxing
+>
+> **License:** MIT — do what you want, but you carry the risk.
+
+<br/>
+
 <div align="center">
 
 <img src="docs/assets/Mathir_logo.png" alt="MATHIR Logo - AI Memory Layer for LLMs" width="180"/>
