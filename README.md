@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="docs/assets/logo.svg" alt="MATHIR Logo" width="180"/>
+
 # 🧠 MATHIR
 
 ### Memory-Augmented Tensor Hybrid with Intelligent Routing
@@ -11,8 +13,8 @@
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-8.3.0-6366f1?style=for-the-badge)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/Tests-147%20passed-22c55e?style=for-the-badge)](#-tests--benchmarks)
+[![Version](https://img.shields.io/badge/Version-8.4.0-6366f1?style=for-the-badge)](CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/Tests-173%20passed-22c55e?style=for-the-badge)](#-tests--benchmarks)
 
 <br/>
 
@@ -532,6 +534,10 @@ print(f"Enhanced embedding: {output['enhanced_embedding'].shape}")
 ---
 
 ## 🏗️ Architecture
+
+<p align="center">
+  <img src="docs/assets/architecture.svg" alt="MATHIR Architecture" width="900"/>
+</p>
 
 ```
 ┌─────────────────────────────────────────────┐

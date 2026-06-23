@@ -402,6 +402,85 @@ TOOLS = [
                 }
             }
         }
+    },
+    {
+        "name": "memory_promote",
+        "description": "Promote a memory to the next tier (working_memory → episodic → semantic → procedural). Uses Ebbinghaus rules: recall_count >= 3 and age >= 1d for working→episodic, recall_count >= 10 and age >= 7d for episodic→semantic, priority >= 8 + label prefix 'how-to:'/'recipe:' for semantic→procedural. Set force=true to bypass rules.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "memory_id": {"type": "string", "description": "ID of the memory to promote"},
+                "force": {"type": "boolean", "default": False, "description": "Skip rule checks, promote unconditionally"}
+            },
+            "required": ["memory_id"]
+        }
+    },
+    {
+        "name": "memory_auto_promote",
+        "description": "Scan all memories and auto-promote those that meet tier-transition rules. Returns list of promoted memories with old_tier → new_tier.",
+        "inputSchema": {"type": "object", "properties": {}}
+    },
+    {
+        "name": "memory_decay",
+        "description": "Apply Ebbinghaus decay: reduce stability for memories not recalled recently (5%/30 days), archive those with stability < 0.05. Use threshold_days to control how aggressive the decay is. dry_run=true returns the plan without modifying anything.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "threshold_days": {"type": "integer", "default": 30, "description": "Days of inactivity before decay applies"},
+                "archive_floor": {"type": "number", "default": 0.05, "description": "Stability below this → archived"},
+                "dry_run": {"type": "boolean", "default": true, "description": "If true, return plan without modifying DB"}
+            }
+        }
+    },
+    {
+        "name": "memory_consolidate",
+        "description": "Merge near-duplicate memories (cosine > threshold). Returns merged pairs and tier distribution. dry_run=true shows the plan.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "threshold": {"type": "number", "default": 0.95, "description": "Cosine similarity threshold for merging"},
+                "limit": {"type": "integer", "default": 100, "description": "Max pairs to process"},
+                "dry_run": {"type": "boolean", "default": true, "description": "If true, return plan without modifying DB"}
+            }
+        }
+    },
+    {
+        "name": "memory_link",
+        "description": "Add a link between two memories in the link graph. Links enable spreading activation during recall (1-2 hops, decay 0.5 per hop).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "source_id": {"type": "string", "description": "Source memory ID"},
+                "target_id": {"type": "string", "description": "Target memory ID"},
+                "weight": {"type": "number", "default": 1.0, "description": "Link weight (0.0-1.0)"}
+            },
+            "required": ["source_id", "target_id"]
+        }
+    },
+    {
+        "name": "memory_get_links",
+        "description": "BFS traversal of the link graph from a memory. Returns linked memories with distance and cumulative weight (decay**hops).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "memory_id": {"type": "string", "description": "Starting memory ID"},
+                "depth": {"type": "integer", "default": 1, "description": "Max hops (1-2)"},
+                "decay": {"type": "number", "default": 0.5, "description": "Per-hop weight decay"}
+            },
+            "required": ["memory_id"]
+        }
+    },
+    {
+        "name": "memory_build_links",
+        "description": "Build the link graph by scanning all memories and adding links between pairs with cosine > threshold. Use threshold=0.7 for broad associations. Idempotent.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "threshold": {"type": "number", "default": 0.7, "description": "Cosine similarity threshold for linking"},
+                "limit": {"type": "integer", "default": 1000, "description": "Max memories to scan"}
+            }
+        }
+    }
     }
 ]
 
@@ -695,6 +774,79 @@ def handle_memory_dashboard(args: dict) -> dict:
         return {"error": f"Unknown action: {action}"}
 
 
+# ============================================================================
+# Memory lifecycle handlers (Phase 1-4: promote, decay, consolidate, link)
+# ============================================================================
+
+def handle_memory_promote(args: dict) -> dict:
+    """Promote a memory to the next tier via Ebbinghaus rules."""
+    memory = get_memory(args.get("project"))
+    memory_id = args["memory_id"]
+    force = args.get("force", False)
+    result = memory.promote(memory_id, force=force)
+    return {"result": result}
+
+
+def handle_memory_auto_promote(args: dict) -> dict:
+    """Scan all memories and auto-promote those meeting rules."""
+    memory = get_memory(args.get("project"))
+    promoted = memory.auto_promote_all()
+    return {"promoted": promoted, "count": len(promoted)}
+
+
+def handle_memory_decay(args: dict) -> dict:
+    """Apply Ebbinghaus decay (5%/30d), archive stability < 0.05."""
+    memory = get_memory(args.get("project"))
+    result = memory.decay_all(
+        threshold_days=args.get("threshold_days", 30),
+        archive_floor=args.get("archive_floor", 0.05),
+    )
+    return {"result": result}
+
+
+def handle_memory_consolidate(args: dict) -> dict:
+    """Merge near-duplicate memories (cosine > threshold)."""
+    memory = get_memory(args.get("project"))
+    result = memory.consolidate_all(
+        threshold=args.get("threshold", 0.95),
+        limit=args.get("limit", 100),
+        dry_run=args.get("dry_run", True),
+    )
+    return {"result": result}
+
+
+def handle_memory_link(args: dict) -> dict:
+    """Add a link in the link graph."""
+    memory = get_memory(args.get("project"))
+    result = memory.add_link(
+        source_id=args["source_id"],
+        target_id=args["target_id"],
+        weight=args.get("weight", 1.0),
+    )
+    return {"result": result}
+
+
+def handle_memory_get_links(args: dict) -> dict:
+    """BFS traversal of the link graph."""
+    memory = get_memory(args.get("project"))
+    result = memory.get_links(
+        memory_id=args["memory_id"],
+        depth=args.get("depth", 1),
+        decay=args.get("decay", 0.5),
+    )
+    return {"result": result, "count": len(result)}
+
+
+def handle_memory_build_links(args: dict) -> dict:
+    """Build link graph from cosine > threshold across all memories."""
+    memory = get_memory(args.get("project"))
+    result = memory.build_links_all(
+        threshold=args.get("threshold", 0.7),
+        limit=args.get("limit", 1000),
+    )
+    return {"result": result}
+
+
 TOOL_HANDLERS = {
     "memory_save": handle_memory_save,
     "memory_recall": handle_memory_recall,
@@ -706,6 +858,13 @@ TOOL_HANDLERS = {
     "memory_sessions": handle_memory_sessions,
     "memory_stats": handle_memory_stats,
     "memory_dashboard": handle_memory_dashboard,
+    "memory_promote": handle_memory_promote,
+    "memory_auto_promote": handle_memory_auto_promote,
+    "memory_decay": handle_memory_decay,
+    "memory_consolidate": handle_memory_consolidate,
+    "memory_link": handle_memory_link,
+    "memory_get_links": handle_memory_get_links,
+    "memory_build_links": handle_memory_build_links,
 }
 
 

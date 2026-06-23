@@ -231,7 +231,18 @@ def _handle_memory_recall(params):
         agent_filter=params.get('agent'),
         block_type_filter=params.get('block_type'),
     )
-    return {'results': results, 'query': query, 'total': len(results)}
+    # Touch recalled memories: increment recall_count, update last_recalled_at,
+    # boost stability (Ebbinghaus). Best-effort — never block recall on this.
+    touched = 0
+    try:
+        for r in results:
+            mid = r.get('memory_id')
+            if mid and hasattr(vec_mem, 'touch_recall'):
+                vec_mem.touch_recall(mid)
+                touched += 1
+    except Exception:
+        pass
+    return {'results': results, 'query': query, 'total': len(results), 'touched': touched}
 
 
 def _handle_memory_stats(_params):
@@ -441,6 +452,82 @@ def _handle_push_cache_stats(_params):
         return _push_cache.stats()
 
 
+# ---------------------------------------------------------------------------
+# Memory lifecycle RPC handlers (Phase 1-4)
+# ---------------------------------------------------------------------------
+
+def _handle_memory_promote(params):
+    """Promote a single memory to the next tier."""
+    vec_mem, _db_path, _embedder = _resolve_db()
+    memory_id = params.get('memory_id', '')
+    if not memory_id:
+        return {'error': 'memory_id required'}
+    force = params.get('force', False)
+    return vec_mem.promote(memory_id, force=force)
+
+
+def _handle_memory_auto_promote(_params):
+    """Scan and promote all eligible memories."""
+    vec_mem, _db_path, _embedder = _resolve_db()
+    promoted = vec_mem.auto_promote_all()
+    return {'promoted': promoted, 'count': len(promoted)}
+
+
+def _handle_memory_decay(params):
+    """Apply Ebbinghaus decay across all memories."""
+    vec_mem, _db_path, _embedder = _resolve_db()
+    threshold_days = params.get('threshold_days', 30)
+    archive_floor = params.get('archive_floor', 0.05)
+    return vec_mem.decay_all(
+        threshold_days=threshold_days,
+        archive_floor=archive_floor,
+    )
+
+
+def _handle_memory_consolidate(params):
+    """Merge near-duplicate memories."""
+    vec_mem, _db_path, _embedder = _resolve_db()
+    return vec_mem.consolidate_all(
+        threshold=params.get('threshold', 0.95),
+        limit=params.get('limit', 100),
+        dry_run=params.get('dry_run', True),
+    )
+
+
+def _handle_memory_link(params):
+    """Add a link in the link graph."""
+    vec_mem, _db_path, _embedder = _resolve_db()
+    source_id = params.get('source_id', '')
+    target_id = params.get('target_id', '')
+    if not source_id or not target_id:
+        return {'error': 'source_id and target_id required'}
+    return vec_mem.add_link(
+        source_id=source_id,
+        target_id=target_id,
+        weight=params.get('weight', 1.0),
+    )
+
+
+def _handle_memory_get_links(params):
+    """BFS traversal of the link graph."""
+    vec_mem, _db_path, _embedder = _resolve_db()
+    memory_id = params.get('memory_id', '')
+    if not memory_id:
+        return {'error': 'memory_id required'}
+    depth = params.get('depth', 1)
+    decay = params.get('decay', 0.5)
+    return {'result': vec_mem.get_links(memory_id, depth=depth, decay=decay)}
+
+
+def _handle_memory_build_links(params):
+    """Build the link graph from cosine > threshold."""
+    vec_mem, _db_path, _embedder = _resolve_db()
+    return vec_mem.build_links_all(
+        threshold=params.get('threshold', 0.7),
+        limit=params.get('limit', 1000),
+    )
+
+
 # Dispatch table  (method name → handler function)
 _METHOD_HANDLERS = {
     'ping':                  _handle_ping,
@@ -453,6 +540,14 @@ _METHOD_HANDLERS = {
     'memory_hybrid_search':  _handle_memory_hybrid_search,
     'memory_risk_check':     _handle_memory_risk_check,
     'push_cache_stats':      _handle_push_cache_stats,
+    # Memory lifecycle (Phase 1-4)
+    'memory_promote':        _handle_memory_promote,
+    'memory_auto_promote':   _handle_memory_auto_promote,
+    'memory_decay':          _handle_memory_decay,
+    'memory_consolidate':    _handle_memory_consolidate,
+    'memory_link':           _handle_memory_link,
+    'memory_get_links':      _handle_memory_get_links,
+    'memory_build_links':    _handle_memory_build_links,
 }
 
 
