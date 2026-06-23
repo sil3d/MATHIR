@@ -1,12 +1,15 @@
+<!-- SEO: meta tags for search engines -->
+<!-- mathir,memory-augmented,llm-memory,cognitive-memory,vector-database,ai-agent,rag,mcp,model-context-protocol,knowledge-graph,ai-memory,long-term-memory,open-source,mit,sqlite,local-ai,edge-ai,jetson,raspberry-pi,neuroscience,ebbinghaus,tier-promotion,memory-consolidation,prompt-injection,anomaly-detection,mahalanobis,onnx,sentence-transformers,python,llama,claude,chatgpt,gemini,opencode,cursor,windsurf,kilocode -->
+
 <div align="center">
 
-<img src="docs/assets/Mathir_logo.png" alt="MATHIR Logo" width="180"/>
+<img src="docs/assets/Mathir_logo.png" alt="MATHIR Logo - AI Memory Layer for LLMs" width="180"/>
 
 # 🧠 MATHIR
 
 ### Memory-Augmented Tensor Hybrid with Intelligent Routing
 
-**The first memory layer for LLMs that actually thinks — promotes, forgets, consolidates, and links.**
+**The first cognitive memory layer for LLMs that actually thinks — promotes, forgets, consolidates, and links.**
 
 <br/>
 
