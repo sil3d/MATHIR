@@ -44,11 +44,18 @@ You spend 2 hours explaining your project to ChatGPT. Next day, new chat. You ex
 
 **With MATHIR:** Your context persists across sessions, across tools, across time. Switch from Claude to Gemini to local Llama — MATHIR remembers. You never explain the same thing twice.
 
-### 3. Autonomous driving — "That pattern looks familiar"
+### 3. Autonomous driving — "The sensor just died"
 
-A self-driving car encounters a new road condition: construction cones arranged in a pattern it's never seen. Without memory, it treats it as unknown. With memory, it recognizes: "Last time this happened, there was a lane merge ahead."
+LIDAR, cameras, ROS2, HD maps — today's self-driving stack is impressive. But what happens when a sensor fails?
 
-**With MATHIR:** Patterns are stored, linked, and recalled in real-time. The car builds experience over time — not just from training data, but from *its own* driving history.
+- Camera is blinded by sun glare → no visual data
+- LIDAR gets covered in mud → no depth perception
+- GPS loses signal in a tunnel → no position
+- Radar picks up ghost objects → false positives
+
+In that moment, the car is blind. It has no *memory* of what happened 5 seconds ago, 5 minutes ago, or on this exact road last week.
+
+**With MATHIR:** The car doesn't just see — it *remembers*. "Last time I was here, there was a speed bump at this GPS coordinate." "This pattern of cones meant a lane merge 200m ahead." When sensors fail, memory fills the gap. Like a human driver who's been on that road before.
 
 ### 4. Fine-tuning — "My data is a mess"
 
