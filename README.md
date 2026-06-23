@@ -34,14 +34,33 @@
 
 MATHIR v8.4.0 closes the gap between "memory that stores" and "memory that *thinks*". Every other memory layer for LLMs is a write-only disk: you save, you recall, and that's it. **MATHIR is the first that actually manages its own memory lifecycle.**
 
-### The 4 phases of cognitive memory
+### Your brain doesn't keep everything — and neither does MATHIR
 
-| Phase | What it does | How it works | API |
-|-------|-------------|--------------|-----|
-| **🧬 Promote** | Moves memories up the tier ladder as they mature | `working_memory` → `episodic` (recall≥3 + age≥1d) → `semantic` (recall≥10 + age≥7d) → `procedural` (priority≥8 + `how-to:` label) | `memory_promote`, `memory_auto_promote` |
-| **⏳ Decay** | Ebbinghaus forgetting curve — unused memories lose stability | 5%/30d decay · `stability += 0.1` on each recall · archived when `stability < 0.05` | `memory_decay` |
-| **🔗 Consolidate** | Merges near-duplicate memories (cosine > 0.95) | Stronger absorbs weaker: `recall_count` sums, `stability` takes max, audit trail in `merged_from[]` | `memory_consolidate` (dry-run supported) |
-| **🌐 Link graph** | Spreading activation (Collins & Loftus 1975) | New `memory_links` table · `cosine > 0.7` creates bidirectional links · BFS with `decay=0.5` per hop | `memory_link`, `memory_get_links`, `memory_build_links` |
+Think about how your own memory works. You don't remember every breakfast you've ever had. Your brain quietly discards the boring stuff and keeps what matters. When you solve the same problem twice, the second time feels easier — because the memory got *stronger*. And when you learn something new, it connects to things you already know, forming a web of associations.
+
+MATHIR does the same thing. Here's how:
+
+| Your brain | MATHIR | What happens |
+|---|---|---|
+| **Focus** — you hold a few things in mind right now | `working_memory` | Scratchpad for the current session. Fades fast. |
+| **Autobiography** — you remember what happened yesterday | `episodic` | Events: bugs fixed, decisions made, sessions completed. |
+| **Knowledge** — you know that water boils at 100°C | `semantic` | Stable facts that apply everywhere, not tied to one event. |
+| **Muscle memory** — you don't think about how to ride a bike | `procedural` | Recipes, runbooks, how-to guides. Automatized. |
+| **Immune system** — your body rejects what's dangerous | `immunological` | Anomalies, prompt injections, suspicious patterns. |
+
+### The 4 things MATHIR now does
+
+**1. Memories grow stronger when you use them** 🧠
+Every time you recall a memory, it gets a little more stable. Memories that are recalled often get promoted to a higher tier — like turning a casual fact into deep knowledge. Forgotten memories slowly fade and get archived.
+
+**2. Duplicates merge automatically** 🧹
+Ever saved the same note three times? MATHIR finds near-duplicates (cosine similarity > 0.95) and merges them into one canonical memory — no more noise.
+
+**3. Related memories link together** 🔗
+MATHIR builds a web of associations between memories. When you recall one, the system follows links to surface related context — like how thinking about "coffee" makes you think about "morning routine" and "focus".
+
+**4. Stale memories decay** 📉
+Memories you never recall slowly lose stability, following Ebbinghaus's forgetting curve. After 30 days of no recall, they start decaying 5% every 30 days. When stability drops below 0.05, they're archived — not deleted, just out of the way.
 
 ### Before vs after
 
