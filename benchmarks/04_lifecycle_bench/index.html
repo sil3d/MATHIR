@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MATHIR v8.4.0 — Benchmark Suite</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --purple: #8b5cf6;
+    --purple-dark: #6d28d9;
+    --purple-light: #a78bfa;
+    --green: #22c55e;
+    --green-dark: #16a34a;
+    --blue: #3b82f6;
+    --amber: #fbbf24;
+    --emerald: #34d399;
+    --sky: #60a5fa;
+    --pink: #f472b6;
+    --slate: #64748b;
+    --dark: #0f172a;
+    --gray: #94a3b8;
+    --light: #cbd5e1;
+    --bg: #0a0e1a;
+    --card: #1e293b;
+    --card-hover: #334155;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--light);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  .container { max-width: 1280px; margin: 0 auto; padding: 2rem; }
+  h1 { font-size: 2.5rem; font-weight: 800; background: linear-gradient(135deg, var(--purple-light), var(--green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.5rem; font-weight: 700; color: var(--light); margin: 2.5rem 0 1rem; border-bottom: 1px solid var(--card); padding-bottom: 0.5rem; }
+  h3 { font-size: 1.15rem; font-weight: 600; color: var(--purple-light); margin: 1.5rem 0 0.75rem; }
+  .subtitle { color: var(--gray); font-size: 1rem; margin-bottom: 2rem; }
+  .badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; background: var(--card); color: var(--purple-light); border: 1px solid var(--card-hover); margin-right: 0.5rem; }
+  .badge-green { background: rgba(34, 197, 94, 0.15); color: var(--green); border-color: rgba(34, 197, 94, 0.3); }
+  .badge-amber { background: rgba(251, 191, 36, 0.15); color: var(--amber); border-color: rgba(251, 191, 36, 0.3); }
+  .badge-blue { background: rgba(59, 130, 246, 0.15); color: var(--blue); border-color: rgba(59, 130, 246, 0.3); }
+  .badge-pink { background: rgba(244, 114, 182, 0.15); color: var(--pink); border-color: rgba(244, 114, 182, 0.3); }
+  .grid { display: grid; gap: 1.5rem; margin: 1.5rem 0; }
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid-4 { grid-template-columns: repeat(4, 1fr); }
+  .grid-5 { grid-template-columns: repeat(5, 1fr); }
+  @media (max-width: 900px) { .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--card-hover); border-radius: 0.75rem; padding: 1.5rem; transition: transform 0.15s; }
+  .card:hover { transform: translateY(-2px); }
+  .card-title { font-size: 0.85rem; color: var(--gray); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+  .card-value { font-size: 2rem; font-weight: 700; color: var(--light); }
+  .card-sub { font-size: 0.85rem; color: var(--gray); margin-top: 0.5rem; }
+  .card-delta { display: inline-block; margin-left: 0.5rem; font-size: 0.9rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 0.25rem; }
+  .delta-pos { background: rgba(34, 197, 94, 0.2); color: var(--green); }
+  .delta-neg { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+  .delta-zero { background: var(--card-hover); color: var(--gray); }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+  th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--card-hover); }
+  th { font-size: 0.8rem; color: var(--gray); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; background: var(--card); }
+  tr:hover td { background: var(--card); }
+  td.num { font-family: 'SF Mono', 'Monaco', 'Consolas', monospace; }
+  .chart-container { position: relative; height: 320px; margin: 1.5rem 0; }
+  .chart-container.tall { height: 420px; }
+  .memory-block { background: rgba(139, 92, 246, 0.08); border-left: 3px solid var(--purple); padding: 1rem 1.25rem; border-radius: 0 0.5rem 0.5rem 0; margin: 0.75rem 0; }
+  .memory-content { color: var(--light); white-space: pre-wrap; line-height: 1.7; font-size: 0.95rem; }
+  .memory-meta { font-size: 0.8rem; color: var(--gray); margin-bottom: 0.5rem; }
+  .qa-block { background: var(--card); border: 1px solid var(--card-hover); border-radius: 0.5rem; padding: 1rem 1.25rem; margin: 0.75rem 0; }
+  .qa-q { color: var(--sky); font-weight: 600; margin-bottom: 0.5rem; }
+  .qa-a { color: var(--light); margin: 0.5rem 0; line-height: 1.6; }
+  .qa-meta { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.8rem; color: var(--gray); margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--card-hover); }
+  .qa-meta span { padding: 0.15rem 0.5rem; background: var(--bg); border-radius: 0.25rem; font-family: 'SF Mono', monospace; }
+  .phase-label { display: inline-block; padding: 0.4rem 1rem; border-radius: 0.25rem; font-weight: 600; font-size: 0.85rem; margin-right: 0.5rem; }
+  .phase-A { background: rgba(139, 92, 246, 0.2); color: var(--purple-light); }
+  .phase-B { background: rgba(59, 130, 246, 0.2); color: var(--blue); }
+  .phase-C { background: rgba(251, 191, 36, 0.2); color: var(--amber); }
+  .phase-D { background: rgba(34, 197, 94, 0.2); color: var(--green); }
+  .footer { margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--card); color: var(--gray); font-size: 0.85rem; text-align: center; }
+  .delta-arrow { font-weight: 800; }
+  .no-data { color: var(--gray); font-style: italic; padding: 1rem; text-align: center; }
+  .highlight { background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(34, 197, 94, 0.2)); padding: 1.5rem; border-radius: 0.75rem; border: 1px solid var(--purple); margin: 1.5rem 0; }
+  .highlight-num { font-size: 3.5rem; font-weight: 800; background: linear-gradient(135deg, var(--purple-light), var(--green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  code { background: var(--card); padding: 0.1rem 0.4rem; border-radius: 0.25rem; font-family: 'SF Mono', monospace; font-size: 0.9em; color: var(--green); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>MATHIR v8.4.0 — Benchmark Suite</h1>
+<div class="subtitle">All v8.4.0 lifecycle benchmarks in one place &amp;middot; click a report to open</div>
+<div style='margin: 1rem 0;'><span class='badge badge-blue'>v8.4.0</span><span class='badge badge-green'>living memory</span></div>
+<div class="grid grid-3"><div class="card"><h3>Micro-benchmark (500 memories)</h3><p style="color: var(--gray); margin: 0.5rem 0;">Memory-only throughput test: touch_recall, promote, decay, consolidate, build_links</p><a href="results_micro_500.html" style="display: inline-block; margin-top: 1rem; padding: 0.5rem 1rem; background: var(--purple); color: white; border-radius: 0.5rem; text-decoration: none; font-weight: 600;">Open report &rarr;</a></div><div class="card"><h3>AI Cognitive Bench (15x10)</h3><p style="color: var(--gray); margin: 0.5rem 0;">End-to-end: 15 experiences x 10 blind Q&amp;A, before/after maintenance cycle. recall@5: 0.47 -&gt; 0.72 (+52.3%)</p><a href="results_ai_15x10.html" style="display: inline-block; margin-top: 1rem; padding: 0.5rem 1rem; background: var(--purple); color: white; border-radius: 0.5rem; text-decoration: none; font-weight: 600;">Open report &rarr;</a></div></div>
+</div>
+<div class="footer">
+  Generated by MATHIR v8.4.0 benchmark suite &middot;
+  <a href="https://github.com/sil3d/MATHIR" style="color: var(--purple-light);">sil3d/MATHIR</a>
+</div>
+</body>
+</html>

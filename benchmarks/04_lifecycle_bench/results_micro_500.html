@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MATHIR v8.4.0 benchmark — results_micro_500</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --purple: #8b5cf6;
+    --purple-dark: #6d28d9;
+    --purple-light: #a78bfa;
+    --green: #22c55e;
+    --green-dark: #16a34a;
+    --blue: #3b82f6;
+    --amber: #fbbf24;
+    --emerald: #34d399;
+    --sky: #60a5fa;
+    --pink: #f472b6;
+    --slate: #64748b;
+    --dark: #0f172a;
+    --gray: #94a3b8;
+    --light: #cbd5e1;
+    --bg: #0a0e1a;
+    --card: #1e293b;
+    --card-hover: #334155;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--light);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  .container { max-width: 1280px; margin: 0 auto; padding: 2rem; }
+  h1 { font-size: 2.5rem; font-weight: 800; background: linear-gradient(135deg, var(--purple-light), var(--green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.5rem; font-weight: 700; color: var(--light); margin: 2.5rem 0 1rem; border-bottom: 1px solid var(--card); padding-bottom: 0.5rem; }
+  h3 { font-size: 1.15rem; font-weight: 600; color: var(--purple-light); margin: 1.5rem 0 0.75rem; }
+  .subtitle { color: var(--gray); font-size: 1rem; margin-bottom: 2rem; }
+  .badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; background: var(--card); color: var(--purple-light); border: 1px solid var(--card-hover); margin-right: 0.5rem; }
+  .badge-green { background: rgba(34, 197, 94, 0.15); color: var(--green); border-color: rgba(34, 197, 94, 0.3); }
+  .badge-amber { background: rgba(251, 191, 36, 0.15); color: var(--amber); border-color: rgba(251, 191, 36, 0.3); }
+  .badge-blue { background: rgba(59, 130, 246, 0.15); color: var(--blue); border-color: rgba(59, 130, 246, 0.3); }
+  .badge-pink { background: rgba(244, 114, 182, 0.15); color: var(--pink); border-color: rgba(244, 114, 182, 0.3); }
+  .grid { display: grid; gap: 1.5rem; margin: 1.5rem 0; }
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid-4 { grid-template-columns: repeat(4, 1fr); }
+  .grid-5 { grid-template-columns: repeat(5, 1fr); }
+  @media (max-width: 900px) { .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--card-hover); border-radius: 0.75rem; padding: 1.5rem; transition: transform 0.15s; }
+  .card:hover { transform: translateY(-2px); }
+  .card-title { font-size: 0.85rem; color: var(--gray); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+  .card-value { font-size: 2rem; font-weight: 700; color: var(--light); }
+  .card-sub { font-size: 0.85rem; color: var(--gray); margin-top: 0.5rem; }
+  .card-delta { display: inline-block; margin-left: 0.5rem; font-size: 0.9rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 0.25rem; }
+  .delta-pos { background: rgba(34, 197, 94, 0.2); color: var(--green); }
+  .delta-neg { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+  .delta-zero { background: var(--card-hover); color: var(--gray); }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+  th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--card-hover); }
+  th { font-size: 0.8rem; color: var(--gray); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; background: var(--card); }
+  tr:hover td { background: var(--card); }
+  td.num { font-family: 'SF Mono', 'Monaco', 'Consolas', monospace; }
+  .chart-container { position: relative; height: 320px; margin: 1.5rem 0; }
+  .chart-container.tall { height: 420px; }
+  .memory-block { background: rgba(139, 92, 246, 0.08); border-left: 3px solid var(--purple); padding: 1rem 1.25rem; border-radius: 0 0.5rem 0.5rem 0; margin: 0.75rem 0; }
+  .memory-content { color: var(--light); white-space: pre-wrap; line-height: 1.7; font-size: 0.95rem; }
+  .memory-meta { font-size: 0.8rem; color: var(--gray); margin-bottom: 0.5rem; }
+  .qa-block { background: var(--card); border: 1px solid var(--card-hover); border-radius: 0.5rem; padding: 1rem 1.25rem; margin: 0.75rem 0; }
+  .qa-q { color: var(--sky); font-weight: 600; margin-bottom: 0.5rem; }
+  .qa-a { color: var(--light); margin: 0.5rem 0; line-height: 1.6; }
+  .qa-meta { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.8rem; color: var(--gray); margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--card-hover); }
+  .qa-meta span { padding: 0.15rem 0.5rem; background: var(--bg); border-radius: 0.25rem; font-family: 'SF Mono', monospace; }
+  .phase-label { display: inline-block; padding: 0.4rem 1rem; border-radius: 0.25rem; font-weight: 600; font-size: 0.85rem; margin-right: 0.5rem; }
+  .phase-A { background: rgba(139, 92, 246, 0.2); color: var(--purple-light); }
+  .phase-B { background: rgba(59, 130, 246, 0.2); color: var(--blue); }
+  .phase-C { background: rgba(251, 191, 36, 0.2); color: var(--amber); }
+  .phase-D { background: rgba(34, 197, 94, 0.2); color: var(--green); }
+  .footer { margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--card); color: var(--gray); font-size: 0.85rem; text-align: center; }
+  .delta-arrow { font-weight: 800; }
+  .no-data { color: var(--gray); font-style: italic; padding: 1rem; text-align: center; }
+  .highlight { background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(34, 197, 94, 0.2)); padding: 1.5rem; border-radius: 0.75rem; border: 1px solid var(--purple); margin: 1.5rem 0; }
+  .highlight-num { font-size: 3.5rem; font-weight: 800; background: linear-gradient(135deg, var(--purple-light), var(--green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  code { background: var(--card); padding: 0.1rem 0.4rem; border-radius: 0.25rem; font-family: 'SF Mono', monospace; font-size: 0.9em; color: var(--green); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>MATHIR v8.4.0 benchmark — results_micro_500</h1>
+<div class="subtitle">Memory-only micro-benchmark &amp;middot; 500 memories &amp;middot; dim=384 &amp;middot; 20% duplicates planted</div>
+<div style='margin: 1rem 0;'><span class='badge badge-blue'>micro-bench</span><span class='badge badge-amber'>DB: 1.82 MB</span><span class='badge badge-pink'>Seed: 6.9s</span></div>
+<h2>Summary</h2><div class="grid grid-4">
+<div class="card">
+  <div class="card-title">Memories stored</div>
+  <div class="card-value">500</div>
+  <div class="card-sub">after 99 merges</div>
+</div>
+
+<div class="card">
+  <div class="card-title">touch_recall</div>
+  <div class="card-value">97 ops/s</div>
+  <div class="card-sub">p50=10.05ms</div>
+</div>
+
+<div class="card">
+  <div class="card-title">Consolidate</div>
+  <div class="card-value">99</div>
+  <div class="card-sub">99 candidates at &gt;0.95</div>
+</div>
+
+<div class="card">
+  <div class="card-title">BFS get_links</div>
+  <div class="card-value">0.047ms</div>
+  <div class="card-sub">avg 0.0 links/node</div>
+</div>
+</div><h2>Phase timings</h2><div class="grid grid-2"><div class="card"><h3>Throughput</h3><div class="chart-container"><canvas id="chartThroughput"></canvas></div></div><div class="card"><h3>Latency (touch_recall)</h3><div class="chart-container"><canvas id="chartLatency"></canvas></div></div></div><h2>Maintenance cycle</h2><div class="grid grid-2"><div class="card"><h3>By tier after consolidate</h3><div class="chart-container"><canvas id="chartByTier"></canvas></div></div><div class="card"><h3>Maintenance op counts</h3><div class="chart-container"><canvas id="chartOps"></canvas></div></div></div><h2>Detailed metrics</h2><table><thead><tr><th>Phase</th><th>Metric</th><th>Value</th></tr></thead><tbody><tr><td>Seed</td><td>wall time</td><td class="num">6.9s</td></tr><tr><td>Seed</td><td>DB size</td><td class="num">1.82 MB</td></tr><tr><td>touch_recall</td><td>ops/sec</td><td class="num">97</td></tr><tr><td>touch_recall</td><td>p50 latency</td><td class="num">10.05 ms</td></tr><tr><td>touch_recall</td><td>p95 latency</td><td class="num">11.55 ms</td></tr><tr><td>touch_recall</td><td>p99 latency</td><td class="num">12.87 ms</td></tr><tr><td>promote</td><td>scanned</td><td class="num">599</td></tr><tr><td>promote</td><td>promoted</td><td class="num">0</td></tr><tr><td>promote</td><td>ms/memory</td><td class="num">0.068</td></tr><tr><td>decay</td><td>scanned</td><td class="num">599</td></tr><tr><td>decay</td><td>decayed</td><td class="num">0</td></tr><tr><td>decay</td><td>archived</td><td class="num">0</td></tr><tr><td>consolidate</td><td>candidates</td><td class="num">99</td></tr><tr><td>consolidate</td><td>merged</td><td class="num">99</td></tr><tr><td>consolidate</td><td>wall time</td><td class="num">1.6s</td></tr><tr><td>build_links</td><td>links created</td><td class="num">0</td></tr><tr><td>build_links</td><td>memories scanned</td><td class="num">500</td></tr><tr><td>build_links</td><td>wall time</td><td class="num">14.0ms</td></tr></tbody></table>
+<script>
+new Chart(document.getElementById('chartThroughput'), {
+  type: 'bar',
+  data: {
+    labels: ['Seed', 'touch_recall', 'auto_promote', 'consolidate', 'build_links'],
+    datasets: [{
+      label: 'Throughput (ops/s or mem/s)',
+      data: [0, 97, 14610, 60, 0],
+      backgroundColor: ['#8b5cf6', '#22c55e', '#fbbf24', '#3b82f6', '#f472b6'],
+      borderWidth: 1
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#cbd5e1' } } },
+    scales: {
+      x: { ticks: { color: '#94a3b8' } },
+      y: { ticks: { color: '#94a3b8' }, beginAtZero: true }
+    }
+  }
+});
+
+new Chart(document.getElementById('chartLatency'), {
+  type: 'bar',
+  data: {
+    labels: ['p50', 'p95', 'p99'],
+    datasets: [{
+      label: 'touch_recall latency (ms)',
+      data: [10.05, 11.55, 12.87],
+      backgroundColor: ['#22c55e', '#fbbf24', '#f472b6'],
+      borderWidth: 1
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#cbd5e1' } } },
+    scales: {
+      x: { ticks: { color: '#94a3b8' } },
+      y: { ticks: { color: '#94a3b8' }, beginAtZero: true }
+    }
+  }
+});
+
+new Chart(document.getElementById('chartByTier'), {
+  type: 'doughnut',
+  data: {
+    labels: ['archived', 'episodic'],
+    datasets: [{
+      data: [99, 500],
+      backgroundColor: ['#8b5cf6', '#22c55e', '#fbbf24', '#3b82f6', '#f472b6'],
+      borderColor: '#1e293b',
+      borderWidth: 2
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'right', labels: { color: '#cbd5e1' } } }
+  }
+});
+
+new Chart(document.getElementById('chartOps'), {
+  type: 'bar',
+  data: {
+    labels: ['decay', 'promote', 'consolidate', 'build_links'],
+    datasets: [
+      { label: 'decayed', data: [0, 0, 0, 0], backgroundColor: '#fbbf24' },
+      { label: 'archived', data: [0, 0, 0, 0], backgroundColor: '#f472b6' },
+      { label: 'promoted', data: [0, 0, 0, 0], backgroundColor: '#8b5cf6' },
+      { label: 'merged', data: [0, 0, 99, 0], backgroundColor: '#22c55e' },
+      { label: 'links_created', data: [0, 0, 0, 0], backgroundColor: '#3b82f6' }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#cbd5e1' } } },
+    scales: {
+      x: { stacked: true, ticks: { color: '#94a3b8' } },
+      y: { stacked: true, ticks: { color: '#94a3b8' }, beginAtZero: true }
+    }
+  }
+});
+</script>
+
+</div>
+<div class="footer">
+  Generated by MATHIR v8.4.0 benchmark suite &middot;
+  <a href="https://github.com/sil3d/MATHIR" style="color: var(--purple-light);">sil3d/MATHIR</a>
+</div>
+</body>
+</html>

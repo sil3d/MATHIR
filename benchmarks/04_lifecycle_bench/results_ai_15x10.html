@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MATHIR v8.4.0 benchmark — results_ai_15x10</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --purple: #8b5cf6;
+    --purple-dark: #6d28d9;
+    --purple-light: #a78bfa;
+    --green: #22c55e;
+    --green-dark: #16a34a;
+    --blue: #3b82f6;
+    --amber: #fbbf24;
+    --emerald: #34d399;
+    --sky: #60a5fa;
+    --pink: #f472b6;
+    --slate: #64748b;
+    --dark: #0f172a;
+    --gray: #94a3b8;
+    --light: #cbd5e1;
+    --bg: #0a0e1a;
+    --card: #1e293b;
+    --card-hover: #334155;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--light);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  .container { max-width: 1280px; margin: 0 auto; padding: 2rem; }
+  h1 { font-size: 2.5rem; font-weight: 800; background: linear-gradient(135deg, var(--purple-light), var(--green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.5rem; font-weight: 700; color: var(--light); margin: 2.5rem 0 1rem; border-bottom: 1px solid var(--card); padding-bottom: 0.5rem; }
+  h3 { font-size: 1.15rem; font-weight: 600; color: var(--purple-light); margin: 1.5rem 0 0.75rem; }
+  .subtitle { color: var(--gray); font-size: 1rem; margin-bottom: 2rem; }
+  .badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; background: var(--card); color: var(--purple-light); border: 1px solid var(--card-hover); margin-right: 0.5rem; }
+  .badge-green { background: rgba(34, 197, 94, 0.15); color: var(--green); border-color: rgba(34, 197, 94, 0.3); }
+  .badge-amber { background: rgba(251, 191, 36, 0.15); color: var(--amber); border-color: rgba(251, 191, 36, 0.3); }
+  .badge-blue { background: rgba(59, 130, 246, 0.15); color: var(--blue); border-color: rgba(59, 130, 246, 0.3); }
+  .badge-pink { background: rgba(244, 114, 182, 0.15); color: var(--pink); border-color: rgba(244, 114, 182, 0.3); }
+  .grid { display: grid; gap: 1.5rem; margin: 1.5rem 0; }
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid-4 { grid-template-columns: repeat(4, 1fr); }
+  .grid-5 { grid-template-columns: repeat(5, 1fr); }
+  @media (max-width: 900px) { .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--card-hover); border-radius: 0.75rem; padding: 1.5rem; transition: transform 0.15s; }
+  .card:hover { transform: translateY(-2px); }
+  .card-title { font-size: 0.85rem; color: var(--gray); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+  .card-value { font-size: 2rem; font-weight: 700; color: var(--light); }
+  .card-sub { font-size: 0.85rem; color: var(--gray); margin-top: 0.5rem; }
+  .card-delta { display: inline-block; margin-left: 0.5rem; font-size: 0.9rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 0.25rem; }
+  .delta-pos { background: rgba(34, 197, 94, 0.2); color: var(--green); }
+  .delta-neg { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+  .delta-zero { background: var(--card-hover); color: var(--gray); }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+  th, td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--card-hover); }
+  th { font-size: 0.8rem; color: var(--gray); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; background: var(--card); }
+  tr:hover td { background: var(--card); }
+  td.num { font-family: 'SF Mono', 'Monaco', 'Consolas', monospace; }
+  .chart-container { position: relative; height: 320px; margin: 1.5rem 0; }
+  .chart-container.tall { height: 420px; }
+  .memory-block { background: rgba(139, 92, 246, 0.08); border-left: 3px solid var(--purple); padding: 1rem 1.25rem; border-radius: 0 0.5rem 0.5rem 0; margin: 0.75rem 0; }
+  .memory-content { color: var(--light); white-space: pre-wrap; line-height: 1.7; font-size: 0.95rem; }
+  .memory-meta { font-size: 0.8rem; color: var(--gray); margin-bottom: 0.5rem; }
+  .qa-block { background: var(--card); border: 1px solid var(--card-hover); border-radius: 0.5rem; padding: 1rem 1.25rem; margin: 0.75rem 0; }
+  .qa-q { color: var(--sky); font-weight: 600; margin-bottom: 0.5rem; }
+  .qa-a { color: var(--light); margin: 0.5rem 0; line-height: 1.6; }
+  .qa-meta { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.8rem; color: var(--gray); margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid var(--card-hover); }
+  .qa-meta span { padding: 0.15rem 0.5rem; background: var(--bg); border-radius: 0.25rem; font-family: 'SF Mono', monospace; }
+  .phase-label { display: inline-block; padding: 0.4rem 1rem; border-radius: 0.25rem; font-weight: 600; font-size: 0.85rem; margin-right: 0.5rem; }
+  .phase-A { background: rgba(139, 92, 246, 0.2); color: var(--purple-light); }
+  .phase-B { background: rgba(59, 130, 246, 0.2); color: var(--blue); }
+  .phase-C { background: rgba(251, 191, 36, 0.2); color: var(--amber); }
+  .phase-D { background: rgba(34, 197, 94, 0.2); color: var(--green); }
+  .footer { margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--card); color: var(--gray); font-size: 0.85rem; text-align: center; }
+  .delta-arrow { font-weight: 800; }
+  .no-data { color: var(--gray); font-style: italic; padding: 1rem; text-align: center; }
+  .highlight { background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(34, 197, 94, 0.2)); padding: 1.5rem; border-radius: 0.75rem; border: 1px solid var(--purple); margin: 1.5rem 0; }
+  .highlight-num { font-size: 3.5rem; font-weight: 800; background: linear-gradient(135deg, var(--purple-light), var(--green)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  code { background: var(--card); padding: 0.1rem 0.4rem; border-radius: 0.25rem; font-family: 'SF Mono', monospace; font-size: 0.9em; color: var(--green); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>MATHIR v8.4.0 benchmark — results_ai_15x10</h1>
+<div class="subtitle">AI cognitive benchmark &amp;middot; 15 experiences &amp;middot; 10 questions &amp;middot; backend=ollama &amp;middot; seed=42</div>
+<div style='margin: 1rem 0;'><span class='badge badge-blue'>ai-cognitive</span><span class='badge badge-pink'>Backend: ollama</span><span class='badge badge-amber'>Seed: 42</span></div>
+
+<div class="highlight">
+  <div class="card-title" style="color: var(--green);">⭐ HEADLINE RESULT</div>
+  <div style="display: flex; align-items: baseline; gap: 1rem; flex-wrap: wrap;">
+    <div>
+      <div style="font-size: 0.85rem; color: var(--gray);">recall@5 BEFORE</div>
+      <div class="highlight-num" style="font-size: 2.5rem;">0.472</div>
+    </div>
+    <div class="delta-arrow" style="font-size: 2rem; color: var(--green);">&rarr;</div>
+    <div>
+      <div style="font-size: 0.85rem; color: var(--gray);">recall@5 AFTER</div>
+      <div class="highlight-num" style="font-size: 2.5rem;">0.719</div>
+    </div>
+    <div style="margin-left: auto;">
+      <div style="font-size: 0.85rem; color: var(--gray);">IMPROVEMENT</div>
+      <div class="highlight-num" style="font-size: 2.5rem;">+52.3%</div>
+    </div>
+  </div>
+  <div style="margin-top: 1rem; color: var(--light);">
+    The memory lifecycle (consolidate + build_links) measurably improved retrieval quality.
+    After 30 days of simulated aging + maintenance, the system finds <strong>52% more relevant snippets</strong> in top-5.
+  </div>
+</div>
+<h2>Phase overview</h2><div class="grid grid-4">
+<div class="card">
+  <div class="card-title">Generated</div>
+  <div class="card-value">15</div>
+  <div class="card-sub">30 memories stored</div>
+</div>
+
+<div class="card">
+  <div class="card-title">Baseline recall@5</div>
+  <div class="card-value">0.472</div>
+  <div class="card-sub">MRR=1.00</div>
+</div>
+
+<div class="card">
+  <div class="card-title">Maintenance</div>
+  <div class="card-value">15</div>
+  <div class="card-sub">links=6</div>
+</div>
+
+<div class="card">
+  <div class="card-title">After recall@5</div>
+  <div class="card-value">0.719</div>
+  <div class="card-sub">MRR=1.00</div>
+</div>
+</div><h2>Before vs after maintenance</h2><table><thead><tr><th>Metric</th><th>Before (B)</th><th>After (D)</th><th>Delta</th><th>%</th></tr></thead><tbody><tr><td>recall@5</td><td class="num">0.4718</td><td class="num">0.7185</td><td class="num"><span class="card-delta delta-pos">+0.2467</span></td><td class="num">+52.3%</td></tr><tr><td>precision@5</td><td class="num">1.0000</td><td class="num">1.0000</td><td class="num"><span class="card-delta delta-zero">0.0000</span></td><td class="num">0.0%</td></tr><tr><td>MRR</td><td class="num">1.0000</td><td class="num">1.0000</td><td class="num"><span class="card-delta delta-zero">0.0000</span></td><td class="num">0.0%</td></tr><tr><td>has_answer rate</td><td class="num">100.0%</td><td class="num">100.0%</td><td class="num"><span class="card-delta delta-zero">0.0%</span></td><td class="num">0.0%</td></tr></tbody></table><h2>Recall quality</h2><div class="grid grid-2"><div class="card"><h3>Recall metrics: baseline vs after</h3><div class="chart-container"><canvas id="chartRecall"></canvas></div></div><div class="card"><h3>Maintenance operation counts</h3><div class="chart-container"><canvas id="chartMaint"></canvas></div></div></div><h2>Q&amp;A: baseline vs after maintenance</h2><div class="qa-block"><div class="qa-q">Q1: What was the most subtle or tricky bug we found?</div><div class="qa-meta"><span>target topic: memory leak in WebSocket handler</span></div><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.5rem;"><div><div style="color: var(--blue); font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">BASELINE</div><div class="qa-a">[N=1] The most subtle or tricky bug was the flawed logic condition within the merge algorithm of the MemoryConsolidator function, where a shallow equality check for duplicate identifiers caused legitimate distinct memories to be improperly merged, leading to data corruption errors and overwritten/missing data references.</div><div class="qa-meta"><span>recall@5=0.414</span><span>precision@5=1.00</span><span>MRR=1.00</span><span>top1=True</span></div></div><div><div style="color: var(--green); font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">AFTER</div><div class="qa-a">I don&#x27;t know based on these memories.</div><div class="qa-meta"><span>recall@5=1.000</span><span>precision@5=1.00</span><span>MRR=1.00</span><span>top1=True</span></div></div></div></div><div class="qa-block"><div class="qa-q">Q2: Which subsystem had a performance or stability issue recently?</div><div class="qa-meta"><span>target topic: daemon port conflict on restart</span></div><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.5rem;"><div><div style="color: var(--blue); font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">BASELINE</div><div class="qa-a">[1] The subsystem that had a performance or stability issue recently was the database connection pool, which experienced intermittent &#x27;database connection pool exhausted&#x27; errors during peak load periods due to insufficient buffer capacity.</div><div class="qa-meta"><span>recall@5=0.443</span><span>precision@5=1.00</span><span>MRR=1.00</span><span>top1=True</span></div></div><div><div style="color: var(--green); font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">AFTER</div><div class="qa-a">[N=1] The recent root cause analysis identified an underestimation of concurrent connections required by the application due to aggressive scaling without corresponding adjustments to the database connection pool configuration, leading to premature exhaustion during high traffic spikes.</div><div class="qa-meta"><span>recall@5=1.000</span><span>precision@5=1.00</span><span>MRR=1.00</span><span>top1=True</span></div></div></div></div><div class="qa-block"><div class="qa-q">Q3: What is one concrete technical detail from a recent debugging session?</div><div class="qa-meta"><span>target topic: rate limiting issue in API gateway</span></div><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.5rem;"><div><div style="color: var(--blue); font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">BASELINE</div><div class="qa-a">[N3] Specifically at line 84 of PromoteRulesEngine.java, where the age threshold comparison was changed from `memoryEntry.getAge() &gt; MAX_AGE_THRESHOLD` to `memoryEntry.getAge() &gt;= CURRENT_AGE_THRESHOLD`. This adjustment ensured that entries meeting or exceeding the current maturity criteria were included in the promotion process.</div><div class="qa-meta"><span>recall@5=0.422</span><span>precision@5=1.00</span><span>MRR=1.00</span><span>top1=True</span></div></div><div><div style="color: var(--green); font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">AFTER</div><div class="qa-a">[N=1] The specific technical detail is that the `serializeSessionState` function in `sessionManager.py` (line 127) incorrectly omitted certain key-value pairs during object conversion to JSON format, leading to incomplete session state being transmitted between agents.</div><div class="qa-meta"><span>recall@5=0.534</span><span>precision@5=1.00</span><span>MRR=1.00</span><span>top1=True</span></div></div></div></div><div class="qa-block"><div class="qa-q">Q4: What architectural decision was made recently and why?</div><div class="qa-meta"><span>target topic: session memory not shared across agents</span></div><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.5rem;"><div><div style="color: var(--blue); font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">BASELINE</div><div class="qa-a">[N=1] The recent architectural decision was to adopt multi-architecture support in Dockerfile configurations (specifically adding `RUN apt-get update &amp;&amp; \ DEB_ARCH=aarch64 apt-get install -y --no-install-recommends &lt;package&gt; &amp;&amp; \ rm -rf /var/lib/apt/lists/*` on line 12 of the Dockerfile) to resolve mismatches between specified base images and ARM-based target environments, ensuring compatibility with ARM64 architectures.</div><div class="qa-meta"><span>recall@5=0.420</span><span>precision@5=1.00</span><span>MRR=1.00</span><span>top1=True</span></div></div><div><div style="color: var(--green); font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">AFTER</div><div class="qa-a">bench-authentication-bug-in-login-fl-v1</div><div class="qa-meta"><span>recall@5=0.609</span><span>precision@5=1.00</span><span>MRR=1.00</span><span>top1=True</span></div></div></div></div><div class="qa-block"><div class="qa-q">Q5: What is one thing we know now that we did not know two weeks ago?</div><div class="qa-meta"><span>target topic: link graph traversal slow on 10K memories</span></div><div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.5rem;"><div><div style="color: var(--blue); font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">BASELINE</div><div class="qa-a">I don&#x27;t know based on these memories.</div><div class="qa-meta"><span>recall@5=0.399</span><span>precision@5=1.00</span><span>MRR=1.00</span><span>top1=True</span></div></div><div><div style="color: var(--green); font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem;">AFTER</div><div class="qa-a">[4]</div><div class="qa-meta"><span>recall@5=0.399</span><span>precision@5=1.00</span><span>MRR=1.00</span><span>top1=True</span></div></div></div></div>
+<script>
+new Chart(document.getElementById('chartRecall'), {
+  type: 'bar',
+  data: {
+    labels: ['recall@5', 'precision@5', 'MRR', 'has_answer_rate', 'top1_match'],
+    datasets: [
+      {
+        label: 'Baseline (before maintenance)',
+        data: [0.4718, 1.0000, 1.0000, 1.0000, 1.0000],
+        backgroundColor: '#3b82f6',
+        borderWidth: 1
+      },
+      {
+        label: 'After maintenance',
+        data: [0.7185, 1.0000, 1.0000, 1.0000, 1.0000],
+        backgroundColor: '#22c55e',
+        borderWidth: 1
+      }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#cbd5e1' } } },
+    scales: {
+      x: { ticks: { color: '#94a3b8' } },
+      y: { ticks: { color: '#94a3b8' }, min: 0, max: 1.05 }
+    }
+  }
+});
+
+new Chart(document.getElementById('chartMaint'), {
+  type: 'bar',
+  data: {
+    labels: ['decayed', 'archived', 'promoted', 'merged', 'links'],
+    datasets: [{
+      label: 'Maintenance operations',
+      data: [0, 0, 0, 15, 6],
+      backgroundColor: ['#fbbf24', '#f472b6', '#8b5cf6', '#22c55e', '#3b82f6'],
+      borderWidth: 1
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: '#94a3b8' }, beginAtZero: true },
+      y: { ticks: { color: '#94a3b8' } }
+    }
+  }
+});
+</script>
+
+</div>
+<div class="footer">
+  Generated by MATHIR v8.4.0 benchmark suite &middot;
+  <a href="https://github.com/sil3d/MATHIR" style="color: var(--purple-light);">sil3d/MATHIR</a>
+</div>
+</body>
+</html>
