@@ -27,7 +27,11 @@ python run_all.py --duration 20
 
 ## Environment
 
-The LLM client reads these at call time — **never** hardcoded in the repo:
+The LLM client reads these at call time — **never** hardcoded in the repo.
+Loading priority (first non-empty wins):
+  1. Real environment variables (`$env:` in PowerShell, `export` in bash)
+  2. `.env` file in `benchmarks/04_lifecycle_bench/` (auto-loaded if present)
+  3. Built-in defaults
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
@@ -37,6 +41,24 @@ The LLM client reads these at call time — **never** hardcoded in the repo:
 | `MATHIR_API_MODEL` | `MiniMax-M2.7` | Model name |
 | `MATHIR_OLLAMA_URL` | `http://127.0.0.1:11434` | Ollama base |
 | `MATHIR_OLLAMA_MODEL` | `qwen3.5:2b` | Ollama model |
+| `MATHIR_OPENROUTER_REFERER` | _(unset)_ | Optional. Site URL for OpenRouter ranking |
+| `MATHIR_OPENROUTER_TITLE` | _(unset)_ | Optional. Site title for OpenRouter ranking |
+
+## Setup with `.env` (recommended for repeated runs)
+
+```bash
+# 1. Copy the template
+cp benchmarks/04_lifecycle_bench/.env.example benchmarks/04_lifecycle_bench/.env
+
+# 2. Edit .env — set your real key
+#    (NEVER commit .env — it's in .gitignore)
+notepad benchmarks/04_lifecycle_bench/.env
+
+# 3. Run — the client auto-loads .env
+python benchmarks/04_lifecycle_bench/run_all.py --duration 20
+```
+
+`.env` is gitignored at the repo root. Your keys stay local.
 
 ## LLM providers
 
@@ -47,37 +69,49 @@ python run_all.py --duration 20
 ```
 
 ### Option 2: OpenRouter (free tier, recommended) ⭐
-Get a free API key at https://openrouter.ai/, then:
+Get a free API key at https://openrouter.ai/keys, then either:
 
+**A. .env (recommended for repeated runs):**
+```bash
+# In benchmarks/04_lifecycle_bench/.env
+MATHIR_LLM_BACKEND=openrouter
+MATHIR_API_KEY=sk-or-v1-your-key
+MATHIR_API_MODEL=meta-llama/llama-3.3-70b-instruct:free
+```
+
+**B. Or inline env vars:**
 ```powershell
-$env:MATHIR_LLM_BACKEND = "openrouter"
-$env:MATHIR_API_KEY = "sk-or-v1-..."   # your key from openrouter.ai/keys
+$env:MATHIR_API_KEY = "sk-or-v1-your-key"
 $env:MATHIR_API_MODEL = "meta-llama/llama-3.3-70b-instruct:free"
 python run_all.py --duration 20
-
-# Or use a different free model:
-$env:MATHIR_API_MODEL = "qwen/qwen3-next-80b-a3b-instruct:free"
-$env:MATHIR_API_MODEL = "openai/gpt-oss-120b:free"
-$env:MATHIR_API_MODEL = "google/gemma-4-31b-it:free"
 ```
 
-List curated free models:
+The client auto-detects `sk-or-` keys and routes to OpenRouter.
+
+**Other recommended free models** (paste any into `.env`):
 ```bash
-python llm_client.py list-free
+MATHIR_API_MODEL=qwen/qwen3-next-80b-a3b-instruct:free    # 80B, 262k ctx
+MATHIR_API_MODEL=openai/gpt-oss-120b:free                 # 120B GPT-class
+MATHIR_API_MODEL=google/gemma-4-31b-it:free               # 31B, 262k ctx
+MATHIR_API_MODEL=meta-llama/llama-3.2-3b-instruct:free    # 3B, fast smoke tests
+MATHIR_API_MODEL=nvidia/nemotron-3-nano-30b-a3b:free      # 30B
 ```
+
+List all curated free models: `python llm_client.py list-free`
 
 ### Option 3: Any OpenAI-compatible API
-```powershell
-$env:MATHIR_LLM_BACKEND = "api"
-$env:MATHIR_API_KEY = "sk-..."
-$env:MATHIR_API_BASE = "https://api.your-provider.com/v1"
-$env:MATHIR_API_MODEL = "your-model-name"
-python run_all.py --duration 20
+```bash
+# In .env
+MATHIR_LLM_BACKEND=api
+MATHIR_API_KEY=sk-...
+MATHIR_API_BASE=https://api.your-provider.com/v1
+MATHIR_API_MODEL=your-model-name
 ```
 
-### CLI flags (override env)
+### CLI flags (override `.env`)
 ```bash
-python ai_cognitive_bench.py --provider openrouter --model meta-llama/llama-3.3-70b-instruct:free --duration 20
+python ai_cognitive_bench.py --provider openrouter \
+  --model meta-llama/llama-3.3-70b-instruct:free --duration 20
 ```
 
 ## What each benchmark measures

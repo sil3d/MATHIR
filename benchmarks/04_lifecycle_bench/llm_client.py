@@ -14,6 +14,11 @@ Environment variables (read at runtime, never stored in this file):
   MATHIR_OLLAMA_URL   : Ollama base URL (default: http://127.0.0.1:11434)
   MATHIR_OLLAMA_MODEL : Ollama model (default: qwen3.5:2b)
 
+Loading priority (first non-empty wins):
+  1. Real environment variables ($env: in PowerShell, export in bash)
+  2. .env file in benchmarks/04_lifecycle_bench/  (auto-loaded if present)
+  3. Built-in defaults
+
 Backend auto-resolution (when MATHIR_LLM_BACKEND=auto):
   - If MATHIR_API_KEY is set -> "api" (uses MATHIR_API_BASE/MODEL)
   - Else -> "ollama"
@@ -27,6 +32,41 @@ import time
 import urllib.request
 import urllib.error
 from typing import Optional, List, Dict
+
+
+def _load_dotenv(path: str) -> bool:
+    """Minimal .env loader (no external dep). Returns True if file existed."""
+    if not os.path.isfile(path):
+        return False
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, _, v = line.partition("=")
+                k = k.strip()
+                v = v.strip()
+                # Strip optional quotes
+                if (v.startswith('"') and v.endswith('"')) or (v.startswith("'") and v.endswith("'")):
+                    v = v[1:-1]
+                # Only set if not already in real env (real env wins)
+                if k and k not in os.environ:
+                    os.environ[k] = v
+        return True
+    except Exception:
+        return False
+
+
+# Auto-load .env from a few likely locations (first hit wins, real env takes priority)
+_BENCH_DIR = os.path.dirname(os.path.abspath(__file__))
+_REPO_ROOT = os.path.dirname(os.path.dirname(_BENCH_DIR))
+for _candidate in [
+    os.path.join(_BENCH_DIR, ".env"),
+    os.path.join(_REPO_ROOT, ".env"),
+    os.path.join(os.getcwd(), ".env"),
+]:
+    _load_dotenv(_candidate)
 
 
 class LLMUnavailable(RuntimeError):
