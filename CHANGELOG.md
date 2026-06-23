@@ -50,7 +50,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [8.4.0] — 2026-06-23 — 🧠 LIVING MEMORY
 
-**The breakthrough release.** MATHIR is no longer a write-only memory disk. It now manages its own memory lifecycle through 4 cognitive phases inspired by hippocampal-cortical consolidation (CLS theory, McClelland, McNaughton & O'Reilly 1995) and Ebbinghaus forgetting curves.
+**The breakthrough release.** MATHIR is no longer a write-only memory disk. It now manages its own memory lifecycle through 5 cognitive phases inspired by hippocampal-cortical consolidation (CLS theory, McClelland, McNaughton & O'Reilly 1995) and Ebbinghaus forgetting curves.
 
 ### Memory Lifecycle — 4 Phases
 

@@ -2,7 +2,7 @@
 MATHIR Drop-in — Main ``MATHIRMemory`` class.
 
 A self-contained 4-tier memory plugin that mirrors the API of the full
-``mathir_lib`` package but ships as a single file. The 4 tiers are:
+``mathir_lib`` package but ships as a single file. The 5 tiers are:
 
     1. Working      — circular buffer of the last N embeddings
     2. Episodic     — key-value store with cosine-similarity recall

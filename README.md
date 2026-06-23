@@ -255,7 +255,7 @@ python bin/mathir_sync.py --explain                     # how it works
 
 | Product | Architecture | OSS? | LLM-agnostic? | Edge? | Anomaly detection | Cost |
 |---|---|:---:|:---:|:---:|:---:|:---|
-| **🧠 MATHIR** | 4 cognitive tiers + KL router + Mahalanobis | ✅ **MIT** | ✅ Any | ✅ **~500 MB GPU / 80 MB CPU** | ✅ **AUC = 1.0** | **Free** |
+| **🧠 MATHIR** | 5 cognitive tiers + KL router + Mahalanobis | ✅ **MIT** | ✅ Any | ✅ **~500 MB GPU / 80 MB CPU** | ✅ **AUC = 1.0** | **Free** |
 | [Mem0](https://mem0.ai) | Vector + rerankers + LLM compression | ⚠️ SDK only | ✅ Any | ❌ Cloud | ❌ | Free → $249/mo |
 | [Letta](https://letta.com) | Core/archival/recall tiers | ✅ Apache 2.0 | ✅ Any | ⚠️ Heavy | ❌ | Free (BYO infra) |
 | [Zep](https://getzep.com) | Temporal knowledge graph | ⚠️ Graphiti OSS | ✅ Any | ❌ Cloud | ❌ | $1,250/yr → Custom |
@@ -656,7 +656,7 @@ from mathir_lib import MATHIRPluginV7
 
 plugin = MATHIRPluginV7(embedding_dim=768)
 
-# A single perceive() call routes through all 4 tiers
+# A single perceive() call routes through all 5 tiers
 output = plugin.perceive(input_embedding, metadata={"user": "alice"})
 
 # What just happened:
@@ -726,7 +726,7 @@ print(f"Enhanced embedding: {output['enhanced_embedding'].shape}")
 └─────────────────────────────────────────────┘
 ```
 
-### 4 cognitive memory tiers
+### 5 cognitive memory tiers
 
 ```
 Tier             Capacity    What it does                              When it updates
@@ -1059,7 +1059,7 @@ results = memory.recall("Python functions", k=5)  # Uses optimal backend
 | Graceful degradation | ❌ | ✅ | 🟢 MATHIR |
 | **Raw retrieval speed** | **< 1 ms** | 0.78 ms (numpy) / 1.37 ms (USearch) | 🔵 FAISS (similar) |
 
-### ⏱ 2-hour stress test (all 4 tiers active)
+### ⏱ 2-hour stress test (all 5 tiers active)
 
 | Metric | Value | Status |
 |---|:---:|:---:|
