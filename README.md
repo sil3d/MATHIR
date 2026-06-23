@@ -89,11 +89,11 @@ MATHIR does the same thing. Here's how:
 
 | Your brain | MATHIR | What happens |
 |---|---|---|
-| **Focus** — you hold a few things in mind right now | `working_memory` | Scratchpad for the current session. Fades fast. |
-| **Autobiography** — you remember what happened yesterday | `episodic` | Events: bugs fixed, decisions made, sessions completed. |
-| **Knowledge** — you know that water boils at 100°C | `semantic` | Stable facts that apply everywhere, not tied to one event. |
-| **Muscle memory** — you don't think about how to ride a bike | `procedural` | Recipes, runbooks, how-to guides. Automatized. |
-| **Immune system** — your body rejects what's dangerous | `immunological` | Anomalies, prompt injections, suspicious patterns. |
+| 🩷 **Focus** — you hold a few things in mind right now | `working_memory` | Scratchpad for the current session. Fades fast. |
+| 🩵 **Autobiography** — you remember what happened yesterday | `episodic` | Events: bugs fixed, decisions made, sessions completed. |
+| 🟩 **Knowledge** — you know that water boils at 100°C | `semantic` | Stable facts that apply everywhere, not tied to one event. |
+| 🟨 **Muscle memory** — you don't think about how to ride a bike | `procedural` | Recipes, runbooks, how-to guides. Automatized. |
+| 🟥 **Immune system** — your body rejects what's dangerous | `immunological` | Anomalies, prompt injections, suspicious patterns. |
 
 ![MATHIR Brain Architecture](docs/assets/memory_that_think.png)
 
