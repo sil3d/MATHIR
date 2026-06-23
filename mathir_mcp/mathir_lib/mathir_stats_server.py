@@ -5,10 +5,8 @@ Reads from MATHIR SQLite DB and serves JSON + HTML dashboard.
 Supports per-project databases.
 """
 
-import hashlib
 import json
 import os
-import re
 import sqlite3
 import sys
 from datetime import datetime
@@ -16,52 +14,23 @@ from http.server import HTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
-# --- SECURITY: project_name validation (fixes path traversal in api_import_db) ---
-PROJECT_NAME_RE = re.compile(r'^[a-zA-Z0-9_-]{1,64}$')
-
-def _validate_project_name(name: str) -> bool:
-    """Validate that a project_name is safe to use as a directory component.
-    
-    Rejects any name containing path separators, traversal sequences, or characters
-    outside [a-zA-Z0-9_-]{1,64}. Also verifies the resolved path stays inside
-    PROJECTS_DIR (defence in depth against symlink tricks).
-    """
-    if not isinstance(name, str) or not PROJECT_NAME_RE.match(name):
-        return False
-    safe = f"{name}_{hashlib.md5(name.encode()).hexdigest()[:8]}"
-    try:
-        resolved = (PROJECTS_DIR / safe).resolve()
-        return resolved.is_relative_to(PROJECTS_DIR.resolve())
-    except (OSError, ValueError):
-        return False
-
-# Per-project database support. Portable defaults — Mycerise can override
-# via env vars to keep its existing ~/.config/opencode/ layout.
-_DEFAULT_DATA = Path.home() / ".local" / "share" / "mathir"
-_LEGACY_OPENCODE_DATA = Path.home() / ".config" / "opencode" / "data"
-_LEGACY_OPENCODE_CONFIG = Path.home() / ".config" / "opencode" / "config"
-
-def _resolve_dir(env_var: str, portable_default: Path, legacy: Path) -> Path:
-    """Resolve a directory: explicit env var > portable default > legacy fallback."""
-    custom = os.environ.get(env_var)
-    if custom:
-        return Path(custom).expanduser().resolve()
-    portable_default.mkdir(parents=True, exist_ok=True)
-    return portable_default
-
-PROJECTS_DIR = _resolve_dir("MATHIR_PROJECTS_DIR", _DEFAULT_DATA / "projects", _LEGACY_OPENCODE_DATA / "projects")
+# Per-project database support
+PROJECTS_DIR = Path(os.environ.get(
+    "MATHIR_PROJECTS_DIR",
+    os.path.expanduser("~/.config/opencode/data/projects")
+))
 LEGACY_DB_PATH = Path(os.environ.get(
     "MATHIR_DB",
-    str(_DEFAULT_DATA / "mathir.db")
+    os.path.expanduser("~/.config/opencode/data/mathir.db")
 ))
 CONFIG_PATH = Path(os.environ.get(
     "MATHIR_CONFIG",
-    str(Path.home() / ".config" / "mathir" / "mathir.json")
+    os.path.expanduser("~/.config/opencode/config/mathir.json")
 ))
 # Central registry - tracks all projects that have ever used MATHIR
 REGISTRY_PATH = Path(os.environ.get(
     "MATHIR_REGISTRY",
-    str(_DEFAULT_DATA / "mathir_registry.json")
+    os.path.expanduser("~/.config/opencode/data/mathir_registry.json")
 ))
 HTML_PATH = Path(__file__).parent / "mathir_dashboard.html"
 PORT = int(os.environ.get("MATHIR_STATS_PORT", "7420"))
@@ -89,18 +58,15 @@ def get_project_db_path(project_name: str = None) -> Path:
         except Exception:
             pass
     
-    # Fallback: scan common directories (configurable via MATHIR_SCAN_DIRS env var)
-    scan_dirs_env = os.environ.get("MATHIR_SCAN_DIRS", "")
-    if scan_dirs_env:
-        common_dirs = [Path(d) for d in scan_dirs_env.split(os.pathsep) if d.strip()]
-    else:
-        home = Path.home()
-        common_dirs = [
-            home / "Documents",
-            home / "Projects",
-            home / "dev",
-            home / "Code",
-        ]
+    # Fallback: scan common directories
+    home = Path.home()
+    common_dirs = [
+        home / "Documents",
+        home / "Desktop",
+        home / "Projects",
+        home / "dev",
+        home / "Code",
+    ]
     
     for parent_dir in common_dirs:
         if parent_dir.exists():
@@ -539,11 +505,8 @@ def api_import_db(project_name: str, db_data_b64: str, db_path: str = "") -> dic
         return {"error": "Either db_data (base64) or db_path is required"}
     
     try:
-        # SECURITY: validate project_name before any path construction (fixes path traversal)
-        if not _validate_project_name(project_name):
-            return {"error": "Invalid project_name. Must match ^[a-zA-Z0-9_-]{1,64}$ and resolve inside PROJECTS_DIR."}
-        
         # Save to projects directory
+        import hashlib
         project_hash = hashlib.md5(project_name.encode()).hexdigest()[:8]
         safe_name = f"{project_name}_{project_hash}"
         
@@ -553,17 +516,13 @@ def api_import_db(project_name: str, db_data_b64: str, db_path: str = "") -> dic
         final_db_path = project_dir / "mathir.db"
         with open(final_db_path, 'wb') as f:
             f.write(db_bytes)
-        # SECURITY: tighten file permissions on the imported DB (0o600 where supported)
-        try:
-            os.chmod(final_db_path, 0o600)
-        except (OSError, AttributeError):
-            pass
         
         # Register in central registry
+        registry_path = Path(os.path.expanduser("~/.config/opencode/data/mathir_registry.json"))
         registry = {"projects": {}}
-        if REGISTRY_PATH.exists():
+        if registry_path.exists():
             try:
-                with open(REGISTRY_PATH) as f:
+                with open(registry_path) as f:
                     registry = json.load(f)
             except:
                 pass
@@ -576,8 +535,8 @@ def api_import_db(project_name: str, db_data_b64: str, db_path: str = "") -> dic
             "imported": True
         }
         
-        REGISTRY_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with open(REGISTRY_PATH, "w") as f:
+        registry_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(registry_path, "w") as f:
             json.dump(registry, f, indent=2, default=str)
         
         return {
