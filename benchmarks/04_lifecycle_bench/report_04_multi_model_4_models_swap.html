@@ -1,0 +1,143 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<title>Multi-model swap (4 models)</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:#0a0e1a;color:#cbd5e1;line-height:1.6;min-height:100vh}
+  .container{max-width:1280px;margin:0 auto;padding:2rem}
+  h1{font-size:2.5rem;font-weight:800;background:linear-gradient(135deg,#a78bfa,#22c55e);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:.5rem}
+  h2{font-size:1.5rem;font-weight:700;color:#cbd5e1;margin:2.5rem 0 1rem;border-bottom:1px solid #1e293b;padding-bottom:.5rem}
+  h3{font-size:1.15rem;font-weight:600;color:#a78bfa;margin:1.5rem 0 .75rem}
+  .subtitle{color:#94a3b8;font-size:1rem;margin-bottom:2rem}
+  .grid{display:grid;gap:1.5rem;margin:1.5rem 0}
+  .grid-2{grid-template-columns:repeat(2,1fr)}
+  .grid-4{grid-template-columns:repeat(4,1fr)}
+  @media (max-width:900px){.grid-2,.grid-4{grid-template-columns:1fr}}
+  .card{background:#1e293b;border:1px solid #334155;border-radius:.75rem;padding:1.5rem;transition:transform .15s}
+  .card:hover{transform:translateY(-2px)}
+  .card-title{font-size:.85rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem}
+  .card-value{font-size:2rem;font-weight:700;color:#cbd5e1}
+  .card-sub{font-size:.85rem;color:#94a3b8;margin-top:.5rem}
+  .delta-pos{background:rgba(34,197,94,.2);color:#22c55e;padding:.15rem .5rem;border-radius:.25rem;font-weight:600}
+  .delta-neg{background:rgba(239,68,68,.2);color:#ef4444;padding:.15rem .5rem;border-radius:.25rem;font-weight:600}
+  .delta-zero{background:#334155;color:#94a3b8;padding:.15rem .5rem;border-radius:.25rem}
+  table{width:100%;border-collapse:collapse;margin:1rem 0}
+  th,td{padding:.75rem 1rem;text-align:left;border-bottom:1px solid #334155}
+  th{font-size:.8rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;font-weight:600;background:#1e293b}
+  tr:hover td{background:#1e293b}
+  td.num{font-family:'SF Mono',monospace}
+  .chart-container{position:relative;height:320px;margin:1.5rem 0}
+  .highlight{background:linear-gradient(135deg,rgba(139,92,246,.2),rgba(34,197,94,.2));padding:1.5rem;border-radius:.75rem;border:1px solid #8b5cf6;margin:1.5rem 0}
+  .footer{margin-top:4rem;padding-top:2rem;border-top:1px solid #1e293b;color:#94a3b8;font-size:.85rem;text-align:center}
+  .badge{display:inline-block;padding:.25rem .75rem;border-radius:9999px;font-size:.75rem;font-weight:600;background:#1e293b;color:#a78bfa;border:1px solid #334155;margin-right:.5rem}
+  .badge-green{background:rgba(34,197,94,.15);color:#22c55e;border-color:rgba(34,197,94,.3)}
+  .badge-red{background:rgba(239,68,68,.15);color:#ef4444;border-color:rgba(239,68,68,.3)}
+  .badge-blue{background:rgba(59,130,246,.15);color:#3b82f6;border-color:rgba(59,130,246,.3)}
+</style></head><body><div class="container">
+<h1>Multi-model swap (4 models)</h1>
+<div class="subtitle">
+  4/4 models tested &middot;
+  8 experiences each &middot;
+  4 questions each
+</div>
+<div class="subtitle">
+  <span class="badge badge-blue">4 models</span>
+  <span class="badge badge-green">avg delta: +25.1%</span>
+  <span class="badge badge-green">2/4 show improvement</span>
+</div>
+
+<div class="highlight">
+  <div class="card-title" style="color: #22c55e;">BEST RESULT</div>
+  <div style="font-size: 1.1rem; color: #cbd5e1; margin: .5rem 0;">
+    <strong>nvidia/nemotron-3-nano-30b-a3b:free</strong>
+    &mdash; recall@5: 0.533 &rarr; 1.000
+    (<span class="delta-pos">+87.6%</span>)
+  </div>
+</div>
+<h2>Per-model metrics</h2><div class="grid grid-4">
+<div class="card">
+  <div class="card-title">gpt-oss-120b:free</div>
+  <div class="card-value">0.572
+    <span class="delta-pos" style="font-size: .9rem; margin-left: .5rem;">+12.7%</span>
+  </div>
+  <div class="card-sub">baseline 0.507 &middot; gen 22881ms &middot; QA 5127ms</div>
+</div>
+
+<div class="card">
+  <div class="card-title">nemotron-3-nano-30b-a3b:free</div>
+  <div class="card-value">1.000
+    <span class="delta-pos" style="font-size: .9rem; margin-left: .5rem;">+87.6%</span>
+  </div>
+  <div class="card-sub">baseline 0.533 &middot; gen 2843ms &middot; QA 1908ms</div>
+</div>
+
+<div class="card">
+  <div class="card-title">gemma-4-31b-it:free</div>
+  <div class="card-value">1.000
+    <span class="delta-zero" style="font-size: .9rem; margin-left: .5rem;">+0.0%</span>
+  </div>
+  <div class="card-sub">baseline 1.000 &middot; gen 0ms &middot; QA 0ms</div>
+</div>
+
+<div class="card">
+  <div class="card-title">lfm-2.5-1.2b-instruct:free</div>
+  <div class="card-value">1.000
+    <span class="delta-zero" style="font-size: .9rem; margin-left: .5rem;">+0.0%</span>
+  </div>
+  <div class="card-sub">baseline 1.000 &middot; gen 0ms &middot; QA 0ms</div>
+</div>
+</div><h2>Comparison table</h2><table><thead><tr><th>Model</th><th>Gen ms</th><th>QA ms</th><th>Baseline</th><th>After</th><th>Delta%</th><th>Consolidated</th></tr></thead><tbody><tr>
+  <td>nvidia/nemotron-3-nano-30b-a3b:free</td>
+  <td class="num">2843</td>
+  <td class="num">1908</td>
+  <td class="num">0.533</td>
+  <td class="num">1.000</td>
+  <td class="num"><span class="delta-pos">+87.6%</span></td>
+  <td class="num">8</td>
+</tr><tr>
+  <td>openai/gpt-oss-120b:free</td>
+  <td class="num">22881</td>
+  <td class="num">5127</td>
+  <td class="num">0.507</td>
+  <td class="num">0.572</td>
+  <td class="num"><span class="delta-pos">+12.7%</span></td>
+  <td class="num">8</td>
+</tr><tr>
+  <td>google/gemma-4-31b-it:free</td>
+  <td class="num">0</td>
+  <td class="num">0</td>
+  <td class="num">1.000</td>
+  <td class="num">1.000</td>
+  <td class="num"><span class="delta-zero">+0.0%</span></td>
+  <td class="num">8</td>
+</tr><tr>
+  <td>liquid/lfm-2.5-1.2b-instruct:free</td>
+  <td class="num">0</td>
+  <td class="num">0</td>
+  <td class="num">1.000</td>
+  <td class="num">1.000</td>
+  <td class="num"><span class="delta-zero">+0.0%</span></td>
+  <td class="num">8</td>
+</tr></tbody></table><h2>Recall@5: baseline vs after maintenance</h2><div class="chart-container"><canvas id="chartRecall"></canvas></div>
+<script>
+new Chart(document.getElementById('chartRecall'), {
+  type: 'bar',
+  data: {
+    labels: ["nemotron-3-nano-30b-a3b:free", "gpt-oss-120b:free", "gemma-4-31b-it:free", "lfm-2.5-1.2b-instruct:free"],
+    datasets: [
+      { label: 'Baseline (before)', data: [0.533, 0.5075, 1.0, 1.0], backgroundColor: '#3b82f6' },
+      { label: 'After maintenance', data: [1.0, 0.572, 1.0, 1.0], backgroundColor: '#22c55e' }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#cbd5e1' } } },
+    scales: {
+      x: { ticks: { color: '#94a3b8' } },
+      y: { ticks: { color: '#94a3b8' }, min: 0, max: 1.05 }
+    }
+  }
+});
+</script>
+
+</div><div class="footer">Generated by MATHIR v8.4.0 benchmark suite &middot; <a href="https://github.com/sil3d/MATHIR" style="color: #a78bfa;">sil3d/MATHIR</a></div></body></html>

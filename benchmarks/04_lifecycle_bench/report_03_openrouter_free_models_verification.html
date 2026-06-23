@@ -1,0 +1,113 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<title>OpenRouter free models verification</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:#0a0e1a;color:#cbd5e1;line-height:1.6;min-height:100vh}
+  .container{max-width:1280px;margin:0 auto;padding:2rem}
+  h1{font-size:2.5rem;font-weight:800;background:linear-gradient(135deg,#a78bfa,#22c55e);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:.5rem}
+  h2{font-size:1.5rem;font-weight:700;color:#cbd5e1;margin:2.5rem 0 1rem;border-bottom:1px solid #1e293b;padding-bottom:.5rem}
+  h3{font-size:1.15rem;font-weight:600;color:#a78bfa;margin:1.5rem 0 .75rem}
+  .subtitle{color:#94a3b8;font-size:1rem;margin-bottom:2rem}
+  .grid{display:grid;gap:1.5rem;margin:1.5rem 0}
+  .grid-2{grid-template-columns:repeat(2,1fr)}
+  .grid-4{grid-template-columns:repeat(4,1fr)}
+  @media (max-width:900px){.grid-2,.grid-4{grid-template-columns:1fr}}
+  .card{background:#1e293b;border:1px solid #334155;border-radius:.75rem;padding:1.5rem;transition:transform .15s}
+  .card:hover{transform:translateY(-2px)}
+  .card-title{font-size:.85rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem}
+  .card-value{font-size:2rem;font-weight:700;color:#cbd5e1}
+  .card-sub{font-size:.85rem;color:#94a3b8;margin-top:.5rem}
+  .delta-pos{background:rgba(34,197,94,.2);color:#22c55e;padding:.15rem .5rem;border-radius:.25rem;font-weight:600}
+  .delta-neg{background:rgba(239,68,68,.2);color:#ef4444;padding:.15rem .5rem;border-radius:.25rem;font-weight:600}
+  .delta-zero{background:#334155;color:#94a3b8;padding:.15rem .5rem;border-radius:.25rem}
+  table{width:100%;border-collapse:collapse;margin:1rem 0}
+  th,td{padding:.75rem 1rem;text-align:left;border-bottom:1px solid #334155}
+  th{font-size:.8rem;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;font-weight:600;background:#1e293b}
+  tr:hover td{background:#1e293b}
+  td.num{font-family:'SF Mono',monospace}
+  .chart-container{position:relative;height:320px;margin:1.5rem 0}
+  .highlight{background:linear-gradient(135deg,rgba(139,92,246,.2),rgba(34,197,94,.2));padding:1.5rem;border-radius:.75rem;border:1px solid #8b5cf6;margin:1.5rem 0}
+  .footer{margin-top:4rem;padding-top:2rem;border-top:1px solid #1e293b;color:#94a3b8;font-size:.85rem;text-align:center}
+  .badge{display:inline-block;padding:.25rem .75rem;border-radius:9999px;font-size:.75rem;font-weight:600;background:#1e293b;color:#a78bfa;border:1px solid #334155;margin-right:.5rem}
+  .badge-green{background:rgba(34,197,94,.15);color:#22c55e;border-color:rgba(34,197,94,.3)}
+  .badge-red{background:rgba(239,68,68,.15);color:#ef4444;border-color:rgba(239,68,68,.3)}
+  .badge-blue{background:rgba(59,130,246,.15);color:#3b82f6;border-color:rgba(59,130,246,.3)}
+</style></head><body><div class="container">
+<h1>OpenRouter free models verification</h1>
+<div class="subtitle">
+  26 free models tested on 2026-06-23 07:55:45
+  &middot; 9/26 actually work (35%)
+</div>
+<div class="subtitle">
+  <span class="badge badge-blue">26 models</span>
+  <span class="badge badge-green">9 work</span>
+  <span class="badge badge-red">17 broken</span>
+</div>
+<h2>Working models (sorted by latency)</h2><div class="grid grid-4">
+<div class="card">
+  <div class="card-title">lfm-2.5-1.2b-instruct:free</div>
+  <div class="card-value">601<span style="font-size:1rem;color:#94a3b8;">ms</span></div>
+  <div class="card-sub">ctx=32,768 &middot; HTTP 200</div>
+</div>
+
+<div class="card">
+  <div class="card-title">free</div>
+  <div class="card-value">838<span style="font-size:1rem;color:#94a3b8;">ms</span></div>
+  <div class="card-sub">ctx=200,000 &middot; HTTP 200</div>
+</div>
+
+<div class="card">
+  <div class="card-title">nemotron-3-super-120b-a12b:free</div>
+  <div class="card-value">917<span style="font-size:1rem;color:#94a3b8;">ms</span></div>
+  <div class="card-sub">ctx=1,000,000 &middot; HTTP 200</div>
+</div>
+
+<div class="card">
+  <div class="card-title">nemotron-3-nano-30b-a3b:free</div>
+  <div class="card-value">923<span style="font-size:1rem;color:#94a3b8;">ms</span></div>
+  <div class="card-sub">ctx=256,000 &middot; HTTP 200</div>
+</div>
+
+<div class="card">
+  <div class="card-title">gpt-oss-20b:free</div>
+  <div class="card-value">1503<span style="font-size:1rem;color:#94a3b8;">ms</span></div>
+  <div class="card-sub">ctx=131,072 &middot; HTTP 200</div>
+</div>
+
+<div class="card">
+  <div class="card-title">gemma-4-31b-it:free</div>
+  <div class="card-value">1536<span style="font-size:1rem;color:#94a3b8;">ms</span></div>
+  <div class="card-sub">ctx=262,144 &middot; HTTP 200</div>
+</div>
+
+<div class="card">
+  <div class="card-title">gpt-oss-120b:free</div>
+  <div class="card-value">2565<span style="font-size:1rem;color:#94a3b8;">ms</span></div>
+  <div class="card-sub">ctx=131,072 &middot; HTTP 200</div>
+</div>
+
+<div class="card">
+  <div class="card-title">nemotron-3-ultra-550b-a55b:free</div>
+  <div class="card-value">6378<span style="font-size:1rem;color:#94a3b8;">ms</span></div>
+  <div class="card-sub">ctx=1,000,000 &middot; HTTP 200</div>
+</div>
+</div><h2>All working models</h2><table><thead><tr><th>Model</th><th>Context</th><th>Latency</th><th>Status</th></tr></thead><tbody><tr><td>liquid/lfm-2.5-1.2b-instruct:free</td><td class="num">32,768</td><td class="num">601ms</td><td><span class="badge badge-green">OK</span></td></tr><tr><td>openrouter/free</td><td class="num">200,000</td><td class="num">838ms</td><td><span class="badge badge-green">OK</span></td></tr><tr><td>nvidia/nemotron-3-super-120b-a12b:free</td><td class="num">1,000,000</td><td class="num">917ms</td><td><span class="badge badge-green">OK</span></td></tr><tr><td>nvidia/nemotron-3-nano-30b-a3b:free</td><td class="num">256,000</td><td class="num">923ms</td><td><span class="badge badge-green">OK</span></td></tr><tr><td>openai/gpt-oss-20b:free</td><td class="num">131,072</td><td class="num">1503ms</td><td><span class="badge badge-green">OK</span></td></tr><tr><td>google/gemma-4-31b-it:free</td><td class="num">262,144</td><td class="num">1536ms</td><td><span class="badge badge-green">OK</span></td></tr><tr><td>openai/gpt-oss-120b:free</td><td class="num">131,072</td><td class="num">2565ms</td><td><span class="badge badge-green">OK</span></td></tr><tr><td>nvidia/nemotron-3-ultra-550b-a55b:free</td><td class="num">1,000,000</td><td class="num">6378ms</td><td><span class="badge badge-green">OK</span></td></tr><tr><td>openrouter/owl-alpha</td><td class="num">1,048,756</td><td class="num">21369ms</td><td><span class="badge badge-green">OK</span></td></tr></tbody></table><h2>Broken models (17)</h2><table><thead><tr><th>Model</th><th>Status</th><th>Error</th></tr></thead><tbody><tr><td>cohere/north-mini-code:free</td><td class="num">HTTP 200</td><td style="font-size:.85rem;color:#94a3b8">timeout/conn: &#x27;NoneType&#x27; object has no attribute &#x27;strip&#x27;</td></tr><tr><td>nvidia/nemotron-3.5-content-safety:free</td><td class="num">HTTP 200</td><td style="font-size:.85rem;color:#94a3b8">timeout/conn: &#x27;NoneType&#x27; object has no attribute &#x27;strip&#x27;</td></tr><tr><td>nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free</td><td class="num">HTTP ?</td><td style="font-size:.85rem;color:#94a3b8">timeout/conn: The read operation timed out</td></tr><tr><td>poolside/laguna-xs.2:free</td><td class="num">HTTP 200</td><td style="font-size:.85rem;color:#94a3b8">timeout/conn: &#x27;NoneType&#x27; object has no attribute &#x27;strip&#x27;</td></tr><tr><td>poolside/laguna-m.1:free</td><td class="num">HTTP 200</td><td style="font-size:.85rem;color:#94a3b8">timeout/conn: &#x27;NoneType&#x27; object has no attribute &#x27;strip&#x27;</td></tr><tr><td>google/gemma-4-26b-a4b-it:free</td><td class="num">HTTP 429</td><td style="font-size:.85rem;color:#94a3b8">Provider returned error</td></tr><tr><td>google/lyria-3-pro-preview</td><td class="num">HTTP 502</td><td style="font-size:.85rem;color:#94a3b8">Provider returned error</td></tr><tr><td>google/lyria-3-clip-preview</td><td class="num">HTTP 502</td><td style="font-size:.85rem;color:#94a3b8">Provider returned error</td></tr><tr><td>liquid/lfm-2.5-1.2b-thinking:free</td><td class="num">HTTP 200</td><td style="font-size:.85rem;color:#94a3b8">timeout/conn: &#x27;NoneType&#x27; object has no attribute &#x27;strip&#x27;</td></tr><tr><td>nvidia/nemotron-nano-12b-v2-vl:free</td><td class="num">HTTP 200</td><td style="font-size:.85rem;color:#94a3b8">no choices: {&quot;error&quot;: {&quot;message&quot;: &quot;Upstream idle timeout exceeded&quot;, &quot;code&quot;: 504}</td></tr><tr><td>qwen/qwen3-next-80b-a3b-instruct:free</td><td class="num">HTTP 429</td><td style="font-size:.85rem;color:#94a3b8">Provider returned error</td></tr><tr><td>nvidia/nemotron-nano-9b-v2:free</td><td class="num">HTTP 200</td><td style="font-size:.85rem;color:#94a3b8">timeout/conn: &#x27;NoneType&#x27; object has no attribute &#x27;strip&#x27;</td></tr><tr><td>qwen/qwen3-coder:free</td><td class="num">HTTP 429</td><td style="font-size:.85rem;color:#94a3b8">Provider returned error</td></tr><tr><td>cognitivecomputations/dolphin-mistral-24b-venice-edition:free</td><td class="num">HTTP 429</td><td style="font-size:.85rem;color:#94a3b8">Provider returned error</td></tr><tr><td>meta-llama/llama-3.3-70b-instruct:free</td><td class="num">HTTP 429</td><td style="font-size:.85rem;color:#94a3b8">Provider returned error</td></tr><tr><td>meta-llama/llama-3.2-3b-instruct:free</td><td class="num">HTTP 429</td><td style="font-size:.85rem;color:#94a3b8">Provider returned error</td></tr><tr><td>nousresearch/hermes-3-llama-3.1-405b:free</td><td class="num">HTTP 429</td><td style="font-size:.85rem;color:#94a3b8">Provider returned error</td></tr></tbody></table><h2>Failure breakdown</h2><div class="chart-container"><canvas id="chartStatus"></canvas></div>
+<script>
+new Chart(document.getElementById('chartStatus'), {
+  type: 'doughnut',
+  data: {
+    labels: ["HTTP 200", "HTTP ?", "HTTP 429", "HTTP 502"],
+    datasets: [{
+      data: [7, 1, 7, 2],
+      backgroundColor: ['#fbbf24', '#f472b6', '#3b82f6', '#8b5cf6', '#22c55e']
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'right', labels: { color: '#cbd5e1' } } }
+  }
+});
+</script>
+
+</div><div class="footer">Generated by MATHIR v8.4.0 benchmark suite &middot; <a href="https://github.com/sil3d/MATHIR" style="color: #a78bfa;">sil3d/MATHIR</a></div></body></html>
