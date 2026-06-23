@@ -659,16 +659,51 @@ def detect_platform() -> str:
     return {"windows": "windows", "linux": "linux", "darwin": "darwin"}.get(s, "linux")
 
 
-def get_mathir_server_cmd() -> List[str]:
-    mathir_dir = Path(__file__).parent
+def _resolve_server_path() -> Path:
+    """Resolve the server path at INSTALL TIME, not hardcoded.
+
+    Priority:
+      1. MATHIR_SERVER_PATH env var (user override)
+      2. mathir_lib/mathir_mcp_server.py relative to this script
+      3. mathir_mcp_server.py in PATH (pip-installed)
+    """
+    # 1. Env var override (for non-standard installs)
+    env_path = os.environ.get("MATHIR_SERVER_PATH")
+    if env_path:
+        p = Path(env_path).resolve()
+        if p.exists():
+            return p
+        print(f"{C.YELLOW}  WARNING: MATHIR_SERVER_PATH={env_path} — file not found, falling back{C.RESET}")
+
+    # 2. Relative to this script (standard install)
+    mathir_dir = Path(__file__).resolve().parent
     server_path = mathir_dir / "mathir_lib" / "mathir_mcp_server.py"
-    return ["python", str(server_path)]
+    if server_path.exists():
+        return server_path
+
+    # 3. pip-installed module (python -m mathir_mcp.mathir_lib.mathir_mcp_server)
+    # Return a sentinel — caller will use -m invocation
+    return None
+
+
+def get_mathir_server_cmd() -> List[str]:
+    """Return the command to launch the MATHIR MCP server.
+
+    Uses absolute path resolved at install time (portable).
+    Falls back to 'python -m' if package is pip-installed.
+    """
+    server_path = _resolve_server_path()
+    if server_path is not None:
+        return ["python", str(server_path)]
+    # Fallback: use -m (requires pip install -e .)
+    return ["python", "-m", "mathir_mcp.mathir_lib.mathir_mcp_server"]
 
 
 def get_mathir_server_entry() -> Dict:
+    cmd = get_mathir_server_cmd()
     return {
         "type": "local",
-        "command": get_mathir_server_cmd(),
+        "command": cmd,
         "environment": {"MATHIR_EMBEDDING_DIM": "384"},
         "enabled": True,
     }
@@ -843,6 +878,15 @@ def show_menu(detected: List[Dict]) -> List[Dict]:
 
 def main():
     banner()
+    # ── Verify server path resolves correctly ──
+    server_path = _resolve_server_path()
+    cmd = get_mathir_server_cmd()
+    if server_path is not None:
+        print(f"{C.GREEN}  Server found:{C.RESET} {server_path}")
+    else:
+        print(f"{C.YELLOW}  Server not found locally — using -m fallback (requires pip install -e .){C.RESET}")
+    print(f"{C.DIM}  Command: {' '.join(cmd)}{C.RESET}\n")
+
     print(f"{C.CYAN}[1/3]{C.RESET} Detecting coding agents...\n")
     detected = detect_agents()
     if not detected:
