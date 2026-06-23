@@ -6,6 +6,80 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [8.4.0] — 2026-06-23 — 🧠 LIVING MEMORY
+
+**The breakthrough release.** MATHIR is no longer a write-only memory disk. It now manages its own memory lifecycle through 4 cognitive phases inspired by hippocampal-cortical consolidation (CLS theory, McClelland, McNaughton & O'Reilly 1995) and Ebbinghaus forgetting curves.
+
+### Memory Lifecycle — 4 Phases
+
+#### Phase 1: Promote (tier transitions)
+- `touch_recall(memory_id)` — increments `recall_count`, stamps `last_recalled_at`, boosts stability (Ebbinghaus)
+- `promote(memory_id, force=False)` — moves memory up the tier ladder via rules:
+  - `working_memory` → `episodic`: `recall_count >= 3` AND `age >= 1d`
+  - `episodic` → `semantic`: `recall_count >= 10` AND `age >= 7d`
+  - `semantic` → `procedural`: `priority >= 8` AND label starts with `how-to:` or `recipe:`
+- `auto_promote_all()` — scans all memories, promotes eligible ones
+
+#### Phase 2: Decay (Ebbinghaus forgetting)
+- `boost_on_recall(memory_id)` — `stability += 0.1`, capped at 1.0
+- `get_decay_candidates(threshold_days=30)` — ordered list of stale memories
+- `decay_all(threshold_days, archive_floor=0.05)` — 5%/30d linear decay, archives when `stability < 0.05`
+- Archived memories keep their `memory_id` (soft delete, audit trail)
+
+#### Phase 3: Consolidate (semantic merge)
+- `find_duplicates(threshold=0.95)` — pairs with cosine > threshold
+- `consolidate_pair(id_strong, id_weak)` — transactional merge with audit trail in `metadata.merged_from[]`
+- `consolidate_all(threshold, dry_run=True)` — orchestrator with dry-run support
+
+#### Phase 4: Link Graph (spreading activation)
+- New table `memory_links(source_id, target_id, weight, created_at)` + indexes
+- `add_link(source, target, weight=1.0)` — bidirectional graph edges
+- `get_links(memory_id, depth=1, decay=0.5)` — BFS with per-hop decay (Collins & Loftus 1975)
+- `build_links_all(threshold=0.7)` — creates symmetric links for similar pairs
+- `find_related(memory_id, max_hops=2)` — vector + graph combined, tags source as `vector`/`link`/`both`
+
+### MCP / Daemon Integration
+- **7 new MCP tools** registered in `mathir_mcp_server.py`:
+  - `memory_promote`, `memory_auto_promote`, `memory_decay`, `memory_consolidate`
+  - `memory_link`, `memory_get_links`, `memory_build_links`
+- **7 new daemon RPC methods** in `mathir_daemon.py`
+- `memory_recall` now auto-calls `touch_recall()` on every result — stability grows on use
+- Handlers wired in `_METHOD_HANDLERS` dispatch table
+
+### Schema
+- New column `memories.last_recalled_at REAL DEFAULT 0` (idempotent `ALTER TABLE` migration)
+- New table `memory_links(source_id, target_id, weight, created_at)` with `idx_links_source` + `idx_links_target`
+- Both schema branches (new `content`-column / legacy `modality`-BLOB) fully supported
+
+### Tests
+- **26 new pytest tests** in `mathir_mcp/dev/test_lifecycle.py`
+  - `TestPromote` (9 tests): force transitions, rule checks, auto-promote, touch_recall
+  - `TestDecay` (6 tests): boost, decay, archive, new-schema skip
+  - `TestConsolidate` (4 tests): find_duplicates, merge, dry-run, real-run
+  - `TestLinkGraph` (7 tests): add_link, get_links BFS with decay, build_links_all, find_related
+- **173/173 tests pass** (was 147)
+
+### Assets
+- `docs/assets/logo.png` (1024×1024) — neural core with 8 pathways
+- `docs/assets/architecture.png` (1600×900) — 5-layer system topology
+- `docs/assets/PROMPTS.md` — ready-to-paste prompts for AI image generators
+
+### Bug Fixes
+- `mathir_mcp_server.py`: Python boolean syntax (`True`/`False`, not JSON `true`/`false`)
+- `mathir_mcp_server.py`: extra closing brace in TOOLS list (line 484)
+- `mathir_vec.py`: `stats()` was querying non-existent columns — now uses `json_extract()` on metadata
+
+### Live Verification (2026-06-23)
+```text
+stats: 29 memories, by_tier={episodic:14, semantic:9, working:6}
+promote: episodic → semantic (force=True)
+recall: 3 results, touched=3
+build_links: 246 links created from 29 memories
+consolidate: 3 candidates at threshold 0.9 (dry_run)
+```
+
+---
+
 ## [8.3.0] — 2026-06-19
 
 ### HybridSearch — Direct SQLite Backend (FIX)

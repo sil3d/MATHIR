@@ -6,7 +6,11 @@
 
 ### Memory-Augmented Tensor Hybrid with Intelligent Routing
 
-**Plug & play via MCP — 2 lines to connect any LLM.**
+**The first memory layer for LLMs that actually thinks — promotes, forgets, consolidates, and links.**
+
+<br/>
+
+> **🆕 v8.4.0 — Living memory, not a write-only disk.** MATHIR now ships a full **Ebbinghaus forgetting curve**, **tier promotion** (working → episodic → semantic → procedural), **semantic consolidation** (auto-merge near-duplicates), and a **link graph** (spreading activation à la Collins & Loftus 1975). Memories that get recalled grow stronger; memories that don't, decay and archive. **7 new MCP tools. 173/173 tests pass.**
 
 <br/>
 
@@ -18,9 +22,55 @@
 
 <br/>
 
-[**🔌 MCP Plug & Play**](#-mcp-plug--play--2-lines) · [**📖 The Story**](#-the-story-that-hurts) · [**⚡ Quick Start**](#-quick-start-30-seconds) · [**🏗️ Architecture**](#-architecture) · [**🆚 vs Alternatives**](#-vs-alternatives-honest-2026-comparison)
+[**🆕 What's new in 8.4**](#-whats-new-in-v840--living-memory) · [**🔌 MCP Plug & Play**](#-mcp-plug--play--2-lines) · [**📖 The Story**](#-the-story-that-hurts) · [**⚡ Quick Start**](#-quick-start-30-seconds) · [**🏗️ Architecture**](#-architecture) · [**🆚 vs Alternatives**](#-vs-alternatives-honest-2026-comparison)
 
 </div>
+
+---
+
+## 🆕 What's new in v8.4.0 — Living memory
+
+MATHIR v8.4.0 closes the gap between "memory that stores" and "memory that *thinks*". Every other memory layer for LLMs is a write-only disk: you save, you recall, and that's it. **MATHIR is the first that actually manages its own memory lifecycle.**
+
+### The 4 phases of cognitive memory
+
+| Phase | What it does | How it works | API |
+|-------|-------------|--------------|-----|
+| **🧬 Promote** | Moves memories up the tier ladder as they mature | `working_memory` → `episodic` (recall≥3 + age≥1d) → `semantic` (recall≥10 + age≥7d) → `procedural` (priority≥8 + `how-to:` label) | `memory_promote`, `memory_auto_promote` |
+| **⏳ Decay** | Ebbinghaus forgetting curve — unused memories lose stability | 5%/30d decay · `stability += 0.1` on each recall · archived when `stability < 0.05` | `memory_decay` |
+| **🔗 Consolidate** | Merges near-duplicate memories (cosine > 0.95) | Stronger absorbs weaker: `recall_count` sums, `stability` takes max, audit trail in `merged_from[]` | `memory_consolidate` (dry-run supported) |
+| **🌐 Link graph** | Spreading activation (Collins & Loftus 1975) | New `memory_links` table · `cosine > 0.7` creates bidirectional links · BFS with `decay=0.5` per hop | `memory_link`, `memory_get_links`, `memory_build_links` |
+
+### Before vs after
+
+```python
+# BEFORE v8.4.0 — passive storage
+memory_save("the API uses /v2/chat/completions")
+memory_save("the API uses /v2/chat/completions")  # duplicate
+memory_save("the API uses /v2/chat/completions")  # duplicate
+# → 3 memories, all the same, no ranking, no decay, no links
+
+# AFTER v8.4.0 — living memory
+memory_save(...)
+memory_recall(query)                # auto-touches: stability↑, recall_count↑
+memory_auto_promote()               # working → episodic if mature enough
+memory_decay()                      # archive stale memories
+memory_consolidate(dry_run=False)   # merge 3 duplicates into 1 canonical
+memory_build_links(threshold=0.7)   # link related concepts
+# → 1 canonical memory + N linked memories, ranked, aging, connected
+```
+
+### Live verification (2026-06-23)
+
+```text
+stats: 29 memories, by_tier={episodic:14, semantic:9, working:6}
+promote: episodic → semantic (force=True)
+recall: 3 results, touched=3
+build_links: 246 links created from 29 memories (threshold=0.5)
+consolidate: 3 candidates at threshold 0.9 (dry_run)
+```
+
+**7 new MCP tools, 7 new daemon RPC methods, 26 new pytest tests (173/173 total).**
 
 ---
 
