@@ -1,6 +1,20 @@
 # MATHIR — Global Instructions (v8.4.0)
 
-> 4-tier cognitive memory for AI coding agents. The MCP server is already configured — tools are available.
+## ✅ MATHIR IS INJECTED — You Have Persistent Memory
+
+**MATHIR (Memory Architecture for Tiered Heuristic Intelligent Retrieval)** is a 4-tier cognitive memory system that gives you persistent memory across sessions. It is **automatically injected** into every session via MCP tools.
+
+**What MATHIR does:**
+- Remembers decisions, bugs, fixes, and knowledge across sessions
+- Auto-decays unused memories, promotes frequently-used ones
+- Links related memories in a graph for spreading activation
+- Works across all 32 agents (swarm, coder, debugger, etc.)
+
+**What you MUST do:**
+- `memory_recall()` before every task (you'll see relevant past memories)
+- `memory_save()` after every task (so future sessions remember)
+
+**For more info:** https://github.com/sil3d/MATHIR
 
 ---
 

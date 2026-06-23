@@ -19,6 +19,16 @@ if str(_PKG_ROOT) not in sys.path:
     sys.path.insert(0, str(_PKG_ROOT))
 
 
+def _import(module_name):
+    """Import module from mathir_mcp.mathir_lib or mathir_lib (fallback)."""
+    try:
+        import importlib
+        return importlib.import_module(f"mathir_mcp.mathir_lib.{module_name}")
+    except ImportError:
+        import importlib
+        return importlib.import_module(f"mathir_lib.{module_name}")
+
+
 def _cmd_selftest():
     """Run a 9-step validation of the install. Exits 0 on success, 1 on fail."""
     import sys as _sys
@@ -106,7 +116,8 @@ def _cmd_selftest():
     _check("sqlite-vec installed", _sqlite_vec)
 
     def _db_init():
-        from mathir_mcp.mathir_lib.mathir_vec import VecMemory
+        mathir_vec = _import("mathir_vec")
+        VecMemory = mathir_vec.VecMemory
         # Use a stable path in cwd to avoid Windows file lock issues
         # with temp dir cleanup racing against sqlite-vec handle release
         test_dir = _P(".mathir_selftest")
@@ -127,7 +138,8 @@ def _cmd_selftest():
     _check("DB initialization works", _db_init)
 
     def _embedder():
-        from mathir_mcp.mathir_lib.mathir_daemon import get_embedder
+        mathir_daemon = _import("mathir_daemon")
+        get_embedder = mathir_daemon.get_embedder
         e = get_embedder()
         v = e.encode("test")
         if len(v) not in (384,):
@@ -136,10 +148,8 @@ def _cmd_selftest():
     _check("Embedder loads (384d)", _embedder)
 
     def _tools():
-        try:
-            from mathir_mcp.mathir_lib.mathir_mcp_server import TOOLS
-        except ImportError:
-            from mathir_mcp_server import TOOLS
+        mathir_mcp_server = _import("mathir_mcp_server")
+        TOOLS = mathir_mcp_server.TOOLS
         n = len(TOOLS)
         if n != 17:
             raise RuntimeError(f"expected 17 tools, got {n}")
@@ -186,9 +196,11 @@ def _cmd_selftest():
             results.append((False, "Daemon reachable", msg[:200]))
 
     def _e2e():
-        from mathir_mcp.mathir_lib.mathir_vec import VecMemory
-        from mathir_mcp.mathir_lib.mathir_daemon import get_embedder
-        from mathir_mcp.mathir_lib.mathir_daemon import _embedding_to_numpy
+        mathir_vec = _import("mathir_vec")
+        mathir_daemon = _import("mathir_daemon")
+        VecMemory = mathir_vec.VecMemory
+        get_embedder = mathir_daemon.get_embedder
+        _embedding_to_numpy = mathir_daemon._embedding_to_numpy
         # Stable path to avoid Windows file lock race in temp dir cleanup
         test_dir = _P(".mathir_selftest")
         test_dir.mkdir(exist_ok=True)
@@ -225,10 +237,8 @@ def _cmd_selftest():
 
 def _cmd_list_tools():
     """Print the list of all MCP tools exposed by the server."""
-    try:
-        from mathir_mcp.mathir_lib.mathir_mcp_server import TOOLS
-    except ImportError:
-        from mathir_mcp_server import TOOLS
+    mathir_mcp_server = _import("mathir_mcp_server")
+    TOOLS = mathir_mcp_server.TOOLS
     # Use ASCII-only output for Windows console compatibility
     print(f"MATHIR exposes {len(TOOLS)} MCP tools (v8.4.0):")
     print()
@@ -274,10 +284,14 @@ def main():
         elif arg in ("--help", "-h"):
             print(__doc__)
             return 0
+        elif arg == "--mcp":
+            # Start the MCP server (stdio JSON-RPC) — used by OpenCode agent
+            mathir_mcp_server = _import("mathir_mcp_server")
+            return mathir_mcp_server.main()
 
-    # No special flag → start the daemon
-    from mathir_mcp.mathir_lib.mathir_daemon import main as _daemon_main
-    return _daemon_main()
+    # No special flag → start the daemon (TCP on MATHIR_PORT)
+    mathir_daemon = _import("mathir_daemon")
+    return mathir_daemon.main()
 
 
 if __name__ == "__main__":

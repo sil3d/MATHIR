@@ -27,6 +27,16 @@ CONFIG_PATH = Path(os.environ.get(
 ))
 EMBEDDING_DIM = int(os.environ.get("MATHIR_EMBEDDING_DIM", "384"))
 
+# --- Import helpers: try bundled first, then external ---
+def _import_mathir_vec():
+    """Import mathir_vec from bundled or external location."""
+    try:
+        from mathir_mcp.mathir_lib import mathir_vec
+        return mathir_vec
+    except ImportError:
+        from mathir_lib import mathir_vec
+        return mathir_vec
+
 # --- SECURITY: DoS protection via input length caps ---
 # MCP stdin loop has no MAX_CONTENT_LENGTH guard. Daemon caps inputs at lines 27-34,
 # but MCP bypasses daemon. These caps prevent OOM / CPU exhaustion via giant payloads.
@@ -253,7 +263,11 @@ def get_memory(project_name: str = None):
     if project_name in _memory_cache:
         return _memory_cache[project_name]
     
-    from mathir_dropin.memory import MATHIRMemory
+    # Try bundled mathir_dropin first, then external
+    try:
+        from mathir_mcp.mathir_dropin.memory import MATHIRMemory
+    except ImportError:
+        from mathir_dropin.memory import MATHIRMemory
     config = load_config()
     db_path = get_project_db_path(project_name)
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -566,8 +580,8 @@ def handle_memory_save(args: dict) -> dict:
     memory_id = f"mem_{uuid.uuid4().hex[:8]}"
     
     # Store in sqlite-vec accelerated memory
-    from mathir_vec import get_vec_memory
-    vec_mem = get_vec_memory(project, embedding_dim=EMBEDDING_DIM)
+    mathir_vec = _import_mathir_vec()
+    vec_mem = mathir_vec.get_vec_memory(project, embedding_dim=EMBEDDING_DIM)
     
     metadata = {
         "agent": agent,
@@ -620,8 +634,8 @@ def handle_memory_recall(args: dict) -> dict:
         query_np = np.array(query_embedding, dtype=np.float32).reshape(-1)
     
     # Search using sqlite-vec accelerated memory
-    from mathir_vec import get_vec_memory
-    vec_mem = get_vec_memory(project, embedding_dim=EMBEDDING_DIM)
+    mathir_vec = _import_mathir_vec()
+    vec_mem = mathir_vec.get_vec_memory(project, embedding_dim=EMBEDDING_DIM)
     
     results = vec_mem.search(
         query_embedding=query_np,

@@ -9,7 +9,7 @@ Architecture:
   - GPU: auto-detect CUDA, embeddings sur GPU si disponible
   - Mode: "direct" (MATHIRMemory API) | "daemon" (JSON-RPC 7338) | "mcp" (MCP tools via daemon)
 
-Compatible with MATHIR v8.3+:
+Compatible with MATHIR v8.4.1+:
   - Real embeddings via SentenceTransformer (paraphrase-multilingual-MiniLM-L12-v2, 384d)
   - HybridSearch benchmark (vector + BM25 + RRF fusion)
   - 4 tiers: working, episodic, semantic, immune

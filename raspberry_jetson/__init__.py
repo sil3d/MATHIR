@@ -1,5 +1,5 @@
 """MATHIR Memory for Raspberry Pi / Jetson - CPU-only portable subset."""
-__version__ = "8.4.0"
+__version__ = "8.4.1"
 
 # Import the portable mcp package — re-export key APIs.
 # Use the nested form because after v8.4.0 the top-level `mathir_lib` package

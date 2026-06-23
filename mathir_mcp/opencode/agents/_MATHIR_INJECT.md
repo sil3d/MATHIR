@@ -1,0 +1,201 @@
+# MATHIR MEMORY — v8.4.0 INJECTION BLOCK
+# Injected at the top of every agent's system_prompt.
+# Use MCP tools directly — no proxy, no bash.
+
+## 🧠 YOUR ACTIVE MEMORY (auto-injected)
+
+{{MATHIR_CONTEXT}}
+
+**The memories above are ALREADY in your working memory. Use them naturally — like a human who just "knows" things. You don't need to call any tool for these.**
+
+---
+
+## MATHIR v8.4.0 — LIVING MEMORY
+
+Your memory is **alive**. It has 4 tiers and a full lifecycle (Ebbinghaus forgetting, promotion, consolidation, link graph). Use the right tool at the right time.
+
+### The 4 memory tiers (use the right one!)
+
+| Tier | When to use | Example |
+|------|-------------|---------|
+| **`working_memory`** | Current task context, scratchpad, things to remember THIS session | "User is debugging auth flow — current focus is JWT validation" |
+| **`episodic`** | Events that happened: bugs fixed, decisions made, sessions completed | "On 2026-06-15 we hit a connection pool exhaustion bug and fixed it by increasing pool size to 50" |
+| **`semantic`** | Stable knowledge, facts, patterns that apply broadly | "Our REST API uses /v2/ prefix and JWT auth — applies to all new endpoints" |
+| **`procedural`** | How-to recipes, repeatable procedures, runbooks | "How-to: rotate the database password: 1) stop service 2) update secret 3) restart" |
+
+**Rule of thumb:** start with `episodic` for most things. The lifecycle will auto-promote to `semantic` if the memory is recalled often enough. Use `working_memory` for session-scoped stuff (it's promoted to episodic on session end). Use `procedural` for runbooks (label must start with `how-to:` or `recipe:`).
+
+### 17 MCP tools at your disposal
+
+#### Basic CRUD (use these every day)
+
+```
+memory_save(content, agent, block_type, label, priority, project)
+  - Saves a memory. block_type is the tier: working_memory | episodic | semantic | procedural
+  - priority 0-10, default 5. Use 8+ for critical facts, 9-10 for runbooks.
+  - label should be short, searchable, and stable (e.g. "jwt-validation-fix" not "the fix")
+
+memory_recall(query, k, agent, block_type, project)
+  - Returns top-k memories matching the query (semantic similarity)
+  - Auto-touches: each recall increments recall_count + boosts stability (Ebbinghaus)
+  - Use k=5 for normal questions, k=10 for deep research
+
+memory_smart_search(query, k, agent, project)
+  - Same as recall but optimized for the daemon protocol
+```
+
+#### Lifecycle management (use these proactively)
+
+```
+memory_promote(memory_id, force)
+  - Moves a memory to the NEXT tier (working->episodic->semantic->procedural)
+  - Rules (Ebbinghaus): recall>=3 + age>=1d for working->episodic,
+    recall>=10 + age>=7d for episodic->semantic,
+    priority>=8 + label prefix 'how-to:'/'recipe:' for semantic->procedural
+  - Set force=true to skip rules and promote unconditionally
+
+memory_auto_promote()
+  - Scans ALL memories and auto-promotes those that meet the rules
+  - Run this at the end of a session, or when you notice old working_memory is mature
+
+memory_decay(threshold_days, archive_floor)
+  - Ebbinghaus decay: stability -= 5% per 30 days of no recall
+  - Archives memories when stability < archive_floor (default 0.05)
+  - Run periodically (e.g. weekly) to prevent memory bloat
+  - threshold_days: how many days before decay starts (default 30)
+
+memory_consolidate(threshold, dry_run, limit)
+  - Merges near-duplicate memories (cosine similarity > threshold)
+  - threshold=0.95 is conservative, 0.85 is aggressive
+  - dry_run=true: shows what WOULD be merged, no modifications
+  - Use this when you notice similar memories accumulating
+
+memory_link(source_id, target_id, weight)
+  - Adds a link between two memories in the spreading-activation graph
+  - Use when you discover relationships (e.g. "this bug was caused by that commit")
+  - weight 0.0-1.0, default 1.0
+
+memory_get_links(memory_id, depth, decay)
+  - BFS traversal of the link graph from a memory
+  - depth: max hops (1-2 typical)
+  - decay: per-hop weight decay (0.5 = halve each hop)
+  - Returns linked memories ranked by cumulative_weight
+
+memory_build_links(threshold, limit)
+  - Scans all memories and creates links between pairs with cosine > threshold
+  - threshold=0.7 catches broad associations
+  - Idempotent — safe to run multiple times
+  - Run this after a batch of saves to build the graph
+```
+
+#### Other tools
+
+```
+memory_delete(memory_id, reason)
+  - Removes a memory (soft delete — sets tier='archived')
+  - Use sparingly. Prefer memory_consolidate to merge instead.
+
+memory_hybrid_search(query, k, vector_weight, bm25_weight)
+  - Combines vector similarity + BM25 lexical search + RRF fusion
+  - Better for exact-match queries (error messages, function names)
+
+memory_export(project)
+  - Exports all memories as JSON
+
+memory_audit(agent, limit)
+  - Audit log of recent operations
+
+memory_sessions(limit)
+  - List recent memory sessions
+
+memory_stats(project)
+  - Returns totals by tier/agent/project + DB size
+```
+
+---
+
+## When to do what — practical playbook
+
+### When you learn something important
+```
+memory_save(content="...", agent="my_agent", block_type="episodic",
+            label="short-searchable-label", priority=7)
+```
+- **episodic** for most things (will auto-promote to semantic if recalled often)
+- **semantic** if it's a stable fact that won't change
+- **procedural** with label "how-to:..." if it's a recipe
+- **working_memory** only for session-scoped context
+
+### When you notice a memory is wrong or outdated
+```
+memory_delete(memory_id, reason="outdated by commit abc123")
+```
+or
+```
+memory_save(content="CORRECTED: ...", agent="...", block_type="episodic", label="...")
+memory_delete(old_memory_id, reason="superseded")
+```
+
+### When you discover a relationship between 2 memories
+```
+memory_link(source_id, target_id, weight=1.0)
+```
+Example: "this JWT bug" relates to "our auth middleware rewrite"
+
+### At the end of a long session
+```
+memory_auto_promote()       # promote mature working_memory to episodic
+memory_decay(threshold_days=30)  # archive unused
+memory_consolidate(threshold=0.95, dry_run=false)  # merge dupes
+memory_build_links(threshold=0.7)  # build graph
+```
+
+### When recall quality seems bad
+1. `memory_stats(project)` — check if there's bloat
+2. `memory_consolidate(dry_run=true)` — see if there are dupes
+3. `memory_decay(threshold_days=14)` — more aggressive decay
+4. `memory_build_links(threshold=0.6)` — more associations
+
+---
+
+## REMEMBER
+
+- **Your memory is alive.** Memories grow stronger when you recall them (Ebbinghaus), decay when you don't, and merge with similar ones.
+- **Start with `episodic`** for most saves. The lifecycle handles promotion.
+- **Use `procedural` for recipes** (label "how-to:..." or "recipe:...").
+- **Recall auto-touches** — every `memory_recall` call boosts the memory's stability. You don't need to manually re-save.
+- **End-of-session cleanup** = `memory_auto_promote() + memory_consolidate() + memory_build_links()`.
+- **Never `memory_delete` without a reason** — prefer `memory_consolidate` to merge.
+
+**You don't need to call `recall` for normal work.** Only use it for deep dives into specific topics that aren't already in your injected context.
+
+---
+
+## LEGACY COMMANDS (avoid — use MCP tools instead)
+
+```bash
+# OLD (do not use):
+python ~/.config/opencode/bin/mathir_client.py recall "topic" -k 5
+python ~/.config/opencode/bin/mathir_client.py save "..." -a ... -t ... -l ... -p ...
+```
+## MEMORY COMMANDS (use sparingly)
+
+### SAVE — When you learn something important
+```
+memory_save(content="what you learned", agent="your_name", block_type="semantic", label="topic", priority=8)
+```
+
+### RECALL — Only if you need MORE than what's pre-injected
+```
+memory_recall(query="specific topic", k=10)
+```
+
+### SEARCH — Instant text search (no embedding)
+```
+memory_smart_search(query="exact text", k=5)
+```
+
+**Types:** working_memory, episodic, semantic, procedural
+**Priority:** 1-10 (higher = more important)
+**Port:** 7338 (daemon) / 8182 (proxy) | **Database:** auto-detected (CWD-first, registry fallback, home ignored)
+**Model:** paraphrase-multilingual-MiniLM-L12-v2 (384d, 50+ langs, 239MB VRAM fp16)
