@@ -316,7 +316,11 @@ def run(experiences: int, questions: int, dim: int, seed: int, out: Path,
     # Health check
     llm = LLMClient()
     h = llm.health()
-    print(f"LLM backend={h['backend']} ok={h['ok']} error={h['error']}")
+    # Print the actual model being used
+    model_in_use = (os.environ.get("MATHIR_API_MODEL") or
+                    (os.environ.get("MATHIR_OLLAMA_MODEL", "qwen3.5:2b")
+                     if llm.backend == "ollama" else "default"))
+    print(f"LLM backend={h['backend']} model={model_in_use} ok={h['ok']} error={h['error']}")
     if not h["ok"]:
         raise LLMUnavailable(f"LLM not reachable: {h['error']}")
 
@@ -530,7 +534,7 @@ class _HashEmbedder:
 
 
 def main():
-    p = argparse.ArgumentParser()
+    p = argparse.ArgumentParser(description="MATHIR AI cognitive benchmark")
     p.add_argument("--experiences", type=int, default=50)
     p.add_argument("--questions", type=int, default=20)
     p.add_argument("--dim", type=int, default=384)
@@ -538,7 +542,16 @@ def main():
     p.add_argument("--duration", type=int, default=20,
                    help="Duration budget in minutes (default 20)")
     p.add_argument("--out", type=Path, default=Path("results_ai.json"))
+    p.add_argument("--provider", choices=["auto", "ollama", "openrouter", "api"],
+                   default="auto",
+                   help="LLM provider (default: auto — picks from env)")
+    p.add_argument("--model", help="Override the model name (e.g. openai/gpt-oss-120b:free)")
     args = p.parse_args()
+    # If --provider or --model given, push them to env BEFORE LLMClient init
+    if args.provider != "auto":
+        os.environ["MATHIR_LLM_BACKEND"] = args.provider
+    if args.model:
+        os.environ["MATHIR_API_MODEL"] = args.model
     run(args.experiences, args.questions, args.dim, args.seed, args.out, args.duration)
 
 

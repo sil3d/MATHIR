@@ -31,18 +31,53 @@ The LLM client reads these at call time — **never** hardcoded in the repo:
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `MATHIR_LLM_BACKEND` | `auto` | `api` / `ollama` / `auto` (auto = api if key set, else ollama) |
-| `MATHIR_API_KEY` | _(empty)_ | Set this to use the API |
-| `MATHIR_API_BASE` | `https://api.minimax.chat/v1` | API base URL |
+| `MATHIR_LLM_BACKEND` | `auto` | `api` / `openrouter` / `ollama` / `auto` |
+| `MATHIR_API_KEY` | _(empty)_ | Set this to use API/OpenRouter |
+| `MATHIR_API_BASE` | `https://api.minimax.chat/v1` | API base URL (auto-overridden for OpenRouter) |
 | `MATHIR_API_MODEL` | `MiniMax-M2.7` | Model name |
 | `MATHIR_OLLAMA_URL` | `http://127.0.0.1:11434` | Ollama base |
 | `MATHIR_OLLAMA_MODEL` | `qwen3.5:2b` | Ollama model |
 
-Example (PowerShell):
+## LLM providers
+
+### Option 1: Local Ollama (no API key, slower, weaker)
 ```powershell
-$env:MATHIR_API_KEY = "sk-cp-..."
-$env:MATHIR_API_MODEL = "MiniMax-M2.7"
+# Nothing to set — falls back automatically
 python run_all.py --duration 20
+```
+
+### Option 2: OpenRouter (free tier, recommended) ⭐
+Get a free API key at https://openrouter.ai/, then:
+
+```powershell
+$env:MATHIR_LLM_BACKEND = "openrouter"
+$env:MATHIR_API_KEY = "sk-or-v1-..."   # your key from openrouter.ai/keys
+$env:MATHIR_API_MODEL = "meta-llama/llama-3.3-70b-instruct:free"
+python run_all.py --duration 20
+
+# Or use a different free model:
+$env:MATHIR_API_MODEL = "qwen/qwen3-next-80b-a3b-instruct:free"
+$env:MATHIR_API_MODEL = "openai/gpt-oss-120b:free"
+$env:MATHIR_API_MODEL = "google/gemma-4-31b-it:free"
+```
+
+List curated free models:
+```bash
+python llm_client.py list-free
+```
+
+### Option 3: Any OpenAI-compatible API
+```powershell
+$env:MATHIR_LLM_BACKEND = "api"
+$env:MATHIR_API_KEY = "sk-..."
+$env:MATHIR_API_BASE = "https://api.your-provider.com/v1"
+$env:MATHIR_API_MODEL = "your-model-name"
+python run_all.py --duration 20
+```
+
+### CLI flags (override env)
+```bash
+python ai_cognitive_bench.py --provider openrouter --model meta-llama/llama-3.3-70b-instruct:free --duration 20
 ```
 
 ## What each benchmark measures
