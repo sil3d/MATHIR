@@ -267,6 +267,51 @@ python -m mathir_mcp
 
 ---
 
+## ✅ Fully tested on (verified 2026-06-23)
+
+### 🤖 AI Coding Tools (MCP clients)
+
+| Tool | Status | Notes |
+|---|---|---|
+| **OpenCode** | ✅ Verified | Native MCP support, plug-and-play |
+| **MiMo Code** | ✅ Verified | Native MCP support, config mcp section |
+| **Zcode** | ✅ Verified | Native MCP support, custom config |
+
+### 🧠 LLMs (backend models via the same MATHIR memory)
+
+| Model | Recall speed | Notes |
+|---|---|---|
+| **MiMo** (basic) | ⚡ **Best** | Best recall quality, recommended for memory tasks |
+| **MiMo Pro** | ⚡ Excellent | Best + extended context |
+| **MiniMax 2.7** | ⚡ Excellent | Fast recall, low latency |
+| **MiniMax M3** | ⚡ Excellent | Newest, best multilingual support |
+| **GLM 5.1** | ⚡ Fast | Great for reasoning + memory combo |
+| **Nemotron** | ⚡ Fast | NVIDIA, robust on edge |
+| **GPT-OSS** | ⚡ Fast | OpenAI open-source variant |
+
+**Same MATHIR memory across all LLMs.** Switch the backend, the memory stays.
+
+### 💡 Why this matters
+
+- **One memory, any LLM** — save with Claude, recall with MiMo, continue with GPT. No vendor lock-in.
+- **Fast recall** — memory lookup is in milliseconds thanks to the persistent daemon (port 7338).
+- **Python fallback** — if the MCP layer fails for any reason, the Python API (`from mathir_lib import ...`) is always there as a reliable backup. The system auto-fixes issues by falling back gracefully.
+- **Self-healing** — daemon auto-restarts, embeddings reload, connections retry.
+
+### 🛠️ Installation recommendation
+
+> **⚠️ Highly recommended:** Use an AI agent (OpenCode, Claude Code, MiMo) to install the MCP server for you.
+>
+> Manual config is **error-prone** because every tool has a different config format:
+> - OpenCode: `opencode.json` (mcp section)
+> - Claude Desktop: `claude_desktop_config.json` (mcpServers)
+> - MiMo: custom config format
+> - Zcode: YAML
+>
+> Just say to your agent: *"Install the MATHIR MCP server from https://github.com/sil3d/MATHIR"*. The `mathir_inject.py` and `mathir_sync.py` tools will handle the rest automatically.
+
+---
+
 ## 🔧 Dynamic Injection & Sync (v8.4.1)
 
 Two new dev-loop tools in `~/.config/opencode/bin/` (or `mathir_mcp/mathir_lib/` in the source repo) automate the MATHIR injection block across all your AI config files.
