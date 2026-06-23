@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/logo.svg" alt="MATHIR Logo" width="180"/>
+<img src="docs/assets/Mathir_logo.png" alt="MATHIR Logo" width="180"/>
 
 # 🧠 MATHIR
 
@@ -193,6 +193,8 @@ You want to detect prompt injection. "That's not what we do."
 ✅ Anomaly detected in <1ms — immunological tier, AUC = 1.0, zero false positives.
 ✅ Runs on edge — 240 MB VRAM, Jetson Orin ✅, Raspberry Pi ⚠️, zero cloud.
 ```
+
+![MATHIR Story 2 — The Solution](docs/assets/mathir_story2.png)
 
 ---
 
