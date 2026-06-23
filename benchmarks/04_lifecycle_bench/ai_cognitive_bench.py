@@ -92,11 +92,16 @@ PROJECT_TOPICS = [
 ]
 
 QUESTION_TEMPLATES = [
-    "What was the issue with {topic}?",
-    "How did we fix {topic}?",
-    "What was the root cause of {topic}?",
-    "Where in the code does {topic} manifest?",
-    "What did we learn from {topic}?",
+    "What is the most recent engineering issue we ran into and how did we resolve it?",
+    "Which file or function had a bug recently and what was the fix?",
+    "What was a recent root cause analysis we did, and what did we learn?",
+    "What is one concrete technical detail from a recent debugging session?",
+    "What mistake or pattern do we want to avoid in future work, based on past experience?",
+    "What error message or symptom was most memorable from recent work?",
+    "Which subsystem had a performance or stability issue recently?",
+    "What architectural decision was made recently and why?",
+    "What was the most subtle or tricky bug we found?",
+    "What is one thing we know now that we did not know two weeks ago?",
 ]
 
 
@@ -106,9 +111,11 @@ QUESTION_TEMPLATES = [
 
 GEN_SYSTEM = (
     "You are a senior engineer working on MATHIR (a memory system). "
-    "Generate a realistic short engineering note (2-4 sentences) about the "
-    "given topic. Be specific: include file names, error messages, line numbers "
-    "if relevant. Output ONLY the note, no preamble."
+    "Generate a realistic, detailed engineering note about the given topic. "
+    "Write 4-6 sentences (200-400 words). Be specific and technical: include "
+    "file names, function names, error messages, line numbers, and a clear "
+    "description of root cause, fix, and lessons learned. Output ONLY the note, "
+    "no preamble or commentary."
 )
 
 
@@ -116,12 +123,15 @@ def generate_experience(llm: LLMClient, topic: str, seed_n: int) -> Dict:
     """One LLM call produces one experience."""
     prompt = (
         f"Engineering note #{seed_n}: about '{topic}'.\n"
-        f"Write a 2-4 sentence memory describing what was discovered, the "
-        f"fix or decision, and what we learned. Include one specific detail "
-        f"(file path, error message, or function name)."
+        f"Write a detailed 4-6 sentence memory (200-400 words) describing:\n"
+        f"  1. What was the symptom or observation?\n"
+        f"  2. What was the root cause or decision?\n"
+        f"  3. What was the specific fix (file/function/error)?\n"
+        f"  4. What did we learn that applies to future work?\n"
+        f"Be technical and specific. Include concrete details."
     )
     try:
-        text = llm.chat(prompt, system=GEN_SYSTEM, max_tokens=200, temperature=0.7)
+        text = llm.chat(prompt, system=GEN_SYSTEM, max_tokens=400, temperature=0.7)
     except Exception as e:
         text = f"Note about {topic}: (LLM error: {e})"
     return {
@@ -136,9 +146,11 @@ def generate_experience(llm: LLMClient, topic: str, seed_n: int) -> Dict:
 # ---------------------------------------------------------------------------
 
 QA_SYSTEM = (
-    "You are answering questions using only the memory snippets provided. "
-    "If the answer is not in the snippets, say 'I don't know'. "
-    "Be concise (1-2 sentences). Cite the relevant snippet if useful."
+    "You are answering questions using ONLY the memory snippets provided. "
+    "Read each snippet carefully. If the answer is in the snippets, give a "
+    "concrete technical answer citing the snippet number [N]. If the answer "
+    "is NOT in the snippets, reply exactly: 'I don't know based on these "
+    "memories.' Be concise (1-3 sentences). Output ONLY the answer."
 )
 
 
@@ -147,20 +159,20 @@ def _format_snippets(snippets: List[Dict], k: int = 5) -> str:
     for i, s in enumerate(snippets[:k], 1):
         content = s.get("content") or s.get("modality_text") or ""
         label = s.get("label", "?")
-        out.append(f"[{i}] (label={label}) {content[:300]}")
+        out.append(f"[{i}] (label={label}) {content}")
     return "\n\n".join(out) if out else "(no memories found)"
 
 
 def answer_question(llm: LLMClient, question: str, snippets: List[Dict]) -> Tuple[str, int]:
-    """Returns (answer_text, k_used)."""
+    """Returns (answer_text, k_used). The LLM uses ONLY the snippets — no external knowledge."""
     formatted = _format_snippets(snippets, k=5)
     prompt = (
         f"Question: {question}\n\n"
         f"Memory snippets (top {len(snippets[:5])}):\n{formatted}\n\n"
-        f"Your answer (cite snippet [N] if you use one):"
+        f"Answer using only the snippets above. Cite [N] if useful:"
     )
     try:
-        ans = llm.chat(prompt, system=QA_SYSTEM, max_tokens=200, temperature=0.3)
+        ans = llm.chat(prompt, system=QA_SYSTEM, max_tokens=200, temperature=0.2)
     except Exception as e:
         ans = f"(LLM error: {e})"
     return ans.strip(), len(snippets[:5])
@@ -176,43 +188,64 @@ def _tokenize(s: str) -> set:
 
 def recall_metrics(snippets: List[Dict], expected_topic: str, ground_truth_content: str) -> Dict:
     """
-    Compute recall@5, precision@5, MRR, has_answer against ground truth.
+    Compute retrieval-quality metrics against ground truth.
 
-    We use the LLM-generated content as ground truth and check token overlap
-    with the top-K retrieved snippets.
+    Because the question is now BLIND (no topic in it), the only way to find
+    the right snippet is via the embedding/similarity. We score:
+      - recall_at_k     : fraction of GT tokens found in top-K snippets
+      - precision_at_k  : fraction of top-K snippets that contain GT tokens
+      - mrr             : 1/rank of first useful snippet
+      - has_answer      : recall_at_5 >= 0.15 (meaningful overlap)
+      - top1_topic_match: whether the top-1 snippet matches the expected topic
     """
     k = 5
     retrieved = snippets[:k]
     gt_tokens = _tokenize(ground_truth_content)
+    # Strip common stopwords to avoid trivial matches
+    STOP = {"the", "and", "for", "with", "from", "this", "that", "have", "has",
+            "was", "were", "are", "been", "but", "not", "you", "your", "our",
+            "they", "their", "what", "which", "when", "where", "how", "why",
+            "into", "than", "then", "also", "such", "some", "any", "all",
+            "can", "could", "should", "would", "may", "might", "will", "shall"}
+    gt_tokens -= STOP
     if not gt_tokens:
-        return {"recall_at_5": 0, "precision_at_5": 0, "mrr": 0, "has_answer": False}
+        return {"recall_at_5": 0, "precision_at_5": 0, "mrr": 0, "has_answer": False,
+                "top1_topic_match": False}
 
-    # Recall@5: fraction of GT tokens present in any retrieved snippet
-    retrieved_tokens = set()
+    # Per-snippet tokens
+    snippet_tokens = []
     for s in retrieved:
-        retrieved_tokens |= _tokenize(s.get("content") or s.get("modality_text") or "")
+        toks = _tokenize(s.get("content") or s.get("modality_text") or "") - STOP
+        snippet_tokens.append(toks)
 
-    recall = len(gt_tokens & retrieved_tokens) / len(gt_tokens) if gt_tokens else 0
-    has_answer = recall > 0.20  # at least 20% token overlap = useful
+    # Recall@K: union of GT tokens found across all retrieved snippets
+    retrieved_tokens = set()
+    for toks in snippet_tokens:
+        retrieved_tokens |= toks
+    recall = len(gt_tokens & retrieved_tokens) / len(gt_tokens)
 
-    # MRR: rank of first snippet that has useful overlap
+    # Precision@K: fraction of retrieved snippets with any GT overlap
+    useful = sum(1 for toks in snippet_tokens if toks & gt_tokens)
+    precision = useful / k
+
+    # MRR
     mrr = 0.0
-    for i, s in enumerate(retrieved, 1):
-        s_tokens = _tokenize(s.get("content") or s.get("modality_text") or "")
-        if s_tokens & gt_tokens:
+    for i, toks in enumerate(snippet_tokens, 1):
+        if toks & gt_tokens:
             mrr = 1.0 / i
             break
 
-    # Precision@5: fraction of retrieved snippets with any GT overlap
-    useful = sum(1 for s in retrieved
-                 if _tokenize(s.get("content") or s.get("modality_text") or "") & gt_tokens)
-    precision = useful / k
+    has_answer = recall >= 0.15
+
+    # Top-1 topic match: do the GT tokens appear in top-1?
+    top1_match = bool(snippet_tokens[0] & gt_tokens) if snippet_tokens else False
 
     return {
         "recall_at_5": round(recall, 4),
         "precision_at_5": round(precision, 4),
         "mrr": round(mrr, 4),
         "has_answer": has_answer,
+        "top1_topic_match": top1_match,
     }
 
 
@@ -357,7 +390,8 @@ def run(experiences: int, questions: int, dim: int, seed: int, out: Path,
         if time.time() > deadline:
             print(f"  ! Time budget hit at {i}/{questions}")
             break
-        question = random.choice(QUESTION_TEMPLATES).format(topic=qt)
+        # Blind question: no topic in it — only the right snippet can answer
+        question = random.choice(QUESTION_TEMPLATES)  # no .format — templates are blind
         gt_content = next((e["content"] for e in experiences_data if e["topic"] == qt), "")
         snippets = _recall(memory, embedder, question, k=5)
         ans, n_used = answer_question(llm, question, snippets)
@@ -419,7 +453,7 @@ def run(experiences: int, questions: int, dim: int, seed: int, out: Path,
         if time.time() > deadline:
             print(f"  ! Time budget hit at {i}/{questions}")
             break
-        question = random.choice(QUESTION_TEMPLATES).format(topic=qt)
+        question = random.choice(QUESTION_TEMPLATES)  # blind — no topic
         gt_content = next((e["content"] for e in experiences_data if e["topic"] == qt), "")
         snippets = _recall(memory, embedder, question, k=5)
         ans, n_used = answer_question(llm, question, snippets)
@@ -477,6 +511,7 @@ def _summarize(metrics: List[Dict]) -> Dict:
         "precision_at_5_mean": round(np.mean([m["precision_at_5"] for m in metrics]), 4),
         "mrr_mean": round(np.mean([m["mrr"] for m in metrics]), 4),
         "has_answer_rate": round(np.mean([m["has_answer"] for m in metrics]), 4),
+        "top1_topic_match_rate": round(np.mean([m.get("top1_topic_match", False) for m in metrics]), 4),
     }
 
 

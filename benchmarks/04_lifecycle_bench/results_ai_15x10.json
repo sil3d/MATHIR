@@ -1,0 +1,522 @@
+{
+  "config": {
+    "experiences": 15,
+    "questions": 10,
+    "dim": 384,
+    "seed": 42,
+    "duration_min": 30,
+    "llm_backend": "ollama"
+  },
+  "phase_A": {
+    "experiences_generated": 15,
+    "memories_stored": 30,
+    "wall_s": 393.82
+  },
+  "phase_B_baseline": {
+    "questions_answered": 10,
+    "wall_s": 494.65,
+    "metrics_summary": {
+      "recall_at_5_mean": 0.4718,
+      "precision_at_5_mean": 1.0,
+      "mrr_mean": 1.0,
+      "has_answer_rate": 1.0,
+      "top1_topic_match_rate": 1.0
+    },
+    "answers": [
+      {
+        "q": "What was the most subtle or tricky bug we found?",
+        "a": "[N=1] The most subtle or tricky bug was the flawed logic condition within the merge algorithm of the MemoryConsolidator function, where a shallow equality check for duplicate identifiers caused legitimate distinct memories to be improperly merged, leading to data corruption errors and overwritten/missing data references.",
+        "metrics": {
+          "recall_at_5": 0.4143,
+          "precision_at_5": 1.0,
+          "mrr": 1.0,
+          "has_answer": true,
+          "top1_topic_match": true
+        },
+        "topic": "memory leak in WebSocket handler"
+      },
+      {
+        "q": "Which subsystem had a performance or stability issue recently?",
+        "a": "[1] The subsystem that had a performance or stability issue recently was the database connection pool, which experienced intermittent 'database connection pool exhausted' errors during peak load periods due to insufficient buffer capacity.",
+        "metrics": {
+          "recall_at_5": 0.4427,
+          "precision_at_5": 1.0,
+          "mrr": 1.0,
+          "has_answer": true,
+          "top1_topic_match": true
+        },
+        "topic": "daemon port conflict on restart"
+      },
+      {
+        "q": "What is one concrete technical detail from a recent debugging session?",
+        "a": "[N3] Specifically at line 84 of PromoteRulesEngine.java, where the age threshold comparison was changed from `memoryEntry.getAge() > MAX_AGE_THRESHOLD` to `memoryEntry.getAge() >= CURRENT_AGE_THRESHOLD`. This adjustment ensured that entries meeting or exceeding the current maturity criteria were included in the promotion process.",
+        "metrics": {
+          "recall_at_5": 0.4224,
+          "precision_at_5": 1.0,
+          "mrr": 1.0,
+          "has_answer": true,
+          "top1_topic_match": true
+        },
+        "topic": "rate limiting issue in API gateway"
+      },
+      {
+        "q": "What architectural decision was made recently and why?",
+        "a": "[N=1] The recent architectural decision was to adopt multi-architecture support in Dockerfile configurations (specifically adding `RUN apt-get update && \\ DEB_ARCH=aarch64 apt-get install -y --no-install-recommends <package> && \\ rm -rf /var/lib/apt/lists/*` on line 12 of the Dockerfile) to resolve mismatches between specified base images and ARM-based target environments, ensuring compatibility with ARM64 architectures.",
+        "metrics": {
+          "recall_at_5": 0.4203,
+          "precision_at_5": 1.0,
+          "mrr": 1.0,
+          "has_answer": true,
+          "top1_topic_match": true
+        },
+        "topic": "session memory not shared across agents"
+      },
+      {
+        "q": "What is one thing we know now that we did not know two weeks ago?",
+        "a": "I don't know based on these memories.",
+        "metrics": {
+          "recall_at_5": 0.3985,
+          "precision_at_5": 1.0,
+          "mrr": 1.0,
+          "has_answer": true,
+          "top1_topic_match": true
+        },
+        "topic": "link graph traversal slow on 10K memories"
+      },
+      {
+        "q": "What mistake or pattern do we want to avoid in future work, based on past experience?",
+        "a": "Avoid incomplete refactorings that exclude critical operation types or thresholds (e.g., delete operations in audit logging, maturity criteria in promote rules).",
+        "metrics": {
+          "recall_at_5": 1.0,
+          "precision_at_5": 1.0,
+          "mrr": 1.0,
+          "has_answer": true,
+          "top1_topic_match": true
+        },
+        "topic": "promote rules not catching mature memories"
+      },
+      {
+        "q": "What is the most recent engineering issue we ran into and how did we resolve it?",
+        "a": "bench-daemon-port-conflict-on-restar-v2\n\nThe most recent engineering issue was a \"port already in use\" error during system restart due to insufficient port availability checks before binding. The fix involved adding a port check using `socket.inet_aton()` in the `start_daemon()` function at line 62 of `daemon_manager.py`, along with enhanced logging for better debugging. [N: bench-daemon-port-conflict-on-restar-v2]",
+        "metrics": {
+          "recall_at_5": 0.3929,
+          "precision_at_5": 1.0,
+          "mrr": 1.0,
+          "has_answer": true,
+          "top1_topic_match": true
+        },
+        "topic": "consolidate merging wrong memories"
+      },
+      {
+        "q": "What was a recent root cause analysis we did, and what did we learn?",
+        "a": "[N1] The recent root cause analysis identified intermittent 'database connection pool exhausted' errors during peak load periods due to an underestimation of required concurrent connections after aggressive scaling without adjusting the database connection pool configuration. The fix involved increasing the pool size and implementing a dynamic scaling mechanism triggered by monitoring alerts on connection usage, resolving the issue with error message 'DatabaseConnectionPoolExhaustedError: Connection pool is exhausted'. Lessons learned include integrating load testing, performance profiling, and automated alerts to preemptively adjust configurations for resilience under varying workloads.",
+        "metrics": {
+          "recall_at_5": 0.3664,
+          "precision_at_5": 1.0,
+          "mrr": 1.0,
+          "has_answer": true,
+          "top1_topic_match": true
+        },
+        "topic": "Docker image build fails on ARM64"
+      },
+      {
+        "q": "Which subsystem had a performance or stability issue recently?",
+        "a": "[1] The subsystem that had a performance or stability issue recently was the database connection pool, which experienced intermittent 'database connection pool exhausted' errors during peak load periods due to an underestimation of required concurrent connections.",
+        "metrics": {
+          "recall_at_5": 0.3983,
+          "precision_at_5": 1.0,
+          "mrr": 1.0,
+          "has_answer": true,
+          "top1_topic_match": true
+        },
+        "topic": "CORS preflight failure for POST requests"
+      },
+      {
+        "q": "What error message or symptom was most memorable from recent work?",
+        "a": "[1] Symptom: Users reported intermittent login failures with an error message \"Authentication failed. Please check your credentials.\" The issue persisted across multiple sessions, indicating a potential bug in the authentication flow rather than transient network issues.\n\nThis symptom is directly cited from snippet [1], which describes the exact error message and context of the memorable issue encountered during recent work.",
+        "metrics": {
+          "recall_at_5": 0.4621,
+          "precision_at_5": 1.0,
+          "mrr": 1.0,
+          "has_answer": true,
+          "top1_topic_match": true
+        },
+        "topic": "GPU embedder not loading in WSL"
+      }
+    ]
+  },
+  "phase_C_maintenance": {
+    "decay": {
+      "result": {
+        "decayed": 0,
+        "archived": 0,
+        "by_tier": {},
+        "skipped": true,
+        "reason": "no_stability_column",
+        "schema": "new"
+      },
+      "wall_s": 0.01
+    },
+    "promote": {
+      "promoted": 0,
+      "wall_s": 0.01
+    },
+    "consolidate": {
+      "result": {
+        "dry_run": false,
+        "threshold": 0.95,
+        "merged": 15,
+        "candidates": 15,
+        "by_tier": {
+          "archived": 15,
+          "episodic": 15
+        },
+        "events": [
+          {
+            "canonical_id": "bench_a0c73dc5",
+            "merged_from": "bench_ba809ce8",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_ba809ce8",
+              "archived bench_ba809ce8"
+            ],
+            "similarity": 1.0000000000000002,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_7220d135",
+            "merged_from": "bench_96350b26",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_96350b26",
+              "archived bench_96350b26"
+            ],
+            "similarity": 1.0000000000000002,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_7d970810",
+            "merged_from": "bench_feb7f99c",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_feb7f99c",
+              "archived bench_feb7f99c"
+            ],
+            "similarity": 1.0000000000000002,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_6b0f7e7c",
+            "merged_from": "bench_927cac48",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_927cac48",
+              "archived bench_927cac48"
+            ],
+            "similarity": 1.0000000000000002,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_6c79abcd",
+            "merged_from": "bench_fcc4dc66",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_fcc4dc66",
+              "archived bench_fcc4dc66"
+            ],
+            "similarity": 1.0000000000000002,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_68a136d3",
+            "merged_from": "bench_f2e3358c",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_f2e3358c",
+              "archived bench_f2e3358c"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_0e6ae132",
+            "merged_from": "bench_2617f9c4",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_2617f9c4",
+              "archived bench_2617f9c4"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_7d5f8dd2",
+            "merged_from": "bench_b366baed",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_b366baed",
+              "archived bench_b366baed"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_1d48e085",
+            "merged_from": "bench_5a0aab9b",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_5a0aab9b",
+              "archived bench_5a0aab9b"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_1c9f0894",
+            "merged_from": "bench_9417323a",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_9417323a",
+              "archived bench_9417323a"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_4042c668",
+            "merged_from": "bench_b9ad15de",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_b9ad15de",
+              "archived bench_b9ad15de"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_246bc541",
+            "merged_from": "bench_e0a9043d",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_e0a9043d",
+              "archived bench_e0a9043d"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_8571ec77",
+            "merged_from": "bench_feba02ca",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_feba02ca",
+              "archived bench_feba02ca"
+            ],
+            "similarity": 1.0,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_079f2c72",
+            "merged_from": "bench_a6db7d97",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_a6db7d97",
+              "archived bench_a6db7d97"
+            ],
+            "similarity": 0.9999999999999999,
+            "applied": true
+          },
+          {
+            "canonical_id": "bench_321c26e6",
+            "merged_from": "bench_d2ff0377",
+            "new_recall_count": 0,
+            "new_stability": 1.0,
+            "events": [
+              "merged metadata from bench_d2ff0377",
+              "archived bench_d2ff0377"
+            ],
+            "similarity": 0.9999999999999998,
+            "applied": true
+          }
+        ]
+      },
+      "wall_s": 0.35
+    },
+    "build_links": {
+      "result": {
+        "links_created": 6,
+        "memories_scanned": 15
+      },
+      "wall_s": 0.02
+    }
+  },
+  "phase_D_after": {
+    "questions_answered": 10,
+    "wall_s": 535.12,
+    "metrics_summary": {
+      "recall_at_5_mean": 0.7185,
+      "precision_at_5_mean": 1.0,
+      "mrr_mean": 1.0,
+      "has_answer_rate": 1.0,
+      "top1_topic_match_rate": 1.0
+    },
+    "answers": [
+      {
+        "q": "What mistake or pattern do we want to avoid in future work, based on past experience?",
+        "a": "I don't know based on these memories.",
+        "metrics": {
+          "recall_at_5": 1.0,
+          "precision_at_5": 1.0,
+          "mrr": 1.0,
+          "has_answer": true,
+          "top1_topic_match": true
+        },
+        "topic": "memory leak in WebSocket handler"
+      },
+      {
+        "q": "What was a recent root cause analysis we did, and what did we learn?",
+        "a": "[N=1] The recent root cause analysis identified an underestimation of concurrent connections required by the application due to aggressive scaling without corresponding adjustments to the database connection pool configuration, leading to premature exhaustion during high traffic spikes.",
+        "metrics": {
+          "recall_at_5": 1.0,
+          "precision_at_5": 1.0,
+          "mrr": 1.0,
+          "has_answer": true,
+          "top1_topic_match": true
+        },
+        "topic": "daemon port conflict on restart"
+      },
+      {
+        "q": "What is one concrete technical detail from a recent debugging session?",
+        "a": "[N=1] The specific technical detail is that the `serializeSessionState` function in `sessionManager.py` (line 127) incorrectly omitted certain key-value pairs during object conversion to JSON format, leading to incomplete session state being transmitted between agents.",
+        "metrics": {
+          "recall_at_5": 0.5345,
+          "precision_at_5": 1.0,
+          "mrr": 1.0,
+          "has_answer": true,
+          "top1_topic_match": true
+        },
+        "topic": "rate limiting issue in API gateway"
+      },
+      {
+        "q": "What error message or symptom was most memorable from recent work?",
+        "a": "bench-authentication-bug-in-login-fl-v1",
+        "metrics": {
+          "recall_at_5": 0.6087,
+          "precision_at_5": 1.0,
+          "mrr": 1.0,
+          "has_answer": true,
+          "top1_topic_match": true
+        },
+        "topic": "session memory not shared across agents"
+      },
+      {
+        "q": "Which file or function had a bug recently and what was the fix?",
+        "a": "[4]",
+        "metrics": {
+          "recall_at_5": 0.3985,
+          "precision_at_5": 1.0,
+          "mrr": 1.0,
+          "has_answer": true,
+          "top1_topic_match": true
+        },
+        "topic": "link graph traversal slow on 10K memories"
+      },
+      {
+        "q": "Which file or function had a bug recently and what was the fix?",
+        "a": "[4]",
+        "metrics": {
+          "recall_at_5": 0.5,
+          "precision_at_5": 1.0,
+          "mrr": 1.0,
+          "has_answer": true,
+          "top1_topic_match": true
+        },
+        "topic": "promote rules not catching mature memories"
+      },
+      {
+        "q": "Which subsystem had a performance or stability issue recently?",
+        "a": "[1]",
+        "metrics": {
+          "recall_at_5": 1.0,
+          "precision_at_5": 1.0,
+          "mrr": 1.0,
+          "has_answer": true,
+          "top1_topic_match": true
+        },
+        "topic": "consolidate merging wrong memories"
+      },
+      {
+        "q": "Which file or function had a bug recently and what was the fix?",
+        "a": "[4]",
+        "metrics": {
+          "recall_at_5": 1.0,
+          "precision_at_5": 1.0,
+          "mrr": 1.0,
+          "has_answer": true,
+          "top1_topic_match": true
+        },
+        "topic": "Docker image build fails on ARM64"
+      },
+      {
+        "q": "What error message or symptom was most memorable from recent work?",
+        "a": "bench-authentication-bug-in-login-fl-v1",
+        "metrics": {
+          "recall_at_5": 0.5678,
+          "precision_at_5": 1.0,
+          "mrr": 1.0,
+          "has_answer": true,
+          "top1_topic_match": true
+        },
+        "topic": "CORS preflight failure for POST requests"
+      },
+      {
+        "q": "What error message or symptom was most memorable from recent work?",
+        "a": "bench-authentication-bug-in-login-fl-v1",
+        "metrics": {
+          "recall_at_5": 0.5758,
+          "precision_at_5": 1.0,
+          "mrr": 1.0,
+          "has_answer": true,
+          "top1_topic_match": true
+        },
+        "topic": "GPU embedder not loading in WSL"
+      }
+    ]
+  },
+  "comparison": {
+    "recall_at_5": {
+      "before": 0.4718,
+      "after": 0.7185,
+      "delta": 0.2467
+    },
+    "precision_at_5": {
+      "before": 1.0,
+      "after": 1.0,
+      "delta": 0.0
+    },
+    "mrr": {
+      "before": 1.0,
+      "after": 1.0,
+      "delta": 0.0
+    },
+    "has_answer_rate": {
+      "before": 1.0,
+      "after": 1.0,
+      "delta": 0.0
+    }
+  }
+}
