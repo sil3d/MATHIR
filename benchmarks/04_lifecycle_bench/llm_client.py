@@ -73,44 +73,88 @@ class LLMUnavailable(RuntimeError):
     """Raised when neither API nor Ollama is reachable."""
 
 
-# OpenRouter free model presets (curated for benchmarks)
+# OpenRouter free model presets (verified working on 2026-06-23)
+# 26 free models tested, 9 actually respond. Models that return HTTP 200
+# with content=null are multimodal-only (vision/audio) and excluded.
+# Models returning HTTP 429 are rate-limited upstream and skipped.
+# Latency measured on a single ping ("Reply with exactly one word: pong").
 OPENROUTER_FREE_MODELS: List[Dict] = [
     {
-        "id": "meta-llama/llama-3.3-70b-instruct:free",
-        "label": "Llama 3.3 70B (recommended for bench)",
-        "ctx": 131072,
-        "best_for": "instruction following, JSON, reasoning",
+        "id": "liquid/lfm-2.5-1.2b-instruct:free",
+        "label": "Liquid LFM 1.2B (fastest, small)",
+        "ctx": 32768,
+        "latency_ms": 601,
+        "best_for": "smoke tests, low-latency benchmarks",
+        "verified_works": True,
     },
     {
-        "id": "qwen/qwen3-next-80b-a3b-instruct:free",
-        "label": "Qwen3 Next 80B (very long context)",
-        "ctx": 262144,
-        "best_for": "long documents, code",
+        "id": "openrouter/free",
+        "label": "OpenRouter auto-route (200k ctx)",
+        "ctx": 200000,
+        "latency_ms": 838,
+        "best_for": "let OpenRouter pick, general use",
+        "verified_works": True,
     },
     {
-        "id": "openai/gpt-oss-120b:free",
-        "label": "GPT-OSS 120B (GPT-class open source)",
+        "id": "nvidia/nemotron-3-super-120b-a12b:free",
+        "label": "Nemotron Super 120B (1M ctx)",
+        "ctx": 1000000,
+        "latency_ms": 917,
+        "best_for": "very long context, large documents",
+        "verified_works": True,
+    },
+    {
+        "id": "nvidia/nemotron-3-nano-30b-a3b:free",
+        "label": "Nemotron Nano 30B (256k ctx)",
+        "ctx": 256000,
+        "latency_ms": 923,
+        "best_for": "balanced speed/quality, good default",
+        "verified_works": True,
+    },
+    {
+        "id": "openai/gpt-oss-20b:free",
+        "label": "GPT-OSS 20B (OpenAI-class, small)",
         "ctx": 131072,
-        "best_for": "general purpose, GPT-style responses",
+        "latency_ms": 1503,
+        "best_for": "OpenAI-style responses at small size",
+        "verified_works": True,
     },
     {
         "id": "google/gemma-4-31b-it:free",
         "label": "Gemma 4 31B (Google)",
         "ctx": 262144,
-        "best_for": "Q&A, factual",
+        "latency_ms": 1536,
+        "best_for": "Q&A, factual, long context",
+        "verified_works": True,
     },
     {
-        "id": "meta-llama/llama-3.2-3b-instruct:free",
-        "label": "Llama 3.2 3B (fast, light)",
+        "id": "openai/gpt-oss-120b:free",
+        "label": "GPT-OSS 120B (OpenAI-class, large)",
         "ctx": 131072,
-        "best_for": "low-latency, smoke tests",
+        "latency_ms": 2565,
+        "best_for": "instruction following, JSON, complex reasoning",
+        "verified_works": True,
     },
     {
-        "id": "nvidia/nemotron-3-nano-30b-a3b:free",
-        "label": "Nemotron Nano 30B (NVIDIA)",
-        "ctx": 256000,
-        "best_for": "reasoning, NVIDIA-tuned",
+        "id": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "label": "Nemotron Ultra 550B (huge MoE)",
+        "ctx": 1000000,
+        "latency_ms": 6378,
+        "best_for": "biggest free model, slow but capable",
+        "verified_works": True,
     },
+    {
+        "id": "openrouter/owl-alpha",
+        "label": "OpenRouter owl-alpha (1M ctx)",
+        "ctx": 1048756,
+        "latency_ms": 21369,
+        "best_for": "huge context, slow",
+        "verified_works": True,
+    },
+    # NOT VERIFIED / of rate-limited as of 2026-06-23:
+    {"id": "meta-llama/llama-3.3-70b-instruct:free", "label": "Llama 3.3 70B (429 rate-limited)", "ctx": 131072, "verified_works": False},
+    {"id": "qwen/qwen3-next-80b-a3b-instruct:free", "label": "Qwen3 Next 80B (429 rate-limited)", "ctx": 262144, "verified_works": False},
+    {"id": "meta-llama/llama-3.2-3b-instruct:free", "label": "Llama 3.2 3B (429 rate-limited)", "ctx": 131072, "verified_works": False},
 ]
 
 

@@ -1,0 +1,242 @@
+{
+  "tested_at": "2026-06-23 07:55:45",
+  "total": 26,
+  "working": 9,
+  "broken": 17,
+  "results": [
+    {
+      "id": "cohere/north-mini-code:free",
+      "ctx": 256000,
+      "ok": false,
+      "status": 200,
+      "elapsed_ms": 1218.9,
+      "response": "",
+      "error": "timeout/conn: 'NoneType' object has no attribute 'strip'"
+    },
+    {
+      "id": "nvidia/nemotron-3.5-content-safety:free",
+      "ctx": 128000,
+      "ok": false,
+      "status": 200,
+      "elapsed_ms": 695.7,
+      "response": "",
+      "error": "timeout/conn: 'NoneType' object has no attribute 'strip'"
+    },
+    {
+      "id": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "ctx": 1000000,
+      "ok": true,
+      "status": 200,
+      "elapsed_ms": 6377.8,
+      "response": "The user asks: \"Reply with exactly one word: pong\". So",
+      "error": null
+    },
+    {
+      "id": "openrouter/owl-alpha",
+      "ctx": 1048756,
+      "ok": true,
+      "status": 200,
+      "elapsed_ms": 21368.7,
+      "response": "pong",
+      "error": null
+    },
+    {
+      "id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "ctx": 256000,
+      "ok": false,
+      "status": "?",
+      "elapsed_ms": 10198.9,
+      "response": "",
+      "error": "timeout/conn: The read operation timed out"
+    },
+    {
+      "id": "poolside/laguna-xs.2:free",
+      "ctx": 262144,
+      "ok": false,
+      "status": 200,
+      "elapsed_ms": 1268.8,
+      "response": "",
+      "error": "timeout/conn: 'NoneType' object has no attribute 'strip'"
+    },
+    {
+      "id": "poolside/laguna-m.1:free",
+      "ctx": 262144,
+      "ok": false,
+      "status": 200,
+      "elapsed_ms": 2457.9,
+      "response": "",
+      "error": "timeout/conn: 'NoneType' object has no attribute 'strip'"
+    },
+    {
+      "id": "google/gemma-4-26b-a4b-it:free",
+      "ctx": 262144,
+      "ok": false,
+      "status": 429,
+      "elapsed_ms": 817.4,
+      "response": "",
+      "error": "Provider returned error"
+    },
+    {
+      "id": "google/gemma-4-31b-it:free",
+      "ctx": 262144,
+      "ok": true,
+      "status": 200,
+      "elapsed_ms": 1535.7,
+      "response": "pong",
+      "error": null
+    },
+    {
+      "id": "google/lyria-3-pro-preview",
+      "ctx": 1048576,
+      "ok": false,
+      "status": 502,
+      "elapsed_ms": 1462.4,
+      "response": "",
+      "error": "Provider returned error"
+    },
+    {
+      "id": "google/lyria-3-clip-preview",
+      "ctx": 1048576,
+      "ok": false,
+      "status": 502,
+      "elapsed_ms": 1092.8,
+      "response": "",
+      "error": "Provider returned error"
+    },
+    {
+      "id": "nvidia/nemotron-3-super-120b-a12b:free",
+      "ctx": 1000000,
+      "ok": true,
+      "status": 200,
+      "elapsed_ms": 916.9,
+      "response": "The user says: \"Reply with exactly one word: pong\". So",
+      "error": null
+    },
+    {
+      "id": "openrouter/free",
+      "ctx": 200000,
+      "ok": true,
+      "status": 200,
+      "elapsed_ms": 837.5,
+      "response": "The user says: \"Reply with exactly one word: pong\". They",
+      "error": null
+    },
+    {
+      "id": "liquid/lfm-2.5-1.2b-thinking:free",
+      "ctx": 32768,
+      "ok": false,
+      "status": 200,
+      "elapsed_ms": 715.4,
+      "response": "",
+      "error": "timeout/conn: 'NoneType' object has no attribute 'strip'"
+    },
+    {
+      "id": "liquid/lfm-2.5-1.2b-instruct:free",
+      "ctx": 32768,
+      "ok": true,
+      "status": 200,
+      "elapsed_ms": 600.9,
+      "response": "pong",
+      "error": null
+    },
+    {
+      "id": "nvidia/nemotron-3-nano-30b-a3b:free",
+      "ctx": 256000,
+      "ok": true,
+      "status": 200,
+      "elapsed_ms": 922.7,
+      "response": "The user says: \"Reply with exactly one word: pong\". They",
+      "error": null
+    },
+    {
+      "id": "nvidia/nemotron-nano-12b-v2-vl:free",
+      "ctx": 128000,
+      "ok": false,
+      "status": 200,
+      "elapsed_ms": 121021.4,
+      "response": "",
+      "error": "no choices: {\"error\": {\"message\": \"Upstream idle timeout exceeded\", \"code\": 504}}"
+    },
+    {
+      "id": "qwen/qwen3-next-80b-a3b-instruct:free",
+      "ctx": 262144,
+      "ok": false,
+      "status": 429,
+      "elapsed_ms": 774.7,
+      "response": "",
+      "error": "Provider returned error"
+    },
+    {
+      "id": "nvidia/nemotron-nano-9b-v2:free",
+      "ctx": 128000,
+      "ok": false,
+      "status": 200,
+      "elapsed_ms": 1275.9,
+      "response": "",
+      "error": "timeout/conn: 'NoneType' object has no attribute 'strip'"
+    },
+    {
+      "id": "openai/gpt-oss-120b:free",
+      "ctx": 131072,
+      "ok": true,
+      "status": 200,
+      "elapsed_ms": 2564.8,
+      "response": "pong",
+      "error": null
+    },
+    {
+      "id": "openai/gpt-oss-20b:free",
+      "ctx": 131072,
+      "ok": true,
+      "status": 200,
+      "elapsed_ms": 1503.4,
+      "response": "pong",
+      "error": null
+    },
+    {
+      "id": "qwen/qwen3-coder:free",
+      "ctx": 1048576,
+      "ok": false,
+      "status": 429,
+      "elapsed_ms": 566.1,
+      "response": "",
+      "error": "Provider returned error"
+    },
+    {
+      "id": "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+      "ctx": 32768,
+      "ok": false,
+      "status": 429,
+      "elapsed_ms": 601.8,
+      "response": "",
+      "error": "Provider returned error"
+    },
+    {
+      "id": "meta-llama/llama-3.3-70b-instruct:free",
+      "ctx": 131072,
+      "ok": false,
+      "status": 429,
+      "elapsed_ms": 580.3,
+      "response": "",
+      "error": "Provider returned error"
+    },
+    {
+      "id": "meta-llama/llama-3.2-3b-instruct:free",
+      "ctx": 131072,
+      "ok": false,
+      "status": 429,
+      "elapsed_ms": 533.0,
+      "response": "",
+      "error": "Provider returned error"
+    },
+    {
+      "id": "nousresearch/hermes-3-llama-3.1-405b:free",
+      "ctx": 131072,
+      "ok": false,
+      "status": 429,
+      "elapsed_ms": 548.4,
+      "response": "",
+      "error": "Provider returned error"
+    }
+  ]
+}
