@@ -1,0 +1,367 @@
+{
+  "config": {
+    "models": [
+      "openai/gpt-oss-120b:free",
+      "nvidia/nemotron-3-nano-30b-a3b:free",
+      "google/gemma-4-31b-it:free",
+      "liquid/lfm-2.5-1.2b-instruct:free"
+    ],
+    "n_exp": 8,
+    "n_q": 4
+  },
+  "tested_at": "2026-06-23 08:35:45",
+  "results": [
+    {
+      "model": "openai/gpt-oss-120b:free",
+      "n_exp": 8,
+      "n_q": 4,
+      "gen_latency_ms_mean": 22880.7,
+      "qa_latency_ms_mean": 5126.6,
+      "baseline_recall_at_5": 0.5075,
+      "after_recall_at_5": 0.572,
+      "delta": 0.0644,
+      "delta_pct": 12.69,
+      "consolidated": 8,
+      "baseline_answers": [
+        {
+          "q": "What is one thing we know now that we did not know two weeks ago?",
+          "topic": "memory leak in WebSocket handler",
+          "metrics": {
+            "recall_at_5": 0.4032,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "What error message or symptom was most memorable from recent work?",
+          "topic": "race condition in concurrent writes",
+          "metrics": {
+            "recall_at_5": 0.2627,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "Which file or function had a bug recently and what was the fix?",
+          "topic": "embedder dimension mismatch in recall",
+          "metrics": {
+            "recall_at_5": 1.0,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "What was a recent root cause analysis we did, and what did we learn?",
+          "topic": "JWT token expiration edge case",
+          "metrics": {
+            "recall_at_5": 0.3643,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        }
+      ],
+      "after_answers": [
+        {
+          "q": "What was the most subtle or tricky bug we found?",
+          "topic": "memory leak in WebSocket handler",
+          "metrics": {
+            "recall_at_5": 0.4677,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "Which file or function had a bug recently and what was the fix?",
+          "topic": "race condition in concurrent writes",
+          "metrics": {
+            "recall_at_5": 1.0,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "What is the most recent engineering issue we ran into and how did we resolve it?",
+          "topic": "embedder dimension mismatch in recall",
+          "metrics": {
+            "recall_at_5": 0.4016,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "What mistake or pattern do we want to avoid in future work, based on past experience?",
+          "topic": "JWT token expiration edge case",
+          "metrics": {
+            "recall_at_5": 0.4186,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        }
+      ]
+    },
+    {
+      "model": "nvidia/nemotron-3-nano-30b-a3b:free",
+      "n_exp": 8,
+      "n_q": 4,
+      "gen_latency_ms_mean": 2843.1,
+      "qa_latency_ms_mean": 1908.0,
+      "baseline_recall_at_5": 0.533,
+      "after_recall_at_5": 1.0,
+      "delta": 0.467,
+      "delta_pct": 87.63,
+      "consolidated": 8,
+      "baseline_answers": [
+        {
+          "q": "What was the most subtle or tricky bug we found?",
+          "topic": "CORS preflight failure for POST requests",
+          "metrics": {
+            "recall_at_5": 0.3134,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "What error message or symptom was most memorable from recent work?",
+          "topic": "race condition in concurrent writes",
+          "metrics": {
+            "recall_at_5": 0.4,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "Which subsystem had a performance or stability issue recently?",
+          "topic": "rate limiting issue in API gateway",
+          "metrics": {
+            "recall_at_5": 0.4184,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "What is the most recent engineering issue we ran into and how did we resolve it?",
+          "topic": "memory leak in WebSocket handler",
+          "metrics": {
+            "recall_at_5": 1.0,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        }
+      ],
+      "after_answers": [
+        {
+          "q": "What error message or symptom was most memorable from recent work?",
+          "topic": "CORS preflight failure for POST requests",
+          "metrics": {
+            "recall_at_5": 1.0,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "What is the most recent engineering issue we ran into and how did we resolve it?",
+          "topic": "race condition in concurrent writes",
+          "metrics": {
+            "recall_at_5": 1.0,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "What was a recent root cause analysis we did, and what did we learn?",
+          "topic": "rate limiting issue in API gateway",
+          "metrics": {
+            "recall_at_5": 1.0,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "What architectural decision was made recently and why?",
+          "topic": "memory leak in WebSocket handler",
+          "metrics": {
+            "recall_at_5": 1.0,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        }
+      ]
+    },
+    {
+      "model": "google/gemma-4-31b-it:free",
+      "n_exp": 8,
+      "n_q": 4,
+      "gen_latency_ms_mean": 0.0,
+      "qa_latency_ms_mean": 0.0,
+      "baseline_recall_at_5": 1.0,
+      "after_recall_at_5": 1.0,
+      "delta": 0.0,
+      "delta_pct": 0.0,
+      "consolidated": 8,
+      "baseline_answers": [
+        {
+          "q": "Which file or function had a bug recently and what was the fix?",
+          "topic": "rate limiting issue in API gateway",
+          "metrics": {
+            "recall_at_5": 1.0,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "What was a recent root cause analysis we did, and what did we learn?",
+          "topic": "JWT token expiration edge case",
+          "metrics": {
+            "recall_at_5": 1.0,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "What mistake or pattern do we want to avoid in future work, based on past experience?",
+          "topic": "memory leak in WebSocket handler",
+          "metrics": {
+            "recall_at_5": 1.0,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "What is one thing we know now that we did not know two weeks ago?",
+          "topic": "JSON serialization crash on null fields",
+          "metrics": {
+            "recall_at_5": 1.0,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        }
+      ],
+      "after_answers": [
+        {
+          "q": "What is one concrete technical detail from a recent debugging session?",
+          "topic": "rate limiting issue in API gateway",
+          "metrics": {
+            "recall_at_5": 1.0,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "What is the most recent engineering issue we ran into and how did we resolve it?",
+          "topic": "JWT token expiration edge case",
+          "metrics": {
+            "recall_at_5": 1.0,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "Which file or function had a bug recently and what was the fix?",
+          "topic": "memory leak in WebSocket handler",
+          "metrics": {
+            "recall_at_5": 1.0,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "What was the most subtle or tricky bug we found?",
+          "topic": "JSON serialization crash on null fields",
+          "metrics": {
+            "recall_at_5": 1.0,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        }
+      ]
+    },
+    {
+      "model": "liquid/lfm-2.5-1.2b-instruct:free",
+      "n_exp": 8,
+      "n_q": 4,
+      "gen_latency_ms_mean": 0.0,
+      "qa_latency_ms_mean": 0.0,
+      "baseline_recall_at_5": 1.0,
+      "after_recall_at_5": 1.0,
+      "delta": 0.0,
+      "delta_pct": 0.0,
+      "consolidated": 8,
+      "baseline_answers": [
+        {
+          "q": "What is one concrete technical detail from a recent debugging session?",
+          "topic": "JWT token expiration edge case",
+          "metrics": {
+            "recall_at_5": 1.0,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "What was the most subtle or tricky bug we found?",
+          "topic": "embedder dimension mismatch in recall",
+          "metrics": {
+            "recall_at_5": 1.0,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "What is one thing we know now that we did not know two weeks ago?",
+          "topic": "rate limiting issue in API gateway",
+          "metrics": {
+            "recall_at_5": 1.0,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "What is one concrete technical detail from a recent debugging session?",
+          "topic": "JSON serialization crash on null fields",
+          "metrics": {
+            "recall_at_5": 1.0,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        }
+      ],
+      "after_answers": [
+        {
+          "q": "What architectural decision was made recently and why?",
+          "topic": "JWT token expiration edge case",
+          "metrics": {
+            "recall_at_5": 1.0,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "What was the most subtle or tricky bug we found?",
+          "topic": "embedder dimension mismatch in recall",
+          "metrics": {
+            "recall_at_5": 1.0,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "Which subsystem had a performance or stability issue recently?",
+          "topic": "rate limiting issue in API gateway",
+          "metrics": {
+            "recall_at_5": 1.0,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        },
+        {
+          "q": "What is one thing we know now that we did not know two weeks ago?",
+          "topic": "JSON serialization crash on null fields",
+          "metrics": {
+            "recall_at_5": 1.0,
+            "has_answer": true,
+            "mrr": 1.0
+          }
+        }
+      ]
+    }
+  ]
+}
