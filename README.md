@@ -291,12 +291,23 @@ python -m mathir_mcp
 
 **Same MATHIR memory across all LLMs.** Switch the backend, the memory stays.
 
+### ⚠️ Cold-boot verification (2026-06-23)
+
+**Tested manually after PC reboot** — daemon does NOT auto-start on Windows boot. `memory_recall` returns errors until `mathir_daemon.py` is launched explicitly. This confirms the [⚠️ After PC Reboot](#%E2%9A%A0%EF%B8%8F-after-pc-reboot--manual-start-required) section is accurate and the "self-healing" claim has been removed from this README.
+
+| Scenario | Before fix | After this README update |
+|---|---|---|
+| Daemon running, recall called | ✅ Works | ✅ Works |
+| Daemon crashed, recall called | ✅ Auto-restart | ✅ Auto-restart |
+| PC rebooted, recall called | ❌ Silent failure (claimed "self-healing") | ❌ Documented limitation, manual fix |
+| Daemon down, Python API used | ✅ Works | ✅ Works (the only truly automatic path) |
+
 ### 💡 Why this matters
 
 - **One memory, any LLM** — save with Claude, recall with MiMo, continue with GPT. No vendor lock-in.
 - **Fast recall** — memory lookup is in milliseconds thanks to the persistent daemon (port 7338).
-- **Python fallback** — if the MCP layer fails for any reason, the Python API (`from mathir_lib import ...`) is always there as a reliable backup. The system auto-fixes issues by falling back gracefully.
-- **Self-healing** — daemon auto-restarts, embeddings reload, connections retry.
+- **Python fallback when MCP fails** — if the MCP layer fails for any reason, the Python API (`from mathir_lib import ...`) is always there as a reliable backup. This is the only fully automatic layer.
+- **Watchdog (within session)** — daemon auto-restarts on **crash** only, embeddings reload, connections retry. **This does NOT cover PC reboot** — see the [⚠️ After PC Reboot](#%E2%9A%A0%EF%B8%8F-after-pc-reboot--manual-start-required) section below.
 
 ### 🛠️ Installation recommendation
 
@@ -576,6 +587,51 @@ print(output["router_weights"])      # 4-tier allocation: [0.4, 0.3, 0.2, 0.1]
 print(output["anomaly_score"])       # novelty detection (0.0–1.0)
 print(output["episodic_context"])    # retrieved past experiences
 ```
+
+---
+
+## ⚠️ After PC Reboot — Manual Start Required
+
+**The MATHIR daemon does NOT auto-start on Windows boot.** After restarting your PC, you need to start it manually. The MCP tools (`memory_save`, `memory_recall`, etc.) will silently fail or return errors if the daemon is not running.
+
+This is **NOT self-healing** — the daemon only auto-restarts on a crash *within the current session*. Cold boot is a known limitation in v8.4.1 (roadmap item for v8.4.2).
+
+### Quick start after reboot
+
+**Option 1 — One-click (recommended):**
+Double-click: `C:\Users\So-i-learn-3D\.config\opencode\bin\mathir.bat`
+
+**Option 2 — Command line:**
+```powershell
+python C:\Users\So-i-learn-3D\.config\opencode\bin\mathir_daemon.py
+```
+
+**Option 3 — Auto-start setup (one-time):**
+Place `mathir_daemon_startup.bat` in your Windows Startup folder, or run `setup-autostart.ps1` as Administrator.
+
+### Verify the daemon is running
+
+```powershell
+curl http://localhost:7338/health
+# → {"status":"ok","model":"paraphrase-multilingual-MiniLM-L12-v2",...}
+```
+
+If you get "connection refused", the daemon is down — start it with Option 1 or 2.
+
+### What is automatic (today)
+
+- ✅ Daemon auto-restarts on **crash** (within session, via watchdog)
+- ✅ Python fallback when MCP layer fails (no daemon required)
+- ✅ Daemon reloads embedding model on connection drop
+
+### What is NOT automatic (yet)
+
+- ❌ Daemon does NOT start on Windows boot
+- ❌ MCP prompt does NOT auto-inject at agent startup (relies on the `agents/*.md` files already containing the injection block)
+- ❌ Agents do NOT auto-check daemon status before calling `memory_recall`
+- ❌ Cold boot is **not** silent — the first `memory_recall` after reboot fails until you start the daemon
+
+**Roadmap (v8.4.2):** True cold-boot auto-start via Windows Task Scheduler, MCP self-injection at agent boot, agent self-discovery of daemon status.
 
 ---
 
@@ -883,10 +939,10 @@ Client (opencode / Python)
 - Model load: **~3–5 seconds** (bge-large-en-v1.5) → eliminated after first call
 - Per-call overhead: **1–2 ms** (TCP round-trip only)
 - GPU memory: **~500 MB** held continuously (vs 0 MB between calls)
-- No cold starts, no repeated allocation
+- **No cold starts within a session** — once the daemon is running, the model stays loaded in VRAM. **Note:** a cold start DOES happen on first launch and after every PC reboot (daemon must be started manually — see [⚠️ After PC Reboot](#%E2%9A%A0%EF%B8%8F-after-pc-reboot--manual-start-required)).
 
 ```bash
-# Start daemon (background, persists across sessions)
+# Start daemon (background, persists until PC reboot or crash)
 python -m mathir_mcp &
 
 # Thin client — fast, model already loaded

@@ -1,6 +1,42 @@
-# MATHIR MEMORY — v8.4.0 INJECTION BLOCK
+# MATHIR MEMORY — v8.4.2 INJECTION BLOCK
 # Injected at the top of every agent's system_prompt.
 # Use MCP tools directly — no proxy, no bash.
+
+## ⚡ BEFORE YOU DO ANYTHING — Daemon Health Check
+
+**STEP 1 — Is the daemon running?**
+
+```powershell
+Test-NetConnection -ComputerName localhost -Port 7338 -InformationLevel Quiet
+```
+
+If `True` → daemon is up, proceed normally.
+If `False` → start it:
+
+```powershell
+# Windows
+Start-Process python -ArgumentList "C:\Users\So-i-learn-3D\.config\opencode\bin\mathir_daemon.py" -WindowStyle Hidden
+# Wait 3 seconds
+Start-Sleep -Seconds 3
+# Verify
+Test-NetConnection -ComputerName localhost -Port 7338 -InformationLevel Quiet
+```
+
+**STEP 2 — Try memory_recall on something simple to confirm MCP is working.**
+
+If memory_recall works → great, proceed.
+If it fails → use Python fallback:
+```python
+import sys
+sys.path.insert(0, r"C:\Users\So-i-learn-3D\.config\opencode\bin")
+from mathir_lib import MATHIR
+m = MATHIR(project="current")
+results = m.recall("test", k=3)
+```
+
+**RULE: Always check the daemon FIRST. Never assume it's running.**
+
+---
 
 ## 🧠 YOUR ACTIVE MEMORY (auto-injected)
 
