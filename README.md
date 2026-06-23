@@ -801,6 +801,20 @@ The router **learns** its allocation strategy over time (no hard-coded rules):
 
 All results reproducible. Scripts in [`benchmarks/`](benchmarks/), full HTML report in [`benchmarks/06_results/current/MATHIR_FINAL_REPORT.html`](benchmarks/06_results/current/MATHIR_FINAL_REPORT.html).
 
+### 🆕 Lifecycle Benchmarks (v8.4.0)
+
+Two complementary benchmarks that prove the living memory actually improves recall quality:
+
+```bash
+# Memory-only throughput (no LLM, ~5 min)
+python benchmarks/04_lifecycle_bench/micro_bench.py --count 1000
+
+# AI-driven end-to-end (20 min default) — measures recall quality before/after
+python benchmarks/04_lifecycle_bench/run_all.py --duration 20
+```
+
+The AI bench runs 4 phases: **generate experiences → baseline Q&A → age + maintenance cycle → re-test same Q&A**. The headline metric: does `recall@5` and `has_answer_rate` improve after `decay + promote + consolidate + build_links` runs? See [`benchmarks/04_lifecycle_bench/README.md`](benchmarks/04_lifecycle_bench/README.md) for details.
+
 ### 🧪 Test suite — 226 tests, 99 % pass
 
 ```
