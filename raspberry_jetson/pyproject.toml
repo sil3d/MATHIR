@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mathir-raspberry-jetson"
-version = "8.3.0"
+version = "8.4.0"
 description = "MATHIR Memory for Raspberry Pi / Jetson - CPU-only portable"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "mathir-mcp>=8.3.0",
+    "mathir-mcp>=8.4.0",
     "onnxruntime>=1.16",
     "numpy>=1.24",
 ]

@@ -1,0 +1,606 @@
+[
+  {
+    "name": "Personal Info Recall",
+    "system": "MATHIR",
+    "store_time_ms": 292.48785972595215,
+    "avg_query_time_ms": 2.92930006980896,
+    "correct_recalls": 7,
+    "total_queries": 8,
+    "accuracy": 0.875,
+    "memory_mb": 5.717334747314453,
+    "details": [
+      {
+        "query": "What is my name?",
+        "expected_idx": 0,
+        "expected_text": "My name is Alice and I live in Paris, France.",
+        "recalled": [
+          8,
+          0,
+          3
+        ],
+        "correct": true
+      },
+      {
+        "query": "Where do I live?",
+        "expected_idx": 0,
+        "expected_text": "My name is Alice and I live in Paris, France.",
+        "recalled": [
+          0,
+          7,
+          12
+        ],
+        "correct": true
+      },
+      {
+        "query": "What is my job?",
+        "expected_idx": 1,
+        "expected_text": "I work as a data scientist at a startup called TechCorp.",
+        "recalled": [
+          3,
+          5,
+          2
+        ],
+        "correct": false
+      },
+      {
+        "query": "What is my pet's name?",
+        "expected_idx": 3,
+        "expected_text": "I have a cat named Schr\u00f6dinger who is 3 years old.",
+        "recalled": [
+          0,
+          8,
+          3
+        ],
+        "correct": true
+      },
+      {
+        "query": "When did I graduate from MIT?",
+        "expected_idx": 4,
+        "expected_text": "I graduated from MIT in 2020 with a degree in computer scien",
+        "recalled": [
+          4,
+          11,
+          10
+        ],
+        "correct": true
+      },
+      {
+        "query": "What car do I drive?",
+        "expected_idx": 10,
+        "expected_text": "I drive a Tesla Model 3.",
+        "recalled": [
+          10,
+          11,
+          4
+        ],
+        "correct": true
+      },
+      {
+        "query": "When was I born?",
+        "expected_idx": 13,
+        "expected_text": "I was born on March 15, 1995.",
+        "recalled": [
+          13,
+          0,
+          7
+        ],
+        "correct": true
+      },
+      {
+        "query": "What programming language do I like?",
+        "expected_idx": 2,
+        "expected_text": "My favorite programming language is Python.",
+        "recalled": [
+          2,
+          1,
+          13
+        ],
+        "correct": true
+      }
+    ]
+  },
+  {
+    "name": "Personal Info Recall",
+    "system": "RAG",
+    "store_time_ms": 9.367704391479492,
+    "avg_query_time_ms": 0.999748706817627,
+    "correct_recalls": 7,
+    "total_queries": 8,
+    "accuracy": 0.875,
+    "memory_mb": 0.0439453125,
+    "details": [
+      {
+        "query": "What is my name?",
+        "expected_text": "My name is Alice and I live in Paris, France.",
+        "top_results": [
+          "My partner's name is Bob and they work in finance.",
+          "My name is Alice and I live in Paris, France.",
+          "I have a cat named Schr\u00f6dinger who is 3 years old."
+        ],
+        "correct": true
+      },
+      {
+        "query": "Where do I live?",
+        "expected_text": "My name is Alice and I live in Paris, France.",
+        "top_results": [
+          "My name is Alice and I live in Paris, France.",
+          "I have a cat named Schr\u00f6dinger who is 3 years old.",
+          "My favorite season is autumn because of the colors."
+        ],
+        "correct": true
+      },
+      {
+        "query": "What is my job?",
+        "expected_text": "I work as a data scientist at a startup called TechCorp.",
+        "top_results": [
+          "I have a cat named Schr\u00f6dinger who is 3 years old.",
+          "My favorite programming language is Python.",
+          "My favorite food is pizza, especially margherita."
+        ],
+        "correct": false
+      },
+      {
+        "query": "What is my pet's name?",
+        "expected_text": "I have a cat named Schr\u00f6dinger who is 3 years old.",
+        "top_results": [
+          "My partner's name is Bob and they work in finance.",
+          "My name is Alice and I live in Paris, France.",
+          "I have a cat named Schr\u00f6dinger who is 3 years old."
+        ],
+        "correct": true
+      },
+      {
+        "query": "When did I graduate from MIT?",
+        "expected_text": "I graduated from MIT in 2020 with a degree in computer scien",
+        "top_results": [
+          "I graduated from MIT in 2020 with a degree in computer scien",
+          "I read science fiction books, especially Isaac Asimov.",
+          "I drive a Tesla Model 3."
+        ],
+        "correct": true
+      },
+      {
+        "query": "What car do I drive?",
+        "expected_text": "I drive a Tesla Model 3.",
+        "top_results": [
+          "I drive a Tesla Model 3.",
+          "I read science fiction books, especially Isaac Asimov.",
+          "I graduated from MIT in 2020 with a degree in computer scien"
+        ],
+        "correct": true
+      },
+      {
+        "query": "When was I born?",
+        "expected_text": "I was born on March 15, 1995.",
+        "top_results": [
+          "I was born on March 15, 1995.",
+          "I drive a Tesla Model 3.",
+          "I graduated from MIT in 2020 with a degree in computer scien"
+        ],
+        "correct": true
+      },
+      {
+        "query": "What programming language do I like?",
+        "expected_text": "My favorite programming language is Python.",
+        "top_results": [
+          "My favorite programming language is Python.",
+          "I have a master's degree in statistics from Stanford.",
+          "My name is Alice and I live in Paris, France."
+        ],
+        "correct": true
+      }
+    ]
+  },
+  {
+    "name": "Personal Info Recall",
+    "system": "VectorDB",
+    "store_time_ms": 7.858514785766602,
+    "avg_query_time_ms": 1.4908909797668457,
+    "correct_recalls": 7,
+    "total_queries": 8,
+    "accuracy": 0.875,
+    "memory_mb": 0.0439453125,
+    "details": [
+      {
+        "query": "What is my name?",
+        "expected_text": "My name is Alice and I live in Paris, France.",
+        "top_results": [
+          "My partner's name is Bob and they work in finance.",
+          "My name is Alice and I live in Paris, France.",
+          "I have a cat named Schr\u00f6dinger who is 3 years old."
+        ],
+        "correct": true
+      },
+      {
+        "query": "Where do I live?",
+        "expected_text": "My name is Alice and I live in Paris, France.",
+        "top_results": [
+          "My name is Alice and I live in Paris, France.",
+          "I have a cat named Schr\u00f6dinger who is 3 years old.",
+          "My favorite season is autumn because of the colors."
+        ],
+        "correct": true
+      },
+      {
+        "query": "What is my job?",
+        "expected_text": "I work as a data scientist at a startup called TechCorp.",
+        "top_results": [
+          "I have a cat named Schr\u00f6dinger who is 3 years old.",
+          "My favorite programming language is Python.",
+          "My favorite food is pizza, especially margherita."
+        ],
+        "correct": false
+      },
+      {
+        "query": "What is my pet's name?",
+        "expected_text": "I have a cat named Schr\u00f6dinger who is 3 years old.",
+        "top_results": [
+          "My partner's name is Bob and they work in finance.",
+          "My name is Alice and I live in Paris, France.",
+          "I have a cat named Schr\u00f6dinger who is 3 years old."
+        ],
+        "correct": true
+      },
+      {
+        "query": "When did I graduate from MIT?",
+        "expected_text": "I graduated from MIT in 2020 with a degree in computer scien",
+        "top_results": [
+          "I graduated from MIT in 2020 with a degree in computer scien",
+          "I read science fiction books, especially Isaac Asimov.",
+          "I drive a Tesla Model 3."
+        ],
+        "correct": true
+      },
+      {
+        "query": "What car do I drive?",
+        "expected_text": "I drive a Tesla Model 3.",
+        "top_results": [
+          "I drive a Tesla Model 3.",
+          "I read science fiction books, especially Isaac Asimov.",
+          "I graduated from MIT in 2020 with a degree in computer scien"
+        ],
+        "correct": true
+      },
+      {
+        "query": "When was I born?",
+        "expected_text": "I was born on March 15, 1995.",
+        "top_results": [
+          "I was born on March 15, 1995.",
+          "I drive a Tesla Model 3.",
+          "I graduated from MIT in 2020 with a degree in computer scien"
+        ],
+        "correct": true
+      },
+      {
+        "query": "What programming language do I like?",
+        "expected_text": "My favorite programming language is Python.",
+        "top_results": [
+          "My favorite programming language is Python.",
+          "I have a master's degree in statistics from Stanford.",
+          "My name is Alice and I live in Paris, France."
+        ],
+        "correct": true
+      }
+    ]
+  },
+  {
+    "name": "Project Knowledge",
+    "system": "MATHIR",
+    "store_time_ms": 39.17741775512695,
+    "avg_query_time_ms": 3.0922412872314453,
+    "correct_recalls": 4,
+    "total_queries": 5,
+    "accuracy": 0.8,
+    "memory_mb": 5.717334747314453,
+    "details": [
+      {
+        "query": "How many memory tiers does MATHIR have?",
+        "expected_idx": 1,
+        "expected_text": "It uses 3-tier hierarchical memory: working, episodic, seman",
+        "recalled": [
+          8,
+          2,
+          9
+        ],
+        "correct": false
+      },
+      {
+        "query": "What is TurboQuant?",
+        "expected_idx": 3,
+        "expected_text": "TurboQuant provides 10x compression with minimal quality los",
+        "recalled": [
+          3,
+          0,
+          6
+        ],
+        "correct": true
+      },
+      {
+        "query": "What is the KL router for?",
+        "expected_idx": 2,
+        "expected_text": "The KL-constrained router prevents memory collapse.",
+        "recalled": [
+          0,
+          2,
+          6
+        ],
+        "correct": true
+      },
+      {
+        "query": "What does the semantic memory use?",
+        "expected_idx": 8,
+        "expected_text": "The semantic memory uses online k-means with 256 prototypes.",
+        "recalled": [
+          8,
+          2,
+          9
+        ],
+        "correct": true
+      },
+      {
+        "query": "What is MATHIR designed for?",
+        "expected_idx": 0,
+        "expected_text": "MATHIR is a memory-augmented neural network for autonomous d",
+        "recalled": [
+          0,
+          6,
+          3
+        ],
+        "correct": true
+      }
+    ]
+  },
+  {
+    "name": "Project Knowledge",
+    "system": "RAG",
+    "store_time_ms": 5.604743957519531,
+    "avg_query_time_ms": 0.7996559143066406,
+    "correct_recalls": 4,
+    "total_queries": 5,
+    "accuracy": 0.8,
+    "memory_mb": 0.029296875,
+    "details": [
+      {
+        "query": "How many memory tiers does MATHIR have?",
+        "expected_text": "It uses 3-tier hierarchical memory: working, episodic, seman",
+        "top_results": [
+          "The semantic memory uses online k-means with 256 prototypes.",
+          "The KL-constrained router prevents memory collapse.",
+          "The immunological memory detects anomalies via distance thre"
+        ],
+        "correct": false
+      },
+      {
+        "query": "What is TurboQuant?",
+        "expected_text": "TurboQuant provides 10x compression with minimal quality los",
+        "top_results": [
+          "TurboQuant provides 10x compression with minimal quality los",
+          "The vision encoder is a CNN called QuantumVisionEncoder.",
+          "MATHIR is a memory-augmented neural network for autonomous d"
+        ],
+        "correct": true
+      },
+      {
+        "query": "What is the KL router for?",
+        "expected_text": "The KL-constrained router prevents memory collapse.",
+        "top_results": [
+          "MATHIR is a memory-augmented neural network for autonomous d",
+          "The vision encoder is a CNN called QuantumVisionEncoder.",
+          "The KL-constrained router prevents memory collapse."
+        ],
+        "correct": true
+      },
+      {
+        "query": "What does the semantic memory use?",
+        "expected_text": "The semantic memory uses online k-means with 256 prototypes.",
+        "top_results": [
+          "The semantic memory uses online k-means with 256 prototypes.",
+          "The KL-constrained router prevents memory collapse.",
+          "The immunological memory detects anomalies via distance thre"
+        ],
+        "correct": true
+      },
+      {
+        "query": "What is MATHIR designed for?",
+        "expected_text": "MATHIR is a memory-augmented neural network for autonomous d",
+        "top_results": [
+          "MATHIR is a memory-augmented neural network for autonomous d",
+          "The vision encoder is a CNN called QuantumVisionEncoder.",
+          "The semantic memory uses online k-means with 256 prototypes."
+        ],
+        "correct": true
+      }
+    ]
+  },
+  {
+    "name": "Project Knowledge",
+    "system": "VectorDB",
+    "store_time_ms": 4.9991607666015625,
+    "avg_query_time_ms": 0.40035247802734375,
+    "correct_recalls": 4,
+    "total_queries": 5,
+    "accuracy": 0.8,
+    "memory_mb": 0.029296875,
+    "details": [
+      {
+        "query": "How many memory tiers does MATHIR have?",
+        "expected_text": "It uses 3-tier hierarchical memory: working, episodic, seman",
+        "top_results": [
+          "The semantic memory uses online k-means with 256 prototypes.",
+          "The KL-constrained router prevents memory collapse.",
+          "The immunological memory detects anomalies via distance thre"
+        ],
+        "correct": false
+      },
+      {
+        "query": "What is TurboQuant?",
+        "expected_text": "TurboQuant provides 10x compression with minimal quality los",
+        "top_results": [
+          "TurboQuant provides 10x compression with minimal quality los",
+          "The vision encoder is a CNN called QuantumVisionEncoder.",
+          "MATHIR is a memory-augmented neural network for autonomous d"
+        ],
+        "correct": true
+      },
+      {
+        "query": "What is the KL router for?",
+        "expected_text": "The KL-constrained router prevents memory collapse.",
+        "top_results": [
+          "MATHIR is a memory-augmented neural network for autonomous d",
+          "The vision encoder is a CNN called QuantumVisionEncoder.",
+          "The KL-constrained router prevents memory collapse."
+        ],
+        "correct": true
+      },
+      {
+        "query": "What does the semantic memory use?",
+        "expected_text": "The semantic memory uses online k-means with 256 prototypes.",
+        "top_results": [
+          "The semantic memory uses online k-means with 256 prototypes.",
+          "The KL-constrained router prevents memory collapse.",
+          "The immunological memory detects anomalies via distance thre"
+        ],
+        "correct": true
+      },
+      {
+        "query": "What is MATHIR designed for?",
+        "expected_text": "MATHIR is a memory-augmented neural network for autonomous d",
+        "top_results": [
+          "MATHIR is a memory-augmented neural network for autonomous d",
+          "The vision encoder is a CNN called QuantumVisionEncoder.",
+          "The semantic memory uses online k-means with 256 prototypes."
+        ],
+        "correct": true
+      }
+    ]
+  },
+  {
+    "name": "Long Sequential",
+    "system": "MATHIR",
+    "store_time_ms": 104.6438217163086,
+    "avg_query_time_ms": 5.622386932373047,
+    "correct_recalls": 0,
+    "total_queries": 3,
+    "accuracy": 0.0,
+    "memory_mb": 5.717334747314453,
+    "details": [
+      {
+        "query": "What did I do on Day 1?",
+        "expected_idx": 0,
+        "expected_text": "Day 1: I went to the park and did reading.",
+        "recalled": [
+          2,
+          7,
+          11
+        ],
+        "correct": false
+      },
+      {
+        "query": "What did I do on Day 15?",
+        "expected_idx": 14,
+        "expected_text": "Day 15: I went to the gym and did workout.",
+        "recalled": [
+          2,
+          7,
+          16
+        ],
+        "correct": false
+      },
+      {
+        "query": "What did I do on Day 30?",
+        "expected_idx": 29,
+        "expected_text": "Day 30: I went to the office and did reading.",
+        "recalled": [
+          7,
+          2,
+          16
+        ],
+        "correct": false
+      }
+    ]
+  },
+  {
+    "name": "Long Sequential",
+    "system": "RAG",
+    "store_time_ms": 15.259742736816406,
+    "avg_query_time_ms": 0.6670157114664713,
+    "correct_recalls": 0,
+    "total_queries": 3,
+    "accuracy": 0.0,
+    "memory_mb": 0.087890625,
+    "details": [
+      {
+        "query": "What did I do on Day 1?",
+        "expected_text": "Day 1: I went to the park and did reading.",
+        "top_results": [
+          "Day 21: I went to the office and did lunch.",
+          "Day 26: I went to the office and did lunch.",
+          "Day 2: I went to the office and did coding."
+        ],
+        "correct": false
+      },
+      {
+        "query": "What did I do on Day 15?",
+        "expected_text": "Day 15: I went to the gym and did workout.",
+        "top_results": [
+          "Day 21: I went to the office and did lunch.",
+          "Day 26: I went to the office and did lunch.",
+          "Day 2: I went to the office and did coding."
+        ],
+        "correct": false
+      },
+      {
+        "query": "What did I do on Day 30?",
+        "expected_text": "Day 30: I went to the office and did reading.",
+        "top_results": [
+          "Day 21: I went to the office and did lunch.",
+          "Day 2: I went to the office and did coding.",
+          "Day 26: I went to the office and did lunch."
+        ],
+        "correct": false
+      }
+    ]
+  },
+  {
+    "name": "Long Sequential",
+    "system": "VectorDB",
+    "store_time_ms": 8.999347686767578,
+    "avg_query_time_ms": 0.33346811930338544,
+    "correct_recalls": 0,
+    "total_queries": 3,
+    "accuracy": 0.0,
+    "memory_mb": 0.087890625,
+    "details": [
+      {
+        "query": "What did I do on Day 1?",
+        "expected_text": "Day 1: I went to the park and did reading.",
+        "top_results": [
+          "Day 21: I went to the office and did lunch.",
+          "Day 26: I went to the office and did lunch.",
+          "Day 2: I went to the office and did coding."
+        ],
+        "correct": false
+      },
+      {
+        "query": "What did I do on Day 15?",
+        "expected_text": "Day 15: I went to the gym and did workout.",
+        "top_results": [
+          "Day 21: I went to the office and did lunch.",
+          "Day 26: I went to the office and did lunch.",
+          "Day 2: I went to the office and did coding."
+        ],
+        "correct": false
+      },
+      {
+        "query": "What did I do on Day 30?",
+        "expected_text": "Day 30: I went to the office and did reading.",
+        "top_results": [
+          "Day 21: I went to the office and did lunch.",
+          "Day 2: I went to the office and did coding.",
+          "Day 26: I went to the office and did lunch."
+        ],
+        "correct": false
+      }
+    ]
+  }
+]

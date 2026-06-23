@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MATHIR Vision Testing - Accuracy Test Framework
+MATHIR Playground - Accuracy Test Framework
 ================================================
 
 Runs a battery of vision-model accuracy tests against each enabled model

@@ -1,12 +1,12 @@
 #!/bin/bash
 # setup.sh — Install MATHIR for Raspberry Pi / Jetson.
-# Thin wrapper: installs the portable ``mcp/`` package and Pi/Jetson extras.
+# Thin wrapper: installs the portable ``mathir_mcp/`` package and Pi/Jetson extras.
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-echo "MATHIR — Raspberry Pi / Jetson installer"
+echo "MATHIR — Raspberry Pi / Jetson installer (v8.4.0)"
 echo ""
 
 # System prerequisites
@@ -23,9 +23,10 @@ fi
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/.venv/bin/activate"
 
-# Install the portable mcp package (editable, so changes apply)
-echo "[2/3] Installing mathir-mcp from ../mcp/..."
-pip install --quiet -e "$PROJECT_ROOT/mcp"
+# Install the portable mathir_mcp package (editable, so changes apply).
+# In v8.4.0 the directory is mathir_mcp/, not mcp/ (renamed in v8).
+echo "[2/3] Installing mathir-mcp from ../mathir_mcp/..."
+pip install --quiet -e "$PROJECT_ROOT/mathir_mcp"
 
 # Pi/Jetson extras
 echo "[3/3] Installing ARM-friendly extras..."
@@ -35,4 +36,4 @@ pip install --quiet \
 
 echo ""
 echo "Done. Start with:  ./start.sh"
-echo "Test:  python3 -c 'import mathir_lib; print(mathir_lib.__version__)'"
+echo "Test:  python3 -m mathir_mcp --selftest"

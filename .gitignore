@@ -42,8 +42,29 @@ vision_testing/bin/
 vision_testing/models/
 vision_testing/logs/
 
-# Deprecated / consolidated legacy files
-_deprecated/
+# ============================================================
+# DEPRECATED / LEGACY CONTENT — KEPT ON PURPOSE (v8.4.0 decision)
+# ============================================================
+# These directories are kept visible (not ignored) to document the project's
+# evolution from v7 → v8.4.0. Future contributors and AI agents should SEE the
+# legacy code to understand what was removed, why, and what replaced it.
+#
+# Each `_deprecated/` subdirectory has its own README.md explaining its content.
+# Use `git log --follow <file>` to trace moves and decisions across versions.
+#
+# Decision rationale (2026-06-23, user-mandated):
+#   "laisse les deprecated pour qu'ils comprennent que je reviens de loin"
+#   — leaving the journey visible is part of the project's narrative.
+# ============================================================
+# DO NOT add `_deprecated/` to this file. If you want to ignore a NEW
+# _deprecated subdir, add a specific exception to this comment block.
+
+# Runtime logs (daemon stdout/stderr, watchdog, MCP server)
+*.log
+logs/
+mathir_mcp/logs/
+daemon_*.log
+daemon_*.txt
 
 # Editor
 .vscode/

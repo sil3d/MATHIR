@@ -32,7 +32,7 @@ from typing import Optional
 _pkg_root = str(Path(__file__).resolve().parent.parent)          # mathir_mcp/
 sys.path.insert(0, _pkg_root)
 sys.path.insert(0, str(Path(__file__).resolve().parent))         # brain/
-from mathir_lib.mathir_client import call as _daemon_call
+from mathir_mcp.mathir_lib.mathir_client import call as _daemon_call
 from mathir_prime import build_priming_context, format_for_injection
 
 log = logging.getLogger("MATHIR-INJECT")

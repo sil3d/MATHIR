@@ -399,7 +399,7 @@ Config: `~/.config/opencode/opencode.json`
 }
 ```
 
-> v8.4.0: entry point renamed from `python -m mathir_lib.mathir_mcp_server` to `python -m mathir_mcp`. The old form still works (backward compat) but new installs should use the new form.
+> v8.4.0: entry point is `python -m mathir_mcp`. The legacy top-level module path was removed when `mathir_lib/` was nested inside `mathir_mcp/`.
 
 ### MiMo
 
@@ -524,7 +524,7 @@ python install_smart.py
   "mcp": {
     "mathir": {
       "type": "local",
-      "command": ["python", "-m", "mathir_lib.mathir_mcp_server"],
+      "command": ["python", "-m", "mathir_mcp"],
       "environment": { "MATHIR_EMBEDDING_DIM": "384" },
       "enabled": true
     }
@@ -545,7 +545,7 @@ python install_smart.py
   "mcpServers": {
     "mathir": {
       "command": "python",
-      "args": ["-m", "mathir_lib.mathir_mcp_server"],
+      "args": ["-m", "mathir_mcp"],
       "env": { "MATHIR_EMBEDDING_DIM": "384" }
     }
   }
@@ -565,7 +565,7 @@ python install_smart.py
   "mcpServers": {
     "mathir": {
       "command": "python",
-      "args": ["-m", "mathir_lib.mathir_mcp_server"],
+      "args": ["-m", "mathir_mcp"],
       "env": { "MATHIR_EMBEDDING_DIM": "384" }
     }
   }
@@ -586,7 +586,7 @@ or %APPDATA%\Claude\claude_desktop_config.json (Windows)
   "mcpServers": {
     "mathir": {
       "command": "python",
-      "args": ["-m", "mathir_lib.mathir_mcp_server"],
+      "args": ["-m", "mathir_mcp"],
       "env": { "MATHIR_EMBEDDING_DIM": "384" }
     }
   }
@@ -604,7 +604,7 @@ or %APPDATA%\Claude\claude_desktop_config.json (Windows)
   "mcpServers": {
     "mathir": {
       "command": "python",
-      "args": ["-m", "mathir_lib.mathir_mcp_server"],
+      "args": ["-m", "mathir_mcp"],
       "env": { "MATHIR_EMBEDDING_DIM": "384" }
     }
   }
@@ -625,7 +625,7 @@ or %APPDATA%\Claude\claude_desktop_config.json (Windows)
   "mcpServers": {
     "mathir": {
       "command": "python",
-      "args": ["-m", "mathir_lib.mathir_mcp_server"],
+      "args": ["-m", "mathir_mcp"],
       "env": { "MATHIR_EMBEDDING_DIM": "384" }
     }
   }
@@ -643,7 +643,7 @@ or %APPDATA%\Claude\claude_desktop_config.json (Windows)
   "mcpServers": {
     "mathir": {
       "command": "python",
-      "args": ["-m", "mathir_lib.mathir_mcp_server"],
+      "args": ["-m", "mathir_mcp"],
       "env": { "MATHIR_EMBEDDING_DIM": "384" }
     }
   }
@@ -661,7 +661,7 @@ or %APPDATA%\Claude\claude_desktop_config.json (Windows)
   "mcpServers": {
     "mathir": {
       "command": "python",
-      "args": ["-m", "mathir_lib.mathir_mcp_server"],
+      "args": ["-m", "mathir_mcp"],
       "env": { "MATHIR_EMBEDDING_DIM": "384" }
     }
   }
@@ -679,7 +679,7 @@ or %APPDATA%\Claude\claude_desktop_config.json (Windows)
   "mcpServers": {
     "mathir": {
       "command": "python",
-      "args": ["-m", "mathir_lib.mathir_mcp_server"],
+      "args": ["-m", "mathir_mcp"],
       "env": { "MATHIR_EMBEDDING_DIM": "384" }
     }
   }
@@ -697,7 +697,7 @@ or %APPDATA%\Claude\claude_desktop_config.json (Windows)
   "mcpServers": {
     "mathir": {
       "command": "python",
-      "args": ["-m", "mathir_lib.mathir_mcp_server"],
+      "args": ["-m", "mathir_mcp"],
       "env": { "MATHIR_EMBEDDING_DIM": "384" }
     }
   }
@@ -714,7 +714,7 @@ If your agent isn't listed:
 2. Add the appropriate JSON block:
    - "mcpServers" key: Claude Code, Cursor, Cline, Windsurf, Gemini, Zcode, etc.
    - "mcp" key: OpenCode, Kilo Code CLI
-3. Use command: ["python", "-m", "mathir_lib.mathir_mcp_server"]
+3. Use command: ["python", "-m", "mathir_mcp"]
 4. Add "env": {"MATHIR_EMBEDDING_DIM": "384"}
 5. Copy GLOBAL_INSTRUCTIONS.md into your agent's instructions
 
@@ -728,7 +728,7 @@ If your agent isn't listed:
 |---------|-----|
 | MCP server not showing | Check config key: some agents use mcp, others mcpServers |
 | "python not found" | Use full path: ["C:\Python312\python.exe", "..."] |
-| Wrong script path | Use `-m mathir_lib.mathir_mcp_server` (after `pip install -e ./mcp`) or `~/.config/MATHIR/mathir_lib/mathir_mcp_server.py` (legacy install) |
+| Wrong script path | Use `-m mathir_mcp` (after `pip install -e ./mathir_mcp`) or `~/.config/MATHIR/mathir_mcp/mathir_lib/mathir_mcp_server.py` (legacy install) |
 | Agent ignores memory | Ensure GLOBAL_INSTRUCTIONS.md is in instructions |
 
 ---

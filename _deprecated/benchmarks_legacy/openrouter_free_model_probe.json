@@ -1,0 +1,294 @@
+{
+  "timestamp": "2026-06-06T00:55:20.703681",
+  "results": [
+    {
+      "model": "openrouter/owl-alpha",
+      "status": "OK",
+      "duration_s": 2.307,
+      "content": "Please provide the task or question you want me to help with",
+      "model_used": "openrouter/owl-alpha",
+      "usage": {
+        "prompt_tokens": 94,
+        "completion_tokens": 21,
+        "total_tokens": 115,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 0,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 0,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    {
+      "model": "google/lyria-3-pro-preview",
+      "status": "HTTP_502",
+      "duration_s": 0.891,
+      "error": "{\"error\":{\"message\":\"Provider returned error\",\"code\":502,\"metadata\":{\"raw\":\"{\\n  \\\"error\\\": {\\n    \\\"code\\\": 500,\\n    \\\"message\\\": \\\"Internal error e"
+    },
+    {
+      "model": "google/lyria-3-clip-preview",
+      "status": "HTTP_502",
+      "duration_s": 0.913,
+      "error": "{\"error\":{\"message\":\"Provider returned error\",\"code\":502,\"metadata\":{\"raw\":\"{\\n  \\\"error\\\": {\\n    \\\"code\\\": 500,\\n    \\\"message\\\": \\\"Internal error e"
+    },
+    {
+      "model": "qwen/qwen3-coder:free",
+      "status": "HTTP_429",
+      "duration_s": 0.564,
+      "error": "{\"error\":{\"message\":\"Provider returned error\",\"code\":429,\"metadata\":{\"raw\":\"qwen/qwen3-coder:free is temporarily rate-limited upstream. Please retry s"
+    },
+    {
+      "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "status": "HTTP_429",
+      "duration_s": 0.561,
+      "error": "{\"error\":{\"message\":\"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day\",\"code\":429,\"metadata\":{\"head"
+    },
+    {
+      "model": "nvidia/nemotron-3-super-120b-a12b:free",
+      "status": "HTTP_429",
+      "duration_s": 0.368,
+      "error": "{\"error\":{\"message\":\"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day\",\"code\":429,\"metadata\":{\"head"
+    },
+    {
+      "model": "poolside/laguna-xs.2:free",
+      "status": "HTTP_429",
+      "duration_s": 4.364,
+      "error": "{\"error\":{\"message\":\"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day\",\"code\":429,\"metadata\":{\"head"
+    },
+    {
+      "model": "poolside/laguna-m.1:free",
+      "status": "HTTP_429",
+      "duration_s": 0.431,
+      "error": "{\"error\":{\"message\":\"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day\",\"code\":429,\"metadata\":{\"head"
+    },
+    {
+      "model": "moonshotai/kimi-k2.6:free",
+      "status": "HTTP_429",
+      "duration_s": 0.63,
+      "error": "{\"error\":{\"message\":\"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day\",\"code\":429,\"metadata\":{\"head"
+    },
+    {
+      "model": "google/gemma-4-26b-a4b-it:free",
+      "status": "HTTP_429",
+      "duration_s": 0.431,
+      "error": "{\"error\":{\"message\":\"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day\",\"code\":429,\"metadata\":{\"head"
+    },
+    {
+      "model": "google/gemma-4-31b-it:free",
+      "status": "HTTP_429",
+      "duration_s": 1.457,
+      "error": "{\"error\":{\"message\":\"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day\",\"code\":429,\"metadata\":{\"head"
+    },
+    {
+      "model": "qwen/qwen3-next-80b-a3b-instruct:free",
+      "status": "HTTP_429",
+      "duration_s": 0.933,
+      "error": "{\"error\":{\"message\":\"Provider returned error\",\"code\":429,\"metadata\":{\"raw\":\"qwen/qwen3-next-80b-a3b-instruct:free is temporarily rate-limited upstream"
+    },
+    {
+      "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "status": "HTTP_429",
+      "duration_s": 0.346,
+      "error": "{\"error\":{\"message\":\"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day\",\"code\":429,\"metadata\":{\"head"
+    },
+    {
+      "model": "nvidia/nemotron-3-nano-30b-a3b:free",
+      "status": "HTTP_429",
+      "duration_s": 0.284,
+      "error": "{\"error\":{\"message\":\"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day\",\"code\":429,\"metadata\":{\"head"
+    },
+    {
+      "model": "openrouter/free",
+      "status": "OK",
+      "duration_s": 2.267,
+      "content": "Sure thing! If there's anything specific you'd like to dive ",
+      "model_used": "openai/gpt-oss-20b:free",
+      "usage": {
+        "prompt_tokens": 68,
+        "completion_tokens": 53,
+        "total_tokens": 121,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 64,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 18,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    {
+      "model": "openai/gpt-oss-120b:free",
+      "status": "OK",
+      "duration_s": 3.192,
+      "content": "Sure thing! How can I assist you today?",
+      "model_used": "openai/gpt-oss-120b:free",
+      "usage": {
+        "prompt_tokens": 68,
+        "completion_tokens": 45,
+        "total_tokens": 113,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 64,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 26,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    {
+      "model": "openai/gpt-oss-20b:free",
+      "status": "OK",
+      "duration_s": 1.08,
+      "content": "Got it! If you need any more help, just let me know.",
+      "model_used": "openai/gpt-oss-20b:free",
+      "usage": {
+        "prompt_tokens": 68,
+        "completion_tokens": 39,
+        "total_tokens": 107,
+        "cost": 0,
+        "is_byok": false,
+        "prompt_tokens_details": {
+          "cached_tokens": 64,
+          "cache_write_tokens": 0,
+          "audio_tokens": 0,
+          "video_tokens": 0
+        },
+        "cost_details": {
+          "upstream_inference_cost": 0,
+          "upstream_inference_prompt_cost": 0,
+          "upstream_inference_completions_cost": 0
+        },
+        "completion_tokens_details": {
+          "reasoning_tokens": 17,
+          "image_tokens": 0,
+          "audio_tokens": 0
+        }
+      }
+    },
+    {
+      "model": "z-ai/glm-4.5-air:free",
+      "status": "HTTP_429",
+      "duration_s": 0.525,
+      "error": "{\"error\":{\"message\":\"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day\",\"code\":429,\"metadata\":{\"head"
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct:free",
+      "status": "HTTP_429",
+      "duration_s": 0.523,
+      "error": "{\"error\":{\"message\":\"Provider returned error\",\"code\":429,\"metadata\":{\"raw\":\"meta-llama/llama-3.3-70b-instruct:free is temporarily rate-limited upstrea"
+    },
+    {
+      "model": "meta-llama/llama-3.2-3b-instruct:free",
+      "status": "HTTP_429",
+      "duration_s": 0.566,
+      "error": "{\"error\":{\"message\":\"Provider returned error\",\"code\":429,\"metadata\":{\"raw\":\"meta-llama/llama-3.2-3b-instruct:free is temporarily rate-limited upstream"
+    },
+    {
+      "model": "nousresearch/hermes-3-llama-3.1-405b:free",
+      "status": "HTTP_429",
+      "duration_s": 0.796,
+      "error": "{\"error\":{\"message\":\"Provider returned error\",\"code\":429,\"metadata\":{\"raw\":\"nousresearch/hermes-3-llama-3.1-405b:free is temporarily rate-limited upst"
+    },
+    {
+      "model": "nvidia/nemotron-3.5-content-safety:free",
+      "status": "HTTP_429",
+      "duration_s": 0.51,
+      "error": "{\"error\":{\"message\":\"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day\",\"code\":429,\"metadata\":{\"head"
+    },
+    {
+      "model": "nvidia/nemotron-nano-12b-v2-vl:free",
+      "status": "HTTP_429",
+      "duration_s": 0.587,
+      "error": "{\"error\":{\"message\":\"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day\",\"code\":429,\"metadata\":{\"head"
+    },
+    {
+      "model": "nvidia/nemotron-nano-9b-v2:free",
+      "status": "HTTP_429",
+      "duration_s": 0.308,
+      "error": "{\"error\":{\"message\":\"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day\",\"code\":429,\"metadata\":{\"head"
+    },
+    {
+      "model": "liquid/lfm-2.5-1.2b-thinking:free",
+      "status": "HTTP_429",
+      "duration_s": 0.507,
+      "error": "{\"error\":{\"message\":\"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day\",\"code\":429,\"metadata\":{\"head"
+    },
+    {
+      "model": "liquid/lfm-2.5-1.2b-instruct:free",
+      "status": "HTTP_429",
+      "duration_s": 0.37,
+      "error": "{\"error\":{\"message\":\"Rate limit exceeded: free-models-per-day. Add 10 credits to unlock 1000 free model requests per day\",\"code\":429,\"metadata\":{\"head"
+    },
+    {
+      "model": "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+      "status": "HTTP_429",
+      "duration_s": 0.908,
+      "error": "{\"error\":{\"message\":\"Provider returned error\",\"code\":429,\"metadata\":{\"raw\":\"cognitivecomputations/dolphin-mistral-24b-venice-edition:free is temporari"
+    }
+  ],
+  "working": [
+    "openrouter/owl-alpha",
+    "openrouter/free",
+    "openai/gpt-oss-120b:free",
+    "openai/gpt-oss-20b:free"
+  ],
+  "failed": [
+    "google/lyria-3-pro-preview",
+    "google/lyria-3-clip-preview",
+    "qwen/qwen3-coder:free",
+    "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
+    "poolside/laguna-xs.2:free",
+    "poolside/laguna-m.1:free",
+    "moonshotai/kimi-k2.6:free",
+    "google/gemma-4-26b-a4b-it:free",
+    "google/gemma-4-31b-it:free",
+    "qwen/qwen3-next-80b-a3b-instruct:free",
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+    "nvidia/nemotron-3-nano-30b-a3b:free",
+    "z-ai/glm-4.5-air:free",
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "meta-llama/llama-3.2-3b-instruct:free",
+    "nousresearch/hermes-3-llama-3.1-405b:free",
+    "nvidia/nemotron-3.5-content-safety:free",
+    "nvidia/nemotron-nano-12b-v2-vl:free",
+    "nvidia/nemotron-nano-9b-v2:free",
+    "liquid/lfm-2.5-1.2b-thinking:free",
+    "liquid/lfm-2.5-1.2b-instruct:free",
+    "cognitivecomputations/dolphin-mistral-24b-venice-edition:free"
+  ]
+}

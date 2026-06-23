@@ -18,13 +18,22 @@ dependencies = [
 license = {text = "MIT"}
 
 [project.scripts]
-mathir-daemon = "mathir_lib.mathir_daemon:main"
-mathir-mcp = "mathir_lib.mathir_mcp_server:main"
-mathir-client = "mathir_cli:main"
-mathir-brain = "mathir_brain:main"
-mathir-watchdog = "mathir_watchdog:main"
-mathir-prime = "mathir_prime:main"
+# Daemon (the core TCP server for memory operations)
+mathir-daemon = "mathir_mcp.mathir_lib.mathir_daemon:main"
+# MCP server (stdio JSON-RPC for AI agent hosts)
+mathir-mcp = "mathir_mcp.mathir_lib.mathir_mcp_server:main"
+# CLI client (connects to daemon, fast interactive mode)
+mathir-client = "mathir_mcp.mathir_lib.mathir_client:main"
+# Watchdog (auto-restarts daemon on crash)
+mathir-watchdog = "brain.mathir_watchdog:main"
 
-[tool.setuptools.packages.find]
-where = ["mathir_lib"]
-include = ["mathir_lib*"]
+# Note: mathir_brain and mathir_prime are CLI tools without a `main()` shim —
+# invoke them via `python -m brain.mathir_brain` / `python -m brain.mathir_prime`.
+
+[tool.setuptools]
+packages = ["mathir_mcp", "mathir_mcp.mathir_lib", "brain"]
+
+[tool.setuptools.package-dir]
+"mathir_mcp" = "."
+"mathir_mcp.mathir_lib" = "mathir_lib"
+"brain" = "brain"

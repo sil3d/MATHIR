@@ -1,140 +1,153 @@
 {
-  "_comment": "User-editable config for vision_testing. All paths are RELATIVE to this config file (or absolute if needed). Edit this file to add/remove models and change settings. NO hardcoded paths in code.",
+  "_comment": "MATHIR Playground — user-editable config. All paths are RELATIVE to this config file (or absolute if needed). Edit this file to add/remove models and change settings. NO hardcoded paths in code.",
 
-  "bin_dir": "bin",
-  "models_dir": "models",
-  "memory": {
-    "backend": "daemon",
-    "daemon_port": 7338,
-    "mem_type": "episodic",
-    "label": "vision_test"
+  "_v8.4.0": "Supports 2 providers: OpenRouter (cloud LLM gateway, 26 free models) and OpenCode Zen (curated free models via opencode.ai/zen/v1). Both use OpenAI-compatible /chat/completions API.",
+
+  "memory_db": "memory/vision_memory.db",
+
+  "openrouter": {
+    "_comment": "OpenRouter cloud API config. api_key can also be set via OPENROUTER_API_KEY env var (recommended).",
+    "api_key": "",
+    "api_base": "https://openrouter.ai/api/v1",
+    "timeout_seconds": 120,
+    "max_retries": 2
   },
 
-  "llama_server": {
-    "_comment": "Default llama-server settings - can be overridden per model",
-    "executable": "llama-server.exe",
-    "linux_executable": "llama-server",
-    "macos_executable": "llama-server",
-    "default_port": 8080,
-    "default_ctx_size": 4096,
-    "default_n_gpu_layers": 20,
-    "auto_start_browser": false,
-    "log_level": "info"
+  "opencode_zen": {
+    "_comment": "OpenCode Zen (opencode.ai/zen) — curated free models. api_key can be set via OPENCODE_ZEN_API_KEY env var. Get key at https://opencode.ai/auth.",
+    "api_key": "",
+    "api_base": "https://opencode.ai/zen/v1",
+    "timeout_seconds": 120,
+    "max_retries": 2
   },
 
   "models": {
-    "LFM2.5-VL-1.6B-Q4_0": {
-      "_comment": "LiquidAI vision-language model - sees and describes images",
+    "_comment": "Each model has a 'provider' field (openrouter | opencode_zen) that determines where the API call goes. If omitted, defaults to openrouter for backward compat.",
+
+    "google/gemma-4-26b-a4b-it:free": {
+      "provider": "openrouter",
+      "_comment": "Google Gemma 4 26B A4B IT (free) — vision+video+text, 262K context. v8.4.0 verified working.",
       "enabled": true,
       "type": "vision-language",
-      "display_name": "LFM2.5 Vision 1.6B (Q4_0)",
-      "description": "LiquidAI vision-language model, 1.6B params, 8GB VRAM friendly",
-      "path": "models/LFM2.5-VL-1.6B-GGUF/LFM2.5-VL-1.6B-Q4_0.gguf",
-      "mmproj": "models/LFM2.5-VL-1.6B-GGUF/mmproj-LFM2.5-VL-1.6b-Q8_0.gguf",
-      "size_mb": 1220,
-      "vram_mb": 2400,
-      "context_length": 4096,
+      "id": "google/gemma-4-26b-a4b-it:free",
+      "display_name": "Gemma 4 26B A4B (free, vision)",
+      "description": "Google Gemma 4 26B, vision+video+text, 262K context",
+      "context_length": 262144,
       "supports_vision": true,
-      "supports_audio": false,
-      "huggingface_url": "https://huggingface.co/LiquidAI/LFM2.5-VL-1.6B-GGUF"
+      "supports_audio": false
     },
-    "LFM2.5-Audio-1.5B-Q4_0": {
-      "_comment": "LiquidAI audio model - hears and understands audio",
+    "openrouter/free": {
+      "provider": "openrouter",
+      "_comment": "OpenRouter auto-routing free model (text+image). Good fallback when others 429.",
       "enabled": true,
-      "type": "audio",
-      "display_name": "LFM2.5 Audio 1.5B (Q4_0)",
-      "description": "LiquidAI audio understanding model, 1.5B params",
-      "path": "models/LFM2.5-Audio-1.5B-GGUF/LFM2.5-Audio-1.5B-Q4_0.gguf",
-      "mmproj": "models/LFM2.5-Audio-1.5B-GGUF/mmproj-LFM2.5-Audio-1.5B-Q4_0.gguf",
-      "tokenizer": "models/LFM2.5-Audio-1.5B-GGUF/tokenizer-LFM2.5-Audio-1.5B-Q4_0.gguf",
-      "vocoder": "models/LFM2.5-Audio-1.5B-GGUF/vocoder-LFM2.5-Audio-1.5B-Q4_0.gguf",
-      "size_mb": 1025,
-      "vram_mb": 2200,
-      "context_length": 4096,
-      "supports_vision": false,
-      "supports_audio": true,
-      "huggingface_url": "https://huggingface.co/LiquidAI/LFM2.5-Audio-1.5B-GGUF"
+      "type": "vision-language",
+      "id": "openrouter/free",
+      "display_name": "OpenRouter Free (auto-route, vision)",
+      "description": "OpenRouter automatic free model selection, text+image, 200K context",
+      "context_length": 200000,
+      "supports_vision": true,
+      "supports_audio": false
     },
-    "gemma-4-E2B": {
-      "_comment": "Google Gemma 4 E2B-it: text+image+audio VLM, Apache 2.0",
+    "nvidia/nemotron-nano-12b-v2-vl:free": {
+      "provider": "openrouter",
+      "_comment": "NVIDIA Nemotron Nano 12B v2 VL (free) — vision-language, 128K context.",
       "enabled": true,
-      "type": "multimodal",
-      "display_name": "Gemma 4 E2B-it (Q4_K_M)",
-      "description": "Google Gemma 4 E2B-it, text+image+audio, Apache 2.0, 128K context",
-      "path": "models/gemma-4-E2B/gemma-4-E2B-it-Q4_K_M.gguf",
-      "mmproj": "models/gemma-4-E2B/mmproj-F16.gguf",
-      "size_mb": 2963,
-      "vram_mb": 4400,
+      "type": "vision-language",
+      "id": "nvidia/nemotron-nano-12b-v2-vl:free",
+      "display_name": "Nemotron Nano 12B VL (free, vision)",
+      "description": "NVIDIA Nemotron Nano 12B v2, vision+text, 128K context",
       "context_length": 128000,
       "supports_vision": true,
-      "supports_audio": true,
-      "huggingface_url": "https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF"
+      "supports_audio": false
     },
-    "qwen3.5-2b": {
-      "_comment": "Alibaba Qwen 3.5 2B: text+image VLM, Apache 2.0",
+    "openai/gpt-oss-120b:free": {
+      "provider": "openrouter",
+      "_comment": "OpenAI GPT-OSS 120B (free) — text-only, 131K context. Strong for chat.",
       "enabled": true,
-      "type": "vision-language",
-      "display_name": "Qwen 3.5 2B (Q4_K_M)",
-      "description": "Alibaba Qwen 3.5 2B, text+image, Apache 2.0, 262K context",
-      "path": "models/qwen3.5-2B/Qwen3.5-2B-Q4_K_M.gguf",
-      "mmproj": "models/qwen3.5-2B/mmproj-F16.gguf",
-      "size_mb": 1222,
-      "vram_mb": 2100,
-      "context_length": 32768,
-      "supports_vision": true,
-      "supports_audio": false,
-      "huggingface_url": "https://huggingface.co/unsloth/Qwen3.5-2B-GGUF"
+      "type": "text-only",
+      "id": "openai/gpt-oss-120b:free",
+      "display_name": "GPT-OSS 120B (free, chat)",
+      "description": "OpenAI GPT-OSS 120B, text-only, 131K context, reasoning model",
+      "context_length": 131072,
+      "supports_vision": false,
+      "supports_audio": false
     },
-    "locateanything-3b": {
-      "_comment": "NVIDIA LocateAnything 3B: grounding + detection, bbox output, non-commercial",
+    "nvidia/nemotron-3-super-120b-a12b:free": {
+      "provider": "openrouter",
+      "_comment": "NVIDIA Nemotron 3 Super 120B (free) — text-only, 1M context. Best chat quality.",
       "enabled": true,
-      "type": "grounding",
-      "display_name": "LocateAnything 3B (Q4_K_M)",
-      "description": "NVIDIA grounding + detection (bounding boxes, points, dense detection), non-commercial",
-      "path": "models/locateanything-3b/LocateAnything-3B-Q4_K_M.gguf",
-      "mmproj": "models/locateanything-3b/mmproj-LocateAnything-3B-BF16.gguf",
-      "size_mb": 2010,
-      "vram_mb": 2300,
-      "context_length": 32768,
-      "supports_vision": true,
-      "supports_audio": false,
-      "supports_grounding": true,
-      "huggingface_url": "https://huggingface.co/yuuko-eth/LocateAnything-3B-GGUF"
+      "type": "text-only",
+      "id": "nvidia/nemotron-3-super-120b-a12b:free",
+      "display_name": "Nemotron 3 Super 120B (free, chat)",
+      "description": "NVIDIA Nemotron 3 Super 120B, text-only, 1M context",
+      "context_length": 1000000,
+      "supports_vision": false,
+      "supports_audio": false
     },
-    "falcon-perception": {
-      "_comment": "TII UAE Falcon-Perception: instance segmentation (bbox + pixel masks). NO GGUF - must be loaded via Python (falcon-perception[torch] lib).",
-      "enabled": false,
-      "python_only": true,
-      "type": "segmentation",
-      "display_name": "Falcon Perception 0.6B (Python only)",
-      "description": "TII UAE Chain-of-Perception, bbox + RLE pixel masks. No GGUF available. Install: pip install 'falcon-perception[torch] @ git+https://github.com/tiiuae/falcon-perception.git'",
-      "hf_model_id": "tiiuae/Falcon-Perception",
-      "size_mb": 632,
-      "vram_mb": 1300,
-      "context_length": 4096,
-      "supports_vision": true,
-      "supports_audio": false,
-      "supports_segmentation": true,
-      "supports_grounding": true,
-      "huggingface_url": "https://huggingface.co/tiiuae/Falcon-Perception"
+    "mimo-v2.5-free": {
+      "provider": "opencode_zen",
+      "_comment": "OpenCode Zen — MiMo V2.5 (free, Xiaomi). v8.4.0 verified working. NOTE: model ID has NO 'opencode/' prefix for Zen — that's a display name only.",
+      "enabled": true,
+      "type": "text-only",
+      "id": "mimo-v2.5-free",
+      "display_name": "MiMo V2.5 (Zen, free, chat)",
+      "description": "OpenCode Zen curated Xiaomi MiMo V2.5, free, text-only, multilingual",
+      "context_length": 128000,
+      "supports_vision": false,
+      "supports_audio": false
+    },
+    "deepseek-v4-flash-free": {
+      "provider": "opencode_zen",
+      "_comment": "OpenCode Zen — DeepSeek V4 Flash (free).",
+      "enabled": true,
+      "type": "text-only",
+      "id": "deepseek-v4-flash-free",
+      "display_name": "DeepSeek V4 Flash (Zen, free, chat)",
+      "description": "OpenCode Zen curated DeepSeek V4 Flash, free, text-only",
+      "context_length": 128000,
+      "supports_vision": false,
+      "supports_audio": false
+    },
+    "north-mini-code-free": {
+      "provider": "opencode_zen",
+      "_comment": "OpenCode Zen — North Mini Code (free). May retain data, do not submit personal info.",
+      "enabled": true,
+      "type": "text-only",
+      "id": "north-mini-code-free",
+      "display_name": "North Mini Code (Zen, free, code)",
+      "description": "OpenCode Zen curated North Mini Code, free, text-only, code-specialized (data may be retained)",
+      "context_length": 128000,
+      "supports_vision": false,
+      "supports_audio": false
+    },
+    "nemotron-3-ultra-free": {
+      "provider": "opencode_zen",
+      "_comment": "OpenCode Zen — Nemotron 3 Ultra (free, NVIDIA). Trial use only.",
+      "enabled": true,
+      "type": "text-only",
+      "id": "nemotron-3-ultra-free",
+      "display_name": "Nemotron 3 Ultra (Zen, free, chat)",
+      "description": "OpenCode Zen curated NVIDIA Nemotron 3 Ultra, free, text-only, trial use",
+      "context_length": 1000000,
+      "supports_vision": false,
+      "supports_audio": false
     }
   },
 
   "_add_model_help": {
-    "how_to_add": "Edit this config to add any GGUF vision/audio model. Example:",
+    "how_to_add": "Edit this config to add any OpenRouter or OpenCode Zen model. Example:",
     "example_model": {
       "MyCustomModel": {
+        "provider": "openrouter",
         "enabled": true,
         "type": "vision-language",
-        "display_name": "My Custom Model",
-        "path": "models/MyModel/model.gguf",
-        "mmproj": "models/MyModel/mmproj.gguf",
-        "size_mb": 1000,
-        "vram_mb": 2000,
+        "id": "openai/gpt-4o-mini",
+        "display_name": "GPT-4o mini",
         "supports_vision": true
       }
     },
-    "available_types": ["vision-language", "audio", "text-only"],
-    "huggingface_search": "https://huggingface.co/models?pipeline_tag=image-text-to-text&library=gguf"
+    "openrouter_models_browser": "https://openrouter.ai/models",
+    "openrouter_free_filter": "https://openrouter.ai/models?max_price=0",
+    "opencode_zen_models": "https://opencode.ai/docs/zen/"
   }
 }

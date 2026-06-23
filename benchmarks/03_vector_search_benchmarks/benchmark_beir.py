@@ -8,9 +8,15 @@ import os
 import sys
 import json
 import time
+from pathlib import Path
 import numpy as np
 
-sys.path.insert(0, r"D:\SECRET_PROJECT\MATHIR")
+# Bootstrap imports — point at the portable mathir_mcp/mathir_lib/ instead of
+# the legacy root mathir_*.py (moved to _deprecated/legacy_root/ in v8.4.0).
+_PKG_ROOT = Path(__file__).resolve().parent.parent.parent / "mathir_mcp"
+_LIB = _PKG_ROOT / "mathir_lib"
+sys.path.insert(0, str(_PKG_ROOT))
+sys.path.insert(0, str(_LIB))
 
 from mathir_search import HybridSearch
 from mathir_vec import VecMemory

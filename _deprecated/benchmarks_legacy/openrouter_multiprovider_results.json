@@ -1,0 +1,184 @@
+{
+  "timestamp": "2026-06-06T00:59:09.635839",
+  "models": [
+    "openrouter/owl-alpha",
+    "openai/gpt-oss-120b:free",
+    "openai/gpt-oss-20b:free"
+  ],
+  "scenarios": [
+    "context_overflow",
+    "factual_recall",
+    "adversarial_jailbreak",
+    "session_continuity"
+  ],
+  "results": [
+    {
+      "model": "openrouter/owl-alpha",
+      "api_avg_latency_s": 2.613,
+      "api_calls_success": 5,
+      "scenarios": [
+        {
+          "scenario": "context_overflow",
+          "messages": 50,
+          "mathir_time_s": 0.023,
+          "faiss_time_s": null,
+          "mathir_results": 5,
+          "faiss_results": 5,
+          "faiss_total_vectors": 50,
+          "mathir_faster": true,
+          "winner": "MATHIR"
+        },
+        {
+          "scenario": "factual_recall",
+          "messages": 20,
+          "mathir_time_s": 0.018,
+          "faiss_time_s": null,
+          "mathir_results": 5,
+          "faiss_results": 5,
+          "faiss_total_vectors": 70,
+          "mathir_faster": true,
+          "winner": "MATHIR"
+        },
+        {
+          "scenario": "adversarial_jailbreak",
+          "messages": 20,
+          "mathir_time_s": 0.0177,
+          "faiss_time_s": null,
+          "mathir_results": 5,
+          "faiss_results": 5,
+          "faiss_total_vectors": 90,
+          "mathir_faster": true,
+          "winner": "MATHIR"
+        },
+        {
+          "scenario": "session_continuity",
+          "messages": 50,
+          "mathir_time_s": 0.012,
+          "faiss_time_s": null,
+          "mathir_results": 5,
+          "faiss_results": 5,
+          "faiss_total_vectors": 140,
+          "mathir_faster": true,
+          "winner": "MATHIR"
+        }
+      ],
+      "summary": {
+        "mathir_wins": 4,
+        "avg_mathir_time_s": 0.0177,
+        "avg_faiss_time_s": 999.0
+      }
+    },
+    {
+      "model": "openai/gpt-oss-120b:free",
+      "api_avg_latency_s": 2.036,
+      "api_calls_success": 5,
+      "scenarios": [
+        {
+          "scenario": "context_overflow",
+          "messages": 50,
+          "mathir_time_s": 0.0216,
+          "faiss_time_s": null,
+          "mathir_results": 5,
+          "faiss_results": 5,
+          "faiss_total_vectors": 50,
+          "mathir_faster": true,
+          "winner": "MATHIR"
+        },
+        {
+          "scenario": "factual_recall",
+          "messages": 20,
+          "mathir_time_s": 0.0312,
+          "faiss_time_s": 0.001004,
+          "mathir_results": 5,
+          "faiss_results": 5,
+          "faiss_total_vectors": 70,
+          "mathir_faster": false,
+          "winner": "FAISS"
+        },
+        {
+          "scenario": "adversarial_jailbreak",
+          "messages": 20,
+          "mathir_time_s": 0.0153,
+          "faiss_time_s": null,
+          "mathir_results": 5,
+          "faiss_results": 5,
+          "faiss_total_vectors": 90,
+          "mathir_faster": true,
+          "winner": "MATHIR"
+        },
+        {
+          "scenario": "session_continuity",
+          "messages": 50,
+          "mathir_time_s": 0.0262,
+          "faiss_time_s": null,
+          "mathir_results": 5,
+          "faiss_results": 5,
+          "faiss_total_vectors": 140,
+          "mathir_faster": true,
+          "winner": "MATHIR"
+        }
+      ],
+      "summary": {
+        "mathir_wins": 3,
+        "avg_mathir_time_s": 0.0236,
+        "avg_faiss_time_s": 749.250251
+      }
+    },
+    {
+      "model": "openai/gpt-oss-20b:free",
+      "api_avg_latency_s": 1.072,
+      "api_calls_success": 5,
+      "scenarios": [
+        {
+          "scenario": "context_overflow",
+          "messages": 50,
+          "mathir_time_s": 0.0157,
+          "faiss_time_s": null,
+          "mathir_results": 5,
+          "faiss_results": 5,
+          "faiss_total_vectors": 50,
+          "mathir_faster": true,
+          "winner": "MATHIR"
+        },
+        {
+          "scenario": "factual_recall",
+          "messages": 20,
+          "mathir_time_s": 0.0282,
+          "faiss_time_s": null,
+          "mathir_results": 5,
+          "faiss_results": 5,
+          "faiss_total_vectors": 70,
+          "mathir_faster": true,
+          "winner": "MATHIR"
+        },
+        {
+          "scenario": "adversarial_jailbreak",
+          "messages": 20,
+          "mathir_time_s": 0.0182,
+          "faiss_time_s": null,
+          "mathir_results": 5,
+          "faiss_results": 5,
+          "faiss_total_vectors": 90,
+          "mathir_faster": true,
+          "winner": "MATHIR"
+        },
+        {
+          "scenario": "session_continuity",
+          "messages": 50,
+          "mathir_time_s": 0.0184,
+          "faiss_time_s": null,
+          "mathir_results": 5,
+          "faiss_results": 5,
+          "faiss_total_vectors": 140,
+          "mathir_faster": true,
+          "winner": "MATHIR"
+        }
+      ],
+      "summary": {
+        "mathir_wins": 4,
+        "avg_mathir_time_s": 0.0201,
+        "avg_faiss_time_s": 999.0
+      }
+    }
+  ]
+}

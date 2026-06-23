@@ -1,0 +1,148 @@
+{
+  "metadata": {
+    "timestamp": "2026-06-05T16:10:46.517505",
+    "platform": "Windows-10-10.0.26100-SP0",
+    "python": "3.11.9",
+    "datasets": [
+      {
+        "name": "scifact",
+        "description": "Fact checking -- scientific claims",
+        "num_queries": 300,
+        "num_docs_approx": 5000
+      },
+      {
+        "name": "nfcorpus",
+        "description": "Bio-medical retrieval",
+        "num_queries": 323,
+        "num_docs_approx": 3600
+      },
+      {
+        "name": "fiqa",
+        "description": "Finance Q&A",
+        "num_queries": 648,
+        "num_docs_approx": 57000
+      },
+      {
+        "name": "arguana",
+        "description": "Argument retrieval (counter-arguments)",
+        "num_queries": 1406,
+        "num_docs_approx": 8700
+      },
+      {
+        "name": "scidocs",
+        "description": "Scientific citation retrieval",
+        "num_queries": 1000,
+        "num_docs_approx": 25000
+      }
+    ],
+    "systems": [
+      {
+        "name": "BM25 (rank-bm25)",
+        "type": "bm25"
+      },
+      {
+        "name": "all-MiniLM-L6-v2 + FAISS",
+        "type": "dense",
+        "model": "sentence-transformers/all-MiniLM-L6-v2",
+        "dim": 384
+      },
+      {
+        "name": "BGE-small-en-v1.5 + FAISS",
+        "type": "dense",
+        "model": "BAAI/bge-small-en-v1.5",
+        "dim": 384
+      },
+      {
+        "name": "BGE-base-en-v1.5 + FAISS",
+        "type": "dense",
+        "model": "BAAI/bge-base-en-v1.5",
+        "dim": 768
+      },
+      {
+        "name": "OptimizedMATHIR",
+        "type": "optimized",
+        "use_bm25": false,
+        "use_cross_encoder": false
+      },
+      {
+        "name": "OptimizedMATHIR + BM25 (RRF)",
+        "type": "optimized",
+        "use_bm25": true,
+        "use_cross_encoder": false
+      },
+      {
+        "name": "OptimizedMATHIR + CE rerank",
+        "type": "optimized",
+        "use_bm25": true,
+        "use_cross_encoder": true,
+        "cross_encoder": "cross-encoder/ms-marco-TinyBERT-L-2-v2"
+      }
+    ],
+    "metrics": [
+      "nDCG@10",
+      "MRR@10",
+      "Recall@100"
+    ],
+    "k_values": [
+      10,
+      100
+    ]
+  },
+  "per_dataset": {
+    "scifact": {
+      "OptimizedMATHIR": {
+        "nDCG@10": 0.7376262824405598,
+        "MRR@10": 0.7003664021164021,
+        "Recall@10": 0.8658888888888888,
+        "nDCG@100": 0.7604621931616387,
+        "MRR@100": 0.704281431955039,
+        "Recall@100": 0.97,
+        "latency": {
+          "count": 1109,
+          "mean_ms": 203.1620272317783,
+          "p50_ms": 207.216899987543,
+          "p95_ms": 289.1404800000599,
+          "p99_ms": 326.93395600828836,
+          "std_ms": 55.71462516791729,
+          "min_ms": 54.684399990946986,
+          "max_ms": 530.55540000787
+        },
+        "memory_mb": 470.61328125,
+        "encode_time_ms": 219838.62259995658,
+        "index_time_ms": 3166751.0588000007,
+        "search_time_ms": 5276.859100078582,
+        "rerank_time_ms": 0.0,
+        "num_queries": 1109,
+        "config": {
+          "type": "optimized",
+          "use_bm25": false,
+          "use_cross_encoder": false,
+          "cross_encoder": null,
+          "embedder": "BAAI/bge-base-en-v1.5"
+        }
+      }
+    }
+  },
+  "average": {
+    "OptimizedMATHIR": {
+      "nDCG@10_avg": 0.7376262824405598,
+      "MRR@10_avg": 0.7003664021164021,
+      "Recall@100_avg": 0.97,
+      "latency_p50_ms_avg": 207.216899987543,
+      "latency_p95_ms_avg": 289.1404800000599,
+      "latency_p99_ms_avg": 326.93395600828836,
+      "latency_mean_ms_avg": 203.1620272317783,
+      "latency_std_ms_avg": 55.71462516791729,
+      "memory_mb_avg": 470.61328125,
+      "num_datasets_evaluated": 1
+    }
+  },
+  "configurations": {
+    "OptimizedMATHIR": {
+      "name": "OptimizedMATHIR",
+      "type": "optimized",
+      "use_bm25": false,
+      "use_cross_encoder": false
+    }
+  }
+}

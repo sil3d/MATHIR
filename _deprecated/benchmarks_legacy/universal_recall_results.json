@@ -1,0 +1,12 @@
+{
+  "timestamp": "2026-06-06T05:43:55.978393",
+  "test": "MATHIR Universal Recall (new API)",
+  "test1_conversational": true,
+  "test2_cross_lingual_fr_en": true,
+  "test3_cross_provider": true,
+  "test4_hybrid_query_embedding": true,
+  "test5_provider_listing": false,
+  "total_pass": 4,
+  "total_tests": 5,
+  "overall_pass": true
+}

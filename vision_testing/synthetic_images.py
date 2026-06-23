@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MATHIR Vision Testing - Synthetic Image Generator
+MATHIR Playground - Synthetic Image Generator
 ================================================
 
 Generates deterministic PIL images with EXACT ground-truth metadata for

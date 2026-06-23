@@ -30,6 +30,9 @@ def call(method, params=None):
     if params is None:
         params = {}
 
+    # SECURITY: wrap socket lifecycle in try/finally to avoid FD leaks on exception
+    # (previous version leaked the socket on socket.error mid-recv).
+    client = None
     try:
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client.settimeout(TIMEOUT)
@@ -48,24 +51,31 @@ def call(method, params=None):
             chunks.append(chunk)
             total += len(chunk)
             if total > MAX_RESPONSE_SIZE:
-                client.close()
                 return {'error': f'Response too large ({total} bytes > {MAX_RESPONSE_SIZE} limit)'}
             # Try to parse once we have enough data
             try:
                 data = b''.join(chunks)
                 result = json.loads(data.decode('utf-8'))
-                client.shutdown(socket.SHUT_RDWR)
-                client.close()
                 return result
             except (json.JSONDecodeError, UnicodeDecodeError):
                 # Incomplete — keep reading
                 continue
 
         # Connection closed before complete JSON
-        client.close()
         return {'error': 'Daemon closed connection before sending complete response'}
     except socket.error as e:
         return {'error': 'Daemon not running. Start with: python mathir_daemon.py'}
+    finally:
+        # SECURITY: always close the socket to avoid FD leak on any error path
+        if client is not None:
+            try:
+                client.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+            try:
+                client.close()
+            except OSError:
+                pass
 
 
 def main():

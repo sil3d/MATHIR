@@ -1,0 +1,128 @@
+[
+  {
+    "step": 10000,
+    "mathir_retention": 0.9500488936901093,
+    "lstm_retention": 0.9826771020889282,
+    "timestamp": "19:35:19"
+  },
+  {
+    "step": 20000,
+    "mathir_retention": 0.9966544508934021,
+    "lstm_retention": 0.9031445980072021,
+    "timestamp": "19:39:54"
+  },
+  {
+    "step": 30000,
+    "mathir_retention": 0.9711738526821136,
+    "lstm_retention": 0.3469340056180954,
+    "timestamp": "19:44:32"
+  },
+  {
+    "step": 40000,
+    "mathir_retention": 1.0,
+    "lstm_retention": 0.8205365538597107,
+    "timestamp": "19:49:06"
+  },
+  {
+    "step": 50000,
+    "mathir_retention": 0.8841636180877686,
+    "lstm_retention": 0.31209930777549744,
+    "timestamp": "19:57:50"
+  },
+  {
+    "step": 60000,
+    "mathir_retention": 0.9431107342243195,
+    "lstm_retention": 0.422329843044281,
+    "timestamp": "20:07:00"
+  },
+  {
+    "step": 70000,
+    "mathir_retention": 0.9998832046985626,
+    "lstm_retention": 0.5248674638569355,
+    "timestamp": "20:16:12"
+  },
+  {
+    "step": 80000,
+    "mathir_retention": 1.0,
+    "lstm_retention": 0.6310636550188065,
+    "timestamp": "20:25:06"
+  },
+  {
+    "step": 90000,
+    "mathir_retention": 0.8616806864738464,
+    "lstm_retention": 0.7711958587169647,
+    "timestamp": "20:34:26"
+  },
+  {
+    "step": 100000,
+    "mathir_retention": 0.8803063929080963,
+    "lstm_retention": 0.7180770188570023,
+    "timestamp": "20:43:33"
+  },
+  {
+    "step": 110000,
+    "mathir_retention": 0.9377075135707855,
+    "lstm_retention": 0.8156144320964813,
+    "timestamp": "20:52:59"
+  },
+  {
+    "step": 120000,
+    "mathir_retention": 0.9897458553314209,
+    "lstm_retention": 0.7594853639602661,
+    "timestamp": "21:02:08"
+  },
+  {
+    "step": 130000,
+    "mathir_retention": 1.0,
+    "lstm_retention": 0.5298151057213545,
+    "timestamp": "21:11:21"
+  },
+  {
+    "step": 140000,
+    "mathir_retention": 1.0,
+    "lstm_retention": 0.7887711822986603,
+    "timestamp": "21:20:25"
+  },
+  {
+    "step": 150000,
+    "mathir_retention": 0.9999943971633911,
+    "lstm_retention": 0.5837886333465576,
+    "timestamp": "21:29:44"
+  },
+  {
+    "step": 160000,
+    "mathir_retention": 1.0,
+    "lstm_retention": 0.7571377158164978,
+    "timestamp": "21:38:53"
+  },
+  {
+    "step": 170000,
+    "mathir_retention": 1.0,
+    "lstm_retention": 0.6794411838054657,
+    "timestamp": "21:47:52"
+  },
+  {
+    "step": 180000,
+    "mathir_retention": 1.0,
+    "lstm_retention": 0.7855923473834991,
+    "timestamp": "21:56:52"
+  },
+  {
+    "step": 190000,
+    "mathir_retention": 0.5803831294178963,
+    "lstm_retention": 0.7547517120838165,
+    "timestamp": "22:03:44"
+  },
+  {
+    "step": 200000,
+    "mathir_retention": 0.6797632724046707,
+    "lstm_retention": 0.721353679895401,
+    "timestamp": "22:13:28"
+  },
+  {
+    "step": 210000,
+    "mathir_retention": 1.0,
+    "lstm_retention": 0.7967025637626648,
+    "timestamp": "22:23:04"
+  }
+]

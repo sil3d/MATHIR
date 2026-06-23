@@ -122,8 +122,9 @@ def _sanitize_error(exc: Exception, method: str) -> str:
 def _validate_input(params: dict) -> Optional[str]:
     """Validate input parameters against size limits.
 
-    Checks context, content, query, and label lengths against configured
-    maximums to prevent CPU/memory DoS attacks.
+    Checks context, content, query, label, and memory_id lengths against configured
+    maximums to prevent CPU/memory DoS attacks. Also enforces a safe memory_id
+    format so it can never be interpolated unsafely into paths/commands.
 
     Args:
         params: The RPC method parameters dict.
@@ -131,18 +132,22 @@ def _validate_input(params: dict) -> Optional[str]:
     Returns:
         Error message string if validation fails, None if OK.
     """
-    ctx = params.get('context', '')
-    if isinstance(ctx, str) and len(ctx) > MAX_CONTEXT_LENGTH:
-        return f"context exceeds max length ({MAX_CONTEXT_LENGTH} chars)"
-    content = params.get('content', '')
-    if isinstance(content, str) and len(content) > MAX_CONTENT_LENGTH:
-        return f"content exceeds max length ({MAX_CONTENT_LENGTH} chars)"
-    query = params.get('query', '')
-    if isinstance(query, str) and len(query) > MAX_QUERY_LENGTH:
-        return f"query exceeds max length ({MAX_QUERY_LENGTH} chars)"
-    label = params.get('label', '')
-    if isinstance(label, str) and len(label) > MAX_LABEL_LENGTH:
-        return f"label exceeds max length ({MAX_LABEL_LENGTH} chars)"
+    # Table-driven length check — adding a new field is a one-liner here.
+    for field, cap in (
+        ("context", MAX_CONTEXT_LENGTH),
+        ("content", MAX_CONTENT_LENGTH),
+        ("query", MAX_QUERY_LENGTH),
+        ("label", MAX_LABEL_LENGTH),
+    ):
+        val = params.get(field, "")
+        if isinstance(val, str) and len(val) > cap:
+            return f"{field} exceeds max length ({cap} chars)"
+    # SECURITY: cap memory_id length. Format is enforced by callers, but length
+    # must be capped here to prevent DoS via a multi-MB memory_id string.
+    for mid_field in ('memory_id', 'source_id', 'target_id'):
+        mid = params.get(mid_field, '')
+        if isinstance(mid, str) and len(mid) > 64:
+            return f"{mid_field} exceeds max length (64 chars)"
     k = params.get('k', 5)
     if not isinstance(k, int) or k < 0 or k > 1000:
         return "k must be an integer between 0 and 1000"
@@ -643,6 +648,18 @@ def get_embedder_dim():
 
 def main():
     """Run daemon server."""
+    # SECURITY: warn loudly if the daemon is binding to a non-loopback address.
+    # The TCP socket has NO AUTHENTICATION — anyone reachable on PORT can read
+    # and write the entire MATHIR database. This is acceptable for 127.0.0.1
+    # (local-only), but exposing it on a LAN/public IP without a reverse proxy
+    # or firewall rule is a CRITICAL security misconfiguration.
+    if HOST not in ("127.0.0.1", "localhost", "::1"):
+        log.warning(
+            "MATHIR_HOST=%s is NOT loopback — daemon has NO authentication. "
+            "Any host that can reach %s:%s can read/write the entire MATHIR database. "
+            "Set MATHIR_HOST=127.0.0.1 unless you have a firewall rule in place.",
+            HOST, HOST, PORT,
+        )
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server.bind((HOST, PORT))

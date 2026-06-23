@@ -1,36 +1,0 @@
-2026-06-22 20:14:49,840 [MATHIR-DAEMON] INFO Starting MATHIR daemon...
-2026-06-22 20:14:49,966 [MATHIR-DAEMON] INFO Pre-loading embedder...
-C:\Users\So-i-learn-3D\AppData\Local\Programs\Python\Python311\Lib\site-packages\torch\cuda\__init__.py:61: FutureWarning: The pynvml package is deprecated. Please install nvidia-ml-py instead. If you did not install pynvml directly, please report this to the maintainers of the package that installed pynvml for you.
-  import pynvml  # type: ignore[import]
-2026-06-22 20:15:00,920 [MATHIR-DAEMON] INFO JAX version 0.4.30 available.
-2026-06-22 20:15:03,121 [MATHIR-DAEMON] INFO GPU detected: NVIDIA GeForce RTX 4060 Laptop GPU — using CUDA acceleration
-2026-06-22 20:15:04,406 [MATHIR-DAEMON] INFO Loading SentenceTransformer model from sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2.
-2026-06-22 20:15:11,716 [MATHIR-DAEMON] INFO Embedder loaded: sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 on cuda
-2026-06-22 20:15:11,723 [MATHIR-DAEMON] INFO Embedder ready
-2026-06-22 20:15:11,724 [MATHIR-DAEMON] INFO Using embedding dim: 384
-2026-06-22 20:15:11,725 [MATHIR-DAEMON] INFO MATHIR daemon listening on 127.0.0.1:7338
-2026-06-22 20:29:10,050 [MATHIR-DAEMON] INFO Client connected: ('127.0.0.1', 49671) (active: 1)
-2026-06-22 20:29:10,054 [MATHIR-DAEMON] INFO ping in 1.5ms
-2026-06-22 20:29:10,059 [MATHIR-DAEMON] INFO Client disconnected: ('127.0.0.1', 49671) (active: 0)
-2026-06-22 20:29:10,065 [MATHIR-DAEMON] INFO Client connected: ('127.0.0.1', 49677) (active: 1)
-2026-06-22 20:29:10,069 [MATHIR-DAEMON] INFO Found .mathir/mathir.db in CWD: D:\SECRET_PROJECT\MATHIR\.mathir\mathir.db
-2026-06-22 20:29:10,089 [MATHIR-DAEMON] INFO Registered project 'MATHIR' in registry
-2026-06-22 20:29:10,121 [MATHIR-DAEMON] INFO sqlite-vec available
-2026-06-22 20:29:10,143 [MATHIR-DAEMON] INFO sqlite-vec loaded for mathir.db
-2026-06-22 20:29:10,143 [MATHIR-DAEMON] INFO Using existing memories table with columns: ['memory_id', 'modality', 'embedding', 'embedding_dim', 'metadata', 'modality_text', 'timestamp', 'tier', 'stability', 'recall_count', 'provider', 'model']
-2026-06-22 20:29:10,150 [MATHIR-DAEMON] INFO vec0 table ready: dim=384
-2026-06-22 20:29:10,150 [MATHIR-DAEMON] INFO VecMemory cached for mathir.db (dim=384)
-2026-06-22 20:29:10,150 [MATHIR-DAEMON] INFO memory_stats in 88.3ms
-2026-06-22 20:29:10,150 [MATHIR-DAEMON] INFO Client disconnected: ('127.0.0.1', 49677) (active: 0)
-2026-06-22 20:29:17,717 [MATHIR-DAEMON] INFO Client connected: ('127.0.0.1', 65527) (active: 1)
-2026-06-22 20:29:17,719 [MATHIR-DAEMON] INFO Found .mathir/mathir.db in CWD: D:\SECRET_PROJECT\MATHIR\.mathir\mathir.db
-2026-06-22 20:29:17,733 [MATHIR-DAEMON] INFO Registered project 'MATHIR' in registry
-Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|##########| 1/1 [00:01<00:00,  1.23s/it]Batches: 100%|##########| 1/1 [00:01<00:00,  1.24s/it]
-2026-06-22 20:29:19,033 [MATHIR-DAEMON] INFO memory_save in 1309.4ms
-2026-06-22 20:29:19,033 [MATHIR-DAEMON] INFO Client disconnected: ('127.0.0.1', 65527) (active: 0)
-2026-06-22 20:29:19,041 [MATHIR-DAEMON] INFO Client connected: ('127.0.0.1', 60049) (active: 1)
-2026-06-22 20:29:19,050 [MATHIR-DAEMON] INFO Found .mathir/mathir.db in CWD: D:\SECRET_PROJECT\MATHIR\.mathir\mathir.db
-2026-06-22 20:29:19,067 [MATHIR-DAEMON] INFO Registered project 'MATHIR' in registry
-Batches:   0%|          | 0/1 [00:00<?, ?it/s]Batches: 100%|##########| 1/1 [00:00<00:00, 37.37it/s]
-2026-06-22 20:29:19,109 [MATHIR-DAEMON] INFO memory_recall in 62.9ms
-2026-06-22 20:29:19,109 [MATHIR-DAEMON] INFO Client disconnected: ('127.0.0.1', 60049) (active: 0)

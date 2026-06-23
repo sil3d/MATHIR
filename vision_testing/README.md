@@ -1,12 +1,21 @@
-# MATHIR Vision Testing
+# MATHIR Playground
 
-Test environment for vision and audio models with MATHIR memory integration. **NO HARDCODED PATHS** — everything is configurable via JSON files.
+A web playground to chat with vision/audio LLMs (via OpenRouter) and exercise the
+MATHIR memory backend (via the running daemon). **NO HARDCODED PATHS** — everything
+is configurable via JSON files.
+
+**v8.4.0**: Migrated from local `llama.cpp` binaries (~1GB) to **OpenRouter** cloud API. No more `bin/` or `models/` directories — all inference goes through `https://openrouter.ai/api/v1`.
 
 ## Quick Start
 
 ```bash
 cd vision_testing
 pip install -r requirements.txt
+
+# Set your OpenRouter key (get one at https://openrouter.ai/keys):
+echo 'export OPENROUTER_API_KEY=sk-or-v1-...' >> ~/.bashrc
+source ~/.bashrc
+
 python start_ui.py
 # Opens at http://127.0.0.1:5000
 ```
@@ -15,7 +24,7 @@ python start_ui.py
 
 ```
 vision_testing/
-├── config.json                # Models + paths
+├── config.json                # OpenRouter config + models (id-based, no paths)
 ├── ui_config.json             # UI settings (port, camera, audio)
 ├── system_context.json        # System prompt for the model
 │
@@ -27,13 +36,13 @@ vision_testing/
 │
 ├── ui_server.py               # Flask backend (17 API routes)
 ├── start_ui.py                # Launcher (installs deps, runs server)
-├── vision_test.py             # Core: VisionTester, LlamaServer, ModelManager
+├── vision_test.py             # Core: VisionTester, OpenRouterClient, ModelManager
 ├── mathir_dropin.py           # MATHIR memory (SQLite FTS5)
 │
-├── models/                    # GGUF models
-├── bin/                       # llama.cpp binaries
 └── memory/                    # SQLite memory database
 ```
+
+No `bin/`, no `models/` — all inference is cloud-based.
 
 ## MATHIR Memory System
 
@@ -74,10 +83,10 @@ MATHIR provides persistent memory across sessions using SQLite FTS5:
 - **Snapshot** — save current frame
 
 ### 3. Models
-- List all configured models
+- List all configured OpenRouter models
 - Switch active model at runtime
-- **Add from HuggingFace** — paste any HF GGUF URL
 - Enable/disable models
+- Free models highlighted
 
 ### 4. Memory
 - Query MATHIR memory (FTS5 search)
@@ -99,16 +108,22 @@ MATHIR provides persistent memory across sessions using SQLite FTS5:
 
 ## Configuration
 
-### `config.json` — Models and paths
+### `config.json` — OpenRouter + models
 
 ```json
 {
+  "openrouter": {
+    "api_key": "",          // or set OPENROUTER_API_KEY env var
+    "api_base": "https://openrouter.ai/api/v1",
+    "timeout_seconds": 120,
+    "max_retries": 2
+  },
   "models": {
-    "MyModel": {
+    "google/gemini-2.0-flash-exp:free": {
       "enabled": true,
       "type": "vision-language",
-      "path": "models/MyModel/model.gguf",
-      "mmproj": "models/MyModel/mmproj.gguf",
+      "id": "google/gemini-2.0-flash-exp:free",
+      "display_name": "Gemini 2.0 Flash (free)",
       "supports_vision": true
     }
   }
@@ -138,7 +153,7 @@ Compact system prompt (~126 tokens). Defines identity, behavior rules, and conte
 | `/api/models` | GET | List all models |
 | `/api/models/switch` | POST | Switch active model |
 | `/api/models/toggle` | POST | Enable/disable model |
-| `/api/models/add-from-hf` | POST | Add model from HuggingFace |
+| `/api/models/add-from-or` | POST | Add model from OpenRouter ID |
 | `/api/chat` | POST | Send chat message (with optional image/audio) |
 | `/api/camera/start` | POST | Start backend camera |
 | `/api/camera/stop` | POST | Stop backend camera |
@@ -153,15 +168,11 @@ Compact system prompt (~126 tokens). Defines identity, behavior rules, and conte
 
 ## Adding Models
 
-**Via UI**: Models → Add from HuggingFace → paste URL
+**Via UI**: Models → Add from OpenRouter → paste model ID (e.g., `openai/gpt-4o-mini`)
 
-**Via CLI**:
-```bash
-python model_manager.py hf-add --hf Qwen/Qwen2-VL-7B-Instruct-GGUF
-python download_q4.py
-```
+**Via config.json**: Edit directly (see above). Find model IDs at https://openrouter.ai/models
 
-**Via config.json**: Edit directly (see above)
+**Free models filter**: https://openrouter.ai/models?max_price=0
 
 ## Keyboard Shortcuts
 
@@ -176,12 +187,25 @@ python download_q4.py
 
 ## Hardware
 
-- **Tested on**: NVIDIA RTX 4060 Laptop (8.5 GB VRAM)
-- LFM2.5-VL-1.6B-Q4_0: ~2.4 GB VRAM
-- LFM2.5-Audio-1.5B-Q4_0: ~2.2 GB VRAM
-- gemma-4-E2B: ~4.4 GB VRAM
+- **No local GPU required** — all inference is cloud-based via OpenRouter
+- Internet connection required for chat/describe/ask endpoints
+- Webcam + microphone required for Camera view
+
+## What was removed in v8.4.0
+
+| Removed | Replacement |
+|---|---|
+| `bin/` (~1GB llama.cpp + CUDA DLLs) | OpenRouter cloud API |
+| `models/` (5 GGUF model dirs) | OpenRouter model IDs in `config.json` |
+| `convert_lfm2_to_gguf.py` | n/a (no GGUF conversion needed) |
+| `download_models.py` | n/a (no local downloads) |
+| `download_q4.py` | n/a (no local quantisation) |
+| `setup_binaries.py` | n/a (no binaries to setup) |
+| `interface/LlamaSetupModal_reference.jsx` | `interface/OpenRouterSetupModal_reference.jsx` |
+| `interface/wizardModels_llamacpp_reference.json` | `interface/wizardModels_openrouter_reference.json` |
+| `LlamaServer` class in `vision_test.py` | `OpenRouterClient` class |
+| `config.json:llama_server` section | `config.json:openrouter` section |
 
 ## License
 
-LFM2.5 models: [LFM2.5 License](https://huggingface.co/LiquidAI/LFM2.5-VL-1.6B-GGUF)
-llama.cpp: MIT | MATHIR: MIT | OpenCV: Apache 2.0 | Flask: BSD-3
+MATHIR: MIT | OpenRouter: see https://openrouter.ai | OpenCV: Apache 2.0 | Flask: BSD-3

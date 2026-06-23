@@ -1,0 +1,5 @@
+
+# Environment / secrets — NEVER commit keys
+.env
+.env.*
+!.env.example

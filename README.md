@@ -236,21 +236,22 @@ MATHIR v8.x+ ships with **6 embedding providers**. The default is now **paraphra
 | Ollama | `llama3.2:3b` | 2048 | 30–80 ms | 2 GB | 🟢 High | ✅ | Free |
 | OpenAI | `text-embedding-3-small` | 1536 | 80–200 ms | Cloud | 🟢 High | ❌ | $0.02/1M |
 
-### ONNX Provider (new in v7.7.2)
+### ONNX Provider (v8.4.0)
 
 ```python
-from mathir_lib.providers import get_provider
+# In v8.4.0 the v7 `mathir_lib.providers.get_provider` was replaced by a
+# dedicated OctenEmbedder class in mathir_mcp/mathir_lib/mathir_onnx_embedder.py
+from mathir_lib.mathir_onnx_embedder import OctenEmbedder, get_onnx_embedder
 
-# Quantized ONNX model (recommended)
-provider = get_provider("onnx", {
-    "model_dir": r"C:\Users\So-i-learn-3D\.config\opencode\models\octen-int8",
-    "provider": "CPUExecutionProvider"  # or "DmlExecutionProvider" for GPU
-})
+# Quantized ONNX model (recommended for CPU + cross-language paraphrase)
+embedder = OctenEmbedder(
+    model_dir=r"C:\Users\So-i-learn-3D\.config\opencode\models\octen-int8",
+    provider="CPUExecutionProvider",  # or "DmlExecutionProvider" for GPU
+)
 
-print(provider.embedding_dim())        # 1024
-print(provider.provider_id())          # ('onnx', 'path', 1024)
+print(embedder.dim)                    # 1024
 
-embeddings = provider.embed_batch(["Hello", "World"])
+embeddings = embedder.encode(["Hello", "World"])
 # Shape: (2, 1024), L2-normalized, ready for cosine similarity
 ```
 

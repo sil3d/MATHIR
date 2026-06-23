@@ -44,6 +44,21 @@ def _deserialize_embedding(blob: bytes) -> np.ndarray:
     return np.frombuffer(blob, dtype=np.float32).copy()
 
 
+def _decode_brute_blob(blob: bytes) -> np.ndarray:
+    """Decode the length-prefixed float32 blob used by the brute-force fallback.
+
+    Format written by :func:`store` when ``sqlite-vec`` is unavailable::
+
+        <i:count><floats...>     (4 bytes count + count*4 bytes payload)
+
+    Used by ``search``, ``find_duplicates``, ``find_related``, and
+    ``build_links_all`` — previously duplicated as a 2-line struct.unpack
+    pattern in each one.
+    """
+    n = struct.unpack("<i", blob[:4])[0]
+    return np.frombuffer(blob[4:4 + 4 * n], dtype=np.float32).copy()
+
+
 class VecMemory:
     """
     SQLite-backed vector memory with sqlite-vec acceleration.
@@ -219,17 +234,14 @@ class VecMemory:
     def store(self, memory_id: str, embedding: np.ndarray, metadata: Dict[str, Any]) -> str:
         """Store a memory with its embedding vector."""
         conn = self._get_conn()
-        
+
         # Ensure embedding is the right shape and type
         vec = np.asarray(embedding, dtype=np.float32).reshape(-1)
         if len(vec) != self.embedding_dim:
             raise ValueError(f"Embedding dim {len(vec)} != expected {self.embedding_dim}")
-        
-        # Check if we're using the existing MATHIR schema or our new schema
-        cursor = conn.execute("PRAGMA table_info(memories)")
-        columns = {col[1] for col in cursor.fetchall()}
-        
-        if "content" in columns:
+
+        # Use the canonical schema detection (avoid duplicating PRAGMA table_info)
+        if self._schema_kind() == "new":
             # New schema
             conn.execute("""
                 INSERT OR REPLACE INTO memories 
@@ -305,11 +317,9 @@ class VecMemory:
         query_vec = np.asarray(query_embedding, dtype=np.float32).reshape(-1)
         if len(query_vec) != self.embedding_dim:
             raise ValueError(f"Query dim {len(query_vec)} != expected {self.embedding_dim}")
-        
-        # Check which schema we're using
-        cursor = conn.execute("PRAGMA table_info(memories)")
-        columns = {col[1] for col in cursor.fetchall()}
-        new_schema = "content" in columns
+
+        # Use the canonical schema detection (avoid duplicating PRAGMA table_info)
+        new_schema = self._schema_kind() == "new"
         
         # Build WHERE clause for metadata filters
         where_clauses = []
@@ -375,9 +385,7 @@ class VecMemory:
             ids = []
             for row in rows:
                 blob = row["embedding"]
-                n = struct.unpack("<i", blob[:4])[0]
-                vec = np.frombuffer(blob[4:4 + 4 * n], dtype=np.float32)
-                embs.append(vec)
+                embs.append(_decode_brute_blob(blob))
                 ids.append(row["memory_id"])
             
             embs = np.stack(embs)
@@ -624,9 +632,7 @@ class VecMemory:
             if HAS_VEC:
                 vec = _deserialize_embedding(blob)
             else:
-                # Brute-force blob is length-prefixed: <i:count><floats>
-                n = struct.unpack("<i", blob[:4])[0]
-                vec = np.frombuffer(blob[4:4 + 4 * n], dtype=np.float32).copy()
+                vec = _decode_brute_blob(blob)
             ids.append(mid)
             vecs.append(vec)
 
@@ -716,9 +722,7 @@ class VecMemory:
                 [memory_id],
             ).fetchone()
             if row:
-                blob = row["embedding"]
-                n = struct.unpack("<i", blob[:4])[0]
-                seed_vec = np.frombuffer(blob[4:4 + 4 * n], dtype=np.float32).copy()
+                seed_vec = _decode_brute_blob(row["embedding"])
 
         # 1. Vector channel — k=10 neighbours of the seed embedding.
         vector_hits: Dict[str, Dict[str, Any]] = {}
@@ -1266,7 +1270,7 @@ class VecMemory:
 
         recall_count = int(row["recall_count"] or 0)
         priority = int(row["priority"] or 5)
-        label = (row["label"] or "") or ""
+        label = row["label"] or ""
         age_days = self._age_days(row["created_at"], kind)
 
         # Rule evaluation — gate on force=False only.
@@ -1626,10 +1630,7 @@ class VecMemory:
             embs: List[np.ndarray] = []
             ids: List[str] = []
             for row in rows:
-                blob = row["embedding"]
-                n = struct.unpack("<i", blob[:4])[0]
-                vec = np.frombuffer(blob[4:4 + 4 * n], dtype=np.float32)
-                embs.append(vec)
+                embs.append(_decode_brute_blob(row["embedding"]))
                 ids.append(row["memory_id"])
             mat = np.stack(embs)
             norms = np.linalg.norm(mat, axis=1)

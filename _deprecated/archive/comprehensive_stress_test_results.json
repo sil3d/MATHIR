@@ -1,0 +1,82 @@
+{
+  "pdf": "D:/COURS/Fluid Mechanics 2/27846107.pdf",
+  "n_chunks": 200,
+  "n_queries": 50,
+  "model": "sentence-transformers/all-MiniLM-L6-v2",
+  "results": [
+    {
+      "name": "FAISS VectorDB",
+      "storage_ms": 0,
+      "latency_mean_ms": 0.006248001009225845,
+      "latency_median_ms": 0.00530000397702679,
+      "latency_p95_ms": 0.01060000795405358,
+      "throughput_qps": 160051.190536524,
+      "quality_overlap": 0.32566666666666666,
+      "hits": "27/50"
+    },
+    {
+      "name": "MATHIR V6",
+      "storage_ms": 261.4340000000084,
+      "latency_mean_ms": 0.058201999054290354,
+      "latency_median_ms": 0.057749995903577656,
+      "latency_p95_ms": 0.06569999095518142,
+      "throughput_qps": 17181.54043243786,
+      "quality_overlap": 0,
+      "hits": "0/0"
+    },
+    {
+      "name": "MATHIR V7",
+      "storage_ms": 287.69900000770576,
+      "latency_mean_ms": 0.007722000882495195,
+      "latency_median_ms": 0.006900008884258568,
+      "latency_p95_ms": 0.010000003385357559,
+      "throughput_qps": 129500.11470043655,
+      "quality_overlap": 0,
+      "hits": "0/0"
+    },
+    {
+      "name": "MATHIR V7.1 A (Raw)",
+      "error": "The size of tensor a (384) must match the size of tensor b (200) at non-singleton dimension 1"
+    },
+    {
+      "name": "MATHIR V7.1 C (FAISS)",
+      "storage_ms": 12.587799996254034,
+      "latency_mean_ms": 8.291772000375204,
+      "latency_median_ms": 8.364450004592072,
+      "latency_p95_ms": 10.216200011200272,
+      "throughput_qps": 120.60148300685907,
+      "quality_overlap": 0.32566666666666666,
+      "hits": "27/50"
+    },
+    {
+      "name": "MATHIR V7.1 D (Hybrid)",
+      "storage_ms": 460.23159999458585,
+      "latency_mean_ms": 0.8702560019446537,
+      "latency_median_ms": 0.8399000071221963,
+      "latency_p95_ms": 0.9799999970709905,
+      "throughput_qps": 1149.087162588277,
+      "quality_overlap": 0.4066666666666667,
+      "hits": "33/50"
+    },
+    {
+      "name": "MATHIR Infinity CS",
+      "storage_ms": 53.10910000116564,
+      "latency_mean_ms": 0.06543599913129583,
+      "latency_median_ms": 0.06254999607335776,
+      "latency_p95_ms": 0.07819999882485718,
+      "throughput_qps": 15282.10791117475,
+      "quality_overlap": 0.26566666666666666,
+      "hits": "22/50"
+    },
+    {
+      "name": "MATHIR Infinity Kernel",
+      "storage_ms": 34.950400004163384,
+      "latency_mean_ms": 0.3289459992083721,
+      "latency_median_ms": 0.32500000088475645,
+      "latency_p95_ms": 0.3370000049471855,
+      "throughput_qps": 3040.0126537685787,
+      "quality_overlap": 0.32566666666666666,
+      "hits": "27/50"
+    }
+  ]
+}

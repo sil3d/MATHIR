@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MATHIR Real BEIR Benchmark - Honest Results</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --secondary: #10b981;
+            --accent: #f59e0b;
+            --danger: #ef4444;
+            --purple: #8b5cf6;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        .header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            padding: 3rem 2rem;
+            text-align: center;
+            border-bottom: 4px solid var(--danger);
+        }
+        .header h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(135deg, #fff, #ef4444);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+        .stat-card {
+            background: var(--bg-card);
+            padding: 1.5rem;
+            border-radius: 1rem;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .stat-value.success { background: linear-gradient(135deg, var(--secondary), #059669); -webkit-background-clip: text; background-clip: text; }
+        .stat-value.danger { background: linear-gradient(135deg, #ef4444, #dc2626); -webkit-background-clip: text; background-clip: text; }
+        .stat-label { color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.5rem; }
+        .section {
+            background: var(--bg-card);
+            border-radius: 1rem;
+            padding: 2rem;
+            border: 1px solid var(--border);
+            margin: 2rem 0;
+        }
+        .section h2 {
+            font-size: 1.75rem;
+            margin-bottom: 1.5rem;
+            color: var(--primary);
+        }
+        .section h3 {
+            font-size: 1.25rem;
+            margin: 1.5rem 0 1rem;
+            color: var(--text-primary);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th {
+            background: rgba(99, 102, 241, 0.1);
+            font-weight: 600;
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-success { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .badge-warning { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+        .badge-danger { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+        .badge-primary { background: rgba(99, 102, 241, 0.2); color: #818cf8; }
+        .winner { background: rgba(16, 185, 129, 0.1) !important; }
+        .loser { background: rgba(239, 68, 68, 0.1) !important; }
+        .code-block {
+            background: #0d1117;
+            border-radius: 0.5rem;
+            padding: 1rem 1.5rem;
+            font-family: 'Consolas', monospace;
+            font-size: 0.85rem;
+            color: #c9d1d9;
+            overflow-x: auto;
+            margin: 1rem 0;
+        }
+        .honest-callout {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(245, 158, 11, 0.1) 100%);
+            border-left: 4px solid var(--danger);
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 0 0.5rem 0.5rem 0;
+        }
+        .honest-callout h4 {
+            color: var(--danger);
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>🔬 MATHIR Real BEIR Benchmark</h1>
+        <p style="color: var(--text-secondary); font-size: 1.1rem;">Honest results vs SOTA — No more fake metrics</p>
+        <p style="color: var(--text-muted); margin-top: 0.5rem; font-size: 0.9rem;">
+            Dataset: BEIR SciFact • 5,183 docs • 1,109 queries • 339 human relevance judgments
+        </p>
+    </header>
+
+    <div class="container">
+        <!-- What Changed -->
+        <div class="section">
+            <h2>🚨 What Changed: From Fake to Real</h2>
+            <table>
+                <thead>
+                    <tr><th>OLD (Fake)</th><th>NEW (Real)</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>❌ 1 PDF, 200 chunks</td>
+                        <td>✅ BEIR SciFact: 5,183 docs, 1,109 queries</td>
+                    </tr>
+                    <tr>
+                        <td>❌ Keyword overlap (Jaccard on stopwords)</td>
+                        <td>✅ Human-graded relevance (TREC standard)</td>
+                    </tr>
+                    <tr>
+                        <td>❌ "quality %" with no real meaning</td>
+                        <td>✅ nDCG@10, MRR@10, Recall@100 (literature-comparable)</td>
+                    </tr>
+                    <tr>
+                        <td>❌ Only 1 embedding model (MiniLM)</td>
+                        <td>✅ 4 SOTA models + BM25 baseline</td>
+                    </tr>
+                    <tr>
+                        <td>❌ 1 PDF (Fluid Mechanics)</td>
+                        <td>✅ Scientific claim verification (general)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Top Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value success">0.7376</div>
+                <div class="stat-label">Best nDCG@10 (BGE-base-en-v1.5)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value danger">0.6782</div>
+                <div class="stat-label">MATHIR V7.1 D Hybrid</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">0.7200</div>
+                <div class="stat-label">BGE-small-en-v1.5</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value danger">31×</div>
+                <div class="stat-label">MATHIR slower than simple MiniLM+FAISS</div>
+            </div>
+        </div>
+
+        <!-- Honest Results -->
+        <div class="section">
+            <h2>📊 Final Results — BEIR SciFact (Real TREC Metrics)</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>System</th>
+                        <th>nDCG@10</th>
+                        <th>MRR@10</th>
+                        <th>Recall@100</th>
+                        <th>Latency (ms)</th>
+                        <th>Verdict</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>BM25 (rank-bm25)</td>
+                        <td>0.5462</td>
+                        <td>0.5095</td>
+                        <td>0.7813</td>
+                        <td>23.8</td>
+                        <td><span class="badge badge-warning">Baseline</span></td>
+                    </tr>
+                    <tr>
+                        <td>all-MiniLM-L6-v2 + FAISS</td>
+                        <td>0.6451</td>
+                        <td>0.6047</td>
+                        <td>0.9250</td>
+                        <td>2.6</td>
+                        <td><span class="badge badge-primary">Fast</span></td>
+                    </tr>
+                    <tr>
+                        <td>BGE-small-en-v1.5 + FAISS</td>
+                        <td>0.7200</td>
+                        <td>0.6845</td>
+                        <td>0.9533</td>
+                        <td>1.9</td>
+                        <td><span class="badge badge-success">Sweet Spot</span></td>
+                    </tr>
+                    <tr class="winner">
+                        <td><strong>BGE-base-en-v1.5 + FAISS</strong></td>
+                        <td><strong>0.7376</strong></td>
+                        <td>0.7004</td>
+                        <td>0.9700</td>
+                        <td>4.2</td>
+                        <td><span class="badge badge-success">⭐ WINNER</span></td>
+                    </tr>
+                    <tr class="loser">
+                        <td><strong>MATHIR V7.1 D (Hybrid)</strong></td>
+                        <td>0.6782</td>
+                        <td>0.6306</td>
+                        <td>0.9090</td>
+                        <td>83.9</td>
+                        <td><span class="badge badge-danger">❌ LOSES</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- The Honest Truth -->
+        <div class="section">
+            <h2>🎯 The Honest Truth</h2>
+
+            <div class="honest-callout">
+                <h4>❌ MATHIR V7.1 D loses to BGE-small-en-v1.5 by 4.2pp nDCG@10</h4>
+                <p style="color: var(--text-secondary);">
+                    BGE-small-en-v1.5 + FAISS (1.9ms latency) beats MATHIR V7.1 D Hybrid (83.9ms latency)
+                    by <strong>+4.2 percentage points</strong> in nDCG@10. MATHIR is also <strong>44× slower</strong>.
+                </p>
+            </div>
+
+            <h3>The Numbers Don't Lie</h3>
+            <div class="code-block">
+┌─────────────────────────────────┬──────────┬──────────┬───────────┐
+│ System                          │ nDCG@10  │ Latency  │ Memory    │
+├─────────────────────────────────┼──────────┼──────────┼───────────┤
+│ BGE-small-en-v1.5 + FAISS       │ 0.7200   │ 1.9ms    │ ~25 MB    │
+│ BGE-base-en-v1.5 + FAISS  ⭐    │ 0.7376   │ 4.2ms    │ ~50 MB    │
+│ all-MiniLM-L6-v2 + FAISS        │ 0.6451   │ 2.6ms    │ ~10 MB    │
+│ MATHIR V7.1 D (Hybrid)          │ 0.6782   │ 83.9ms   │ unknown   │
+│ BM25 (rank-bm25)                │ 0.5462   │ 23.8ms   │ ~5 MB     │
+└─────────────────────────────────┴──────────┴──────────┴───────────┘
+            </div>
+
+            <h3>What MATHIR Should Have Done</h3>
+            <ol style="color: var(--text-secondary); padding-left: 1.5rem;">
+                <li><strong>Swap the embedder first.</strong> MATHIR V7.1 uses all-MiniLM-L6-v2 (0.6451).
+                    Just swapping to BGE-base-en-v1.5 gives +9.2pp nDCG@10 instantly.</li>
+                <li><strong>The "Hybrid" pipeline hurts more than it helps on this dataset.</strong>
+                    BM25 fusion adds noise; for SciFact (abstract-based), pure dense wins.</li>
+                <li><strong>The 44× latency penalty is unjustified.</strong>
+                    83.9ms is 1Hz — useless for real-time. Simple FAISS is 4.2ms = 238Hz.</li>
+                <li><strong>No "memory plugin" features were tested</strong> (online learning, anomaly detection).
+                    These are MATHIR's theoretical advantages, but they didn't show up in static retrieval.</li>
+            </ol>
+        </div>
+
+        <!-- Comparison to Published -->
+        <div class="section">
+            <h2>📚 Our Numbers vs Published BEIR Leaderboard</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>System</th>
+                        <th>Our nDCG@10</th>
+                        <th>Published nDCG@10</th>
+                        <th>Match?</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>BM25 (rank-bm25 vs Anserini)</td>
+                        <td>0.5462</td>
+                        <td>~0.665</td>
+                        <td><span class="badge badge-warning">Gap (different impl)</span></td>
+                    </tr>
+                    <tr>
+                        <td>all-MiniLM-L6-v2</td>
+                        <td>0.6451</td>
+                        <td>~0.62</td>
+                        <td><span class="badge badge-success">✓ Match</span></td>
+                    </tr>
+                    <tr>
+                        <td>BGE-base-en-v1.5</td>
+                        <td>0.7376</td>
+                        <td>~0.785</td>
+                        <td><span class="badge badge-success">✓ Close</span></td>
+                    </tr>
+                    <tr>
+                        <td>BM25 lower than published</td>
+                        <td colspan="3" style="color: var(--text-muted);">Because we use rank-bm25 (Python), not Anserini (Java). Known issue.</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 1rem;">
+                Source: BEIR Official Leaderboard (arxiv 2306.07471), Thakur et al. 2021
+            </p>
+        </div>
+
+        <!-- The Verdict -->
+        <div class="section">
+            <h2>⚖️ The Verdict: What MATHIR Should Do</h2>
+
+            <h3>Short-term (1 day)</h3>
+            <ol style="color: var(--text-secondary); padding-left: 1.5rem;">
+                <li><strong>Replace all-MiniLM-L6-v2 with BGE-base-en-v1.5</strong> as the default embedder
+                    → instant +9.2pp nDCG@10 on BEIR</li>
+                <li><strong>Drop the BM25 stage from V7.1 D Hybrid</strong> for short-document corpora
+                    → +3pp nDCG@10 expected</li>
+                <li><strong>Profile the 44× latency overhead</strong> — find where the time goes</li>
+            </ol>
+
+            <h3>Medium-term (1 week)</h3>
+            <ol style="color: var(--text-secondary); padding-left: 1.5rem;">
+                <li><strong>Add online-learning benchmark.</strong> MATHIR's actual moat is adaptation
+                    during deployment, not static retrieval. Build a streaming BEIR variant.</li>
+                <li><strong>Implement BGE-reranker-v2 as the rerank stage</strong> instead of
+                    cross-encoder/ms-marco-MiniLM-L-6 (current default).</li>
+                <li><strong>Submit to MTEB leaderboard</strong> with BGE-base-en-v1.5 to get a citable number.</li>
+            </ol>
+
+            <h3>Long-term (1 month)</h3>
+            <ol style="color: var(--text-secondary); padding-left: 1.5rem;">
+                <li><strong>Build the cascade architecture</strong>: FAISS (L1, 0.05ms filter) → MATHIR D
+                    (L2, 150ms rerank) → LLM. Get both speed and quality.</li>
+                <li><strong>Test on streaming corpora</strong> where MATHIR's online learning is the differentiator.</li>
+            </ol>
+        </div>
+
+        <!-- What I Got Wrong -->
+        <div class="section">
+            <h2>❌ What I Got Wrong Before (Self-Critique)</h2>
+
+            <table>
+                <thead>
+                    <tr><th>My Previous Claim</th><th>Reality</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>"MATHIR V7.1 D achieves 45.7% quality"</td>
+                        <td>That's keyword overlap, not real relevance. On BEIR: 0.6782 nDCG@10.</td>
+                    </tr>
+                    <tr>
+                        <td>"+8pp improvement over FAISS"</td>
+                        <td>FAISS+bge-base = 0.7376. MATHIR V7.1 D = 0.6782. <strong>FAISS wins by 5.9pp.</strong></td>
+                    </tr>
+                    <tr>
+                        <td>"MATHIR is 129K QPS"</td>
+                        <td>In the real test, V7 (with hybrid search) was 83.9ms/query = ~12 QPS, not 129K.</td>
+                    </tr>
+                    <tr>
+                        <td>"Universal, plug-in to any LLM"</td>
+                        <td>True as a design goal, but unproven. BGE-base works better with standard FAISS.</td>
+                    </tr>
+                    <tr>
+                        <td>"8 algorithms + 6 theorems"</td>
+                        <td>None of them showed measurable improvement in the BEIR test.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Files -->
+        <div class="section">
+            <h2>📁 Files Generated</h2>
+            <table>
+                <thead>
+                    <tr><th>File</th><th>Description</th></tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>benchmarks/real_sota_benchmark.py</code></td>
+                        <td>REAL benchmark with BEIR SciFact</td>
+                    </tr>
+                    <tr>
+                        <td><code>benchmarks/beir_data/scifact/</code></td>
+                        <td>Downloaded BEIR SciFact dataset (5K docs, 300 queries)</td>
+                    </tr>
+                    <tr>
+                        <td><code>real_sota_benchmark_results.json</code></td>
+                        <td>Raw results (nDCG@10, MRR@10, Recall@100, latency)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <footer style="background: var(--bg-card); padding: 2rem; text-align: center; margin-top: 2rem; border-top: 1px solid var(--border);">
+        <p style="color: var(--text-muted); font-size: 0.875rem;">
+            MATHIR Real BEIR Benchmark • SciFact Dataset • 2026-06-05<br>
+            TREC-standard evaluation • Honest results
+        </p>
+    </footer>
+</body>
+</html>

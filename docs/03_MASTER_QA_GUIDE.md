@@ -438,29 +438,45 @@ The system auto-downgrades: GPU → CPU → Edge based on available hardware. `H
 ## 12. LLM Integration {#12-llm}
 
 ### Q12.1: How do I integrate MATHIR with OpenAI?
-**A:**
+**A:** *(v8.4.0 — OpenAI is no longer a mathir_lib.providers plugin. Use the OpenAI Python SDK directly, then store embeddings via the daemon client.)*
 ```python
-from mathir_lib import MATHIRPluginV7
-from mathir_lib.providers import OpenAIProvider
+import openai
+from mathir_lib.mathir_client import call as mathir_call
 
-embedder = OpenAIProvider({"api_key": "sk-...", "model": "text-embedding-3-small"})
-plugin = MATHIRPluginV7(embedding_dim=1536)  # OpenAI's dim
+# 1) Get embedding from OpenAI (any model, any dim)
+resp = openai.embeddings.create(model="text-embedding-3-small", input=user_message)
+emb = resp.data[0].embedding  # list of 1536 floats
 
-# In your chat loop:
-emb = embedder.embed_text(user_message)
-output = plugin.perceive(emb)
-context = output["enhanced_embedding"]
-response = openai.ChatCompletion.create(model="gpt-4", messages=[...])
-plugin.store({"embedding": emb, "user": user_id, "response": response})
+# 2) Store via MCP tool call to the daemon
+mathir_call("memory_save", {
+    "content": user_message,
+    "agent": "openai-chat",
+    "block_type": "episodic",
+    "label": "openai-turn",
+    "priority": 5,
+    "embedding": emb,            # pass-through custom embedding
+    "embedding_dim": 1536,
+})
+
+# 3) Recall relevant memories before next reply
+results = mathir_call("memory_recall", {"query": user_message, "k": 5})
+context = "\n".join(r["content"] for r in results.get("memories", []))
+response = openai.chat.completions.create(
+    model="gpt-4",
+    messages=[{"role": "system", "content": f"Relevant past context:\n{context}"},
+              {"role": "user", "content": user_message}],
+)
 ```
 
 ### Q12.2: How do I integrate with Ollama (local)?
-**A:**
+**A:** *(v8.4.0 — Ollama is now just another sentence-transformers-compatible embedder; the daemon auto-detects GPU/CPU and uses the configured model from `MATHIR_EMBEDDING_MODEL`.)*
 ```python
-from mathir_lib.providers import OllamaProvider
-
-embedder = OllamaProvider({"model": "llama3.2:3b", "url": "http://localhost:11434"})
-plugin = MATHIRPluginV7(embedding_dim=3072)  # Match Ollama model
+# Set env vars before launching the daemon:
+#   export MATHIR_EMBEDDING_MODEL=ollama:nomic-embed-text
+#   export MATHIR_EMBEDDING_DIM=768
+# Then start the daemon:
+python -m mathir_mcp
+# ... and use the standard memory_recall / memory_save tools — no OllamaProvider needed.
 ```
 
 ### Q12.3: How do I integrate with Claude (no embedding API)?
