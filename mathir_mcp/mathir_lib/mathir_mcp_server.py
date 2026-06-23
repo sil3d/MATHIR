@@ -1077,7 +1077,88 @@ def handle_request(request: dict):
         send_error(req_id, -32601, f"Method not found: {method}")
 
 
+def _check_install_health():
+    """Verify the server is being run from a valid MATHIR installation.
+
+    Checks:
+      1. mathir_mcp_server.py is inside mathir_lib/ (correct nesting)
+      2. mathir_mcp/ is the package root (pyproject.toml exists)
+      3. mathir_lib/ has expected modules (mathir_vec.py, mathir_daemon.py)
+    Returns (ok: bool, message: str).
+    """
+    here = Path(__file__).resolve().parent          # mathir_lib/
+    pkg_root = here.parent                          # mathir_mcp/
+
+    checks = []
+
+    # 1. Correct nesting: mathir_lib/ inside mathir_mcp/
+    if pkg_root.name == "mathir_mcp" and here.name == "mathir_lib":
+        checks.append(("OK", "mathir_mcp/mathir_lib/ structure is correct"))
+    else:
+        checks.append(("WARN", f"Unexpected nesting: {here}"))
+
+    # 2. pyproject.toml exists (package is valid)
+    pyproject = pkg_root / "pyproject.toml"
+    if pyproject.exists():
+        checks.append(("OK", "pyproject.toml found"))
+    else:
+        checks.append(("WARN", f"pyproject.toml not found at {pkg_root}"))
+
+    # 3. Key modules exist
+    for mod in ["mathir_vec.py", "mathir_daemon.py", "mathir_client.py"]:
+        if (here / mod).exists():
+            checks.append(("OK", f"{mod} found"))
+        else:
+            checks.append(("WARN", f"{mod} not found in {here}"))
+
+    # 4. Dashboard files exist
+    html = here / "mathir_dashboard.html"
+    server = here / "mathir_stats_server.py"
+    if html.exists() and server.exists():
+        checks.append(("OK", "Dashboard files found"))
+    else:
+        missing = []
+        if not html.exists():
+            missing.append("mathir_dashboard.html")
+        if not server.exists():
+            missing.append("mathir_stats_server.py")
+        checks.append(("WARN", f"Dashboard files missing: {', '.join(missing)}"))
+
+    # 5. Legacy DB exists
+    home = Path.home()
+    legacy_db = home / "MATHIR" / "database" / "mathir.cerdb"
+    if legacy_db.exists():
+        checks.append(("OK", f"Legacy DB: {legacy_db}"))
+    else:
+        checks.append(("INFO", f"No legacy DB at {legacy_db} (will create if needed)"))
+
+    # Build report
+    warnings = [msg for status, msg in checks if status == "WARN"]
+    infos = [msg for status, msg in checks if status == "INFO"]
+
+    if warnings:
+        return False, (
+            "MATHIR install health check FAILED:\n"
+            + "\n".join(f"  ⚠ {w}" for w in warnings)
+            + "\n\n"
+            "SOLUTION: Relancez install.bat (Windows) ou ./install.sh (Linux/Mac) "
+            "depuis le dossier mathir_mcp/ pour ré-injecter les configs."
+        )
+
+    if infos:
+        log.info("Install health check: " + "; ".join(infos))
+
+    return True, "OK"
+
+
 def main():
+    # ── Startup health check ──
+    ok, msg = _check_install_health()
+    if not ok:
+        log.error(msg)
+        # Still start — the server may work even if health check warns
+        # But the warning is visible in stderr for the agent to surface
+
     log.info("MATHIR MCP Server starting...")
     log.info(f"DB: {LEGACY_DB_PATH}")
     log.info(f"Config: {CONFIG_PATH}")
