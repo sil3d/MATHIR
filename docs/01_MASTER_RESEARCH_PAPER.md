@@ -343,6 +343,8 @@ MATHIR evolved through eight major versions (V1–V8.4.1), each addressing a spe
 | V8.4.0 | Living memory | Living memory — Ebbinghaus lifecycle, 5 tiers, link graph, 17 MCP tools | ✓ (this paper) |
 | V8.4.1 | Dynamic injection | Dynamic injection + sync tools | ✓ (this paper) |
 
+![MATHIR Architecture](assets/Mathir_architecture.png)
+
 ### 3.2 V6 Plugin API
 
 V6 introduced `MATHIRPlugin`, a clean LLM-agnostic interface:

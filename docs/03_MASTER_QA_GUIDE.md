@@ -364,6 +364,9 @@ This gives you the best of both worlds.
 
 ### Q10.3: Show me the architecture
 **A:**
+
+![MATHIR Architecture](assets/Mathir_architecture.png)
+
 ```
 User message → Embedding → MATHIR (5 tiers) → Enhanced context → LLM → Response
                                     ↑

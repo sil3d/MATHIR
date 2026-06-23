@@ -28,6 +28,12 @@
 
 </div>
 
+<br/>
+
+![MATHIR Architecture](docs/assets/Mathir_architecture.png)
+
+<br/>
+
 ---
 
 ## 🔥 5 real-world problems MATHIR solves
@@ -89,6 +95,8 @@ MATHIR does the same thing. Here's how:
 | **Muscle memory** — you don't think about how to ride a bike | `procedural` | Recipes, runbooks, how-to guides. Automatized. |
 | **Immune system** — your body rejects what's dangerous | `immunological` | Anomalies, prompt injections, suspicious patterns. |
 
+![MATHIR Brain Architecture](docs/assets/memory_that_think.png)
+
 ### The 4 things MATHIR now does
 
 **1. Memories grow stronger when you use them** 🧠
@@ -137,6 +145,8 @@ consolidate: 3 candidates at threshold 0.9 (dry_run)
 ---
 
 ## The story that hurts
+
+![MATHIR Story](docs/assets/mathir_story.png)
 
 ### 🧑‍💻 The developer
 
