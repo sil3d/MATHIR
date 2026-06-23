@@ -12,7 +12,7 @@ Architecture:
 Compatible with MATHIR v8.4.1+:
   - Real embeddings via SentenceTransformer (paraphrase-multilingual-MiniLM-L12-v2, 384d)
   - HybridSearch benchmark (vector + BM25 + RRF fusion)
-  - 4 tiers: working, episodic, semantic, immune
+  - 5 tiers: working, episodic, semantic, procedural, immune
   - Per-project DBs (.mathir/mathir.db)
   - Config via mathir.json / MATHIR_EMBEDDING_DIM env var
 """
@@ -405,7 +405,7 @@ class StressTest:
     # ============================================================
 
     def _store_conversation(self, conv):
-        """Store via MATHIR perceive() — activates all 4 tiers + KL router."""
+        """Store via MATHIR perceive() — activates all 5 tiers + KL router."""
         msg = conv["user_message"]
         mode = self.config.get("mode", "direct")
 

@@ -12,7 +12,7 @@
 
 ## MATHIR v8.4.0 — LIVING MEMORY
 
-Your memory is **alive**. It has 4 tiers and a full lifecycle (Ebbinghaus forgetting, promotion, consolidation, link graph). Use the right tool at the right time.
+Your memory is **alive**. It has 5 tiers and a full lifecycle (Ebbinghaus forgetting, promotion, consolidation, link graph). Use the right tool at the right time.
 
 ### The 4 memory tiers (use the right one!)
 

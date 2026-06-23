@@ -2,7 +2,7 @@
 
 **Universal install: one folder, 50+ agents, zero config.**
 
-**v8.4.0 highlights**: Living memory — 4 tiers, full Ebbinghaus lifecycle, link graph, recall@5 +52% measured on 15×10 AI benchmark. See [CHANGELOG.md](../../CHANGELOG.md) for details.
+**v8.4.0 highlights**: Living memory — 5 tiers, full Ebbinghaus lifecycle, link graph, recall@5 +52% measured on 15×10 AI benchmark. See [CHANGELOG.md](../../CHANGELOG.md) for details.
 
 ---
 
