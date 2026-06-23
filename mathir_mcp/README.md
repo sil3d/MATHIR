@@ -42,6 +42,21 @@ Restart your agent. MATHIR is ready.
 
 ---
 
+## ⚠️ Moving the Folder After Install
+
+The installer writes an **absolute path** to your agent's config. If you move `mathir_mcp/` to another location, **re-run `install.bat` or `install.sh`** from the new location to update the configs.
+
+```
+# Example: moved from Downloads to Documents
+cd ~/Documents/mathir_mcp
+install.bat          # Windows
+./install.sh         # Linux/Mac
+```
+
+You'll see a warning in the MCP server logs if the path is stale.
+
+---
+
 ## Supported Agents (50)
 
 | Category | Agents |
