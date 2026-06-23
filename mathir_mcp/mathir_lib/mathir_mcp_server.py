@@ -428,7 +428,7 @@ TOOLS = [
             "properties": {
                 "threshold_days": {"type": "integer", "default": 30, "description": "Days of inactivity before decay applies"},
                 "archive_floor": {"type": "number", "default": 0.05, "description": "Stability below this → archived"},
-                "dry_run": {"type": "boolean", "default": true, "description": "If true, return plan without modifying DB"}
+                "dry_run": {"type": "boolean", "default": True, "description": "If true, return plan without modifying DB"}
             }
         }
     },
@@ -440,7 +440,7 @@ TOOLS = [
             "properties": {
                 "threshold": {"type": "number", "default": 0.95, "description": "Cosine similarity threshold for merging"},
                 "limit": {"type": "integer", "default": 100, "description": "Max pairs to process"},
-                "dry_run": {"type": "boolean", "default": true, "description": "If true, return plan without modifying DB"}
+                "dry_run": {"type": "boolean", "default": True, "description": "If true, return plan without modifying DB"}
             }
         }
     },
@@ -480,7 +480,6 @@ TOOLS = [
                 "limit": {"type": "integer", "default": 1000, "description": "Max memories to scan"}
             }
         }
-    }
     }
 ]
 
