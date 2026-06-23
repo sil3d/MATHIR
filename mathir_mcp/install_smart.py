@@ -659,13 +659,50 @@ def detect_platform() -> str:
     return {"windows": "windows", "linux": "linux", "darwin": "darwin"}.get(s, "linux")
 
 
-def _resolve_server_path() -> Path:
+def _copy_mathir_to_agent(agent_config_dir: Path) -> Path:
+    """Copy the entire mathir_mcp package into the agent's tools directory.
+    
+    This makes MATHIR standalone — no dependency on source folder location.
+    Returns the path to the copied package.
+    """
+    import shutil
+    
+    source_dir = Path(__file__).resolve().parent.parent  # mathir_mcp parent = MATHIR repo
+    mathir_source = source_dir / "mathir_mcp"
+    target_dir = agent_config_dir / "tools" / "mathir_mcp"
+    
+    # Skip if already installed and same version
+    if target_dir.exists():
+        version_file = target_dir / "VERSION"
+        source_version = mathir_source / "VERSION"
+        if version_file.exists() and source_version.exists():
+            if version_file.read_text().strip() == source_version.read_text().strip():
+                return target_dir
+    
+    # Copy entire package
+    if target_dir.exists():
+        shutil.rmtree(target_dir)
+    
+    shutil.copytree(mathir_source, target_dir, ignore=shutil.ignore_patterns(
+        '__pycache__', '*.pyc', '*.pyo', '.git', '*.egg-info', 'dev', 'tests'
+    ))
+    
+    # Write VERSION file
+    version_file = target_dir / "VERSION"
+    version_file.write_text("8.4.0")
+    
+    print(f"  {C.GREEN}Copied mathir_mcp to: {target_dir}{C.RESET}")
+    return target_dir
+
+
+def _resolve_server_path(agent_config_dir: Path = None) -> Path:
     """Resolve the server path at INSTALL TIME, not hardcoded.
 
     Priority:
       1. MATHIR_SERVER_PATH env var (user override)
-      2. mathir_lib/mathir_mcp_server.py relative to this script
-      3. mathir_mcp_server.py in PATH (pip-installed)
+      2. Copied package in agent's tools dir (standalone)
+      3. mathir_lib/mathir_mcp_server.py relative to this script
+      4. mathir_mcp_server.py in PATH (pip-installed)
     """
     # 1. Env var override (for non-standard installs)
     env_path = os.environ.get("MATHIR_SERVER_PATH")
@@ -675,32 +712,37 @@ def _resolve_server_path() -> Path:
             return p
         print(f"{C.YELLOW}  WARNING: MATHIR_SERVER_PATH={env_path} — file not found, falling back{C.RESET}")
 
-    # 2. Relative to this script (standard install)
+    # 2. Copied package in agent's tools dir (standalone install)
+    if agent_config_dir:
+        copied = agent_config_dir / "tools" / "mathir_mcp" / "mathir_lib" / "mathir_mcp_server.py"
+        if copied.exists():
+            return copied
+
+    # 3. Relative to this script (standard install)
     mathir_dir = Path(__file__).resolve().parent
     server_path = mathir_dir / "mathir_lib" / "mathir_mcp_server.py"
     if server_path.exists():
         return server_path
 
-    # 3. pip-installed module (python -m mathir_mcp.mathir_lib.mathir_mcp_server)
+    # 4. pip-installed module (python -m mathir_mcp.mathir_lib.mathir_mcp_server)
     # Return a sentinel — caller will use -m invocation
     return None
 
 
-def get_mathir_server_cmd() -> List[str]:
+def get_mathir_server_cmd(agent_config_dir: Path = None) -> List[str]:
     """Return the command to launch the MATHIR MCP server.
-
-    Uses absolute path resolved at install time (portable).
-    Falls back to 'python -m' if package is pip-installed.
+    
+    Uses copied standalone path if available, else falls back to source.
     """
-    server_path = _resolve_server_path()
+    server_path = _resolve_server_path(agent_config_dir)
     if server_path is not None:
         return ["python", str(server_path)]
     # Fallback: use -m (requires pip install -e .)
     return ["python", "-m", "mathir_mcp.mathir_lib.mathir_mcp_server"]
 
 
-def get_mathir_server_entry() -> Dict:
-    cmd = get_mathir_server_cmd()
+def get_mathir_server_entry(agent_config_dir: Path = None) -> Dict:
+    cmd = get_mathir_server_cmd(agent_config_dir)
     return {
         "type": "local",
         "command": cmd,
@@ -758,8 +800,18 @@ def inject_mcp_config(agent: Dict) -> Tuple[bool, str]:
     config_key = agent["config_key"]
     if not config_key:
         return False, "No config key defined"
+    
+    # Step 1: Copy mathir_mcp into agent's tools directory (standalone)
+    config_dir = Path(config_path).parent
+    try:
+        copied_dir = _copy_mathir_to_agent(config_dir)
+    except Exception as e:
+        return False, f"Failed to copy MATHIR: {e}"
+    
+    # Step 2: Get command pointing to copied standalone package
     config = read_config(config_path)
-    entry = get_mathir_server_entry()
+    entry = get_mathir_server_entry(config_dir)
+    
     # Handle different formats
     if config_key in ("mcpServers", "mcp"):
         if config_key not in config:
@@ -770,14 +822,12 @@ def inject_mcp_config(agent: Dict) -> Tuple[bool, str]:
             del config[config_key][k]
         config[config_key]["mathir"] = entry
     elif config_key == "mcp.servers":
-        # OpenClaw nested format
         if "mcp" not in config:
             config["mcp"] = {}
         if "servers" not in config["mcp"]:
             config["mcp"]["servers"] = {}
         config["mcp"]["servers"]["mathir"] = entry
     elif config_key == "context_servers":
-        # Zed format
         if config_key not in config:
             config[config_key] = {}
         config[config_key]["mathir"] = {
@@ -797,7 +847,6 @@ def inject_mcp_config(agent: Dict) -> Tuple[bool, str]:
     if agent.get("vscode_config"):
         vscode_key = agent["vscode_config"]["config_key"]
         project_file = agent["vscode_config"]["project_file"]
-        # Only create if we're in a real project (has .git, package.json, etc.)
         in_project = any((Path.cwd() / p).exists() for p in [".git", "package.json", "pyproject.toml", "Cargo.toml"])
         if in_project:
             vscode_path = Path.cwd() / project_file

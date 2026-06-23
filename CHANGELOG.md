@@ -4,6 +4,59 @@ All notable changes to MATHIR are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+> **v1–v7.6 are historical** — kept per project policy ("laisse les deprecated pour qu'ils comprennent que je reviens de loin"). Source code for these versions lives under [`_deprecated/`](_deprecated/). Each version below is summarized in 1–3 lines; see the git history or the `_deprecated/` folder for the full original entries.
+
+---
+
+## [8.4.1] — 2026-06-23 — DYNAMIC INJECTION + SYNC
+
+**Dev-loop release.** v8.4.1 ships two new developer tools (`mathir_inject.py`, `mathir_sync.py`), 5 target-specific injection templates, and fixes the install/import path story so the package is reproducible from a clean clone.
+
+### Dynamic Injection (NEW)
+
+- **`mathir_inject.py`** — Multi-target dynamic injection of the MATHIR block into any `.md` file in `agents/`, `commands/`, `skills/`, `skills-global/`, or `docs/`. Reads the right template from `<target_dir>/_MATHIR_INJECT.md` (falls back to root or `agents` template). Idempotent via content-equivalent detection (`_normalize()`). Flags: `--target {agents,commands,skills,skills-global,docs,all}`, `--apply`, `--check`, `--file PATH`, `--list`, `--explain`.
+- **`mathir_sync.py`** — Safe source-to-config sync from `<repo_root>/mathir_mcp/` into `~/.config/opencode/`. **SAFE BY DEFAULT** — only copies NEW files, never overwrites existing without `--update-existing`. Syncs `mathir_lib/*.py`, `brain/*.py`, `config/*.json`, `docs/*.md`, `GLOBAL_INSTRUCTIONS.md`, install/scripts, and all 5 `_MATHIR_INJECT.md` templates. Flags: `--dry-run`, `--only`, `--update-existing`, `--no-inject`, `--force`, `--explain`. Auto-runs `mathir_inject.py --apply` after a successful `--apply`.
+- **5 target templates** in `mathir_mcp/opencode/<target>/_MATHIR_INJECT.md` (one per target: `agents`=full, `commands`=short, `skills`=minimal, `skills-global`=minimal, `docs`=reference — 4 unique templates, `skills-global` shares the `skills` template). Editing the template propagates to all files of that target in one command.
+- **`--explain` mode** on both scripts — self-documenting, no external README needed.
+- Slash commands: `/mathir_inject [check|apply] [target] [name]` and `/mathir_sync [check|apply] [filter]`.
+
+### Bug Fixes
+
+| Severity | Issue | Fix |
+|---|---|---|
+| CRITICAL | Stale `.pth` file in `mathir_lib/mathir_mcp.egg-info/` broke `pip install -e .` reproducibility | Cleared egg-info, content re-pinned |
+| CRITICAL | Namespace shadow: importing `mathir_mcp.X` resolved to the package, not the module | Added `mathir_mcp/__init__.py` as package marker (exports `__version__` + `__all__`; submodules are reached via `mathir_mcp.mathir_lib.*`, `mathir_mcp.brain.*`, `mathir_mcp.mathir_dropin.*`) |
+| HIGH | `pyproject.toml` entry points pointed at flat paths | Rewrote as `mathir_mcp.mathir_lib.<tool>:main` (nested) |
+| HIGH | 9 self-referencing imports in `__main__.py` (`from mathir_mcp import X` → unbound) | Rewrote all to `from mathir_mcp.mathir_lib.X import Y` |
+| HIGH | MCP server config pointed at wrong path | Now: `bin/mathir_mcp_server.py` with `PYTHONPATH=bin` |
+| MEDIUM | Hardcoded repo path in `mathir_mcp_server.py:1190` (install-help message) | Replaced with `<repo_root>` placeholder + auto-detect |
+| MEDIUM | `get_embedder()` had no way to force ONNX | Added `MATHIR_USE_ONNX=1` env var support |
+| LOW | Stale cross-refs in `docs/AGENT.md` (11) and `docs/DASHBOARD_GUIDE.md` (12) | Updated to current paths |
+
+### Tests
+
+- **173/173 tests pass** (unchanged from v8.4.0)
+- Swarm verified: `@coder`, `@refactor`, `@security`, `@debugger`, `@make`, `@check` — all green
+- Database state: 2 active DBs, 100% embeddings, lifecycle active
+  - Mycerise project: 368 memories
+  - MATHIR root project: 137 memories
+
+### Raspberry Pi / Jetson
+
+- `raspberry_jetson/` bumped to v8.4.1 (all files synced)
+- Install flow: `install.ps1` now calls `mathir_inject.py --check` on completion
+
+### Files Changed
+
+- `mathir_mcp/__init__.py` (new) — package marker, exports `__version__`; submodules reached via `mathir_mcp.mathir_lib`, `mathir_mcp.brain`, `mathir_mcp.mathir_dropin`
+- `mathir_mcp/opencode/{agents,commands,skills,skills-global,docs}/_MATHIR_INJECT.md` (new, 5 templates)
+- `mathir_mcp/__main__.py` — 9 import paths fixed
+- `mathir_mcp/pyproject.toml` — entry points nested
+- `mathir_mcp/mathir_lib/mathir_mcp_server.py` — line 1190 placeholder (install-help message), `get_embedder()` ONNX env
+- `mathir_mcp/docs/AGENT.md` — 11 references updated
+- `mathir_mcp/docs/DASHBOARD_GUIDE.md` — 12 references updated
+- `raspberry_jetson/` — all files bumped to v8.4.1
+
 ---
 
 ## [8.4.0] — 2026-06-23 — 🧠 LIVING MEMORY
@@ -334,201 +387,52 @@ python ~/.config/opencode/mcp/mathir_lib/mathir_client.py push "" --json 2>&1 | 
 
 ## [7.7.1] — 2026-06-06
 
-### Memory System
+**Major UI + memory overhaul.** Full changelog in `_deprecated/CHANGELOG_v7.7.1.md`.
 
-- **SimpleMemory** — New FTS5-only memory class (`mathir_dropin/simple.py`), zero external dependencies
-- **get_last(n)** — Always include last N memories for context
-- **search_context()** — One-call method for LLM context injection (recall + last, deduplicated)
-- **DB preservation** — `setup_memory()` no longer deletes DB on restart
-- **Thread safety** — Concurrent access via WAL mode + per-operation connections
-- **31/31 audit checks** — Architecture, store, recall, edge cases, concurrency
+- **Memory**: `SimpleMemory` (FTS5-only, zero deps) + `search_context()` (recall+last, dedup) + 31/31 audit checks.
+- **UI**: SVG icons (no emoji), localStorage chat history, OpenCV backend camera, 6 views, dark theme, `/playground.html` multi-session chat with model switching / image drag / hold-to-talk.
+- **API fixes**: 6 broken routes repaired; new `/api/system/*`, `/api/models/*`, `/api/memory/delete`, `/api/accuracy/test`.
+- **System prompt**: ~1100 → ~126 tokens; rigid template removed.
+- **Other**: `localhost`→`127.0.0.1`, auto-load LFM2.5-VL, full-conversation storage with skip-trivial filter, file markers `[IMAGE/AUDIO ATTACHED]`, hardcoded values eliminated (lang, routes, paths), workspace cleanup, LSTM refs removed, LaTeX paper + AGENT.md + benchmark methodology added.
 
-### UI Overhaul
-
-- **SVG icons** — Replaced all emoji with clean SVG icons
-- **Chat history** — Persisted in localStorage (survives page reload)
-- **Backend camera** — OpenCV via API (not browser getUserMedia)
-- **6 views** — Chat, Camera, Models, Memory, Accuracy, Settings
-- **Dark theme** — 8px grid, responsive layout
-
-### API Fixes
-
-- Fixed 6 broken frontend→backend routes (were returning 404)
-- `/api/system/context` + `/api/system/info`
-- `/api/models/switch`, `/api/models/toggle`, `/api/models/add-from-hf`
-- `/api/accuracy/test` (was `/api/accuracy/run`)
-- Audio via `/api/chat` with audio field
-
-### System Prompt
-
-- Reduced from ~1100 tokens to ~126 tokens
-- Removed rigid 4-section template forcing
-- Model responds naturally instead of following template
-
-### Other
-
-- Fixed `localhost` hardcoded → `127.0.0.1`
-- Model auto-loads at startup (LFM2.5-VL-1.6B by default)
-- Updated README.md for GitHub presentation
-- Created AGENT.md (agent guide)
-- LaTeX research paper for scientific review (`docs/MATHIR_Research_Paper.tex`)
-- Benchmark methodology documented (dataset, queries, metrics, hardware, sources)
-- Added `simple_memory_demo.py` example (zero deps)
-- Cleaned workspace (old files archived, temp dirs removed)
-- Removed LSTM references from docs (kept as historical citations only)
-- Updated docs/28_HOW_TRAINING_WORKS.md (modern training workflow)
-- Updated docs/02_MASTER_REFERENCE.md, docs/03_MASTER_QA_GUIDE.md
-- Excluded large files from git (GGUF, DLL, binaries)
-
-### Memory Management
-
-- **`/api/memory/delete`** — Delete by ID or clear all memories
-- **Settings view** — Create, view, delete memories in MATHIR Memory section
-- **Playground** — Memory panel with delete buttons
-- **Full conversation storage** — Stores complete Q&A (not truncated to 200 chars)
-- **Skip trivial messages** — "hi", "ok", "thanks" not stored
-- **File markers** — `[IMAGE ATTACHED]` / `[AUDIO ATTACHED]` in memory
-
-### Chat Playground
-
-- **`playground.html`** — New standalone chat UI at `/playground.html`
-- **Multi-session** — Create new chats, switch between, delete
-- **Model load modal** — See all models, capabilities, switch mid-chat
-- **Image drag & drop** — Attach images directly
-- **Camera integration** — Start/stop backend camera
-- **Hold-to-talk** — Audio recording
-- **Export chat** — Save conversation as .txt
-
-### MATHIR Status
-
-- **Status indicator** — Green/red dot showing MATHIR connection status
-- **Memory count** — Shows "MATHIR: connected (N memories)"
-- **Auto-refresh** — Status checked every 15 seconds
-
-### No Hardcoded Values
-
-- **Language** — `lang` HTML attribute set from `ui_config.json` (not hardcoded `en`)
-- **All routes** — Frontend calls match backend endpoints
-- **All paths** — Relative to config files
-
----
+---</newString>
 
 ## [7.7.0] — 2026-06-06
 
-### Vision & Audio Testing UI
-
-- Complete web UI in `vision_testing/` for testing vision/audio models
-- Flask backend with 17 API routes
-- Web UI with Chat, Camera, Models, Memory, Settings views
-- CLI tools: `model_manager.py`, `setup_binaries.py`, `download_models.py`
-
-### Models
-
-- LFM2.5-VL-1.6B-GGUF (vision-language) — 1.2 GB Q4_0
-- LFM2.5-Audio-1.5B-GGUF (audio understanding) — 1.0 GB Q4_0
-- Add ANY HF GGUF model via UI or CLI
-
-### Configuration
-
-- `config.json` — All model paths (no hardcoded)
-- `ui_config.json` — UI settings (port, camera, audio)
-- `system_context.json` — System prompt for models
-
----
+**Vision & audio testing UI** — Flask backend + 17 API routes, Chat/Camera/Models/Memory/Settings views; CLI tools (`model_manager.py`, `setup_binaries.py`, `download_models.py`); LFM2.5-VL-1.6B (1.2 GB) + LFM2.5-Audio-1.5B (1.0 GB); add any HF GGUF via UI/CLI; no hardcoded paths (`config.json`, `ui_config.json`, `system_context.json`).
 
 ## [7.6.0] — 2026-06-06
 
-### Universal Bridge (UNIBRI)
-
-- Cross-provider recall (OpenAI ↔ Ollama ↔ Cohere)
-- Cross-lingual recall (EN ↔ FR ↔ DE ↔ ES ↔ ZH)
-- Latin name handling (taxonomic, diacritics, Roman numerals, abbreviations)
-- 137/137 tests pass
-- 11 mathematical theorems (Broder, Johnson-Lindenstrauss, Wedin, Cormack)
-
----
+**Universal Bridge (UNIBRI)** — cross-provider recall (OpenAI ↔ Ollama ↔ Cohere), cross-lingual (EN/FR/DE/ES/ZH), Latin name handling (taxonomic, diacritics, Roman numerals). 137/137 tests, 11 theorems (Broder, J-L, Wedin, Cormack).
 
 ## [7.5.0] — 2026-06-06
 
-### Real BEIR Benchmarks
-
-- Dense-only FAISS = SOTA on SciFact (0.7441 nDCG@10)
-- ArguAna complete (0.6613 nDCG@10)
-- LIRS eviction: 100% recovery after stress
-- KL router: 100% tier-routing accuracy
-- Immunological: 100% anomaly detection
-
----
+**Real BEIR benchmarks** — FAISS dense-only = SOTA on SciFact (0.7441 nDCG@10); ArguAna 0.6613; LIRS 100% recovery; KL router 100% tier-routing accuracy; immunological 100% anomaly detection.
 
 ## [7.2.0] — 2026-06-06
 
-### Latency Optimization
-
-- LRU result cache (10K entries, 80-85% hit rate)
-- 3ms warm path latency (vs 500ms cold)
-- Adaptive re-ranking
-- ONNX cross-encoder support
-
----
+**Latency optimization** — LRU result cache (10K entries, 80-85% hit), 3ms warm path (vs 500ms cold), adaptive re-ranking, ONNX cross-encoder.
 
 ## [7.1.0] — 2026-06-06
 
-### Retrieval Research
-
-- 4 retrieval approaches (A: raw, B: BM25, C: hybrid RRF, D: hybrid+CE)
-- 130 new tests, 0 regressions
-- Key finding: dense-only = SOTA for scientific retrieval
-
----
+**Retrieval research** — 4 approaches (raw / BM25 / hybrid RRF / hybrid+CE); 130 new tests, 0 regressions; key finding: dense-only = SOTA for scientific retrieval.
 
 ## [7.0.0] — 2026-06-06
 
-### Doctoral-Grade Memory
-
-- 8 new algorithms (Ebbinghaus, SparseCoding, Variational, CrossAttention, Hyperbolic, InfoNCE, NeuralODE, Mahalanobis)
-- 6 novel theorems with full proofs
-- 9.3× compression (1,088,000 → 116,976 bytes)
-- 49/49 unit tests pass
-- 100% backward compatible with V6
-
----
+**Doctoral-grade memory** — 8 algorithms (Ebbinghaus, SparseCoding, Variational, CrossAttention, Hyperbolic, InfoNCE, NeuralODE, Mahalanobis), 6 theorems with proofs, 9.3× compression (1,088,000 → 116,976 bytes), 49/49 tests, 100% V6-compatible.
 
 ## [6.0.0] — 2026-06-06
 
-### MATHIRPlugin (LLM-Agnostic API)
-
-- `MATHIRPlugin` class — works with any LLM, any embedding dimension
-- 4-tier memory (Working, Episodic, Semantic, Immunological)
-- KL-constrained router
-- TurboQuant compression
-- 12/12 tests pass
-
----
+**MATHIRPlugin (LLM-agnostic API)** — `MATHIRPlugin` for any LLM/embedding dim; 4-tier memory + KL router + TurboQuant. 12/12 tests.
 
 ## [5.0.0] — 2026-01
 
-### KL Router + Immunological Memory
-
-- KL-divergence constrained router (prevents collapse)
-- Immunological memory (anomaly detection)
-- 21 bug fixes (V5.1)
-
----
+**KL router + immunological memory** — KL-divergence constrained router; immunological anomaly detection. 21 bug fixes in V5.1.
 
 ## [4.0.0] — 2026-01
 
-### Manifold-Constrained Hyper-Connections
-
-- mHC integration (DeepSeek paper)
-- Sinkhorn-Knopp projection
-- Lyapunov-based adaptive omega
-
----
+**Manifold-Constrained Hyper-Connections** — mHC integration (DeepSeek paper), Sinkhorn-Knopp projection, Lyapunov-based adaptive omega.
 
 ## [1.0.0–3.0.0] — 2026-01
 
-### Core Architecture
-
-- CNN + MLP vision encoder
-- 3-tier memory (Working, Episodic, Semantic)
-- Basic RL training loop
+**Core architecture** — CNN + MLP vision encoder, 3-tier memory (Working/Episodic/Semantic), basic RL training loop. Pre-history; full source in `_deprecated/legacy_v1_v3/`.

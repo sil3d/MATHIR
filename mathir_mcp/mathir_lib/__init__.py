@@ -18,7 +18,7 @@ Or, when importing from outside the mathir_mcp/ directory (e.g. via
 from pathlib import Path
 import os
 
-__version__ = "8.4.0"
+__version__ = "8.4.1"
 
 # Tier taxonomy - SINGLE SOURCE OF TRUTH. Matches the enum in
 # mathir_mcp_server.py line ~260 and the JSON schema in TOOLS.

@@ -1,6 +1,6 @@
 # MATHIR Stress Test
 
-Outil de validation de l'architecture MATHIR v8.3+. Teste le vrai système sous charge avec des données synthétiques réalistes.
+Outil de validation de l'architecture MATHIR v8.4.1+. Teste le vrai système sous charge avec des données synthétiques réalistes.
 
 ## Lancement
 
