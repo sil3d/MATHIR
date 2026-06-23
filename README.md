@@ -24,9 +24,43 @@
 
 <br/>
 
-[**🆕 What's new in 8.4**](#-whats-new-in-v840--living-memory) · [**🔌 MCP Plug & Play**](#-mcp-plug--play--2-lines) · [**🔧 Dynamic Injection & Sync (NEW)**](#-dynamic-injection--sync-v841) · [**📖 The Story**](#-the-story-that-hurts) · [**⚡ Quick Start**](#-quick-start-30-seconds) · [**🏗️ Architecture**](#-architecture) · [**🆚 vs Alternatives**](#-vs-alternatives-honest-2026-comparison)
+[**🔥 5 Problems Solved**](#-5-real-world-problems-mathir-solves) · [**🆕 What's new in 8.4**](#-whats-new-in-v840--living-memory) · [**🔌 MCP Plug & Play**](#-mcp-plug--play--2-lines) · [**🔧 Dynamic Injection & Sync (NEW)**](#-dynamic-injection--sync-v841) · [**📖 The Story**](#-the-story-that-hurts) · [**⚡ Quick Start**](#-quick-start-30-seconds) · [**🏗️ Architecture**](#-architecture) · [**🆚 vs Alternatives**](#-vs-alternatives-honest-2026-comparison)
 
 </div>
+
+---
+
+## 🔥 5 real-world problems MATHIR solves
+
+### 1. Medical AI — "We've never seen this disease before"
+
+A diagnostic model trained on 10,000 cases works great — until a rare disease appears that wasn't in the training data. Today's solution? Retrain the entire model. Expensive. Slow. Sometimes impossible with limited data.
+
+**With MATHIR:** The rare case is stored as an episodic memory. Next time a similar patient walks in, MATHIR recalls it instantly. No retraining. The model *learns* from experience, like a doctor does.
+
+### 2. Chat sessions — "Sorry, who are you?"
+
+You spend 2 hours explaining your project to ChatGPT. Next day, new chat. You explain everything again. After 7 sessions, you've repeated yourself 7 times. Your context lives in 7 separate boxes that never talk to each other.
+
+**With MATHIR:** Your context persists across sessions, across tools, across time. Switch from Claude to Gemini to local Llama — MATHIR remembers. You never explain the same thing twice.
+
+### 3. Autonomous driving — "That pattern looks familiar"
+
+A self-driving car encounters a new road condition: construction cones arranged in a pattern it's never seen. Without memory, it treats it as unknown. With memory, it recognizes: "Last time this happened, there was a lane merge ahead."
+
+**With MATHIR:** Patterns are stored, linked, and recalled in real-time. The car builds experience over time — not just from training data, but from *its own* driving history.
+
+### 4. Fine-tuning — "My data is a mess"
+
+You want to fine-tune a model, but your data is scattered across Notion, Slack, email, and 15 different documents. Nothing is classified. Nothing is in the right format. You spend weeks just *preparing* data before any training starts.
+
+**With MATHIR:** You feed raw knowledge directly. MATHIR auto-classifies, deduplicates, links related concepts, and organizes everything into 5 cognitive tiers. Your data is ready for fine-tuning *as you add it* — not after weeks of cleanup.
+
+### 5. Knowledge drift — "Is this still accurate?"
+
+That API endpoint you documented 6 months ago? It changed. But your old notes still say the old URL. Your team follows outdated instructions. Nobody knows which version is current.
+
+**With MATHIR:** Memories decay when unused. When an API changes, the old memory fades and the new one takes over. MATHIR self-maintains its knowledge — no human cleanup needed.
 
 ---
 
