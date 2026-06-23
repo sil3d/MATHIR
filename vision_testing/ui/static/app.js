@@ -1177,14 +1177,276 @@ function setupSettingsView() {
     if (e.key === 'Enter') createMemoryFromSettings();
   });
   $('memory-refresh-settings')?.addEventListener('click', loadSettingsMemory);
-  
-  // Load memory on settings view switch
+  $('memory-promote-all-btn')?.addEventListener('click', promoteAllFromSettings);
+  $('memory-decay-btn')?.addEventListener('click', decayFromSettings);
+  $('memory-clear-btn')?.addEventListener('click', clearAllFromSettings);
+
+  // API section
+  $('toggle-key-visibility')?.addEventListener('click', () => {
+    const inp = $('setting-openrouter-key');
+    if (!inp) return;
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+  });
+  $('test-openrouter-btn')?.addEventListener('click', testOpenRouterConnection);
+  $('test-daemon-btn')?.addEventListener('click', testMATHIRDaemon);
+  $('save-api-btn')?.addEventListener('click', saveAPISettings);
+
+  // Per-section save buttons
+  $('save-camera-btn')?.addEventListener('click', () => saveUISection('camera'));
+  $('save-audio-btn')?.addEventListener('click', () => saveUISection('audio'));
+  $('save-ui-btn')?.addEventListener('click', () => saveUISection('ui'));
+  $('test-camera-btn')?.addEventListener('click', testCamera);
+
+  // Danger zone
+  $('reset-settings-btn')?.addEventListener('click', resetAllSettings);
+
+  // Load settings on view switch
   const observer = new MutationObserver(() => {
     if ($('view-settings')?.classList.contains('active')) {
+      loadAllSettings();
       loadSettingsMemory();
     }
   });
   observer.observe($('view-settings') || document.body, { attributes: true, subtree: false });
+}
+
+// ---------- API settings ----------
+async function loadAPISettings() {
+  // Try to load from /api/settings (which returns ui_config + camera + audio etc.)
+  try {
+    const cfg = await api('/api/settings');
+    if (cfg.openrouter) {
+      $('setting-openrouter-key').value = cfg.openrouter.api_key || '';
+      $('setting-openrouter-base').value = cfg.openrouter.api_base || 'https://openrouter.ai/api/v1';
+    }
+    if (cfg.mathir_daemon) {
+      $('setting-mathir-host').value = cfg.mathir_daemon.host || '127.0.0.1';
+      $('setting-mathir-port').value = cfg.mathir_daemon.port || 7338;
+    }
+    // Show key mask
+    const key = $('setting-openrouter-key').value;
+    if (key) {
+      $('or-key-mask').textContent = `set (${key.length} chars, ends with …${key.slice(-4)})`;
+      $('api-status-badge').textContent = 'key set';
+      $('api-status-badge').className = 'badge badge-success';
+    } else {
+      $('or-key-mask').textContent = 'not set';
+      $('api-status-badge').textContent = 'no key';
+      $('api-status-badge').className = 'badge badge-warning';
+    }
+  } catch (e) {
+    console.error('loadAPISettings:', e);
+  }
+}
+
+async function saveAPISettings() {
+  const payload = {
+    openrouter: {
+      api_key: $('setting-openrouter-key').value.trim(),
+      api_base: $('setting-openrouter-base').value.trim() || 'https://openrouter.ai/api/v1',
+    },
+    mathir_daemon: {
+      host: $('setting-mathir-host').value.trim() || '127.0.0.1',
+      port: parseInt($('setting-mathir-port').value, 10) || 7338,
+    },
+  };
+  try {
+    const result = await api('/api/settings', { method: 'POST', body: payload });
+    if (result.error) throw new Error(result.error);
+    toast('API settings saved. Restart daemon if you changed MATHIR host/port.', 'success');
+    loadAPISettings();
+  } catch (e) {
+    toast('Save failed: ' + e.message, 'error');
+  }
+}
+
+async function testOpenRouterConnection() {
+  const result = $('or-test-result');
+  result.className = 'setting-status pending';
+  result.textContent = 'Testing…';
+  try {
+    // Save first so the running daemon picks up the new key
+    await saveAPISettings();
+    const r = await api('/api/openrouter/test', { method: 'POST' });
+    if (r.error) throw new Error(r.error);
+    result.className = 'setting-status success';
+    result.innerHTML = '<span class="status-dot online"></span> Connected · ' + (r.model || 'OK');
+    toast('OpenRouter reachable', 'success');
+  } catch (e) {
+    result.className = 'setting-status error';
+    result.innerHTML = '<span class="status-dot offline"></span> ' + e.message;
+    toast('OpenRouter test failed: ' + e.message, 'error');
+  }
+}
+
+async function testMATHIRDaemon() {
+  const result = $('daemon-test-result');
+  result.className = 'setting-status pending';
+  result.textContent = 'Testing…';
+  try {
+    await saveAPISettings();
+    const r = await api('/api/daemon/status');
+    if (r.available) {
+      result.className = 'setting-status success';
+      result.innerHTML = `<span class="status-dot online"></span> Reachable on ${r.host}:${r.port}`;
+      toast('MATHIR daemon reachable', 'success');
+    } else {
+      result.className = 'setting-status error';
+      result.innerHTML = `<span class="status-dot offline"></span> Not reachable. Start with: <code>python -m mathir_mcp</code>`;
+    }
+  } catch (e) {
+    result.className = 'setting-status error';
+    result.textContent = 'Error: ' + e.message;
+  }
+}
+
+// ---------- Models section ----------
+async function loadModelsSection() {
+  const sel = $('setting-default-model');
+  const list = $('setting-active-models');
+  const badge = $('models-count-badge');
+  if (!sel || !list) return;
+  try {
+    const data = await api('/api/models');
+    const models = data.models || {};
+    const enabledKeys = Object.entries(models).filter(([_, m]) => m.enabled);
+    sel.innerHTML = enabledKeys.map(([k, m]) => `<option value="${k}">${m.display_name || k}</option>`).join('');
+    if (badge) badge.textContent = `${enabledKeys.length} / ${Object.keys(models).length} active`;
+    list.innerHTML = enabledKeys.length === 0
+      ? '<p class="muted">No active models. Add some in the Models view.</p>'
+      : enabledKeys.map(([k, m]) => `
+          <div class="active-model-item">
+            <span class="status-dot ${m.supports_vision ? 'online' : 'offline'}"></span>
+            <div>
+              <div><strong>${m.display_name || k}</strong></div>
+              <div class="model-id">${k}</div>
+            </div>
+            <div class="muted" style="font-size:10.5px;margin-left:auto">${m.supports_vision ? 'vision' : 'text-only'}</div>
+          </div>`).join('');
+  } catch (e) {
+    list.innerHTML = '<p class="muted">Failed to load models.</p>';
+  }
+}
+
+// ---------- Per-section save ----------
+async function saveUISection(section) {
+  const payload = {};
+  if (section === 'camera') {
+    payload.camera = {
+      device_id: parseInt($('setting-camera-device').value, 10) || 0,
+      width: parseInt($('setting-camera-res').value.split('x')[0], 10) || 1280,
+      height: parseInt($('setting-camera-res').value.split('x')[1], 10) || 720,
+      fps: parseInt($('setting-camera-fps').value, 10) || 30,
+    };
+  } else if (section === 'audio') {
+    payload.audio = {
+      push_to_talk_key: $('setting-ptt-key').value || 'Space',
+      max_record_seconds: parseInt($('setting-max-record').value, 10) || 30,
+    };
+  } else if (section === 'ui') {
+    payload.ui = {
+      theme: $('setting-theme').value,
+      language: $('setting-language').value,
+    };
+  }
+  try {
+    const r = await api('/api/settings', { method: 'POST', body: payload });
+    if (r.error) throw new Error(r.error);
+    toast(section.charAt(0).toUpperCase() + section.slice(1) + ' settings saved', 'success');
+  } catch (e) {
+    toast('Save failed: ' + e.message, 'error');
+  }
+}
+
+async function loadAllSettings() {
+  await Promise.all([
+    loadAPISettings(),
+    loadModelsSection(),
+    loadSettingsMemory(),
+  ]);
+  // Camera/audio/ui fields from /api/settings
+  try {
+    const cfg = await api('/api/settings');
+    if (cfg.camera) {
+      $('setting-camera-device').value = cfg.camera.device_id || 0;
+      $('setting-camera-res').value = `${cfg.camera.width || 1280}x${cfg.camera.height || 720}`;
+      $('setting-camera-fps').value = cfg.camera.fps || 30;
+    }
+    if (cfg.audio) {
+      $('setting-ptt-key').value = cfg.audio.push_to_talk_key || 'Space';
+      $('setting-max-record').value = cfg.audio.max_record_seconds || 30;
+    }
+    if (cfg.ui) {
+      $('setting-theme').value = cfg.ui.theme || 'dark';
+      $('setting-language').value = cfg.ui.language || 'en';
+    }
+  } catch (e) {
+    console.warn('loadAllSettings extras:', e);
+  }
+}
+
+async function testCamera() {
+  const r = $('camera-test-result');
+  r.className = 'setting-status pending';
+  r.textContent = 'Testing…';
+  try {
+    const result = await api('/api/camera/start', { method: 'POST' });
+    if (result.error) throw new Error(result.error);
+    await api('/api/camera/stop', { method: 'POST' });
+    r.className = 'setting-status success';
+    r.innerHTML = '<span class="status-dot online"></span> Camera OK';
+  } catch (e) {
+    r.className = 'setting-status error';
+    r.innerHTML = '<span class="status-dot offline"></span> ' + e.message;
+  }
+}
+
+// ---------- Memory actions ----------
+async function promoteAllFromSettings() {
+  try {
+    const r = await api('/api/daemon/memory/promote', { method: 'POST', body: { force: false } });
+    if (r.error) throw new Error(r.error);
+    toast('Promotion complete: ' + JSON.stringify(r), 'success');
+    loadSettingsMemory();
+  } catch (e) {
+    toast('Promote failed: ' + e.message, 'error');
+  }
+}
+
+async function decayFromSettings() {
+  try {
+    const r = await api('/api/daemon/memory/decay', { method: 'POST', body: { threshold_days: 30 } });
+    if (r.error) throw new Error(r.error);
+    toast('Decay complete: ' + JSON.stringify(r), 'success');
+    loadSettingsMemory();
+  } catch (e) {
+    toast('Decay failed: ' + e.message, 'error');
+  }
+}
+
+async function clearAllFromSettings() {
+  if (!confirm('Clear ALL local memories? This cannot be undone.')) return;
+  try {
+    const r = await api('/api/memory/delete', { method: 'POST', body: { clear_all: true } });
+    if (r.error) throw new Error(r.error);
+    toast('All memories cleared', 'success');
+    loadSettingsMemory();
+  } catch (e) {
+    toast('Clear failed: ' + e.message, 'error');
+  }
+}
+
+// ---------- Danger zone ----------
+async function resetAllSettings() {
+  if (!confirm('Reset ALL settings (UI, camera, audio, theme) to defaults? Mathir memory will NOT be touched.')) return;
+  try {
+    const r = await api('/api/settings', { method: 'POST', body: { reset: true } });
+    if (r.error) throw new Error(r.error);
+    toast('Settings reset to defaults', 'success');
+    loadAllSettings();
+  } catch (e) {
+    toast('Reset failed: ' + e.message, 'error');
+  }
 }
 
 async function createMemoryFromSettings() {

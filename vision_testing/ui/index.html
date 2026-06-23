@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MATHIR Vision Testing</title>
+<title>MATHIR Playground</title>
 <link rel="stylesheet" href="/static/style.css">
 <script>
   // Set language from config (no hardcoded lang)
@@ -424,42 +424,192 @@
     <section class="view" id="view-settings">
       <header class="view-header">
         <h1>Settings</h1>
+        <p class="view-subtitle">Configure MATHIR Playground — API keys, models, devices, and MATHIR daemon</p>
       </header>
       <div class="settings-container">
-        <div class="setting-group">
-          <h2>Camera</h2>
-          <label>Device ID
+
+        <!-- ===== API & Accounts ===== -->
+        <div class="setting-group" id="settings-api">
+          <div class="setting-group-header">
+            <h2>API &amp; Accounts</h2>
+            <span class="badge badge-info" id="api-status-badge">checking…</span>
+          </div>
+          <p class="setting-group-desc">Configure connections to OpenRouter (cloud LLMs) and MATHIR daemon (local memory server).</p>
+
+          <!-- OpenRouter API Key -->
+          <div class="setting-row">
+            <label class="setting-label" for="setting-openrouter-key">OpenRouter API key</label>
+            <div class="setting-input-wrap">
+              <input id="setting-openrouter-key" type="password" placeholder="sk-or-v1-… (or set OPENROUTER_API_KEY env)" autocomplete="off">
+              <button type="button" id="toggle-key-visibility" class="btn-icon" title="Show/hide">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+            <div class="setting-hint">
+              <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">Get a key</a>
+              · can also be set via <code>OPENROUTER_API_KEY</code> env var
+              · <span id="or-key-mask"></span>
+            </div>
+            <div class="setting-actions">
+              <button type="button" id="test-openrouter-btn" class="btn">Test connection</button>
+              <span id="or-test-result" class="setting-status"></span>
+            </div>
+          </div>
+
+          <!-- OpenRouter API Base -->
+          <div class="setting-row">
+            <label class="setting-label" for="setting-openrouter-base">OpenRouter API base</label>
+            <input id="setting-openrouter-base" type="url" placeholder="https://openrouter.ai/api/v1">
+            <div class="setting-hint">Default: <code>https://openrouter.ai/api/v1</code></div>
+          </div>
+
+          <!-- MATHIR Daemon -->
+          <div class="setting-row">
+            <label class="setting-label">MATHIR daemon</label>
+            <div class="setting-input-pair">
+              <input id="setting-mathir-host" type="text" placeholder="127.0.0.1">
+              <input id="setting-mathir-port" type="number" min="1" max="65535" placeholder="7338">
+            </div>
+            <div class="setting-hint">
+              <span id="mathir-status-row">
+                <span id="mathir-dot-row" class="status-dot"></span>
+                <span id="mathir-label-row">Checking…</span>
+              </span>
+              · Start daemon with: <code>python -m mathir_mcp</code>
+            </div>
+            <div class="setting-actions">
+              <button type="button" id="test-daemon-btn" class="btn">Test daemon</button>
+              <span id="daemon-test-result" class="setting-status"></span>
+            </div>
+          </div>
+
+          <div class="setting-actions setting-group-actions">
+            <button type="button" id="save-api-btn" class="btn-primary">Save API settings</button>
+          </div>
+        </div>
+
+        <!-- ===== Models ===== -->
+        <div class="setting-group" id="settings-models">
+          <div class="setting-group-header">
+            <h2>Models</h2>
+            <span class="badge" id="models-count-badge">— models</span>
+          </div>
+          <p class="setting-group-desc">Configure which OpenRouter models are available in the Chat and Camera views.</p>
+
+          <div class="setting-row">
+            <label class="setting-label" for="setting-default-model">Default model</label>
+            <select id="setting-default-model"></select>
+            <div class="setting-hint">Selected automatically when the app starts.</div>
+          </div>
+
+          <div class="setting-row">
+            <label class="setting-label">Active models</label>
+            <div id="setting-active-models" class="active-models-list">
+              <p class="muted">Loading…</p>
+            </div>
+            <div class="setting-hint">Add new models in the <strong>Models</strong> view.</div>
+          </div>
+        </div>
+
+        <!-- ===== Camera ===== -->
+        <div class="setting-group" id="settings-camera">
+          <div class="setting-group-header"><h2>Camera</h2></div>
+          <div class="setting-row">
+            <label class="setting-label" for="setting-camera-device">Device ID</label>
             <input id="setting-camera-device" type="number" min="0" max="10" value="0">
-          </label>
-          <label>Resolution
+            <div class="setting-hint">0 = default webcam. Higher numbers = additional USB cameras.</div>
+          </div>
+          <div class="setting-row">
+            <label class="setting-label" for="setting-camera-res">Resolution</label>
             <select id="setting-camera-res">
-              <option value="640x480">640x480</option>
-              <option value="1280x720" selected>1280x720</option>
-              <option value="1920x1080">1920x1080</option>
+              <option value="640x480">640 × 480 (VGA)</option>
+              <option value="1280x720" selected>1280 × 720 (HD)</option>
+              <option value="1920x1080">1920 × 1080 (FHD)</option>
             </select>
-          </label>
-          <label>FPS
+          </div>
+          <div class="setting-row">
+            <label class="setting-label" for="setting-camera-fps">FPS</label>
             <input id="setting-camera-fps" type="number" min="1" max="60" value="30">
-          </label>
+          </div>
+          <div class="setting-actions setting-group-actions">
+            <button type="button" id="save-camera-btn" class="btn-primary">Save camera settings</button>
+            <button type="button" id="test-camera-btn" class="btn">Test camera</button>
+            <span id="camera-test-result" class="setting-status"></span>
+          </div>
         </div>
-        <div class="setting-group">
-          <h2>Audio</h2>
-          <label>Push-to-talk key
+
+        <!-- ===== Audio ===== -->
+        <div class="setting-group" id="settings-audio">
+          <div class="setting-group-header"><h2>Audio</h2></div>
+          <div class="setting-row">
+            <label class="setting-label" for="setting-ptt-key">Push-to-talk key</label>
             <input id="setting-ptt-key" type="text" value="Space" readonly>
-          </label>
-          <label>Max record seconds
+            <div class="setting-hint">Fixed at <kbd>Space</kbd> for now.</div>
+          </div>
+          <div class="setting-row">
+            <label class="setting-label" for="setting-max-record">Max record seconds</label>
             <input id="setting-max-record" type="number" min="5" max="120" value="30">
-          </label>
+          </div>
+          <div class="setting-actions setting-group-actions">
+            <button type="button" id="save-audio-btn" class="btn-primary">Save audio settings</button>
+          </div>
         </div>
-        <div class="setting-group">
-          <h2>UI Theme</h2>
-          <label>Theme
+
+        <!-- ===== MATHIR Memory ===== -->
+        <div class="setting-group" id="settings-memory">
+          <div class="setting-group-header">
+            <h2>MATHIR Memory</h2>
+            <span class="badge badge-info" id="memory-tier-badge">—</span>
+          </div>
+          <p class="setting-group-desc">Persistent memory across sessions. Chat turns are stored automatically; you can also promote or decay manually.</p>
+
+          <div class="setting-row">
+            <label class="setting-label" for="memory-new-text">Quick add</label>
+            <div class="setting-input-pair">
+              <input id="memory-new-text" type="text" placeholder="Type something to remember...">
+              <button type="button" id="memory-create-btn" class="btn-primary">Save</button>
+            </div>
+          </div>
+
+          <div class="setting-row">
+            <label class="setting-label">Recent memories</label>
+            <div id="memory-list-settings" class="memory-list">
+              <p class="muted">Loading…</p>
+            </div>
+          </div>
+
+          <div class="setting-actions setting-group-actions">
+            <button type="button" id="memory-refresh-settings" class="btn">Refresh</button>
+            <button type="button" id="memory-promote-all-btn" class="btn">Promote all eligible</button>
+            <button type="button" id="memory-decay-btn" class="btn">Run decay</button>
+            <button type="button" id="memory-clear-btn" class="btn btn-danger">Clear all</button>
+          </div>
+        </div>
+
+        <!-- ===== UI ===== -->
+        <div class="setting-group" id="settings-ui">
+          <div class="setting-group-header"><h2>Appearance</h2></div>
+          <div class="setting-row">
+            <label class="setting-label" for="setting-theme">Theme</label>
             <select id="setting-theme">
               <option value="dark" selected>Dark</option>
               <option value="light">Light</option>
+              <option value="auto">Auto (match OS)</option>
             </select>
-          </label>
+          </div>
+          <div class="setting-row">
+            <label class="setting-label" for="setting-language">Language</label>
+            <select id="setting-language">
+              <option value="en" selected>English</option>
+              <option value="fr">Français</option>
+            </select>
+          </div>
+          <div class="setting-actions setting-group-actions">
+            <button type="button" id="save-ui-btn" class="btn-primary">Save appearance</button>
+          </div>
         </div>
+
+        <!-- ===== Keyboard Shortcuts ===== -->
         <div class="setting-group">
           <h2>Keyboard Shortcuts</h2>
           <div class="shortcut-list">
@@ -471,40 +621,24 @@
             <div><kbd>Esc</kbd> <span class="muted">Close modal / clear focus</span></div>
           </div>
         </div>
+
+        <!-- ===== System Info ===== -->
         <div class="setting-group">
           <h2>System Info</h2>
           <div id="system-info" class="system-info">
-            <p class="muted">Loading...</p>
+            <p class="muted">Loading…</p>
           </div>
         </div>
 
-        <div class="setting-group">
-          <h2>MATHIR Memory</h2>
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-            <div id="mathir-status-settings" style="display:flex;align-items:center;gap:6px;font-size:12px">
-              <span id="mathir-dot-settings" style="width:8px;height:8px;border-radius:50%;background:var(--amber)"></span>
-              <span id="mathir-label-settings">Checking...</span>
-            </div>
-            <button id="memory-refresh-settings" class="btn" style="margin-left:auto;font-size:11px;padding:4px 10px">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10"/></svg>
-              Refresh
-            </button>
-          </div>
-
-          <!-- Create new memory -->
-          <div style="margin-bottom:12px">
-            <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Add new memory</label>
-            <div style="display:flex;gap:6px">
-              <input id="memory-new-text" type="text" placeholder="Type something to remember..." style="flex:1;padding:8px 10px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-primary);font-size:13px">
-              <button id="memory-create-btn" class="btn-primary" style="padding:8px 14px;font-size:12px;white-space:nowrap">Save</button>
-            </div>
-          </div>
-
-          <!-- Memory list -->
-          <div id="memory-list-settings" style="max-height:300px;overflow-y:auto">
-            <p class="muted" style="font-size:12px">Loading memories...</p>
+        <!-- ===== Danger Zone ===== -->
+        <div class="setting-group setting-group-danger">
+          <h2>Danger Zone</h2>
+          <p class="setting-group-desc">Reset all settings to factory defaults. This does <strong>not</strong> delete memories.</p>
+          <div class="setting-actions">
+            <button type="button" id="reset-settings-btn" class="btn btn-danger">Reset all settings…</button>
           </div>
         </div>
+
       </div>
     </section>
   </main>

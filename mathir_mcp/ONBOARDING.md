@@ -6,6 +6,17 @@ This is the **standalone onboarding doc** — everything you need to install, ru
 
 ---
 
+## Install (editable, one-time)
+
+```bash
+cd mathir_mcp
+pip install -e .
+# After this, the entry point is `python -m mathir_mcp`
+# (the legacy top-level path was removed in v8.4.0 when the package was restructured)
+```
+
+---
+
 ## TL;DR — The 3-Step Survival Guide
 
 ```bash
@@ -152,6 +163,15 @@ memory_build_links(threshold=0.7)        # link related concepts
 ---
 
 ## Fallbacks (when things break)
+
+> **Security reminders** before troubleshooting:
+> - The daemon listens on `127.0.0.1:7338` by default with **NO authentication**.
+>   Never set `MATHIR_HOST=0.0.0.0` (or any non-loopback IP) unless you have a
+>   firewall rule restricting access — anyone reachable on port 7338 can read
+>   and write the entire MATHIR database.
+> - Logs are written to `$HOME/.mathir/daemon.log` (owner-only). Do NOT
+>   redirect to `/tmp/` on multi-user systems — that path is world-readable
+>   and would leak memory content to other users on the host.
 
 ### Fallback 1: Daemon won't start (port 7338 in use)
 

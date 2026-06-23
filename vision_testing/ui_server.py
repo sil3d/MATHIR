@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-MATHIR Vision Testing UI - Backend Server (v2)
-==============================================
+MATHIR Playground — Backend Server (v8.4.0)
+============================================
 
 Adds:
 - System context injection (system_context.json -> system message on every chat)
@@ -79,7 +79,7 @@ def resolve_path(p, base=HERE):
 
 # Import vision_test components
 sys.path.insert(0, str(HERE))
-from vision_test import VisionTester, ModelManager, LlamaServer, VirtualRoom, load_config as vt_load_config
+from vision_test import VisionTester, ModelManager, OpenRouterClient, VirtualRoom, load_config as vt_load_config
 
 # Accuracy test framework (optional - server boots even if import fails
 # because accuracy is a feature, not a hard dependency for the rest of
@@ -1038,6 +1038,125 @@ def memory_delete():
 
 
 # ============================================================
+# MATHIR Daemon Bridge — proxy to the running mathir_mcp daemon
+# (separate from the local SimpleMemory above; the daemon has the
+# full 17-tool MCP surface including promote/decay/consolidate/link)
+# ============================================================
+try:
+    import mathir_daemon_client as daemon_client
+    DAEMON_BRIDGE_AVAILABLE = True
+except ImportError:
+    DAEMON_BRIDGE_AVAILABLE = False
+
+
+@app.route("/api/daemon/status", methods=["GET"])
+def daemon_status():
+    """Check if the MATHIR daemon (mathir_mcp) is reachable."""
+    if not DAEMON_BRIDGE_AVAILABLE:
+        return jsonify({"available": False, "error": "mathir_daemon_client module not importable"})
+    return jsonify({
+        "available": daemon_client.is_daemon_available(),
+        "host": daemon_client.get_mathir_daemon_host(),
+        "port": daemon_client.get_mathir_daemon_port(),
+    })
+
+
+@app.route("/api/daemon/ping", methods=["GET"])
+def daemon_ping():
+    """Ping the daemon and return its status."""
+    if not DAEMON_BRIDGE_AVAILABLE:
+        return jsonify({"error": "mathir_daemon_client module not importable"}), 503
+    result = daemon_client.daemon_ping()
+    if "error" in result:
+        return jsonify(result), 503
+    return jsonify(result)
+
+
+@app.route("/api/daemon/memory/save", methods=["POST"])
+def daemon_memory_save():
+    """Save a chat message to MATHIR daemon memory (full MCP backend)."""
+    if not DAEMON_BRIDGE_AVAILABLE:
+        return jsonify({"error": "mathir_daemon_client module not importable"}), 503
+    data = request.json or {}
+    content = data.get("content", "").strip()
+    if not content:
+        return jsonify({"error": "content is required"}), 400
+    result = daemon_client.memory_save(
+        content=content,
+        agent=data.get("agent", "vision_ui"),
+        block_type=data.get("block_type", "episodic"),
+        label=data.get("label", "chat"),
+        priority=int(data.get("priority", 5)),
+        project=data.get("project", "vision_testing"),
+    )
+    if "error" in result:
+        return jsonify(result), 503
+    return jsonify(result)
+
+
+@app.route("/api/daemon/memory/recall", methods=["POST"])
+def daemon_memory_recall():
+    """Recall memories from the MATHIR daemon by similarity."""
+    if not DAEMON_BRIDGE_AVAILABLE:
+        return jsonify({"error": "mathir_daemon_client module not importable"}), 503
+    data = request.json or {}
+    query = data.get("query", "").strip()
+    if not query:
+        return jsonify({"error": "query is required"}), 400
+    result = daemon_client.memory_recall(
+        query=query,
+        k=int(data.get("k", 5)),
+        project=data.get("project", "vision_testing"),
+    )
+    if "error" in result:
+        return jsonify(result), 503
+    return jsonify(result)
+
+
+@app.route("/api/daemon/memory/stats", methods=["GET"])
+def daemon_memory_stats():
+    """Get MATHIR daemon memory statistics."""
+    if not DAEMON_BRIDGE_AVAILABLE:
+        return jsonify({"error": "mathir_daemon_client module not importable"}), 503
+    result = daemon_client.memory_stats(project=request.args.get("project", "vision_testing"))
+    if "error" in result:
+        return jsonify(result), 503
+    return jsonify(result)
+
+
+@app.route("/api/daemon/memory/promote", methods=["POST"])
+def daemon_memory_promote():
+    """Promote a daemon memory to the next tier."""
+    if not DAEMON_BRIDGE_AVAILABLE:
+        return jsonify({"error": "mathir_daemon_client module not importable"}), 503
+    data = request.json or {}
+    memory_id = data.get("memory_id")
+    if not memory_id:
+        return jsonify({"error": "memory_id is required"}), 400
+    result = daemon_client.memory_promote(
+        memory_id=memory_id,
+        force=bool(data.get("force", False)),
+    )
+    if "error" in result:
+        return jsonify(result), 503
+    return jsonify(result)
+
+
+@app.route("/api/daemon/memory/decay", methods=["POST"])
+def daemon_memory_decay():
+    """Apply Ebbinghaus decay to old daemon memories."""
+    if not DAEMON_BRIDGE_AVAILABLE:
+        return jsonify({"error": "mathir_daemon_client module not importable"}), 503
+    data = request.json or {}
+    result = daemon_client.memory_decay(
+        threshold_days=int(data.get("threshold_days", 30)),
+    )
+    if "error" in result:
+        return jsonify(result), 503
+    return jsonify(result)
+
+
+# ============================================================
 # Dashboard API — Memory Dashboard (mirrors MCP dashboard)
 # ============================================================
 
@@ -1737,15 +1856,108 @@ def accuracy_compare():
 
 @app.route("/api/settings", methods=["GET"])
 def get_settings():
-    return jsonify(state["ui_config"])
+    """Return merged settings: UI config + OpenRouter + MATHIR daemon + .env defaults.
+
+    Sensitive values (api_key) are returned as-is. The UI should mask them when displaying.
+    """
+    cfg = dict(state["ui_config"])
+    # Merge OpenRouter config from config.json (api_key, api_base, timeout, max_retries)
+    try:
+        vt_cfg = vt_load_config()
+        cfg["openrouter"] = {
+            "api_key": vt_cfg.get("openrouter", {}).get("api_key", "") or "",
+            "api_base": vt_cfg.get("openrouter", {}).get("api_base", "https://openrouter.ai/api/v1"),
+            "timeout_seconds": vt_cfg.get("openrouter", {}).get("timeout_seconds", 120),
+            "max_retries": vt_cfg.get("openrouter", {}).get("max_retries", 2),
+        }
+        cfg["models"] = vt_cfg.get("models", {})
+    except Exception:
+        cfg["openrouter"] = {"api_key": "", "api_base": "https://openrouter.ai/api/v1"}
+    # MATHIR daemon config (from env_config)
+    try:
+        from env_config import get_mathir_daemon_host, get_mathir_daemon_port
+        cfg["mathir_daemon"] = {
+            "host": get_mathir_daemon_host(),
+            "port": get_mathir_daemon_port(),
+        }
+    except ImportError:
+        cfg["mathir_daemon"] = {"host": "127.0.0.1", "port": 7338}
+    return jsonify(cfg)
 
 
 @app.route("/api/settings", methods=["POST"])
 def update_settings():
-    cfg = request.json
-    state["ui_config"].update(cfg)
+    """Update settings — writes to ui_config.json (UI-only) AND config.json (openrouter)."""
+    cfg = request.json or {}
+    # Handle reset to defaults
+    if cfg.get("reset"):
+        try:
+            # Reload the original ui_config from disk (factory defaults)
+            default_path = HERE / "ui_config.json"
+            if default_path.exists():
+                with open(default_path) as f:
+                    state["ui_config"] = json.load(f)
+                save_ui_config(state["ui_config"])
+                return jsonify({"status": "reset_to_defaults"})
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    # OpenRouter → config.json (persistent)
+    if "openrouter" in cfg:
+        try:
+            vt_cfg = vt_load_config()
+            or_cfg = vt_cfg.setdefault("openrouter", {})
+            for k in ("api_key", "api_base", "timeout_seconds", "max_retries"):
+                if k in cfg["openrouter"]:
+                    or_cfg[k] = cfg["openrouter"][k]
+            with open(CONFIG_PATH, "w") as f:
+                json.dump(vt_cfg, f, indent=2)
+            # Reload config in vision_test module so subsequent calls see new key
+            import importlib
+            import vision_test
+            importlib.reload(vision_test)
+        except Exception as e:
+            return jsonify({"error": f"Failed to write config.json: {e}"}), 500
+
+    # MATHIR daemon → env vars (runtime, not persistent)
+    if "mathir_daemon" in cfg:
+        os.environ["MATHIR_DAEMON_HOST"] = str(cfg["mathir_daemon"].get("host", "127.0.0.1"))
+        os.environ["MATHIR_DAEMON_PORT"] = str(cfg["mathir_daemon"].get("port", 7338))
+
+    # UI / camera / audio → ui_config.json
+    for top_level in ("ui", "camera", "audio", "server"):
+        if top_level in cfg:
+            state["ui_config"][top_level] = cfg[top_level]
     save_ui_config(state["ui_config"])
     return jsonify({"status": "updated"})
+
+
+@app.route("/api/openrouter/test", methods=["POST"])
+def test_openrouter():
+    """Test the OpenRouter API key by sending a minimal request."""
+    try:
+        from vision_test import OpenRouterClient
+        # Use the default model for the test
+        cfg = vt_load_config()
+        models = cfg.get("models", {})
+        enabled = [k for k, m in models.items() if m.get("enabled", True)]
+        if not enabled:
+            return jsonify({"error": "No enabled models in config.json"}), 400
+        test_model_id = enabled[0]
+        model_paths = models[test_model_id]
+        client = OpenRouterClient(model_paths)
+        if not client.api_key:
+            return jsonify({"error": "API key not set"}), 400
+        result = client.chat(
+            messages=[{"role": "user", "content": "Reply with the single word: pong"}],
+            max_tokens=10,
+            temperature=0.0,
+        )
+        if isinstance(result, str) and result.startswith("ERROR"):
+            return jsonify({"error": result}), 502
+        return jsonify({"status": "ok", "model": test_model_id, "sample": result[:200]})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/system/info", methods=["GET"])
@@ -1781,7 +1993,7 @@ def main():
     debug = args.debug or state["ui_config"]["server"]["debug"]
 
     print("=" * 60)
-    print("MATHIR Vision Testing UI Server v2")
+    print("MATHIR Playground Server (v8.4.0)")
     print("=" * 60)
     print(f"URL: http://{host}:{port}")
     print(f"Active model: {state.get('active_model') or 'none'}")

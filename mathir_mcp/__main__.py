@@ -23,8 +23,49 @@ def _cmd_selftest():
     """Run a 9-step validation of the install. Exits 0 on success, 1 on fail."""
     import sys as _sys
     import tempfile
+    import time
     import traceback
     from pathlib import Path as _P
+
+    def _robust_cleanup(db_path: "_P", attempts: int = 5, delay: float = 0.2) -> bool:
+        """Unlink db file + WAL/SHM sidecars with retries for Windows file locks.
+
+        On Windows, an sqlite-vec connection close + unlink can race with the
+        OS releasing the file handle, leaving the next open() to fail with
+        WinError 32 (ERROR_SHARING_VIOLATION). Retry the unlink a few times;
+        if it still fails, rename the stale file to a backup so the next
+        VecMemory() opens a clean path.
+        """
+        suffixes = ("", "-wal", "-shm", "-journal")
+        for i in range(attempts):
+            failed = False
+            for sfx in suffixes:
+                p = _P(str(db_path) + sfx)
+                if not p.exists():
+                    continue
+                try:
+                    p.unlink()
+                except (OSError, PermissionError):
+                    failed = True
+                    break
+            if not failed:
+                return True
+            time.sleep(delay)
+        # All retries failed — rename the stale file aside so the test can
+        # still proceed with a fresh path.
+        try:
+            backup = _P(str(db_path) + f".stale.{int(time.time())}")
+            db_path.rename(backup)
+            for sfx in ("-wal", "-shm", "-journal"):
+                p = _P(str(db_path) + sfx)
+                if p.exists():
+                    try:
+                        p.rename(_P(str(backup) + sfx))
+                    except OSError:
+                        pass
+            return True
+        except OSError:
+            return False
 
     results = []
     def _check(name, fn):
@@ -65,22 +106,19 @@ def _cmd_selftest():
     _check("sqlite-vec installed", _sqlite_vec)
 
     def _db_init():
-        from mathir_lib.mathir_vec import VecMemory
+        from mathir_mcp.mathir_lib.mathir_vec import VecMemory
         # Use a stable path in cwd to avoid Windows file lock issues
         # with temp dir cleanup racing against sqlite-vec handle release
         test_dir = _P(".mathir_selftest")
         test_dir.mkdir(exist_ok=True)
         db = test_dir / "selftest.db"
-        if db.exists():
-            db.unlink()
+        # Robust cleanup: unlink with retries, rename if still locked
+        _robust_cleanup(db)
         m = VecMemory(db, 384)  # VecMemory needs a Path, not a string
         n = m.count()
         m.close()
         # Best-effort cleanup
-        try:
-            db.unlink()
-        except Exception:
-            pass
+        _robust_cleanup(db)
         try:
             test_dir.rmdir()
         except Exception:
@@ -89,7 +127,7 @@ def _cmd_selftest():
     _check("DB initialization works", _db_init)
 
     def _embedder():
-        from mathir_daemon import get_embedder
+        from mathir_mcp.mathir_lib.mathir_daemon import get_embedder
         e = get_embedder()
         v = e.encode("test")
         if len(v) not in (384,):
@@ -99,7 +137,7 @@ def _cmd_selftest():
 
     def _tools():
         try:
-            from mathir_lib.mathir_mcp_server import TOOLS
+            from mathir_mcp.mathir_lib.mathir_mcp_server import TOOLS
         except ImportError:
             from mathir_mcp_server import TOOLS
         n = len(TOOLS)
@@ -148,15 +186,17 @@ def _cmd_selftest():
             results.append((False, "Daemon reachable", msg[:200]))
 
     def _e2e():
-        from mathir_lib.mathir_vec import VecMemory
-        from mathir_daemon import get_embedder
-        from mathir_daemon import _embedding_to_numpy
+        from mathir_mcp.mathir_lib.mathir_vec import VecMemory
+        from mathir_mcp.mathir_lib.mathir_daemon import get_embedder
+        from mathir_mcp.mathir_lib.mathir_daemon import _embedding_to_numpy
         # Stable path to avoid Windows file lock race in temp dir cleanup
         test_dir = _P(".mathir_selftest")
         test_dir.mkdir(exist_ok=True)
         db = test_dir / "e2e.db"
-        if db.exists():
-            db.unlink()
+        # Robust cleanup: unlink with retries, rename if still locked.
+        # Without this, a previous interrupted run can leave e2e.db in a
+        # sharing-violation state (WinError 32) and break this test.
+        _robust_cleanup(db)
         m = VecMemory(db, 384)  # VecMemory needs a Path, not a string
         e = get_embedder()
         emb = _embedding_to_numpy(e.encode("hello world test"))
@@ -164,10 +204,7 @@ def _cmd_selftest():
                                    "label": "e2e", "priority": 5, "content": "hello world test"})
         results = m.search(query_embedding=emb, k=1)
         m.close()
-        try:
-            db.unlink()
-        except Exception:
-            pass
+        _robust_cleanup(db)
         try:
             test_dir.rmdir()
         except Exception:
@@ -189,7 +226,7 @@ def _cmd_selftest():
 def _cmd_list_tools():
     """Print the list of all MCP tools exposed by the server."""
     try:
-        from mathir_lib.mathir_mcp_server import TOOLS
+        from mathir_mcp.mathir_lib.mathir_mcp_server import TOOLS
     except ImportError:
         from mathir_mcp_server import TOOLS
     # Use ASCII-only output for Windows console compatibility
@@ -239,7 +276,7 @@ def main():
             return 0
 
     # No special flag → start the daemon
-    from mathir_lib.mathir_daemon import main as _daemon_main
+    from mathir_mcp.mathir_lib.mathir_daemon import main as _daemon_main
     return _daemon_main()
 
 

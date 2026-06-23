@@ -1,0 +1,34 @@
+{
+  "cache_off": {
+    "storage_ms": 389.32470000872854,
+    "latency_mean_ms": 0.8482699998421595,
+    "latency_median_ms": 0.8308499964186922,
+    "quality": 0.4066666666666667
+  },
+  "cache_on_cold": {
+    "latency_mean_ms": 0.856544001144357,
+    "latency_median_ms": 0.8158000055118464
+  },
+  "cache_on_warm": {
+    "latency_mean_ms": 0.8916099989437498,
+    "latency_median_ms": 0.8445499988738447
+  },
+  "cache_adaptive_cold": {
+    "latency_mean_ms": 0.8731739997165278,
+    "latency_median_ms": 0.821850000647828
+  },
+  "cache_adaptive_warm": {
+    "latency_mean_ms": 0.8721579995471984,
+    "latency_median_ms": 0.8249999955296516
+  },
+  "speedup": 0.9606711478775093,
+  "cache_info": {
+    "size": 0,
+    "capacity": 10000,
+    "enabled": true,
+    "hits": 0,
+    "misses": 0,
+    "evictions": 0,
+    "hit_rate": 0.0
+  }
+}

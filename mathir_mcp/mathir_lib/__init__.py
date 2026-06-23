@@ -2,18 +2,23 @@
 
 This is the canonical, portable Python package (``mathir-mcp``). Install with:
 
-    pip install -e ./mcp
+    pip install -e ./mathir_mcp
 
 Then use from anywhere:
 
     import mathir_lib                          # this package
     from mathir_lib import get_db_path, TIERS
     from mathir_lib.mathir_mcp_server import TOOLS
+
+Or, when importing from outside the mathir_mcp/ directory (e.g. via
+``mathir_mcp.mathir_lib.X``), the fully-qualified form works too:
+
+    from mathir_mcp.mathir_lib.mathir_mcp_server import TOOLS
 """
 from pathlib import Path
 import os
 
-__version__ = "8.3.0"
+__version__ = "8.4.0"
 
 # Tier taxonomy - SINGLE SOURCE OF TRUTH. Matches the enum in
 # mathir_mcp_server.py line ~260 and the JSON schema in TOOLS.

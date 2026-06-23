@@ -14,13 +14,12 @@ A real-time web dashboard that visualizes your MATHIR neural memory system:
 ### 1. Start the Server
 
 ```bash
-# From global install
-cd ~/.config/MATHIR/dashboard
-python dashboard_server.py
+# From the mathir_mcp/ directory (where pyproject.toml lives)
+cd /path/to/MATHIR/mathir_mcp
+python -m mathir_lib.mathir_stats_server
 
-# Or from project
-cd /path/to/MATHIR/mathir_mcp/dashboard
-python dashboard_server.py
+# Or, if you installed mathir_mcp with `pip install -e .` from anywhere:
+python -m mathir_lib.mathir_stats_server
 ```
 
 Output:
@@ -43,14 +42,14 @@ The dashboard auto-refreshes every 30 seconds.
 **PowerShell:**
 ```powershell
 cd /path/to/MATHIR/mathir_mcp
-python dashboard_server.py
+python -m mathir_lib.mathir_stats_server
 ```
 
 **Double-click:** Create a `start_dashboard.bat` file:
 ```bat
 @echo off
 cd /d "%~dp0"
-python dashboard_server.py
+python -m mathir_lib.mathir_stats_server
 pause
 ```
 
@@ -58,7 +57,7 @@ pause
 
 ```bash
 cd /path/to/MATHIR/mathir_mcp
-python3 dashboard_server.py
+python3 -m mathir_lib.mathir_stats_server
 ```
 
 **As a systemd service** (auto-start on boot):
@@ -72,7 +71,7 @@ After=network.target
 Type=simple
 User=your-user
 WorkingDirectory=/path/to/MATHIR/mathir_mcp
-ExecStart=/usr/bin/python3 dashboard_server.py
+ExecStart=/usr/bin/python3 -m mathir_lib.mathir_stats_server
 Restart=always
 Environment=MATHIR_STATS_PORT=7420
 
@@ -89,7 +88,7 @@ sudo systemctl start mathir-dashboard
 
 ```bash
 cd /path/to/MATHIR/mathir_mcp
-python3 dashboard_server.py
+python3 -m mathir_lib.mathir_stats_server
 ```
 
 **With launchd (auto-start):**
@@ -104,7 +103,8 @@ python3 dashboard_server.py
     <key>ProgramArguments</key>
     <array>
         <string>/usr/bin/python3</string>
-        <string>/path/to/MATHIR/mathir_mcp/dashboard_server.py</string>
+        <string>-m</string>
+        <string>mathir_lib.mathir_stats_server</string>
     </array>
     <key>WorkingDirectory</key>
     <string>/path/to/MATHIR/mathir_mcp</string>
@@ -243,11 +243,11 @@ Point to a specific database:
 ```bash
 # Windows
 set MATHIR_DB=C:\my_project\.mathir\mathir.db
-python dashboard_server.py
+python -m mathir_lib.mathir_stats_server
 
 # Linux/Mac
 export MATHIR_DB=/home/user/my_project/.mathir/mathir.db
-python3 dashboard_server.py
+python3 -m mathir_lib.mathir_stats_server
 ```
 
 ## API Reference
@@ -279,7 +279,7 @@ All endpoints return JSON. Add `?project=name` to filter by project.
 # Change port
 set MATHIR_STATS_PORT=7421  # Windows
 export MATHIR_STATS_PORT=7421  # Linux/Mac
-python dashboard_server.py
+python -m mathir_lib.mathir_stats_server
 ```
 
 ### Charts not loading
@@ -291,16 +291,16 @@ python dashboard_server.py
 ## Architecture
 
 ```
-dashboard_server.py     ← Python HTTP server (no dependencies)
-dashboard.html          ← Single-file HTML dashboard (Chart.js)
-                         ↓
-            http://127.0.0.1:7420
-                         ↓
-            Browser renders charts + tables
-                         ↓
-            API calls to /api/* endpoints
-                         ↓
-            Reads from .mathir/mathir.db (SQLite)
+mathir_lib/mathir_stats_server.py   ← Python HTTP server (no dependencies)
+mathir_lib/mathir_stats_dashboard.html  ← Single-file HTML dashboard (Chart.js)
+                                     ↓
+                          http://127.0.0.1:7420
+                                     ↓
+                          Browser renders charts + tables
+                                     ↓
+                          API calls to /api/* endpoints
+                                     ↓
+                          Reads from .mathir/mathir.db (SQLite)
 ```
 
 No external dependencies beyond Python stdlib + sqlite3.

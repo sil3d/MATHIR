@@ -6,6 +6,9 @@ NO HARDCODED PATHS. User provides source via CLI argument.
 Usage:
   python setup_sources.py /path/to/secret_project/Mycerise_V2_Taur
   SECRET_PROJECT=/path/to/secret/project python setup_sources.py
+
+v8.4.0 MIGRATION: Removed LlamaSetupModal.jsx + wizardModels_llamacpp.json
++ convert_lfm2_to_gguf.py entries (llama.cpp is gone, replaced by OpenRouter).
 """
 import os
 import sys
@@ -17,7 +20,7 @@ from datetime import datetime
 HERE = Path(__file__).resolve().parent
 
 
-# Source file patterns: (source_relative_path, dest_dir_in_vision_testing)
+# Source file patterns: (source_relative_path, dest_dir_in_this_package)
 # Source paths are RELATIVE to the secret project root
 SOURCE_FILES = [
     {
@@ -27,28 +30,22 @@ SOURCE_FILES = [
         "description": "Rust turboquant loader",
     },
     {
-        "source_rel": "src/components/LlamaSetupModal.jsx",
+        "source_rel": "src/components/OpenRouterSetupModal.jsx",
         "dest_dir": "interface",
-        "dest_name": "LlamaSetupModal_reference.jsx",
-        "description": "Tauri UI for llama setup",
+        "dest_name": "OpenRouterSetupModal_reference.jsx",
+        "description": "Tauri UI for OpenRouter setup (replaces LlamaSetupModal in v8.4.0)",
     },
     {
-        "source_rel": "src/config/wizardModels_llamacpp.json",
+        "source_rel": "src/config/wizardModels_openrouter.json",
         "dest_dir": "interface",
-        "dest_name": "wizardModels_llamacpp_reference.json",
-        "description": "Model definitions JSON",
-    },
-    {
-        "source_rel": "resources/bin/convert_lfm2_to_gguf.py",
-        "dest_dir": ".",
-        "dest_name": "convert_lfm2_to_gguf.py",
-        "description": "LFM2 to GGUF converter",
+        "dest_name": "wizardModels_openrouter_reference.json",
+        "description": "Model definitions JSON (replaces wizardModels_llamacpp.json in v8.4.0)",
     },
 ]
 
 
 def copy_sources(source_root: Path, here: Path, only_files: list = None):
-    """Copy source files from source_root to vision_testing directory."""
+    """Copy source files from source_root to the destination directory."""
     copied = 0
     failed = []
     skipped = 0

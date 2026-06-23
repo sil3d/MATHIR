@@ -318,7 +318,10 @@ fi
 cp mathir_mcp/GLOBAL_INSTRUCTIONS.md "$HOME/.config/opencode/GLOBAL_INSTRUCTIONS.md" 2>/dev/null || true
 
 # Step 5: Start the daemon (background)
-nohup python -m mathir_mcp > /tmp/mathir_daemon.log 2>&1 &
+# NOTE: write logs to $HOME/.mathir/ (owner-only), not /tmp/ (world-readable on
+# multi-user systems — would leak memory content to other users on the host).
+mkdir -p "$HOME/.mathir"
+nohup python -m mathir_mcp > "$HOME/.mathir/daemon.log" 2>&1 &
 sleep 5
 
 # Step 6: Verify end-to-end

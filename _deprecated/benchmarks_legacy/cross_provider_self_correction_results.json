@@ -1,0 +1,71 @@
+{
+  "timestamp": "2026-06-06T05:38:55.942258",
+  "providers": {
+    "provider_a": "sentence-transformers (all-MiniLM-L6-v2, 384 dim)",
+    "provider_b_fallback": "MATHIR FTS5 text search",
+    "llm_query": "MiniMax-M2.5 (Anthropic-compatible)"
+  },
+  "test_a": {
+    "test": "Cross-Provider Semantic Bridge",
+    "a1_same_provider": {
+      "pass": true,
+      "results": 3
+    },
+    "a2_text_fallback": {
+      "pass": false,
+      "results": 0
+    },
+    "a3_cross_provider": {
+      "pass": false,
+      "results": 0
+    },
+    "a4_mm_generated_query": {
+      "pass": false,
+      "results": 0
+    },
+    "overall": false
+  },
+  "test_b": {
+    "test": "Self-Correction Loop",
+    "b1_initial_recall": {
+      "pass": true,
+      "results": 5
+    },
+    "b2_bump_recall": {
+      "pass": true
+    },
+    "b3_feedback_reorder": {
+      "pass": false,
+      "before": [
+        "python-listcomp",
+        "python-decorator",
+        "go-goroutine"
+      ],
+      "after": [
+        "python-listcomp",
+        "python-decorator",
+        "go-goroutine"
+      ]
+    },
+    "b4_correction_tracked": {
+      "pass": true,
+      "counts": {
+        "python-listcomp": 10,
+        "python-decorator": 10,
+        "go-goroutine": 7,
+        "rust-enum": 2,
+        "python-generator": 2
+      }
+    },
+    "b5_correct_recall": {
+      "pass": true,
+      "results": 3
+    },
+    "overall": true
+  },
+  "summary": {
+    "test_a_cross_provider": "FAIL",
+    "test_b_self_correction": "PASS",
+    "both_pass": false
+  }
+}

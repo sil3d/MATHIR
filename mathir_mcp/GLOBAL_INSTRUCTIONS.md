@@ -1,4 +1,4 @@
-# MATHIR — Global Instructions (v8.3.0)
+# MATHIR — Global Instructions (v8.4.0)
 
 > 4-tier cognitive memory for AI coding agents. The MCP server is already configured — tools are available.
 
@@ -14,6 +14,8 @@
 
 ## Tool Signatures
 
+### Basic (every day)
+
 ```
 memory_save(content: str, agent: str, block_type: str, label: str, priority: int = 5)
 memory_recall(query: str, k: int = 5, agent: str = None)
@@ -27,7 +29,19 @@ memory_stats()
 memory_dashboard(action: str = "status")
 ```
 
-**10 tools total** — matches `mathir_mcp/mathir_lib/mathir_mcp_server.py` TOOLS array (lines 249–358).
+### Lifecycle (v8.4.0 NEW — living memory)
+
+```
+memory_promote(memory_id: str = None, force: bool = False)
+memory_auto_promote()
+memory_decay(threshold_days: int = 30, archive_floor: float = 0.05)
+memory_consolidate(threshold: float = 0.95, dry_run: bool = False, limit: int = 1000)
+memory_link(source_id: str, target_id: str, weight: float = 1.0)
+memory_get_links(memory_id: str, depth: int = 2, decay: float = 0.5)
+memory_build_links(threshold: float = 0.7, limit: int = 1000)
+```
+
+**17 tools total** (10 basic + 7 lifecycle) — matches `mathir_mcp/mathir_lib/mathir_mcp_server.py` TOOLS array (lines 313–515).
 
 **block_type:** `working_memory` | `episodic` | `semantic` | `procedural`
 **priority:** 1–10 (see scale below)

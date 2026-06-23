@@ -38,18 +38,49 @@ MAX_CONTENT_LENGTH = int(100_000 * _input_scale)   # 100KB default
 MAX_QUERY_LENGTH = int(5_000 * _input_scale)       # 5KB default
 MAX_LABEL_LENGTH = int(200 * _input_scale)         # 200B default
 MAX_AGENT_LENGTH = int(100 * _input_scale)         # 100B default
+MAX_MEMORY_ID_LENGTH = int(64 * _input_scale)      # 64B default (e.g. "mem_xxxxxxxx")
+MAX_PROJECT_LENGTH = int(200 * _input_scale)       # 200B default (project name)
+MAX_REASON_LENGTH = int(500 * _input_scale)        # 500B default (delete reason)
+# SECURITY: tight regex for memory_id. Generated IDs look like "mem_xxxxxxxx" (8 hex).
+# Reject anything else so memory_id can never be interpolated unsafely into paths/commands.
+import re as _re
+_MEMORY_ID_RE = _re.compile(r"^[A-Za-z0-9_:-]{1,64}$")
+# SECURITY: project name must be a safe filesystem identifier. Reject path traversal chars
+# ("..", "/", "\\", NUL) and shell metacharacters even though project_name never reaches a shell.
+_PROJECT_SAFE_RE = _re.compile(r"^[A-Za-z0-9._-]{1,200}$")
 
 
-def _check_lengths(content, query, label, agent):
+def _check_lengths(content, query, label, agent, memory_id=None, project=None, reason=None):
     """Enforce per-field length caps. Returns error dict on violation, None on OK."""
     for name, val, cap in (
         ("content", content, MAX_CONTENT_LENGTH),
         ("query", query, MAX_QUERY_LENGTH),
         ("label", label, MAX_LABEL_LENGTH),
         ("agent", agent, MAX_AGENT_LENGTH),
+        ("memory_id", memory_id, MAX_MEMORY_ID_LENGTH),
+        ("project", project, MAX_PROJECT_LENGTH),
+        ("reason", reason, MAX_REASON_LENGTH),
     ):
         if val is not None and len(str(val)) > cap:
             return {"error": f"{name} exceeds {cap} chars (got {len(str(val))})"}
+    return None
+
+
+def _validate_memory_id(memory_id: str) -> dict | None:
+    """Validate memory_id format. Returns error dict on violation, None on OK."""
+    if memory_id is None:
+        return {"error": "memory_id is required"}
+    if not _MEMORY_ID_RE.match(str(memory_id)):
+        return {"error": "memory_id must match [A-Za-z0-9_:-]{1,64}"}
+    return None
+
+
+def _validate_project(project: str) -> dict | None:
+    """Validate project name. Rejects path-traversal and shell-meta chars."""
+    if project is None:
+        return None  # None = auto-detect from cwd (handled elsewhere)
+    if not _PROJECT_SAFE_RE.match(str(project)):
+        return {"error": "project must match [A-Za-z0-9._-]{1,200}"}
     return None
 
 # Per-project database support
@@ -248,10 +279,29 @@ def get_embedder():
     if _embedder is not None:
         log.debug(f"Using cached embedder (loaded at {_embedder_loaded_at})")
         return _embedder
-    
+
     config = load_config()
     prefer_octen = config.get("embedding", {}).get("prefer_octen", False)
     model_name = config.get("embedding", {}).get("model", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+
+    # PI/JETSON PATH: if MATHIR_USE_ONNX=1, try the lightweight ONNX runtime path.
+    # Falls back to sentence-transformers if onnxruntime is unavailable so we
+    # never block a desktop install that doesn't ship onnxruntime.
+    use_onnx = os.environ.get("MATHIR_USE_ONNX", "").strip().lower() in ("1", "true", "yes")
+    if use_onnx or prefer_octen:
+        try:
+            from mathir_onnx_embedder import OctenEmbedder
+            model_dir = os.environ.get("MATHIR_ONNX_MODEL_DIR")
+            _embedder = OctenEmbedder(model_dir=model_dir)
+            log.info(f"Embedder loaded: ONNX/Octen INT8 (dim={_embedder.dim})")
+            # NOTE: Octen outputs 1024d. If MATHIR_EMBEDDING_DIM is unset/384,
+            # we MUST update it to 1024 or vector-shape errors will occur.
+            if os.environ.get("MATHIR_EMBEDDING_DIM") is None:
+                os.environ["MATHIR_EMBEDDING_DIM"] = "1024"
+            _embedder_loaded_at = datetime.now().isoformat()
+            return _embedder
+        except Exception as e:
+            log.warning(f"MATHIR_USE_ONNX=1 set but ONNX path failed: {e} — falling back to sentence-transformers")
 
     import torch
     from sentence_transformers import SentenceTransformer
@@ -494,9 +544,13 @@ def handle_memory_save(args: dict) -> dict:
     priority = args.get("priority", 5)
 
     # SECURITY: enforce input length caps to prevent DoS via unbounded payloads
-    _len_err = _check_lengths(content=content, query=None, label=label, agent=agent)
+    _len_err = _check_lengths(content=content, query=None, label=label, agent=agent, project=project)
     if _len_err is not None:
         return _len_err
+    # SECURITY: validate project name (rejects path traversal / shell meta)
+    _proj_err = _validate_project(project)
+    if _proj_err is not None:
+        return _proj_err
 
     # Generate embedding
     embedding = embedder.encode(content)
@@ -548,9 +602,13 @@ def handle_memory_recall(args: dict) -> dict:
     block_type_filter = args.get("block_type")
 
     # SECURITY: enforce input length caps to prevent DoS via unbounded queries
-    _len_err = _check_lengths(content=None, query=query, label=None, agent=agent_filter)
+    _len_err = _check_lengths(content=None, query=query, label=None, agent=agent_filter, project=project)
     if _len_err is not None:
         return _len_err
+    # SECURITY: validate project name
+    _proj_err = _validate_project(project)
+    if _proj_err is not None:
+        return _proj_err
 
     # Generate query embedding
     query_embedding = embedder.encode(query)
@@ -581,6 +639,14 @@ def handle_memory_smart_search(args: dict) -> dict:
     query = args["query"]
     agent_filter = args.get("agent")
     k = args.get("k", 10)
+
+    # SECURITY: validate project name and enforce length caps
+    _len_err = _check_lengths(content=None, query=query, label=None, agent=agent_filter, project=project)
+    if _len_err is not None:
+        return _len_err
+    _proj_err = _validate_project(project)
+    if _proj_err is not None:
+        return _proj_err
 
     results = memory.universal_recall(query=query, k=k * 2)
 
@@ -617,6 +683,14 @@ def handle_memory_hybrid_search(args: dict) -> dict:
     vector_weight = args.get("vector_weight", 0.6)
     bm25_weight = args.get("bm25_weight", 0.4)
 
+    # SECURITY: validate project name and enforce length caps
+    _len_err = _check_lengths(content=None, query=query, label=None, agent=None, project=project)
+    if _len_err is not None:
+        return _len_err
+    _proj_err = _validate_project(project)
+    if _proj_err is not None:
+        return _proj_err
+
     # Clamp k to the daemon's hard cap (100) to avoid silent truncation
     k = max(1, min(int(k), 100))
 
@@ -646,6 +720,10 @@ def handle_memory_hybrid_search(args: dict) -> dict:
 
 def handle_memory_audit(args: dict) -> dict:
     project = args.get("project")
+    # SECURITY: validate project name
+    _proj_err = _validate_project(project)
+    if _proj_err is not None:
+        return _proj_err
     memory = get_memory(project)
     stats = memory.get_stats()
     db_path = get_project_db_path(project)
@@ -660,6 +738,10 @@ def handle_memory_audit(args: dict) -> dict:
 def handle_memory_export(args: dict) -> dict:
     import sqlite3
     project = args.get("project")
+    # SECURITY: validate project name
+    _proj_err = _validate_project(project)
+    if _proj_err is not None:
+        return _proj_err
     db_path = get_project_db_path(project)
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
@@ -679,9 +761,19 @@ def handle_memory_export(args: dict) -> dict:
 
 def handle_memory_delete(args: dict) -> dict:
     project = args.get("project")
-    memory = get_memory(project)
     memory_id = args["memory_id"]
     reason = args.get("reason", "user requested")
+    # SECURITY: validate memory_id format and length, project name, and reason length
+    _mid_err = _validate_memory_id(memory_id)
+    if _mid_err is not None:
+        return _mid_err
+    _proj_err = _validate_project(project)
+    if _proj_err is not None:
+        return _proj_err
+    _len_err = _check_lengths(content=None, query=None, label=None, agent=None, reason=reason)
+    if _len_err is not None:
+        return _len_err
+    memory = get_memory(project)
     deleted = memory.delete(memory_id)
     log.info(f"Deleted memory {memory_id}: {deleted} (reason: {reason}, project: {project or get_project_name()})")
     return {
@@ -696,6 +788,10 @@ def handle_memory_delete(args: dict) -> dict:
 def handle_memory_sessions(args: dict) -> dict:
     import sqlite3
     project = args.get("project")
+    # SECURITY: validate project name
+    _proj_err = _validate_project(project)
+    if _proj_err is not None:
+        return _proj_err
     limit = args.get("limit", 10)
     db_path = get_project_db_path(project)
     conn = sqlite3.connect(str(db_path))
@@ -713,6 +809,10 @@ def handle_memory_sessions(args: dict) -> dict:
 
 def handle_memory_stats(args: dict) -> dict:
     project = args.get("project")
+    # SECURITY: validate project name
+    _proj_err = _validate_project(project)
+    if _proj_err is not None:
+        return _proj_err
     memory = get_memory(project)
     stats = memory.get_stats()
     db_path = get_project_db_path(project)
@@ -779,8 +879,16 @@ def handle_memory_dashboard(args: dict) -> dict:
 
 def handle_memory_promote(args: dict) -> dict:
     """Promote a memory to the next tier via Ebbinghaus rules."""
-    memory = get_memory(args.get("project"))
+    project = args.get("project")
     memory_id = args["memory_id"]
+    # SECURITY: validate memory_id format and project name
+    _mid_err = _validate_memory_id(memory_id)
+    if _mid_err is not None:
+        return _mid_err
+    _proj_err = _validate_project(project)
+    if _proj_err is not None:
+        return _proj_err
+    memory = get_memory(project)
     force = args.get("force", False)
     result = memory.promote(memory_id, force=force)
     return {"result": result}
@@ -788,14 +896,24 @@ def handle_memory_promote(args: dict) -> dict:
 
 def handle_memory_auto_promote(args: dict) -> dict:
     """Scan all memories and auto-promote those meeting rules."""
-    memory = get_memory(args.get("project"))
+    project = args.get("project")
+    # SECURITY: validate project name
+    _proj_err = _validate_project(project)
+    if _proj_err is not None:
+        return _proj_err
+    memory = get_memory(project)
     promoted = memory.auto_promote_all()
     return {"promoted": promoted, "count": len(promoted)}
 
 
 def handle_memory_decay(args: dict) -> dict:
     """Apply Ebbinghaus decay (5%/30d), archive stability < 0.05."""
-    memory = get_memory(args.get("project"))
+    project = args.get("project")
+    # SECURITY: validate project name
+    _proj_err = _validate_project(project)
+    if _proj_err is not None:
+        return _proj_err
+    memory = get_memory(project)
     result = memory.decay_all(
         threshold_days=args.get("threshold_days", 30),
         archive_floor=args.get("archive_floor", 0.05),
@@ -805,7 +923,12 @@ def handle_memory_decay(args: dict) -> dict:
 
 def handle_memory_consolidate(args: dict) -> dict:
     """Merge near-duplicate memories (cosine > threshold)."""
-    memory = get_memory(args.get("project"))
+    project = args.get("project")
+    # SECURITY: validate project name
+    _proj_err = _validate_project(project)
+    if _proj_err is not None:
+        return _proj_err
+    memory = get_memory(project)
     result = memory.consolidate_all(
         threshold=args.get("threshold", 0.95),
         limit=args.get("limit", 100),
@@ -816,10 +939,23 @@ def handle_memory_consolidate(args: dict) -> dict:
 
 def handle_memory_link(args: dict) -> dict:
     """Add a link in the link graph."""
-    memory = get_memory(args.get("project"))
+    project = args.get("project")
+    source_id = args["source_id"]
+    target_id = args["target_id"]
+    # SECURITY: validate link IDs and project name
+    _src_err = _validate_memory_id(source_id)
+    if _src_err is not None:
+        return {"error": f"source_id: {_src_err['error']}"}
+    _tgt_err = _validate_memory_id(target_id)
+    if _tgt_err is not None:
+        return {"error": f"target_id: {_tgt_err['error']}"}
+    _proj_err = _validate_project(project)
+    if _proj_err is not None:
+        return _proj_err
+    memory = get_memory(project)
     result = memory.add_link(
-        source_id=args["source_id"],
-        target_id=args["target_id"],
+        source_id=source_id,
+        target_id=target_id,
         weight=args.get("weight", 1.0),
     )
     return {"result": result}
@@ -827,9 +963,18 @@ def handle_memory_link(args: dict) -> dict:
 
 def handle_memory_get_links(args: dict) -> dict:
     """BFS traversal of the link graph."""
-    memory = get_memory(args.get("project"))
+    project = args.get("project")
+    memory_id = args["memory_id"]
+    # SECURITY: validate memory_id and project name
+    _mid_err = _validate_memory_id(memory_id)
+    if _mid_err is not None:
+        return _mid_err
+    _proj_err = _validate_project(project)
+    if _proj_err is not None:
+        return _proj_err
+    memory = get_memory(project)
     result = memory.get_links(
-        memory_id=args["memory_id"],
+        memory_id=memory_id,
         depth=args.get("depth", 1),
         decay=args.get("decay", 0.5),
     )
@@ -838,7 +983,12 @@ def handle_memory_get_links(args: dict) -> dict:
 
 def handle_memory_build_links(args: dict) -> dict:
     """Build link graph from cosine > threshold across all memories."""
-    memory = get_memory(args.get("project"))
+    project = args.get("project")
+    # SECURITY: validate project name
+    _proj_err = _validate_project(project)
+    if _proj_err is not None:
+        return _proj_err
+    memory = get_memory(project)
     result = memory.build_links_all(
         threshold=args.get("threshold", 0.7),
         limit=args.get("limit", 1000),
@@ -935,6 +1085,20 @@ def main():
     try:
         get_memory()
         log.info("MATHIRMemory initialized successfully")
+    except ModuleNotFoundError as e:
+        if "mathir_dropin" in str(e):
+            log.error(
+                "mathir_dropin package not found on sys.path. The MATHIR MCP server "
+                "depends on the mathir_dropin memory backend (sibling project).\n"
+                "Fix one of these:\n"
+                "  1. Install mathir_dropin as a package: `pip install -e ./mathir_dropin`\n"
+                "  2. Add it to PYTHONPATH: `set PYTHONPATH=<repo_root>;%PYTHONPATH%` (where <repo_root> is the parent of mathir_mcp/ and mathir_dropin/)\n"
+                "  3. Run mathir-mcp from a directory where mathir_dropin/ is reachable\n"
+                f"Original error: {e}"
+            )
+        else:
+            log.error(f"Failed to initialize MATHIRMemory: {e}", exc_info=True)
+        sys.exit(1)
     except Exception as e:
         log.error(f"Failed to initialize MATHIRMemory: {e}", exc_info=True)
         sys.exit(1)
@@ -949,6 +1113,12 @@ def main():
     for line in sys.stdin:
         line = line.strip()
         if not line:
+            continue
+        # SECURITY: cap stdin line length to prevent OOM via a 10GB newline-less payload.
+        # 1 MB is well above any legitimate JSON-RPC request (MCP tool args are field-capped).
+        if len(line) > 1_048_576:
+            log.error(f"Stdin line exceeds 1MB ({len(line)} bytes) — dropping")
+            send_error(None, -32600, "Request too large")
             continue
         try:
             request = json.loads(line)

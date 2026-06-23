@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """
-MATHIR Vision Testing Interface
-==============================
+MATHIR Playground — Vision Testing Interface
+============================================
 
-NO HARDCODED PATHS. All paths come from config.json (relative to this file).
-User can add/remove models by editing config.json - no code changes needed.
+A playground to chat with vision/audio LLMs and exercise the MATHIR memory
+backend. NO HARDCODED PATHS. All paths come from config.json (relative to
+this file). User can add/remove models by editing config.json — no code
+changes needed.
 
 Tests MATHIR memory by:
 - Setting up a virtual room with objects
@@ -13,16 +15,18 @@ Tests MATHIR memory by:
 - Asking what was done
 - Storing interactions in MATHIR memory
 - Testing recall across models
+
+v8.4.0 MIGRATION: Switched from local llama.cpp binaries to OpenRouter cloud API.
+All model invocations now go through the OpenRouterClient class below.
+The config.json `llama_server` section has been replaced with `openrouter`.
 """
 import os
 import sys
 import json
 import time
-import shutil
-import subprocess
+import base64
 import urllib.request
 import urllib.error
-import base64
 from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Optional, Any
@@ -30,6 +34,10 @@ from typing import List, Dict, Optional, Any
 # All paths RELATIVE to this file - works from any clone location
 HERE = Path(__file__).resolve().parent
 CONFIG_PATH = HERE / "config.json"
+
+# Load .env early so OpenRouter keys are available before any client instantiation
+from env_config import load_env, get_openrouter_api_key  # noqa: E402
+load_env()
 
 # MATHIR drop-in — direct import, no daemon needed
 MATHIR_ROOT = HERE.parent
@@ -141,147 +149,157 @@ class ModelManager:
         return result
 
 
-class LlamaServer:
-    """Manages a llama-server.exe instance for a specific model."""
+class OpenRouterClient:
+    """OpenRouter cloud API client for vision/language models.
 
-    def __init__(self, model_paths: dict, port: int = 8080,
-                 ctx_size: int = 4096, n_gpu_layers: int = 20,
-                 log_level: str = "info"):
+    Replaces the old LlamaServer class (v8.4.0 migration). No more local
+    GGUF binaries — all inference goes through https://openrouter.ai/api/v1.
+
+    Models are configured in config.json under the `openrouter` section.
+    Each model entry specifies its `id` (e.g. "google/gemini-2.0-flash-exp:free")
+    and what features it supports (vision, audio, grounding, etc.).
+    """
+
+    def __init__(self, model_paths: dict):
         self.model_paths = model_paths
-        self.model_name = model_paths["name"]
-        self.display_name = model_paths.get("display_name", self.model_name)
-        self.port = port
-        self.ctx_size = ctx_size
-        self.n_gpu_layers = n_gpu_layers
-        self.log_level = log_level
-        self.process = None
-        self.server_url = f"http://127.0.0.1:{port}"
+        self.model_id = model_paths["id"]
+        self.display_name = model_paths.get("display_name", self.model_id)
         self._config = load_config()
-        self.bin_dir = resolve_path(self._config["bin_dir"])
-        self.executable_name = self._config["llama_server"].get("executable", "llama-server.exe")
-        self.executable = self._find_executable()
-
-    def _find_executable(self) -> Path:
-        """Find the right llama-server executable for this OS."""
-        cfg = self._config["llama_server"]
-        if sys.platform == "win32":
-            return self.bin_dir / cfg.get("executable", "llama-server.exe")
-        elif sys.platform == "darwin":
-            return self.bin_dir / cfg.get("macos_executable", "llama-server")
-        else:
-            return self.bin_dir / cfg.get("linux_executable", "llama-server")
-
-    def start(self):
-        """Start the llama-server process."""
-        if self.process and self.process.poll() is None:
-            print(f"  Server already running for {self.display_name}")
-            return
-
-        if not self.executable.exists():
-            raise FileNotFoundError(
-                f"llama-server not found at {self.executable}. "
-                f"Run setup_binaries.py first or update config.json:bin_dir"
-            )
-
-        model_path = self.model_paths.get("path")
-        if not model_path or not model_path.exists():
-            raise FileNotFoundError(
-                f"Model file not found: {model_path}. "
-                f"Check config.json:models:{self.model_name}:path"
-            )
-
-        cmd = [
-            str(self.executable),
-            "-m", str(model_path),
-            "--port", str(self.port),
-            "-c", str(self.ctx_size),
-            "-ngl", str(self.n_gpu_layers),
-        ]
-        if self.model_paths.get("mmproj"):
-            cmd.extend(["--mmproj", str(self.model_paths["mmproj"])])
-        if self.model_paths.get("vocoder"):
-            cmd.extend(["--vocoder", str(self.model_paths["vocoder"])])
-
-        print(f"  Starting llama-server for {self.display_name} on port {self.port}...")
-        print(f"  Model: {model_path.name}")
-        if self.model_paths.get("mmproj"):
-            print(f"  mmproj: {self.model_paths['mmproj'].name}")
-
-        # Set PATH so DLLs are found on Windows
-        env = os.environ.copy()
-        env["PATH"] = str(self.bin_dir) + os.pathsep + env.get("PATH", "")
-
-        # Use CREATE_NO_WINDOW on Windows
-        creationflags = 0
-        if hasattr(subprocess, "CREATE_NO_WINDOW") and sys.platform == "win32":
-            creationflags = subprocess.CREATE_NO_WINDOW
-
-        self.process = subprocess.Popen(
-            cmd,
-            cwd=str(self.bin_dir),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=env,
-            creationflags=creationflags,
-        )
-
-        # Wait for server to be ready
-        for i in range(60):
-            time.sleep(1)
-            try:
-                req = urllib.request.Request(f"{self.server_url}/health")
-                with urllib.request.urlopen(req, timeout=2) as resp:
-                    if resp.status == 200:
-                        print(f"  Server ready on port {self.port}")
-                        return
-            except Exception:
-                if self.process.poll() is not None:
-                    stderr = self.process.stderr.read().decode(errors='replace')[:500]
-                    raise RuntimeError(f"Server died: {stderr}")
-        raise RuntimeError("Server failed to start in 60s")
-
-    def stop(self):
-        if self.process:
-            self.process.terminate()
-            try:
-                self.process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                self.process.kill()
-            self.process = None
-            print(f"  Server {self.display_name} stopped")
+        # Determine provider: explicit "provider" field, else default to openrouter
+        provider = model_paths.get("provider", "openrouter").lower()
+        self.provider = provider
+        if provider == "opencode_zen":
+            zen_cfg = self._config.get("opencode_zen", {})
+            from env_config import get_opencode_zen_api_key
+            self.api_key = zen_cfg.get("api_key") or get_opencode_zen_api_key()
+            self.api_base = zen_cfg.get("api_base", "https://opencode.ai/zen/v1")
+            self.timeout = zen_cfg.get("timeout_seconds", 120)
+            self.max_retries = zen_cfg.get("max_retries", 2)
+            if not self.api_key:
+                print(f"  [WARN] OpenCode Zen API key not set for {self.display_name}.")
+                print(f"         Set in config.json:opencode_zen.api_key, or .env, or OPENCODE_ZEN_API_KEY env var.")
+        else:  # default: openrouter
+            or_cfg = self._config.get("openrouter", {})
+            # Priority: config.json > .env > env var (env var already loaded by env_config)
+            self.api_key = or_cfg.get("api_key") or get_openrouter_api_key()
+            self.api_base = or_cfg.get("api_base", "https://openrouter.ai/api/v1")
+            self.timeout = or_cfg.get("timeout_seconds", 120)
+            self.max_retries = or_cfg.get("max_retries", 2)
+            if not self.api_key:
+                print(f"  [WARN] OpenRouter API key not set for {self.display_name}.")
+                print(f"         Set in config.json:openrouter.api_key, or .env, or OPENROUTER_API_KEY env var.")
 
     def chat(self, messages, max_tokens=512, temperature=0.7):
-        """Send a chat completion request."""
-        data = json.dumps({
-            "model": self.model_name,
+        """Send a chat completion request to OpenRouter or OpenCode Zen."""
+        if not self.api_key:
+            return f"ERROR: {self.provider} API key not configured (see config.json:{self.provider}.api_key)"
+        # Convert messages to OpenAI Responses format if needed (for OpenCode Zen)
+        data = self._build_request_body(messages, max_tokens, temperature)
+        for attempt in range(self.max_retries + 1):
+            try:
+                headers = {
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {self.api_key}",
+                    # OpenCode Zen REQUIRES a non-empty User-Agent (else 403)
+                    "User-Agent": "opencode-cli/1.0",
+                }
+                # Provider-specific attribution headers + endpoint
+                if self.provider == "openrouter":
+                    headers["HTTP-Referer"] = "https://github.com/SECRET_PROJECT/MATHIR"
+                    headers["X-Title"] = "MATHIR Playground"
+                    endpoint = f"{self.api_base}/chat/completions"
+                elif self.provider == "opencode_zen":
+                    # OpenCode Zen uses the OpenAI Responses API at /v1/responses
+                    endpoint = f"{self.api_base}/responses"
+                else:
+                    endpoint = f"{self.api_base}/chat/completions"
+                req = urllib.request.Request(
+                    endpoint,
+                    data=data,
+                    headers=headers,
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                    result = json.loads(resp.read())
+                    # OpenAI Responses API has a different response shape
+                    if "output" in result and isinstance(result["output"], list):
+                        # New OpenAI Responses format
+                        for item in result["output"]:
+                            if item.get("type") == "message":
+                                content = item.get("content", [])
+                                if isinstance(content, list):
+                                    for c in content:
+                                        if c.get("type") == "output_text":
+                                            return c.get("text", "")
+                                return str(content)
+                        return str(result["output"])
+                    # Classic OpenAI chat.completions format
+                    return result["choices"][0]["message"]["content"]
+            except urllib.error.HTTPError as e:
+                body = e.read().decode(errors="replace")[:300]
+                if e.code == 429 and attempt < self.max_retries:
+                    # Rate-limited — wait then retry with exponential backoff
+                    wait = 2 ** attempt
+                    print(f"  [RETRY] 429 rate-limited, waiting {wait}s (attempt {attempt+1}/{self.max_retries})")
+                    time.sleep(wait)
+                    continue
+                return f"ERROR: HTTP {e.code} - {body}"
+            except Exception as e:
+                if attempt < self.max_retries:
+                    wait = 2 ** attempt
+                    print(f"  [RETRY] {type(e).__name__}, waiting {wait}s")
+                    time.sleep(wait)
+                    continue
+                return f"ERROR: {type(e).__name__}: {e}"
+        return "ERROR: exhausted retries"
+
+    def _build_request_body(self, messages, max_tokens, temperature):
+        """Build the request body in the right format for the provider."""
+        if self.provider == "opencode_zen":
+            # OpenAI Responses API format: input is a list of role/content items
+            input_items = []
+            for m in messages:
+                role = m.get("role", "user")
+                content = m.get("content", "")
+                if isinstance(content, str):
+                    input_items.append({
+                        "role": role,
+                        "content": [{"type": "input_text", "text": content}],
+                    })
+                elif isinstance(content, list):
+                    # Already in multimodal format
+                    input_items.append({"role": role, "content": content})
+            return json.dumps({
+                "model": self.model_id,
+                "input": input_items,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            }).encode()
+        # Default: OpenAI chat.completions format
+        return json.dumps({
+            "model": self.model_id,
             "messages": messages,
             "max_tokens": max_tokens,
             "temperature": temperature,
         }).encode()
-        req = urllib.request.Request(
-            f"{self.server_url}/v1/chat/completions",
-            data=data,
-            headers={"Content-Type": "application/json"},
-            method="POST"
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=120) as resp:
-                result = json.loads(resp.read())
-                return result["choices"][0]["message"]["content"]
-        except urllib.error.HTTPError as e:
-            body = e.read().decode(errors='replace')[:200]
-            return f"ERROR: HTTP {e.code} - {body}"
 
     def chat_with_image(self, text, image_path, max_tokens=512):
-        """Chat with an image attachment."""
+        """Chat with an image attachment (works with vision-capable models)."""
+        if not self.model_paths.get("supports_vision"):
+            return f"ERROR: {self.display_name} does not support vision"
         with open(image_path, "rb") as f:
             image_data = base64.b64encode(f.read()).decode()
+        # Detect image MIME type from extension
+        ext = Path(image_path).suffix.lower()
+        mime = {".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+                ".png": "image/png", ".webp": "image/webp",
+                ".gif": "image/gif"}.get(ext, "image/jpeg")
         messages = [{
             "role": "user",
             "content": [
                 {"type": "text", "text": text},
-                {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{image_data}"}}
-            ]
+                {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{image_data}"}},
+            ],
         }]
         return self.chat(messages, max_tokens=max_tokens)
 
@@ -376,13 +394,12 @@ class VisionTester:
         print(f"  Stored memories: {stats['total_memories']}")
 
     def start_server(self):
-        """Start llama-server for the current model."""
-        self.server = LlamaServer(self.model_paths, port=self.port)
-        self.server.start()
+        """No-op in v8.4.0 (OpenRouter is cloud-based, no local server to start)."""
+        self.server = OpenRouterClient(self.model_paths)
 
     def stop_server(self):
-        if self.server:
-            self.server.stop()
+        # No-op: cloud API has no local process to stop
+        self.server = None
 
     def switch_model(self, new_model_name: str):
         """Switch to a different model (stops current server, starts new one)."""
@@ -444,14 +461,18 @@ def main():
         print(f"\nCreate {CONFIG_PATH} first.")
         return
 
-    bin_dir = resolve_path(config["bin_dir"])
-    models_dir = resolve_path(config["models_dir"])
     memory_db = resolve_path(config["memory_db"])
 
     print(f"\nConfig: {CONFIG_PATH}")
-    print(f"Bin dir: {bin_dir}")
-    print(f"Models dir: {models_dir}")
     print(f"Memory DB: {memory_db}")
+
+    # Check OpenRouter config
+    or_cfg = config.get("openrouter", {})
+    api_key = or_cfg.get("api_key") or os.environ.get("OPENROUTER_API_KEY", "")
+    api_base = or_cfg.get("api_base", "https://openrouter.ai/api/v1")
+    print(f"\n[OR] OpenRouter config:")
+    print(f"  API base: {api_base}")
+    print(f"  API key:  {'SET (' + api_key[:8] + '...)' if api_key else 'MISSING (set openrouter.api_key in config.json or OPENROUTER_API_KEY env)'}")
 
     # Check SimpleMemory DB
     print(f"\n[MEMORY] Checking local DB...")
@@ -472,26 +493,17 @@ def main():
     models = ModelManager(config)
     for name, m in models.list_models(enabled_only=False).items():
         status = "ON " if m.get("enabled", True) else "OFF"
-        paths = models.get_model_paths(name)
-        file_exists = paths["path"].exists() if paths and paths.get("path") else False
-        ready = "READY" if file_exists else "MISSING"
         supports = []
         if m.get("supports_vision"): supports.append("vision")
         if m.get("supports_audio"): supports.append("audio")
-        print(f"  [{ready}] [{status}] {name}")
+        if m.get("supports_grounding"): supports.append("grounding")
+        print(f"  [{status}] {name} (id: {m.get('id', '?')})")
         print(f"          type: {m.get('type')}, supports: {supports}")
         print(f"          display: {m.get('display_name', name)}")
-        if file_exists:
-            print(f"          path: {paths['path'].name} ({paths['path'].stat().st_size/1024/1024:.0f} MB)")
 
-    # Check binaries
-    print(f"\n[2] Binaries:")
-    if bin_dir.exists():
-        files = list(bin_dir.glob("*"))
-        print(f"  {bin_dir}: {len(files)} files")
-    else:
-        print(f"  MISSING: {bin_dir}")
-        print(f"  Run: python vision_testing/setup_binaries.py")
+    # OpenRouter connectivity quick check (cheap HEAD ping)
+    print(f"\n[2] OpenRouter connectivity:")
+    print(f"  Models above will be called via cloud — no local binaries needed in v8.4.0.")
 
     # Quick start
     print(f"\n[3] Usage (no hardcoded paths, all from config.json):")
