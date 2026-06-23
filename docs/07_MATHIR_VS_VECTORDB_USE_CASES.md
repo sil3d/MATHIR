@@ -3,7 +3,7 @@
 **Author:** Prince Gildas Mbama Kombila
 **Affiliation:** MATHIR Project, Independent Master's Research
 **Date:** June 2, 2026
-**Project Version:** MATHIR V8.3.0 (HybridSearch + full integration)
+**Project Version:** MATHIR V8.4.1 (HybridSearch + full integration)
 **Domain:** Memory-Augmented LLM Systems, Edge Deployment, Safety-Critical AI
 
 ---
@@ -451,4 +451,4 @@ pytest tests/test_approach_d_hybrid.py
 
 ---
 
-*Generated: 2026-06-02 — MATHIR V8.3.0 Master's defense document. Comments and corrections should be directed to the MATHIR maintainers. The companion doctoral paper is `docs/MASTER_RESEARCH_PAPER.md` (with full theorem proofs and 50-entry bibliography). The companion retrieval-research report is `docs/RETRIEVAL_RESEARCH_REPORT.md`.*
+*Generated: 2026-06-02 — MATHIR V8.4.1 Master's defense document. Comments and corrections should be directed to the MATHIR maintainers. The companion doctoral paper is `docs/MASTER_RESEARCH_PAPER.md` (with full theorem proofs and 50-entry bibliography). The companion retrieval-research report is `docs/RETRIEVAL_RESEARCH_REPORT.md`.*

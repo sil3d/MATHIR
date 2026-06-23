@@ -8,8 +8,8 @@
 
 1. [Fundamentals: What is MATHIR?](#1-fundamentals)
 2. [Architecture vs Model](#2-architecture-vs-model)
-3. [Version Evolution (V1-V8.3.0)](#3-versions)
-4. [Memory Tiers (4-tier hierarchical)](#4-memory-tiers)
+3. [Version Evolution (V1-V8.4.1)](#3-versions)
+4. [Memory Tiers (5-tier hierarchical)](#4-memory-tiers)
 5. [Theoretical Foundations (6 theorems)](#5-theorems)
 6. [V7 New Algorithms (8 novel)](#6-v7-algorithms)
 7. [Retrieval Approaches A/B/C/D](#7-retrieval)
@@ -31,7 +31,7 @@
 **A:** MATHIR (Memory-Augmented Tensor Hybrid with Intelligent Routing) is a **plug-and-play hierarchical memory layer** that gives any LLM the ability to learn, remember, and adapt in real-time on edge hardware.
 
 ### Q1.2: What problem does MATHIR solve?
-**A:** LLMs are **amnesiac** — they forget everything between sessions, can't learn from experience, and can't detect anomalies. Existing solutions (vector databases, RAG, long context) all **store** information but **don't learn** from it. MATHIR solves this by maintaining four memory tiers that evolve in real-time.
+**A:** LLMs are **amnesiac** — they forget everything between sessions, can't learn from experience, and can't detect anomalies. Existing solutions (vector databases, RAG, long context) all **store** information but **don't learn** from it. MATHIR solves this by maintaining five memory tiers that evolve in real-time.
 
 ### Q1.3: What is the difference between MATHIR and a vector database?
 **A:**
@@ -40,7 +40,7 @@
 | Stores embeddings | ✅ | ✅ |
 | Online learning | ❌ | ✅ |
 | Anomaly detection | ❌ | ✅ (NP-optimal Mahalanobis) |
-| Hierarchical memory | ❌ | ✅ (4 temporal tiers) |
+| Hierarchical memory | ❌ | ✅ (5 temporal tiers) |
 | Spaced repetition forgetting | ❌ | ✅ (Ebbinghaus) |
 | Adaptive allocation | ❌ | ✅ (KL-constrained router) |
 
@@ -61,7 +61,7 @@
 
 ### Q2.1: Is MATHIR an architecture or a model?
 **A:** MATHIR is an **ARCHITECTURE + FRAMEWORK**, NOT a model.
-- **Architecture** = the design (4-tier memory, KL router, 6 theorems, 8 algorithms)
+- **Architecture** = the design (5-tier memory, KL router, 6 theorems, 8 algorithms)
 - **Framework** = the code (`mathir_lib` Python library)
 - **NOT a model** = no `.bin` to download, weights are randomly initialized at each instantiation
 
@@ -94,7 +94,7 @@ MATHIR is the **Architecture + Framework** — like "Transformer + HuggingFace" 
 
 ---
 
-## 3. Version Evolution (V1 → V8.3.0) {#3-versions}
+## 3. Version Evolution (V1 → V8.4.1) {#3-versions}
 
 ### Q3.1: What is the history of MATHIR versions?
 **A:**
@@ -105,11 +105,11 @@ MATHIR is the **Architecture + Framework** — like "Transformer + HuggingFace" 
 | V5 | KL router + immunological memory | Legacy |
 | V5.1 | 21 bug fixes across 18 files | Legacy |
 | V6 | `MATHIRPlugin` API (LLM-agnostic) | Still supported |
-| V7 | 8 new algorithms + 6 theorems | Current |
+| V7 | 8 new algorithms + 6 theorems | Legacy |
 | V7.1 | 4 retrieval approaches (A/B/C/D) | Current |
 | V7.2 | Latency optimization (cache + adaptive) | Supported |
-| V8.0.0 | HybridSearch auto-backend, full HybridSearch integration | Current |
-| **V8.3.0** | **HybridSearch thread-safety fix + daemon push + brain architecture (5 phases)** | **Current latest** |
+| V8.0.0 | HybridSearch auto-backend, full HybridSearch integration | Supported |
+| **V8.4.1** | **HybridSearch thread-safety fix + daemon push + brain architecture (5 phases)** | **Current latest** |
 
 ### Q3.2: What's the difference between V6 and V7?
 **A:** V7 adds:
@@ -126,9 +126,9 @@ MATHIR is the **Architecture + Framework** — like "Transformer + HuggingFace" 
 
 ---
 
-## 4. Memory Tiers (4-Tier Hierarchical) {#4-memory-tiers}
+## 4. Memory Tiers (5-Tier Hierarchical) {#4-memory-tiers}
 
-### Q4.1: What are the 4 memory tiers in MATHIR?
+### Q4.1: What are the 5 memory tiers in MATHIR?
 **A:**
 | Tier | Capacity | Function | Update Rate |
 |------|----------|----------|-------------|
@@ -136,19 +136,18 @@ MATHIR is the **Architecture + Framework** — like "Transformer + HuggingFace" 
 | **episodic** | 1000 slots | Past experiences (key-value store) | On event |
 | **semantic** | 256 prototypes | Learned concepts (online k-means) | Every 100 steps |
 | **procedural** | 128 slots | Skills and how-to patterns | On event |
-
-Plus a separate **immunological anomaly bank** (100 slots, Mahalanobis detector) — *not* one of the 4 canonical tiers, but a safety layer consulted on every input to flag anomalies.
+| **immunological** | 100 slots | Anomaly detection via Mahalanobis distance | On event |
 
 ### Q4.2: Why is this inspired by the brain?
-**A:** The 4 canonical tiers mirror the **Complementary Learning Systems (CLS)** theory of McClelland, McNaughton, and O'Reilly (1995):
+**A:** The 5 canonical tiers mirror the **Complementary Learning Systems (CLS)** theory of McClelland, McNaughton, and O'Reilly (1995):
 - working_memory ↔ Prefrontal cortex
 - episodic ↔ Hippocampus
 - semantic ↔ Neocortex
 - procedural ↔ Basal ganglia (skills, habits)
-- immunological (separate bank) ↔ Amygdala (threat detection)
+- immunological ↔ Amygdala (threat detection)
 
 ### Q4.3: How does the router decide which tier to use?
-**A:** A **KL-constrained softmax** over 4 weights. A trust-region penalty prevents collapse to a single tier (always using one memory type).
+**A:** A **KL-constrained softmax** over 5 weights. A trust-region penalty prevents collapse to a single tier (always using one memory type).
 
 ### Q4.4: Can I customize the capacities?
 **A:** **YES** — all capacities are config-driven:
@@ -280,7 +279,7 @@ But for **most workloads**, the cache alone is sufficient and simpler.
 
 ### Q9.0: What is the HybridSearch architecture?
 
-**A:** MATHIR V8.3.0 introduces `HybridSearch` — an auto-selecting backend that picks the optimal vector index based on collection size. The flow:
+**A:** MATHIR V8.4.1 introduces `HybridSearch` — an auto-selecting backend that picks the optimal vector index based on collection size. The flow:
 
 ```
 User Query
@@ -338,7 +337,7 @@ This gives you the best of both worlds.
 **A:**
 1. **Online learning** (adapts during use)
 2. **Anomaly detection** (Mahalanobis, NP-optimal)
-3. **Hierarchical memory** (4 temporal tiers)
+3. **Hierarchical memory** (5 temporal tiers)
 4. **Spaced repetition** (Ebbinghaus)
 5. **9.3× compression** (vs no compression in FAISS)
 6. **Multi-modal** (text + image, via separate encoders)
@@ -366,7 +365,7 @@ This gives you the best of both worlds.
 ### Q10.3: Show me the architecture
 **A:**
 ```
-User message → Embedding → MATHIR (4 tiers) → Enhanced context → LLM → Response
+User message → Embedding → MATHIR (5 tiers) → Enhanced context → LLM → Response
                                     ↑
                           (online learning happens here)
 ```
@@ -391,7 +390,7 @@ Camera + Lidar + IMU
     ↓
 Perception (EfficientNet + YOLO)
     ↓
-MATHIR Plugin (4 tiers)
+MATHIR Plugin (5 tiers)
     ├─ Working: last 64 frames
     ├─ Episodic: past 1000 experiences
     ├─ Semantic: 256 driving prototypes
@@ -438,7 +437,7 @@ The system auto-downgrades: GPU → CPU → Edge based on available hardware. `H
 ## 12. LLM Integration {#12-llm}
 
 ### Q12.1: How do I integrate MATHIR with OpenAI?
-**A:** *(v8.4.0 — OpenAI is no longer a mathir_lib.providers plugin. Use the OpenAI Python SDK directly, then store embeddings via the daemon client.)*
+**A:** *(v8.4.1 — OpenAI is no longer a mathir_lib.providers plugin. Use the OpenAI Python SDK directly, then store embeddings via the daemon client.)*
 ```python
 import openai
 from mathir_lib.mathir_client import call as mathir_call
@@ -469,7 +468,7 @@ response = openai.chat.completions.create(
 ```
 
 ### Q12.2: How do I integrate with Ollama (local)?
-**A:** *(v8.4.0 — Ollama is now just another sentence-transformers-compatible embedder; the daemon auto-detects GPU/CPU and uses the configured model from `MATHIR_EMBEDDING_MODEL`.)*
+**A:** *(v8.4.1 — Ollama is now just another sentence-transformers-compatible embedder; the daemon auto-detects GPU/CPU and uses the configured model from `MATHIR_EMBEDDING_MODEL`.)*
 ```python
 # Set env vars before launching the daemon:
 #   export MATHIR_EMBEDDING_MODEL=ollama:nomic-embed-text

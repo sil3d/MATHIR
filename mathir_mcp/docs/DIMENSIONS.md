@@ -1,4 +1,4 @@
-# Embedding Dimensions Guide (v8.3.0)
+# Embedding Dimensions Guide (v8.4.1)
 
 **Current model: paraphrase-multilingual-MiniLM-L12-v2 (384d, 239MB VRAM)**
 

@@ -1,18 +1,18 @@
 """
-MATHIR V7.2 — Visual Diagrams Suite
+MATHIR V8.4.1 — Visual Diagrams Suite
 ====================================
 
 Generates 8 high-quality PNG diagrams for the master's defense.
 
 Outputs (in this directory):
-  01_architecture_main.png        — 4-tier MATHIR architecture
+  01_architecture_main.png        — 5-tier MATHIR architecture
   02_4_memory_tiers.png          — Memory tier deep-dive
   03_retrieval_comparison.png    — Quality comparison (V7.1)
   04_latency_quality_tradeoff.png — Speed vs Quality Pareto
   05_multi_agent_stress.png      — Concurrent stores stress test
   06_multimodal_fusion.png       — Multi-modal memory (text/img/audio/video)
   07_theorem_network.png         — 6 theorems dependency graph
-  08_version_timeline.png        — V1 → V7.2 evolution
+  08_version_timeline.png        — V1 → V8.4.1 evolution
 
 Run:
     python visualizations/generate_diagrams.py
@@ -62,6 +62,7 @@ TIER_COLORS = {
     "working":      "#3b82f6",  # Blue
     "episodic":     "#059669",  # Green
     "semantic":     "#d97706",  # Orange
+    "procedural":   "#8b5cf6",  # Purple
     "immunological":"#dc2626",  # Red
 }
 
@@ -97,7 +98,7 @@ FIG_W, FIG_H = 12, 8
 # =============================================================================
 
 
-def add_watermark(ax: plt.Axes, text: str = "MATHIR V7.2") -> None:
+def add_watermark(ax: plt.Axes, text: str = "MATHIR V8.4.1") -> None:
     """Add a subtle watermark in the bottom-right corner."""
     ax.text(
         0.985, 0.012, text,
@@ -165,15 +166,15 @@ def arrow(ax, x1, y1, x2, y2, color="#475569", lw=1.6,
 
 
 def diagram_1_architecture_main() -> Path:
-    """The 4-tier MATHIR architecture — high-level system diagram."""
+    """The 5-tier MATHIR architecture — high-level system diagram."""
     fig, ax = plt.subplots(figsize=(FIG_W, FIG_H))
     ax.set_xlim(0, 100)
     ax.set_ylim(0, 100)
     ax.set_aspect("equal")
     ax.axis("off")
 
-    add_title_band(fig, "MATHIR V7.2 — Hierarchical Memory Architecture",
-                   "Adaptive 4-tier memory for any LLM")
+    add_title_band(fig, "MATHIR V8.4.1 — Hierarchical Memory Architecture",
+                   "Adaptive 5-tier memory for any LLM")
 
     # ---------- Column bands (3 zones) ----------
     # INPUT zone
@@ -187,7 +188,7 @@ def diagram_1_architecture_main() -> Path:
     ax.add_patch(Rectangle((26, 12), 48, 70, facecolor="#fff7ed",
                            edgecolor=COLORS["secondary"], linewidth=1.2,
                            linestyle="--", alpha=0.55, zorder=0))
-    ax.text(50, 84, "MATHIR  (4-tier memory + KL router)",
+    ax.text(50, 84, "MATHIR  (5-tier memory + KL router)",
             ha="center", va="center",
             fontsize=10, fontweight="bold", color=COLORS["secondary"])
 
@@ -266,7 +267,7 @@ def diagram_1_architecture_main() -> Path:
 
     # Caption
     ax.text(50, 6,
-            "Modality-agnostic: any data → embedding → 4-tier memory → enhanced context",
+            "Modality-agnostic: any data → embedding → 5-tier memory → enhanced context",
             ha="center", va="center", fontsize=10,
             color=COLORS["muted"], style="italic")
     ax.text(50, 3, "MATHIR is the hippocampus of AI",
@@ -294,8 +295,8 @@ def diagram_2_4_memory_tiers() -> Path:
     ax.set_aspect("equal")
     ax.axis("off")
 
-    add_title_band(fig, "4-Tier Memory System",
-                   "Working · Episodic · Semantic · Immunological")
+    add_title_band(fig, "5-Tier Memory System",
+                   "Working · Episodic · Semantic · Procedural · Immunological")
 
     tiers = [
         {
@@ -799,7 +800,7 @@ def diagram_6_multimodal_fusion() -> Path:
 
     # 4) MATHIR block on the right side, large
     rounded_box(ax, 60, 50, 32, 22, COLORS["primary"],
-                "🧠 MATHIR\n4-tier memory\n+ KL router",
+                "🧠 MATHIR\n5-tier memory\n+ KL router",
                 fontsize=12, radius=0.05)
     # Arrow from embedding to MATHIR
     ax.add_patch(arrow(ax,60, 17, 60, 50,
@@ -1000,9 +1001,9 @@ def diagram_7_theorem_network() -> Path:
 
 
 def diagram_8_version_timeline() -> Path:
-    """Horizontal timeline of MATHIR versions V1 → V7.2."""
+    """Horizontal timeline of MATHIR versions V1 → V8.4.1."""
     fig, ax = plt.subplots(figsize=(FIG_W, FIG_H))
-    add_title_band(fig, "MATHIR Evolution  (V1 → V7.2)",
+    add_title_band(fig, "MATHIR Evolution  (V1 → V8.4.1)",
                    "5 months · 8 releases · 62+ unit tests · 8 novel algorithms · 6 theorems")
 
     # Versions (in display order)
@@ -1016,7 +1017,7 @@ def diagram_8_version_timeline() -> Path:
         ("V6",   "Jun 2026",  "MATHIRPlugin\nLLM-agnostic",      "#10b981", "stable"),
         ("V7",   "Jun 2026",  "8 algorithms\n+ 6 theorems",      "#059669", "stable"),
         ("V7.1", "Jun 2026",  "Retrieval A/B/C/D\n+ benchmarks", "#047857", "stable"),
-        ("V7.2", "Jun 2026",  "Latency opt\n+ cache + ONNX",     COLORS["gold"], "current"),
+        ("V8.4.1", "Jun 2026",  "Latency opt\n+ cache + ONNX",     COLORS["gold"], "current"),
     ]
 
     n = len(versions)
@@ -1115,7 +1116,7 @@ def diagram_8_version_timeline() -> Path:
     # Watermark
     add_watermark(ax)
     add_footer(fig, left="Source: CHANGELOG.md",
-               right="Latest = V7.2 (gold)")
+               right="Latest = V8.4.1 (gold)")
 
     ax.set_xlim(0, 100)
     ax.set_ylim(0, 100)
@@ -1135,7 +1136,7 @@ def diagram_8_version_timeline() -> Path:
 
 def main() -> int:
     print("=" * 70)
-    print("MATHIR V7.2 — Visual Diagrams Suite")
+    print("MATHIR V8.4.1 — Visual Diagrams Suite")
     print("=" * 70)
     print(f"Output directory: {OUTPUT_DIR}")
     print()

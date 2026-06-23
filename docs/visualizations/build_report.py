@@ -1,5 +1,5 @@
 """
-MATHIR V7.2 — Build Self-Contained HTML Report
+MATHIR V8.4.1 — Build Self-Contained HTML Report
 ==============================================
 
 Generates `visual_report.html` with all 8 PNG diagrams embedded as base64
@@ -30,9 +30,9 @@ DIAGRAMS = [
         "file":  "01_architecture_main.png",
         "title": "1. Hierarchical Architecture",
         "section": "Architecture",
-        "subtitle": "4-tier memory + KL-constrained router",
+        "subtitle": "5-tier memory + KL-constrained router",
         "description": (
-            "MATHIR is a 4-tier memory system sandwiched between any "
+            "MATHIR is a 5-tier memory system sandwiched between any "
             "modality encoder (text, image, audio, video) and any LLM. "
             "Working memory holds the last N steps; episodic memory stores "
             "past experiences; semantic memory clusters concepts; and "
@@ -114,7 +114,7 @@ DIAGRAMS = [
             "MATHIR is modality-agnostic. It only sees fixed-dim vectors. "
             "BERT encodes text, CLIP encodes images, Whisper encodes audio, "
             "VideoCLIP encodes video. All four land in the same shared "
-            "embedding space, which MATHIR then indexes across its 4 tiers."
+            "embedding space, which MATHIR then indexes across its 5 tiers."
         ),
     },
     {
@@ -138,14 +138,14 @@ DIAGRAMS = [
     {
         "id":    "timeline",
         "file":  "08_version_timeline.png",
-        "title": "8. Version Evolution (V1 → V7.2)",
+        "title": "8. Version Evolution (V1 → V8.4.1)",
         "section": "Project History",
         "subtitle": "5 months · 8 releases · 62+ unit tests",
         "description": (
             "From a 3-tier CNN+MLP prototype (V1, January 2026) to a "
             "doctoral-grade memory system with 8 novel algorithms, "
-            "6 formal theorems, and 4 retrieval approaches (V7.2, June 2026). "
-            "V7.2 is the current release, with a 5–12× latency speedup via "
+            "6 formal theorems, and 4 retrieval approaches (V8.4.1, June 2026). "
+            "V8.4.1 is the current release, with a 5–12× latency speedup via "
             "an LRU result cache and adaptive re-ranking."
         ),
     },
@@ -179,7 +179,7 @@ HTML_TEMPLATE = """<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MATHIR V7.2 — Visual Architecture Report</title>
+<title>MATHIR V8.4.1 — Visual Architecture Report</title>
 <script>
 window.MathJax = {{
   tex: {{ inlineMath: [['$', '$'], ['\\\\(', '\\\\)']] }},
@@ -373,14 +373,14 @@ window.MathJax = {{
 <div class="layout">
 
 <aside>
-  <h1>MATHIR V7.2</h1>
+  <h1>MATHIR V8.4.1</h1>
   <div class="ver">VISUAL ARCHITECTURE REPORT</div>
   <nav>
     <a class="section" href="#cover">Cover</a>
     <a href="#toc">Table of contents</a>
     <a class="section" href="#arch">Architecture</a>
     <a href="#architecture">1 · Hierarchical</a>
-    <a href="#tiers">2 · 4 Memory Tiers</a>
+    <a href="#tiers">2 · 5 Memory Tiers</a>
     <a class="section" href="#research">V7.1 Research</a>
     <a href="#retrieval">3 · Retrieval Quality</a>
     <a href="#pareto">4 · Latency Pareto</a>
@@ -404,16 +404,16 @@ window.MathJax = {{
 
   <div class="cover" id="cover">
     <div class="tag">MASTER'S DEFENSE — JUNE 2026</div>
-    <h1>MATHIR V7.2</h1>
+    <h1>MATHIR V8.4.1</h1>
     <div class="sub">Visual Architecture Report</div>
     <p style="font-size:16px; color:#e2e8f0; max-width:640px; line-height:1.7;">
-      Eight production-quality diagrams covering the 4-tier hierarchical
+      Eight production-quality diagrams covering the 5-tier hierarchical
       memory, the V7.1 retrieval research, multi-modal fusion, robustness
-      under 20 concurrent agents, the 6 formal theorems, and the V1→V7.2
+      under 20 concurrent agents, the 6 formal theorems, and the V1→V8.4.1
       version evolution.
     </p>
     <div class="meta" style="margin-top:32px;">
-      <div><strong>4</strong>Tier memory</div>
+      <div><strong>5</strong>Tier memory</div>
       <div><strong>6</strong>Formal theorems</div>
       <div><strong>8</strong>Novel algorithms</div>
       <div><strong>62+</strong>Unit tests</div>
@@ -424,14 +424,14 @@ window.MathJax = {{
   <div class="toc" id="toc">
     <h2>Table of Contents</h2>
     <ol>
-      <li><a href="#architecture">Hierarchical Architecture</a> — the 4-tier system and the KL-constrained router</li>
-      <li><a href="#tiers">The 4 Memory Tiers</a> — capacity, update rate, slot visualisation per tier</li>
+      <li><a href="#architecture">Hierarchical Architecture</a> — the 5-tier system and the KL-constrained router</li>
+      <li><a href="#tiers">The 5 Memory Tiers</a> — capacity, update rate, slot visualisation per tier</li>
       <li><a href="#retrieval">Retrieval Quality Comparison</a> — 5 systems benchmarked on 200 textbook chunks</li>
       <li><a href="#pareto">Speed–Quality Pareto Frontier</a> — how to pick A vs D vs FAISS</li>
       <li><a href="#stress">Multi-Agent Stress Test</a> — 20 parallel agents, 100% success</li>
       <li><a href="#multimodal">Multi-Modal Fusion</a> — text, image, audio, video in a shared embedding space</li>
       <li><a href="#theorems">Theoretical Foundations</a> — 6 theorems reduced to classical results</li>
-      <li><a href="#timeline">Version Evolution</a> — V1 → V7.2 across 5 months</li>
+      <li><a href="#timeline">Version Evolution</a> — V1 → V8.4.1 across 5 months</li>
     </ol>
   </div>
 
@@ -439,7 +439,7 @@ window.MathJax = {{
   {sections}
 
   <footer>
-    <strong>MATHIR V7.2</strong> — Visual Architecture Report · Generated {date}<br>
+    <strong>MATHIR V8.4.1</strong> — Visual Architecture Report · Generated {date}<br>
     Author: Prince Gildas Mbama Kombila · MATHIR Research Team<br>
     Source: <a href="../docs/MASTER_RESEARCH_PAPER.md">docs/MASTER_RESEARCH_PAPER.md</a>
     · <a href="../CHANGELOG.md">CHANGELOG.md</a>
@@ -472,7 +472,7 @@ def _section_pills(d: dict) -> str:
         "architecture": '<span class="pill primary">Architecture</span>'
                         '<span class="pill secondary">MATHIR core</span>',
         "tiers":        '<span class="pill primary">Memory</span>'
-                        '<span class="pill tertiary">V7.2 stable</span>',
+                        '<span class="pill tertiary">V8.4.1 stable</span>',
         "retrieval":    '<span class="pill secondary">V7.1 research</span>'
                         '<span class="pill gold">D wins</span>',
         "pareto":       '<span class="pill secondary">Pareto</span>'
@@ -483,7 +483,7 @@ def _section_pills(d: dict) -> str:
                         '<span class="pill tertiary">4 encoders</span>',
         "theorems":     '<span class="pill danger">6 theorems</span>'
                         '<span class="pill primary">All proven</span>',
-        "timeline":     '<span class="pill gold">V7.2 latest</span>'
+        "timeline":     '<span class="pill gold">V8.4.1 latest</span>'
                         '<span class="pill danger">V1–V3 legacy</span>',
     }
     return pills.get(d["id"], "")
@@ -520,7 +520,7 @@ def build_sections() -> str:
 
 def main() -> int:
     print("=" * 70)
-    print("MATHIR V7.2 — Building Self-Contained HTML Report")
+    print("MATHIR V8.4.1 — Building Self-Contained HTML Report")
     print("=" * 70)
 
     # 1) Make sure all PNGs exist

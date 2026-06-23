@@ -5,7 +5,7 @@
 **Author:** Prince Gildas Mbama Kombila
 **Affiliation:** MATHIR Project, Independent Research
 **Date:** June 2, 2026
-**Project Version:** MATHIR V8.3.0 (HybridSearch + daemon + brain architecture)
+**Project Version:** MATHIR V8.4.1 (HybridSearch + daemon + brain architecture)
 **Domain:** Machine Learning, Memory-Augmented Neural Networks, Information Retrieval, Stochastic Approximation
 
 ---
@@ -268,7 +268,7 @@ The MATHIR contribution to this thread is the integration of retrieval, learning
 
 The Complementary Learning Systems (CLS) theory of McClelland, McNaughton, and O'Reilly [11] posits that the brain maintains a fast-learning hippocampal system (episodic memory) and a slow-learning neocortical system (semantic memory). The two interact via offline replay during sleep: episodic traces are gradually consolidated into semantic knowledge. Ebbinghaus [10] measured the shape of human forgetting curves, leading to spaced-repetition systems (Wozniak [13]). The Information Bottleneck method of Tishby, Pereira, and Bialek [31] provides a normative theory of why the brain compresses sensory input: to preserve task-relevant information while discarding noise. Friston's Free Energy Principle [32] unifies these ideas under a single variational objective.
 
-The MATHIR contribution to this thread is the direct implementation of the CLS architecture. MATHIR's four-tier hierarchy (working, episodic, semantic, immunological) mirrors the CLS prediction of fast and slow learning systems. MATHIR's V7 `EbbinghausMemory` implements the spaced-repetition stability update $S \mapsto S(1+\alpha)^r$ for each recall, exactly as in SuperMemo and Anki. The empirical retention curve of MATHIR matches the Ebbinghaus curve within a 5% confidence interval (see Section 7).
+The MATHIR contribution to this thread is the direct implementation of the CLS architecture. MATHIR's five-tier hierarchy (working, episodic, semantic, procedural, immunological) mirrors the CLS prediction of fast and slow learning systems. MATHIR's V7 `EbbinghausMemory` implements the spaced-repetition stability update $S \mapsto S(1+\alpha)^r$ for each recall, exactly as in SuperMemo and Anki. The empirical retention curve of MATHIR matches the Ebbinghaus curve within a 5% confidence interval (see Section 7).
 
 ### 2.4 Dimensionality Reduction Theory
 
@@ -333,7 +333,7 @@ MATHIR evolved through seven major versions, each addressing a specific limitati
 | V3 | 3-tier memory | Working + episodic + semantic | ✓ |
 | V4 | mHC integration | Sinkhorn-Knopp projection | ✓ |
 | V5 | KL router + immune | Anomaly detection via Mahalanobis | ✓ |
-| V6 | LLM-agnostic API | 4-tier memory, providers, TurboQuant | ✓ |
+| V6 | LLM-agnostic API | 5-tier memory, providers, TurboQuant | ✓ |
 | V7 | Theoretical advances | 8 new algorithms, 6 theorems | ✓ |
 | V7.1 | Retrieval research | 4 new approaches, hybrid wins | ✓ (this paper) |
 
@@ -349,13 +349,14 @@ plugin.store({"embedding": emb, "action": act, "outcome": rew})
 memories = plugin.recall(query_embedding, k=5)
 ```
 
-The four memory tiers operate at different temporal scales:
+The five memory tiers operate at different temporal scales:
 - **Working memory** ($W = 64$ slots, circular buffer + multi-head attention): immediate context, sub-millisecond access.
 - **Episodic memory** ($N = 1000$ slots, key-value with cosine similarity): past experiences, millisecond access.
 - **Semantic memory** ($P = 256$ prototypes, online k-means via Robbins-Monro): learned concepts, millisecond access.
+- **Procedural memory** ($S = 128$ slots): skills and how-to patterns, event-driven update.
 - **Immunological memory** ($I = 100$ slots, cdist threshold): anomaly detection via Mahalanobis distance, sub-millisecond access.
 
-A KL-constrained router $R_t : \mathcal{X} \to \Delta_4$ (a probability simplex over the four tiers) allocates among the tiers with a PPO-style trust region to prevent collapse.
+A KL-constrained router $R_t : \mathcal{X} \to \Delta_5$ (a probability simplex over the five tiers) allocates among the tiers with a PPO-style trust region to prevent collapse.
 
 ### 3.3 V7 Theoretical Advances
 
@@ -1354,7 +1355,7 @@ This paper has presented the V7.1 release of MATHIR, which adds four novel retri
 ### 9.2 Answers to Research Questions
 
 - **RQ1: Plug-and-play online learning.** Yes. MATHIR V7.1 is a drop-in replacement for any LLM with an embedding layer, requiring no model-specific code.
-- **RQ2: Optimal information-theoretic architecture.** The four-tier hierarchy (working, episodic, semantic, immunological) with KL-constrained routing, sparse coding, and TurboQuant quantisation achieves 9.3× compression with provable retention and convergence.
+- **RQ2: Optimal information-theoretic architecture.** The five-tier hierarchy (working, episodic, semantic, procedural, immunological) with KL-constrained routing, sparse coding, and TurboQuant quantisation achieves 9.3× compression with provable retention and convergence.
 - **RQ3: Real-world retrieval quality.** On the Fluid Mechanics corpus, V7.1's Approach A achieves 31.6% top-1 overlap, matching FAISS.
 - **RQ4: Root-cause analysis.** The 11.9pp gap was due to a Johnson-Lindenstrauss violation in the 64-dim projection. Approach A (raw embedding bypass) closes the gap.
 - **RQ5: Hybrid retrieval.** Yes. Approach D (BM25 + Dense + Cross-Encoder) achieves 45.7% top-1 overlap, a 14.1pp gain over FAISS.

@@ -13,14 +13,14 @@ They are now co-located with the rest of the documentation in `docs/`.
 |------|------------|
 | `generate_diagrams.py` | matplotlib-based generator. Produces the 8 PNGs below. |
 | `build_report.py` | Builds `visual_report.html` with all PNGs embedded as base64. |
-| `01_architecture_main.png` | 4-tier MATHIR architecture (high-level system diagram). |
+| `01_architecture_main.png` | 5-tier MATHIR architecture (high-level system diagram). |
 | `02_4_memory_tiers.png` | Memory tier deep-dive with slot visualizations. |
 | `03_retrieval_comparison.png` | Quality comparison of 5 retrieval systems (V7.1). |
 | `04_latency_quality_tradeoff.png` | Speed-quality Pareto frontier. |
 | `05_multi_agent_stress.png` | Concurrent-stores stress test (20 agents). |
 | `06_multimodal_fusion.png` | Multi-modal memory (text/image/audio/video). |
 | `07_theorem_network.png` | 6 theorems with classical-result dependencies. |
-| `08_version_timeline.png` | V1 → V7.2 evolution timeline. |
+| `08_version_timeline.png` | V1 → V8.4.1 evolution timeline. |
 | `visual_report.html` | Self-contained, printable report (1.9 MB, base64 PNGs inline). |
 
 ---
@@ -54,7 +54,7 @@ xdg-open docs/visualizations/visual_report.html  # Linux
 - Resolution: 150 DPI PNG
 - Brand palette: per master's brand guidelines (see `COLORS` in
   `generate_diagrams.py`).
-- Watermark: "MATHIR V7.2" in every figure.
+- Watermark: "MATHIR V8.4.1" in every figure.
 - All diagrams cite the data source in the footer
   (e.g. `Source: ../../results/compare_all_approaches.json`).
 

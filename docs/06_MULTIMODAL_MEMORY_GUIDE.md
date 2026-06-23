@@ -2,15 +2,15 @@
 
 **Does MATHIR accept video, audio, text from an LLM? How does it store data as a memory?**
 
-*Master's-thesis-grade technical reference · MATHIR V8.3.0 · 2026*
+*Master's-thesis-grade technical reference · MATHIR V8.4.1 · 2026*
 
 ---
 
 ## 1. TL;DR
 
 - **Yes, MATHIR accepts every modality** — text, audio, image, video, and any mix thereof. It is **modality-agnostic** by design because it stores **embeddings (vectors)**, not raw data.
-- **The pipeline is universal**: *raw modality → modality-specific encoder (CLIP, CLAP, Whisper, sentence-transformers) → fixed-dim embedding vector → MATHIR's 4-tier memory*. MATHIR never sees the original bytes.
-- **Storage is a 4-tier numerical bank**: working_memory (64 slots), episodic (1000 slots), semantic (256 prototypes), procedural (128 slots). All slots are `float32` tensors of `internal_dim=272` by default (or raw-embedding dim when `use_raw_embedding=True`). 1000 embeddings at 512-dim cost **≈ 2 MB**; V7 sparse coding compresses that by **9.3×** to ~117 KB. Plus a separate **anomaly bank: immunological 100 patterns** (Mahalanobis detector, consulted on every input).
+- **The pipeline is universal**: *raw modality → modality-specific encoder (CLIP, CLAP, Whisper, sentence-transformers) → fixed-dim embedding vector → MATHIR's 5-tier memory*. MATHIR never sees the original bytes.
+- **Storage is a 5-tier numerical bank**: working_memory (64 slots), episodic (1000 slots), semantic (256 prototypes), procedural (128 slots), immunological (100 slots). All slots are `float32` tensors of `internal_dim=272` by default (or raw-embedding dim when `use_raw_embedding=True`). 1000 embeddings at 512-dim cost **≈ 2 MB**; V7 sparse coding compresses that by **9.3×** to ~117 KB.
 
 ---
 
@@ -73,7 +73,7 @@ MATHIR is a **memory layer for LLMs that operates on numerical embeddings**, not
                   │  └──────────┬────────────┘  │
                   │             ▼                │
                   │  ┌───────────────────────┐  │
-                  │  │ 4-Tier Memory          │  │
+                   │  │ 5-Tier Memory          │  │
                   │  │  • Working   (64)      │  │   circular buffer
                   │  │  • Episodic  (1000)    │  │   key-value
                   │  │  • Semantic  (256)     │  │   online k-means
@@ -123,7 +123,7 @@ encoder = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
 plugin = MATHIRPluginV7(embedding_dim=384)
 
 # 3) Encode → store
-text = "MATHIR is a 4-tier memory layer for LLM agents."
+text = "MATHIR is a 5-tier memory layer for LLM agents."
 emb = torch.tensor(encoder.encode([text]))            # [1, 384]
 
 plugin.perceive(emb)                                   # process + return enhanced
@@ -703,10 +703,11 @@ A: It contains one (episodic) but is much more: it has a router, a working memor
 │   📊 tabular    TS2Vec         64-d        │          64-d      │
 │                                                                 │
 │                ┌──────────────────────────┐                    │
-│                │  MATHIR = 4 tiers         │                    │
+│                │  MATHIR = 5 tiers         │                    │
 │                │  • working   (64 slots)   │  ~   70 KB         │
 │                │  • episodic  (1000 slots) │  ~  1.1 MB         │
 │                │  • semantic  (256 proto)  │  ~   16 KB         │
+│                │  • procedural (128 slots) │  ~   14 KB         │
 │                │  • immune    (100 normal) │  ~  109 KB         │
 │                │  V7: sparse coding        │  ~9.3× compress    │
 │                └──────────────────────────┘                    │
