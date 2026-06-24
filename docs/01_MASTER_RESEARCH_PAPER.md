@@ -792,7 +792,9 @@ Each immunological cluster supports two query modes:
 
 The two modes compose: an incoming query is first scored for embedding-match anomaly; if anomalous, the matched cluster's tag is used to retrieve *related* clusters by tag-match, giving a two-hop pattern lookup. This is the immunological analogue of antibody cross-reactivity.
 
-#### 3.13.6 Integration with the other 4 tiers — cross-tier linking
+#### 3.13.6 Integration with the other 5 tiers — cross-tier linking
+
+> Note: with the v8.4.2 release, immunological is now a real 5th tier, so the system has 5 tiers total (working, episodic, semantic, procedural, immunological). This section describes the current 5-tier architecture.
 
 The immunological tier is not isolated; it integrates with the other four tiers through MATHIR's link graph (see tool #11, `memory_link`):
 

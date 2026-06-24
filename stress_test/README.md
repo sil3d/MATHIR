@@ -19,7 +19,7 @@ python stress_test/server.py
 
 | Composant | Methode | Description |
 |-----------|---------|-------------|
-| **4-Tier Memory** | `MATHIRMemory.perceive()` | Working (buffer circulaire) + Episodic (cosine) + Semantic (k-means) + Immune (anomaly) |
+| **5-Tier Memory** | `MATHIRMemory.perceive()` | Working (buffer circulaire) + Episodic (cosine) + Semantic (k-means) + Procedural (rules) + Immunological (anomaly) |
 | **KL Router** | `_KLRouter.forward()` | Blend 4-way avec perte KL pour éviter le collapse |
 | **Input Projection** | `input_proj()` | 384d → 384d internal |
 | **Anomaly Detection** | `immune.anomaly_score()` | Score L2 distance to nearest normal |

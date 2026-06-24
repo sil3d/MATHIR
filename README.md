@@ -45,7 +45,7 @@
 
 <br/>
 
-> **🆕 v8.4.1 — Dynamic injection + sync.** Ships `mathir_inject.py` and `mathir_sync.py` to propagate the MATHIR block across `agents/`, `commands/`, `skills/`, `skills-global/`, `docs/` from one source of truth. 5 target-specific templates, `--explain` mode, install reproducibility fixes.
+> **🆕 v8.4.2 — Immunological is now a real 5th tier.** The architecture (working, episodic, semantic, procedural) is extended with a first-class `immunological` tier for prompt-injection detection and input anomaly scoring. All 17 MCP tools gain tier-aware routing. 173/173 tests pass.
 >
 > **v8.4.0 — Living memory, not a write-only disk.** MATHIR now ships a full **Ebbinghaus forgetting curve**, **tier promotion** (working → episodic → semantic → procedural), **semantic consolidation** (auto-merge near-duplicates), and a **link graph** (spreading activation à la Collins & Loftus 1975). Memories that get recalled grow stronger; memories that don't, decay and archive. **7 new MCP tools. 173/173 tests pass.**
 
@@ -54,7 +54,7 @@
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-8.4.1-6366f1?style=for-the-badge)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-8.4.2-6366f1?style=for-the-badge)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/Tests-173%20passed-22c55e?style=for-the-badge)](#-tests--benchmarks)
 
 <br/>
@@ -413,7 +413,7 @@ python bin/mathir_sync.py --explain                     # how it works
 
 1. **Anomaly detection on inputs** (immunological tier, AUC = 1.0). No competitor in this list has it.
 2. **Edge deployment in ~500 MB VRAM**. All others need cloud or heavy local infra. Jetson Orin ✅ (full CUDA), Raspberry Pi ⚠️ (CPU fallback with ONNX INT8).
-3. **MIT-licensed, fully open source, no managed service**. The only true OSS option with a 4-tier cognitive architecture.
+3. **MIT-licensed, fully open source, no managed service**. The only true OSS option with a 5-tier cognitive architecture.
 
 **Things others do that MATHIR doesn't (honesty):**
 
@@ -618,7 +618,7 @@ plugin = MATHIRPluginV7(embedding_dim=4096)
 output = plugin.perceive(llm_embedding)
 
 print(output["enhanced_embedding"])  # [1, 4096]
-print(output["router_weights"])      # 4-tier allocation: [0.4, 0.3, 0.2, 0.1]
+print(output["router_weights"])      # 5-tier allocation: [0.4, 0.3, 0.2, 0.1, 0.0]
 print(output["anomaly_score"])       # novelty detection (0.0–1.0)
 print(output["episodic_context"])    # retrieved past experiences
 ```
@@ -997,7 +997,7 @@ MATHIR v8.2.0 introduces **proactive memory delivery** — the daemon can push r
 │    │                         │                                 │
 │    │  push --auto            │                                 │
 │    ├────────────────────────►│  Analyze context                │
-│    │                         │  Query 4-tier memory            │
+│    │                         │  Query 5-tier memory            │
 │    │                         │  Rank by relevance              │
 │    │  ◄──────────────────────┤                                 │
 │    │  [memory1, memory2, ...] │  Return ranked memories        │
@@ -1487,7 +1487,7 @@ Full paper: [`docs/MATHIR_Research_Paper.tex`](docs/MATHIR_Research_Paper.tex)
 
 <div align="center">
 
-### 🧠 MATHIR — *A 4-tier cognitive memory layer for any LLM, on any hardware.*
+### 🧠 MATHIR — *A 5-tier cognitive memory layer for any LLM, on any hardware.*
 
 **Author:** [Prince Gildas Mbama Kombila](https://github.com/sil3d) · **Email:** soilearn3d@gmail.com
 

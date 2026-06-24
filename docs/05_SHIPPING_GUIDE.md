@@ -97,7 +97,7 @@ results = memory.recall(torch.randn(1, 384), k=5)
 | **Files** | 5 | 18+ |
 | **Lines of code** | ~1500 | ~10,000+ |
 | **Purpose** | Production use | Research / doctoral work |
-| **V7 features** | Essential 4-tier | All 8 algorithms + 6 theorems |
+| **V7 features** | Essential 5-tier | All 8 algorithms + 6 theorems |
 | **Storage** | SQLite (default) | In-memory only |
 | **Persistence** | ✅ Yes | ❌ No |
 | **Multimodal** | ✅ Yes | ✅ Yes |

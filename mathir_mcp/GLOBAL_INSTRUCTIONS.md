@@ -1,8 +1,8 @@
-# MATHIR — Global Instructions (v8.4.0)
+# MATHIR — Global Instructions (v8.4.2)
 
 ## ✅ MATHIR IS INJECTED — You Have Persistent Memory
 
-**MATHIR (Memory Architecture for Tiered Heuristic Intelligent Retrieval)** is a 4-tier cognitive memory system that gives you persistent memory across sessions. It is **automatically injected** into every session via MCP tools.
+**MATHIR (Memory Architecture for Tiered Heuristic Intelligent Retrieval)** is a 5-tier cognitive memory system that gives you persistent memory across sessions. It is **automatically injected** into every session via MCP tools.
 
 **What MATHIR does:**
 - Remembers decisions, bugs, fixes, and knowledge across sessions

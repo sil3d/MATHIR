@@ -45,7 +45,7 @@ This is the block that gets injected into every one of the 32 agents (`@coder`, 
 
 - **Daemon health check** — the agent's first instruction is `Test-NetConnection -ComputerName localhost -Port 7338`. If the daemon is down, the agent is told to start it, not assume MCP is broken.
 - **Active memory auto-injection slot** — `{{MATHIR_CONTEXT}}`, filled in at session start with the top-K most relevant prior memories.
-- **4-tier model recap** — `working_memory` / `episodic` / `semantic` / `procedural`, with the rule "start with `episodic`".
+- **5-tier model recap** — `working_memory` / `episodic` / `semantic` / `procedural` / `immunological`, with the rule "start with `episodic`".
 - **17 MCP tools** — basic CRUD, lifecycle (`promote`, `decay`, `consolidate`, `link`, `build_links`), and end-of-session housekeeping commands.
 - **End-of-session recipe** — the exact `memory_auto_promote()` / `memory_decay()` / `memory_consolidate()` / `memory_build_links()` sequence every agent runs before exiting.
 - **Error rules** — no "pre-existing error" excuses, no commented-out code, no hardcoded paths.
