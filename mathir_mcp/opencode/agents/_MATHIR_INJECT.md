@@ -4,40 +4,72 @@
 
 ## ⚡ BEFORE YOU DO ANYTHING — Daemon Health Check
 
+**DON'T PANIC.** If memory fails, debug systematically. There is almost always a simple fix.
+
 **STEP 1 — Is the daemon running?**
 
 ```powershell
 Test-NetConnection -ComputerName localhost -Port 7338 -InformationLevel Quiet
 ```
 
-If `True` → daemon is up, proceed normally.
+If `True` → daemon is up, proceed to STEP 2.
 If `False` → start it:
 
 ```powershell
-# Windows: use the auto_start helper (recommended)
+# Windows: use the auto_start helper (recommended — starts daemon + stats server)
 & "C:\Users\So-i-learn-3D\.config\opencode\bin\auto_start_helpers.ps1"
 
 # Or direct launch (slower, no venv/port checks)
-Start-Process python -ArgumentList "C:\Users\So-i-learn-3D\.config\opencode\bin\mathir_daemon.py" -WindowStyle Hidden
+Start-Process python -ArgumentList "C:\Users\So-i-learn-3D\.config\opencode\bin\mathir_daemon.py" -WorkingDirectory "C:\Users\So-i-learn-3D" -WindowStyle Hidden
 
 # Wait 3 seconds, then verify
 Start-Sleep -Seconds 3
 Test-NetConnection -ComputerName localhost -Port 7338 -InformationLevel Quiet
 ```
 
-**STEP 2 — Try memory_recall on something simple to confirm MCP is working.**
+**STEP 2 — Are MCP servers running? (this is the #1 failure mode)**
 
-If memory_recall works → great, proceed.
-If it fails → use Python fallback:
-```python
-import sys
-sys.path.insert(0, r"C:\Users\So-i-learn-3D\.config\opencode\bin")
-from mathir_lib import MATHIR
-m = MATHIR(project="current")
-results = m.recall("test", k=3)
+```powershell
+Get-CimInstance Win32_Process -Filter "Name='python.exe'" | Where-Object { $_.CommandLine -like "*mathir_mcp_server*" }
 ```
 
-**RULE: Always check the daemon FIRST. Never assume it's running.**
+**Expected:** exactly 1 process.
+**If 0:** Start the MCP server: `Start-Process -FilePath python -ArgumentList "C:\Users\So-i-learn-3D\.config\opencode\bin\mathir_mcp_server.py" -WorkingDirectory "C:\Users\So-i-learn-3D" -WindowStyle Hidden`. Wait 15s for embedder pre-warm.
+**If 2 or more:** DUPLICATES — kill all but the oldest:
+```powershell
+Get-CimInstance Win32_Process -Filter "Name='python.exe'" | Where-Object { $_.CommandLine -like "*mathir_mcp_server*" } | Sort-Object -Property ProcessId -Descending | Select-Object -Skip 1 | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
+```
+
+**STEP 3 — Try the MCP memory_recall tool.**
+
+If `memory_recall` works → great, proceed.
+If it fails → fall back to CLI (skip Python imports, they often fail):
+
+```powershell
+cd "C:\Users\So-i-learn-3D\.config\opencode\bin"
+python mathir_client.py recall "your query" -k 5
+```
+
+**STEP 4 — Last resort: socket directly (no Python startup).**
+
+```powershell
+. "C:\Users\So-i-learn-3D\.config\opencode\bin\mathir_daemon.ps1"
+Search-Mathir "your query" -K 5
+```
+
+**Common failure modes — DON'T PANIC, FIX:**
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `memory_recall` times out | MCP server not running, or 2+ running | Check process count, kill duplicates |
+| `No module named 'mathir_lib'` | Don't import directly — use MCP or CLI | Use `python mathir_client.py` |
+| `Internal error in memory_stats` | Daemon CWD read-only (e.g. Python install dir) | Restart with `-WorkingDirectory "C:\Users\So-i-learn-3D"` |
+| `Port 7338 already in use` | Multiple daemons | Kill all, restart one |
+| Port 8182 "down" | NOT a real port — it's legacy | Ignore. Use 7338. |
+| `mathir_client.py` Unicode error | Console cp1252 | Already fixed in v8.4.2 |
+| Recall returns 0 results | Wrong DB (CWD issue) | Same fix as Internal error |
+
+**RULE: Always prefer MCP tool. If MCP fails, check process count FIRST. Don't import Python modules directly.**
 
 ---
 
