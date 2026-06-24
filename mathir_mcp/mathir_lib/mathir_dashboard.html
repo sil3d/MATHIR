@@ -107,7 +107,7 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .radar-section{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:40px}
 .radar-card{background:var(--bg-1);border:1px solid var(--border);border-radius:18px;padding:32px;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .radar-title{font-size:13px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-2);margin-bottom:24px;font-weight:500}
-.radar-svg{width:280px;height:280px}
+.radar-svg{width:100%;max-width:280px;height:auto;aspect-ratio:1;display:block}
 .radar-label{font-size:11px;fill:var(--text-2);font-family:'JetBrains Mono',monospace}
 .radar-ring{fill:none;stroke:var(--border);stroke-width:1}
 .radar-area{transition:all 0.8s cubic-bezier(0.4,0,0.2,1)}
@@ -162,7 +162,9 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 
 /* Timeline */
 .timeline-card{background:var(--bg-1);border:1px solid var(--border);border-radius:18px;padding:28px;overflow:hidden}
-.tl-wrap{display:flex;align-items:flex-end;gap:6px;height:140px;padding:8px 0}
+.tl-wrap{display:flex;align-items:flex-end;gap:6px;height:140px;padding:8px 0;overflow-x:auto;overflow-y:hidden}
+.tl-wrap::-webkit-scrollbar{height:6px}
+.tl-wrap::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 .tl-bar{flex:1;min-width:20px;border-radius:6px 6px 0 0;position:relative;cursor:pointer;transition:all 0.4s cubic-bezier(0.4,0,0.2,1);animation:barGrow 0.8s cubic-bezier(0.4,0,0.2,1) backwards}
 @keyframes barGrow{from{transform:scaleY(0);transform-origin:bottom}}
 .tl-bar:hover{filter:brightness(1.2);transform:scaleY(1.05);transform-origin:bottom}
@@ -206,7 +208,7 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .mem-tbl tr:last-child td{border-bottom:none}
 .mem-tbl tr:hover td{background:rgba(255,255,255,0.02)}
 .mem-id{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-2);opacity:0.7}
-.mem-text{max-width:380px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-0)}
+.mem-text{max-width:480px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis;line-height:1.5;color:var(--text-0)}
 .mem-agent{font-family:'JetBrains Mono',monospace;font-size:11px;padding:3px 10px;border-radius:6px;background:var(--bg-3);display:inline-block}
 .mem-type{font-family:'JetBrains Mono',monospace;font-size:11px;padding:3px 10px;border-radius:6px;display:inline-block;font-weight:500}
 .mem-type.working_memory{background:var(--cyan-g);color:var(--cyan)}
@@ -221,15 +223,51 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-3px)}75%{transform:translateX(3px)}}
 
 /* Filters */
-.filters{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap}
+.filters{display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;align-items:center}
 .f-btn{background:var(--bg-2);border:1px solid var(--border);color:var(--text-1);padding:7px 16px;border-radius:10px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;font-weight:500;transition:all 0.25s}
 .f-btn:hover,.f-btn.active{background:var(--bg-3);color:var(--text-0);border-color:var(--cyan)}
 .f-btn.active{box-shadow:0 0 12px rgba(34,211,238,0.15)}
+.mem-search{flex:1;min-width:220px;background:var(--bg-2);border:1px solid var(--border);color:var(--text-0);padding:9px 14px;border-radius:10px;font-family:'Outfit',sans-serif;font-size:13px;outline:none;transition:all 0.25s}
+.mem-search:focus{border-color:var(--cyan);box-shadow:0 0 12px rgba(34,211,238,0.15)}
+.mem-search::placeholder{color:var(--text-2)}
+.mem-select{background:var(--bg-2);border:1px solid var(--border);color:var(--text-0);padding:9px 30px 9px 14px;border-radius:10px;font-family:'Outfit',sans-serif;font-size:12px;font-weight:500;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238892a8' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;transition:all 0.25s}
+.mem-select:hover{border-color:var(--cyan)}
+.mem-select:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 12px rgba(34,211,238,0.15)}
+.mem-select option{background:var(--bg-2);color:var(--text-0);padding:6px}
+.f-clear{background:transparent;border:1px solid var(--border);color:var(--text-2);padding:9px 14px;border-radius:10px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:12px;font-weight:500;transition:all 0.25s}
+.f-clear:hover{border-color:var(--red);color:var(--red)}
+.mem-text{cursor:pointer}
+.mem-text:hover{color:var(--cyan)}
+.mem-text-cell{max-width:480px}
+.del-btn{display:inline-flex;align-items:center;gap:4px}
 
 /* Loading */
 .ld{display:flex;align-items:center;justify-content:center;padding:60px;color:var(--text-2);font-size:13px}
 .ld::before{content:'';width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--cyan);border-radius:50%;margin-right:12px;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* Modals (content viewer + delete confirm) */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.78);backdrop-filter:blur(6px);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-bg.active{display:flex;animation:fadeIn 0.2s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal-box{background:var(--bg-1);border:1px solid var(--border);border-radius:18px;padding:28px;max-width:640px;width:100%;max-height:80vh;display:flex;flex-direction:column;animation:slideUp 0.25s cubic-bezier(0.4,0,0.2,1)}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.modal-title{font-size:15px;font-weight:600;color:var(--text-0);display:flex;align-items:center;gap:10px}
+.modal-close{background:transparent;border:1px solid var(--border);color:var(--text-1);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px;transition:all 0.2s;display:flex;align-items:center;justify-content:center}
+.modal-close:hover{border-color:var(--red);color:var(--red)}
+.modal-body{flex:1;overflow-y:auto;font-size:13px;line-height:1.65;color:var(--text-0);white-space:pre-wrap;word-break:break-word;font-family:'JetBrains Mono',monospace;background:var(--bg-0);border:1px solid var(--border);border-radius:10px;padding:16px}
+.modal-body::-webkit-scrollbar{width:8px}
+.modal-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.modal-meta{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.meta-tag{font-family:'JetBrains Mono',monospace;font-size:10px;padding:3px 10px;border-radius:6px;background:var(--bg-3);color:var(--text-1)}
+.modal-foot{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}
+.btn{padding:9px 18px;border-radius:10px;cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:500;transition:all 0.25s;border:1px solid var(--border)}
+.btn-cancel{background:var(--bg-2);color:var(--text-1)}
+.btn-cancel:hover{border-color:var(--text-1);color:var(--text-0)}
+.btn-danger{background:linear-gradient(135deg,var(--red),rgba(248,113,113,0.7));border:1px solid var(--red);color:#fff;font-weight:600}
+.btn-danger:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.btn-danger:active{transform:translateY(0)}
 
 /* Responsive */
 @media(max-width:1000px){.stats-grid{grid-template-columns:repeat(2,1fr)}.tiers-container,.radar-section{grid-template-columns:1fr}.router-grid{grid-template-columns:1fr}}
@@ -330,17 +368,61 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 
   <div class="section">
     <div class="section-header"><h2>Stored Memories</h2><div class="badge" id="memBadge"></div></div>
-    <div class="section-desc">All memories stored in MATHIR. Use filters to find specific types. Click DEL to remove outdated memories.</div>
+    <div class="section-desc">All memories stored in MATHIR. Use search and dropdowns to filter. Click any content row to view full text. Use DEL to remove outdated memories.</div>
     <div class="filters">
-      <button class="f-btn active" onclick="fMem(null,this)">All</button>
-      <button class="f-btn" onclick="fMem('working_memory',this)">Working</button>
-      <button class="f-btn" onclick="fMem('episodic',this)">Episodic</button>
-      <button class="f-btn" onclick="fMem('semantic',this)">Semantic</button>
-      <button class="f-btn" onclick="fMem('procedural',this)">Procedural</button>
+      <input id="memSearch" class="mem-search" type="search" placeholder="🔍 Search content, label, agent..." oninput="onMemFilterChange()" />
+      <select id="memAgentFilter" class="mem-select" onchange="onMemFilterChange()">
+        <option value="">All agents</option>
+      </select>
+      <select id="memTierFilter" class="mem-select" onchange="onMemFilterChange()">
+        <option value="">All tiers</option>
+        <option value="working_memory">working_memory</option>
+        <option value="episodic">episodic</option>
+        <option value="semantic">semantic</option>
+        <option value="procedural">procedural</option>
+        <option value="immunological">immunological</option>
+      </select>
+      <button id="memClearBtn" class="f-clear" onclick="clearMemFilters()" title="Clear filters">✕ Clear</button>
     </div>
     <div class="mem-wrap">
       <table class="mem-tbl"><thead><tr><th>ID</th><th>Content</th><th>Agent</th><th>Type</th><th>Label</th><th>Date</th><th></th></tr></thead>
       <tbody id="memBody"><tr><td colspan="7" class="ld">Loading...</td></tr></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- Content viewer modal -->
+<div id="contentModal" class="modal-bg" onclick="if(event.target===this)closeContentModal()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div class="modal-title">📄 <span id="contentModalTitle">Memory</span></div>
+      <button class="modal-close" onclick="closeContentModal()" title="Close (Esc)">✕</button>
+    </div>
+    <div class="modal-meta" id="contentModalMeta"></div>
+    <div class="modal-body" id="contentModalBody">—</div>
+    <div class="modal-foot">
+      <button class="btn btn-cancel" onclick="closeContentModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div id="deleteModal" class="modal-bg" onclick="if(event.target===this)closeDeleteModal()">
+  <div class="modal-box" style="max-width:440px">
+    <div class="modal-head">
+      <div class="modal-title" style="color:var(--red)">⚠ Delete Memory?</div>
+      <button class="modal-close" onclick="closeDeleteModal()" title="Cancel (Esc)">✕</button>
+    </div>
+    <div style="font-size:13px;color:var(--text-1);line-height:1.6;margin-bottom:8px">
+      This will permanently delete memory:
+    </div>
+    <div class="modal-body" id="deleteModalId" style="font-size:11px;padding:10px 14px;margin-bottom:14px">—</div>
+    <div style="font-size:12px;color:var(--text-2);margin-bottom:18px;line-height:1.5">
+      This action cannot be undone. Use this to clean outdated or incorrect memories.
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-cancel" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-danger" id="deleteModalConfirm" onclick="confirmDelete()">Delete permanently</button>
     </div>
   </div>
 </div>
@@ -595,8 +677,9 @@ async function loadRouter(){
   document.getElementById('rKL').textContent=d.kl_coefficient;
   document.getElementById('rTotal').textContent=d.total_memories;
   document.getElementById('routerBadge').textContent=d.router_type;
-  const w=d.weights||{};const mx=Math.max(...Object.values(w),0.01);
-  const tiers=['working','episodic','semantic','procedural'];
+  const w=d.weights||{};
+  const tiers=['working','episodic','semantic','procedural','immunological'];
+  const mx=Math.max(...tiers.map(t=>w[t]||0),0.01);
   let h='';
   tiers.forEach(t=>{
     const v=w[t]||0;const pct=(v/mx)*100;
@@ -612,34 +695,149 @@ async function loadConfig(){
 }
 
 let cFilt=null;
+let memSearch='';
+let memAgent='';
+let pendingDeleteId=null;
+let allMemoriesCache=[];
+
 async function loadMemories(bt){
-  let u='/api/memories?limit=100';if(bt)u+=`&block_type=${bt}`;
+  bt=bt!==undefined?bt:cFilt;
+  let u='/api/memories?limit=200';
+  const effTier=bt||document.getElementById('memTierFilter').value;
+  const effAgent=memAgent||document.getElementById('memAgentFilter').value;
+  if(effTier)u+=`&block_type=${encodeURIComponent(effTier)}`;
+  if(effAgent)u+=`&agent=${encodeURIComponent(effAgent)}`;
   const proj=getProject();if(proj)u+=`&project=${encodeURIComponent(proj)}`;
-  const d=await jf(u);const b=document.getElementById('memBody');
-  document.getElementById('memBadge').textContent=d.total+' memories';
-  if(!d.memories.length){b.innerHTML='<tr><td colspan="7" class="ld" style="justify-content:center">No memories</td></tr>';return;}
-  b.innerHTML=d.memories.map(m=>{
+  const d=await jf(u);
+  allMemoriesCache=d.memories||[];
+  renderMemories();
+}
+
+function renderMemories(){
+  const b=document.getElementById('memBody');
+  const q=(memSearch||'').trim().toLowerCase();
+  let list=allMemoriesCache;
+  if(q){list=list.filter(m=>{const meta=m.metadata||{};const txt=(m.modality_text||m.text||meta.content||'').toLowerCase();const lb=(meta.label||'').toLowerCase();const ag=(meta.agent||'').toLowerCase();return txt.includes(q)||lb.includes(q)||ag.includes(q)})}
+  const total=allMemoriesCache.length;
+  const shown=list.length;
+  document.getElementById('memBadge').textContent=shown===total?`${total} memories`:`${shown} / ${total} memories`;
+  if(!list.length){b.innerHTML=`<tr><td colspan="7" class="ld" style="justify-content:center">${allMemoriesCache.length?'No matches for current filters':'No memories'}</td></tr>`;return;}
+  b.innerHTML=list.map(m=>{
     const meta=m.metadata||{};
-    const txt=(m.modality_text||m.text||meta.content||'').substring(0,80);
+    const full=(m.modality_text||m.text||meta.content||'');
+    const txt=full.length>240?full.substring(0,240)+'…':full;
     const ag=meta.agent||'—';const tp=meta.block_type||m.tier||'—';const lb=meta.label||'—';const mid=m.memory_id||m.id||'—';
-    return`<tr><td><span class="mem-id">${mid}</span></td><td><span class="mem-text" title="${(m.modality_text||m.text||meta.content||'').replace(/"/g,'&quot;')}">${txt}</span></td><td><span class="mem-agent">${ag}</span></td><td><span class="mem-type ${tp}">${tp}</span></td><td>${lb}</td><td><span class="mem-date">${fd(m.timestamp||m.created_at)}</span></td><td><button class="del-btn" onclick="delMem('${mid}',this)" title="Delete">DEL</button></td></tr>`;
+    const safeFull=full.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const safeAg=String(ag).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const safeLb=String(lb).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const safeMid=String(mid).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return`<tr><td><span class="mem-id">${safeMid}</span></td><td class="mem-text-cell"><span class="mem-text" onclick="openContentModal('${safeMid.replace(/'/g,"\\'")}')" title="Click to view full content">${txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</span></td><td><span class="mem-agent">${safeAg}</span></td><td><span class="mem-type ${tp}">${tp}</span></td><td>${safeLb}</td><td><span class="mem-date">${fd(m.timestamp||m.created_at)}</span></td><td><button class="del-btn" onclick="askDelete('${safeMid.replace(/'/g,"\\'")}','${safeFull.substring(0,60).replace(/'/g,"\\'")}...')" title="Delete">✕ DEL</button></td></tr>`;
   }).join('');
 }
 
-function fMem(t,btn){document.querySelectorAll('.f-btn').forEach(b=>b.classList.remove('active'));btn.classList.add('active');cFilt=t;loadMemories(t)}
-
-async function delMem(id,btn){
-  if(!btn.classList.contains('confirm')){btn.classList.add('confirm');btn.textContent='CONFIRM?';setTimeout(()=>{btn.classList.remove('confirm');btn.textContent='DEL'},3000);return}
-  const proj=getProject();
-  const body={memory_id:id};
-  if(proj)body.project=proj;
-  await jf('/api/memory/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  loadMemories(cFilt);loadOverview();loadTiers();loadAgents();loadRouter();loadTimeline();loadRadar();
+function onMemFilterChange(){
+  memSearch=document.getElementById('memSearch').value;
+  memAgent=document.getElementById('memAgentFilter').value;
+  cFilt=document.getElementById('memTierFilter').value||null;
+  if(allMemoriesCache.length&&(memSearch||memAgent||cFilt)){
+    renderMemories();
+  }else{
+    loadMemories(cFilt);
+  }
 }
+
+function clearMemFilters(){
+  document.getElementById('memSearch').value='';
+  document.getElementById('memAgentFilter').value='';
+  document.getElementById('memTierFilter').value='';
+  memSearch='';memAgent='';cFilt=null;
+  loadMemories(null);
+}
+
+function openContentModal(mid){
+  const m=allMemoriesCache.find(x=>(x.memory_id||x.id)===mid);
+  if(!m)return;
+  const meta=m.metadata||{};
+  const full=(m.modality_text||m.text||meta.content||'');
+  document.getElementById('contentModalTitle').textContent=(meta.label||'Memory')+' · '+mid.substring(0,12);
+  const tags=[
+    `<span class="meta-tag">id: ${mid}</span>`,
+    `<span class="meta-tag">agent: ${meta.agent||'—'}</span>`,
+    `<span class="meta-tag">tier: ${meta.block_type||m.tier||'—'}</span>`,
+    meta.label?`<span class="meta-tag">label: ${meta.label}</span>`:'',
+    `<span class="meta-tag">${fd(m.timestamp||m.created_at)}</span>`
+  ].filter(Boolean).join('');
+  document.getElementById('contentModalMeta').innerHTML=tags;
+  document.getElementById('contentModalBody').textContent=full||'(empty)';
+  document.getElementById('contentModal').classList.add('active');
+  document.getElementById('contentModal').style.display='flex';
+}
+
+function closeContentModal(){
+  document.getElementById('contentModal').classList.remove('active');
+  document.getElementById('contentModal').style.display='none';
+}
+
+function askDelete(id,preview){
+  pendingDeleteId=id;
+  document.getElementById('deleteModalId').textContent=id+(preview?' — "'+preview+'"':'');
+  document.getElementById('deleteModal').classList.add('active');
+  document.getElementById('deleteModal').style.display='flex';
+}
+
+function closeDeleteModal(){
+  pendingDeleteId=null;
+  document.getElementById('deleteModal').classList.remove('active');
+  document.getElementById('deleteModal').style.display='none';
+}
+
+async function confirmDelete(){
+  if(!pendingDeleteId)return;
+  const id=pendingDeleteId;
+  const btn=document.getElementById('deleteModalConfirm');
+  btn.disabled=true;btn.textContent='Deleting...';
+  try{
+    const proj=getProject();
+    const body={memory_id:id,reason:'user requested via dashboard'};
+    if(proj)body.project=proj;
+    await jf('/api/memory/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    closeDeleteModal();
+    loadMemories(cFilt);loadOverview();loadTiers();loadAgents();loadRouter();loadTimeline();loadRadar();
+  }catch(e){
+    btn.textContent='Error: '+e.message;
+    setTimeout(()=>{btn.disabled=false;btn.textContent='Delete permanently'},2000);
+  }
+}
+
+async function populateAgentFilter(){
+  try{
+    const d=await jf('/api/agents'+projectParam());
+    const sel=document.getElementById('memAgentFilter');
+    const cur=sel.value;
+    const first=sel.options[0];
+    sel.innerHTML='';
+    sel.appendChild(first);
+    Object.keys(d.agents||{}).sort().forEach(name=>{
+      const opt=document.createElement('option');
+      opt.value=name;opt.textContent=name+' ('+d.agents[name].total+')';
+      sel.appendChild(opt);
+    });
+    if(cur)sel.value=cur;
+  }catch(e){}
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){
+    closeContentModal();
+    closeDeleteModal();
+    closeImportModal();
+  }
+});
 
 async function loadAll(){
   await loadProjects();
   await Promise.all([loadOverview(),loadTiers(),loadRouter(),loadConfig(),loadMemories(cFilt),loadTimeline(),loadAgents(),loadRadar()]);
+  populateAgentFilter();
 }
 loadAll();setInterval(loadAll,30000);
 
