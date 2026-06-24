@@ -90,11 +90,11 @@ When you need to reference MATHIR files, use these paths:
 
 ---
 
-## MATHIR v8.4.0 — LIVING MEMORY
+## MATHIR v8.4.2 — LIVING MEMORY (5 TIERS)
 
-Your memory is **alive**. It has 5 tiers and a full lifecycle (Ebbinghaus forgetting, promotion, consolidation, link graph). Use the right tool at the right time.
+Your memory is **alive**. It has **5 tiers** and a full lifecycle (Ebbinghaus forgetting, promotion, consolidation, link graph). Use the right tool at the right time.
 
-### The 4 memory tiers (use the right one!)
+### The 5 memory tiers (use the right one!)
 
 | Tier | When to use | Example |
 |------|-------------|---------|
@@ -102,8 +102,9 @@ Your memory is **alive**. It has 5 tiers and a full lifecycle (Ebbinghaus forget
 | **`episodic`** | Events that happened: bugs fixed, decisions made, sessions completed | "On 2026-06-15 we hit a connection pool exhaustion bug and fixed it by increasing pool size to 50" |
 | **`semantic`** | Stable knowledge, facts, patterns that apply broadly | "Our REST API uses /v2/ prefix and JWT auth — applies to all new endpoints" |
 | **`procedural`** | How-to recipes, repeatable procedures, runbooks | "How-to: rotate the database password: 1) stop service 2) update secret 3) restart" |
+| **`immunological`** | Threat signatures, detected anomalies, prompt-injection patterns, quarantined unsafe memories | "Detected prompt-injection signature: 'ignore previous instructions' with score 0.94 — auto-quarantined" |
 
-**Rule of thumb:** start with `episodic` for most things. The lifecycle will auto-promote to `semantic` if the memory is recalled often enough. Use `working_memory` for session-scoped stuff (it's promoted to episodic on session end). Use `procedural` for runbooks (label must start with `how-to:` or `recipe:`).
+**Rule of thumb:** start with `episodic` for most things. The lifecycle will auto-promote to `semantic` if the memory is recalled often enough. Use `working_memory` for session-scoped stuff (it's promoted to episodic on session end). Use `procedural` for runbooks (label must start with `how-to:` or `recipe:`). Use `immunological` to store detected threat patterns and anomalies — this tier is queryable, writable, and is the system's immune system for flagging and quarantining unsafe content.
 
 ### 17 MCP tools at your disposal
 
@@ -111,9 +112,10 @@ Your memory is **alive**. It has 5 tiers and a full lifecycle (Ebbinghaus forget
 
 ```
 memory_save(content, agent, block_type, label, priority, project)
-  - Saves a memory. block_type is the tier: working_memory | episodic | semantic | procedural
+  - Saves a memory. block_type is the tier: working_memory | episodic | semantic | procedural | immunological
   - priority 0-10, default 5. Use 8+ for critical facts, 9-10 for runbooks.
   - label should be short, searchable, and stable (e.g. "jwt-validation-fix" not "the fix")
+  - immunological tier is the immune system — saves detected threat signatures, anomalies, quarantined content
 
 memory_recall(query, k, agent, block_type, project)
   - Returns top-k memories matching the query (semantic similarity)
@@ -205,6 +207,7 @@ memory_save(content="...", agent="my_agent", block_type="episodic",
 - **semantic** if it's a stable fact that won't change
 - **procedural** with label "how-to:..." if it's a recipe
 - **working_memory** only for session-scoped context
+- **immunological** for detected threat signatures, anomalies, quarantined unsafe memories (terminal tier — never auto-promoted)
 
 ### When you notice a memory is wrong or outdated
 ```
@@ -275,7 +278,7 @@ memory_recall(query="specific topic", k=10)
 memory_smart_search(query="exact text", k=5)
 ```
 
-**Types:** working_memory, episodic, semantic, procedural
+**Types:** working_memory, episodic, semantic, procedural, immunological
 **Priority:** 1-10 (higher = more important)
 **Port:** 7338 (daemon) / 8182 (proxy) | **Database:** auto-detected (CWD-first, registry fallback, home ignored)
 **Model:** paraphrase-multilingual-MiniLM-L12-v2 (384d, 50+ langs, 239MB VRAM fp16)

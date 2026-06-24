@@ -23,5 +23,5 @@ When you create a new doc in `docs/<name>.md`:
 3. Cross-reference related memories by saving links via `memory_link(source_id, target_id, weight)`.
 
 **MCP tools:** `memory_save`, `memory_recall`, `memory_link`, `memory_get_links`
-**block_type:** `working_memory` | `episodic` | `semantic` | `procedural`
+**block_type:** `working_memory` | `episodic` | `semantic` | `procedural` | `immunological` (5 tiers; immunological is for threat signatures / anomaly storage)
 **Port:** 7338 (daemon) | **Model:** paraphrase-multilingual-MiniLM-L12-v2 (384d)
