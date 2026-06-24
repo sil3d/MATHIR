@@ -1,17 +1,41 @@
-# `template_injection_examples/` — MATHIR injection template EXAMPLES
+# `opencode_templates/` — MATHIR injection templates for OpenCode
 
-> **This folder contains the SOURCE TEMPLATES for MATHIR's memory injection system.** It is NOT the actual runtime config — that lives in the user's `~/.config/opencode/` and `~/.config/mimocode/` after `mathir_inject.py` runs.
+> **This folder contains the SOURCE TEMPLATES for MATHIR's memory injection system, specifically designed for OpenCode and OpenCode-compatible tools (MiMo Code, Zcode, etc.).**
 
-This folder is named `_examples` to make it clear:
-- ✅ **This** = canonical templates, versioned with the code, shipped on GitHub
-- ❌ **NOT this** = the user's actual deployed config (lives in `~/.config/opencode/`, `~/.config/mimocode/`)
+It is NOT the actual runtime config — that lives in the user's `~/.config/opencode/` and `~/.config/mimocode/` after `mathir_inject.py` runs.
+
+## What's here
+
+```
+opencode_templates/
+├── README.md                       ← you are here
+├── agents/
+│   └── _MATHIR_INJECT.md           ← full block, ~9.4 KB / 237 lines
+├── commands/
+│   └── _MATHIR_INJECT.md           ← short block, ~2.4 KB
+├── skills/
+│   └── _MATHIR_INJECT.md           ← minimal block, ~1.6 KB
+├── skills-global/
+│   └── _MATHIR_INJECT.md           ← minimal block, ~1.2 KB
+└── docs/
+    └── _MATHIR_INJECT.md           ← reference footer, ~1.2 KB
+```
+
+## What this is vs what it isn't
+
+| ✅ This folder (`opencode_templates/`) | ❌ NOT this |
+|---|---|
+| Canonical source-of-truth templates | The user's runtime config (`~/.config/opencode/`) |
+| Versioned with the code on GitHub | Their local injected agents/commands/skills |
+| Edited to change the injection block | Edited to change user-specific settings |
+| Shipped to all MATHIR users | Specific to one user/machine |
 
 The 5 `_MATHIR_INJECT.md` files here are the **source of truth** for what gets injected. When you edit them and run `mathir_inject.py --apply`, the changes propagate to:
 - `~/.config/opencode/agents/*.md` (32 agents)
 - `~/.config/opencode/commands/*.md` (10 commands)
 - `~/.config/opencode/skills/*/SKILL.md` (68 skills)
 - `~/.config/opencode/skills-global/*/SKILL.md` (88 skills-global)
-- `~/.config/mimocode/...` (same structure)
+- `~/.config/mimocode/...` (same structure for MiMo Code)
 
 If you fork MATHIR and want to customize the injection block, edit the templates here, then re-run `mathir_inject.py --apply --target all` to push the changes.
 
