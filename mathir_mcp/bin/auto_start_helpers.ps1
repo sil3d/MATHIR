@@ -39,6 +39,8 @@ param(
     [string]$PythonPath = "$env:USERPROFILE\AppData\Local\Programs\Python\Python311\python.exe",
     [string]$BinDir     = "$env:USERPROFILE\.config\opencode\bin",
     [string]$DaemonPath = "$env:USERPROFILE\.config\opencode\bin\mathir_daemon.py",
+    [string]$StatsPath  = "$env:USERPROFILE\.config\opencode\bin\mathir_stats_server.py",
+    [int]$StatsPort     = 7420,
     [string]$LogPath    = "$env:USERPROFILE\.config\opencode\bin\mathir_daemon.log",
 
     [switch]$CheckOnly,
@@ -200,6 +202,33 @@ while ($attempt -lt $MaxRetries) {
 
     if (Test-DaemonPort -PortToTest $Port) {
         Write-Log 'OK' "SUCCESS: daemon is listening on port $Port (attempt $attempt)."
+
+        # Also start the stats server (dashboard backend) if present
+        if (Test-Path $StatsPath) {
+            if (-not (Test-DaemonPort -PortToTest $StatsPort)) {
+                Write-Log 'INFO' "Starting stats server (dashboard backend on port $StatsPort)..."
+                $psiS = New-Object System.Diagnostics.ProcessStartInfo
+                $psiS.FileName               = $PythonPath
+                $psiS.Arguments              = "`"$StatsPath`""
+                $psiS.WorkingDirectory       = $BinDir
+                $psiS.UseShellExecute        = $false
+                $psiS.CreateNoWindow         = $true
+                $psiS.RedirectStandardOutput = $true
+                $psiS.RedirectStandardError  = $true
+                $psiS.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+                $psiS.StandardErrorEncoding  = [System.Text.Encoding]::UTF8
+                $procS = [System.Diagnostics.Process]::Start($psiS)
+                Start-Sleep -Seconds 3
+                if (Test-DaemonPort -PortToTest $StatsPort) {
+                    Write-Log 'OK' "Stats server is listening on port $StatsPort (PID $($procS.Id))"
+                } else {
+                    Write-Log 'WARN' "Stats server did not bind to port $StatsPort within 3s"
+                }
+            } else {
+                Write-Log 'OK' "Stats server already listening on port $StatsPort"
+            }
+        }
+
         exit 0
     }
 
