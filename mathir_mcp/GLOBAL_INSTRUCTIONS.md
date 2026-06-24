@@ -109,6 +109,24 @@ You don't ask permission. You just do it.
 
 ---
 
+## 🚀 Cross-Platform Auto-Start (v8.4.2+)
+
+The MATHIR daemon runs on port 7338 and must be started after every PC reboot. Three cross-platform helpers are shipped:
+
+| Platform | Helper file | Install (optional, boot-time) |
+|---|---|---|
+| **Windows** | `bin/auto_start.bat` / `bin/auto_start_helpers.ps1` | Put a shortcut to `auto_start.bat` in `shell:startup` |
+| **Linux** | `bin/auto_start.sh` / systemd `bin/mathir-daemon.service` | `systemctl --user enable mathir-daemon` |
+| **macOS** | `bin/auto_start.sh` / launchd `bin/com.mathir.daemon.plist` | `launchctl load -w ~/Library/LaunchAgents/com.mathir.daemon.plist` |
+
+**Source repo:** `D:\SECRET_PROJECT\MATHIR\mathir_mcp\bin\`
+**Deployed:** `~/.config/opencode/bin/`
+**Full install guides:** `mathir_mcp/INSTALL/INSTALL_{WINDOWS,LINUX,MACOS}.md`
+
+If the user asks to install, set up, or troubleshoot auto-start — point them to the matching `INSTALL_*.md`.
+
+---
+
 ## Input Limits & Security
 
 The MCP server enforces per-field length caps to prevent DoS via unbounded payloads:

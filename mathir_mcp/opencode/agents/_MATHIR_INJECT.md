@@ -14,11 +14,14 @@ If `True` → daemon is up, proceed normally.
 If `False` → start it:
 
 ```powershell
-# Windows
+# Windows: use the auto_start helper (recommended)
+& "C:\Users\So-i-learn-3D\.config\opencode\bin\auto_start_helpers.ps1"
+
+# Or direct launch (slower, no venv/port checks)
 Start-Process python -ArgumentList "C:\Users\So-i-learn-3D\.config\opencode\bin\mathir_daemon.py" -WindowStyle Hidden
-# Wait 3 seconds
+
+# Wait 3 seconds, then verify
 Start-Sleep -Seconds 3
-# Verify
 Test-NetConnection -ComputerName localhost -Port 7338 -InformationLevel Quiet
 ```
 
@@ -35,6 +38,47 @@ results = m.recall("test", k=3)
 ```
 
 **RULE: Always check the daemon FIRST. Never assume it's running.**
+
+---
+
+## 🚀 Cross-Platform Auto-Start (v8.4.2+)
+
+The MATHIR daemon needs to be started after every PC reboot. Three cross-platform helpers are available:
+
+| Platform | File | Use case |
+|---|---|---|
+| **Windows** | `bin/auto_start.bat` or `bin/auto_start_helpers.ps1` | Double-click or `& auto_start.bat` from PowerShell |
+| **Linux** | `bin/auto_start.sh` or systemd: `bin/mathir-daemon.service` | Run `./auto_start.sh` or `systemctl --user enable mathir-daemon` |
+| **macOS** | `bin/auto_start.sh` or launchd: `bin/com.mathir.daemon.plist` | Run `./auto_start.sh` or `launchctl load -w ~/Library/LaunchAgents/com.mathir.daemon.plist` |
+
+**All files are in:** `D:\SECRET_PROJECT\MATHIR\mathir_mcp\bin\` (source repo) and `~/.config/opencode/bin/` (deployed).
+
+**Full install guides:**
+- `D:\SECRET_PROJECT\MATHIR\mathir_mcp\INSTALL\INSTALL_WINDOWS.md`
+- `D:\SECRET_PROJECT\MATHIR\mathir_mcp\INSTALL\INSTALL_LINUX.md`
+- `D:\SECRET_PROJECT\MATHIR\mathir_mcp\INSTALL\INSTALL_MACOS.md`
+
+**If the user asks to install or set up auto-start:** point them to the right INSTALL_*.md file for their OS.
+
+---
+
+## 📁 Key File Locations
+
+When you need to reference MATHIR files, use these paths:
+
+| What | Path |
+|---|---|
+| Daemon | `~/.config/opencode/bin/mathir_daemon.py` |
+| MCP server | `~/.config/opencode/bin/mathir_mcp_server.py` |
+| Auto-start (Win) | `~/.config/opencode/bin/auto_start.bat` |
+| Auto-start (PS) | `~/.config/opencode/bin/auto_start_helpers.ps1` |
+| Auto-start (Unix) | `~/.config/opencode/bin/auto_start.sh` |
+| Service (Linux) | `bin/mathir-daemon.service` (in source repo) |
+| Plist (macOS) | `bin/com.mathir.daemon.plist` (in source repo) |
+| Install guides | `mathir_mcp/INSTALL/INSTALL_{WINDOWS,LINUX,MACOS}.md` |
+| Templates | `mathir_mcp/opencode/{agents,commands,skills,docs}/` |
+| Dashboard | `~/.config/opencode/bin/mathir_dashboard.html` |
+| Logs | `~/.config/opencode/bin/mathir_daemon.log` |
 
 ---
 

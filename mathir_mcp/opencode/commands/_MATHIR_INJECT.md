@@ -17,7 +17,9 @@ If `True` → daemon is up, proceed normally.
 If `False` → start it:
 
 ```powershell
-# Windows
+# Windows: use the auto_start helper (recommended)
+& "C:\Users\So-i-learn-3D\.config\opencode\bin\auto_start_helpers.ps1"
+# Or direct launch
 Start-Process python -ArgumentList "C:\Users\So-i-learn-3D\.config\opencode\bin\mathir_daemon.py" -WindowStyle Hidden
 Start-Sleep -Seconds 3
 Test-NetConnection -ComputerName localhost -Port 7338 -InformationLevel Quiet
@@ -34,6 +36,18 @@ results = m.recall("test", k=3)
 ```
 
 **RULE: Always check the daemon FIRST. Never assume it's running.**
+
+---
+
+## 🚀 Cross-Platform Auto-Start
+
+After reboot, the daemon must be restarted. Use the platform helper:
+
+- **Windows:** `& ~/.config/opencode/bin/auto_start_helpers.ps1` (or double-click `auto_start.bat`)
+- **Linux:** `./auto_start.sh` or `systemctl --user enable mathir-daemon`
+- **macOS:** `./auto_start.sh` or `launchctl load -w ~/Library/LaunchAgents/com.mathir.daemon.plist`
+
+**Install guides:** `mathir_mcp/INSTALL/INSTALL_{WINDOWS,LINUX,MACOS}.md`
 
 ---
 
