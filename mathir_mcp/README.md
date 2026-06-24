@@ -1,6 +1,6 @@
 # MATHIR MCP — Universal Installation
 
-**4-tier cognitive memory for 50 AI coding agents. Install once, use everywhere.**
+**5-tier cognitive memory for 50 AI coding agents. Install once, use everywhere.**
 
 ---
 

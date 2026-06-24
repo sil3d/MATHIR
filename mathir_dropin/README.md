@@ -3,14 +3,14 @@
 A minimal, self-contained memory plugin you can copy into any project
 and use in **5 minutes**.
 
-> **What is MATHIR?** A 4-tier memory system (working, episodic,
+> **What is MATHIR?** A 5-tier memory system (working, episodic,
 > semantic, immune) for AI agents. You feed it embeddings, it stores
 > them, blends them through a learned router, and lets you recall
 > similar ones later — with the same dict format regardless of whether
 > the input is text, image, audio, or video.
 
 This package is a **strict subset** of the full `mathir_lib` research
-codebase. It re-implements the canonical 4-tier model in 7 files
+codebase. It re-implements the canonical 5-tier model in 7 files
 (~1500 lines) with one obvious storage format and zero hidden
 dependencies.
 
@@ -46,7 +46,7 @@ hits = memory.recall(torch.randn(1, 1024), k=3)
 print(memory.get_stats())
 ```
 
-That's it. You now have a 4-tier memory that persists to `agent.db`.
+That's it. You now have a 5-tier memory that persists to `agent.db`.
 
 ### 3. Try the demo
 
@@ -63,7 +63,7 @@ reopens the DB to prove persistence, and prints the file size.
 
 `mathir_dropin` is **fully thread-safe**. All mutating operations (`store`, `recall` with write-back, `delete`) are protected by `threading.RLock`. You can safely call `MATHIRMemory` from multiple threads concurrently (e.g., Flask/SocketIO workers, async event loops).
 
-**Verified by:** 31 conv/s stress test running 4-tier memory + BM25 + cross-encoder concurrently with zero data races.
+**Verified by:** 31 conv/s stress test running 5-tier memory + BM25 + cross-encoder concurrently with zero data races.
 
 ---
 
@@ -107,7 +107,7 @@ results = memory.recall(emb_cohere, k=5, provider="cohere")
 mathir_dropin/
 ├── README.md             ← you are here
 ├── __init__.py           ← public API: MATHIRMemory, configure, save, load
-├── memory.py             ← main class (4 tiers + KL router)
+├── memory.py             ← main class (5 tiers + KL router)
 ├── store.py              ← SQLite + FTS5 storage
 ├── config.py             ← default config + validate_config()
 ├── exceptions.py         ← MATHIRError and 3 specific subclasses
@@ -207,7 +207,7 @@ memory = MATHIRMemory(embedding_dim=1024, db_path=":memory:")  # RAM + FTS5
 
 ### `MATHIRMemory(embedding_dim, config=None, db_path=None)`
 
-The main class. Single `nn.Module` containing the 4 tiers + router.
+The main class. Single `nn.Module` containing the 5 tiers + router.
 
 | Argument       | Type             | Default        | Description                              |
 |----------------|------------------|----------------|------------------------------------------|
@@ -217,7 +217,7 @@ The main class. Single `nn.Module` containing the 4 tiers + router.
 
 ### `memory.perceive(embedding, metadata=None) → dict`
 
-Run an embedding through the 4 tiers and the router. Returns:
+Run an embedding through the 5 tiers and the router. Returns:
 
 ```python
 {
@@ -395,7 +395,7 @@ for embedding, metadata in v6_state["episodes"]:
 
 | Feature                     | Drop-in (this)         | Full `mathir_lib`      |
 |-----------------------------|------------------------|------------------------|
-| 4-tier memory               | ✅                      | ✅                      |
+| 5-tier memory               | ✅                      | ✅                      |
 | KL-constrained router       | ✅                      | ✅                      |
 | SQLite + FTS5 persistence   | ✅                      | ❌ (custom)             |
 | Ebbinghaus spaced repetition| ✅ (stability boost)   | ✅ (full curve + evict) |

@@ -355,7 +355,7 @@ python ~/.config/opencode/mcp/mathir_lib/mathir_client.py push "" --json 2>&1 | 
   - `working.py`, `episodic.py`, `semantic.py`, `immunological.py` — already had RLock
   - `ensemble_episodic.py`, `hybrid_episodic.py`, `raw_episodic.py` — **added** RLock
 - **mathir_dropin** — `store.py` and `memory.py` already thread-safe (confirmed during audit)
-- **Thread-safe under concurrent stress** — stress test runs 4-tier memory + BM25 + cross-encoder concurrently without data races
+- **Thread-safe under concurrent stress** — stress test runs 5-tier memory + BM25 + cross-encoder concurrently without data races
 
 ### Stress Test Fixes
 
@@ -540,7 +540,7 @@ python ~/.config/opencode/mcp/mathir_lib/mathir_client.py push "" --json 2>&1 | 
 ### MATHIRPlugin (LLM-Agnostic API)
 
 - `MATHIRPlugin` class — works with any LLM, any embedding dimension
-- 4-tier memory (Working, Episodic, Semantic, Immunological)
+- 5-tier memory (Working, Episodic, Semantic, Procedural, Immunological)
 - KL-constrained router
 - TurboQuant compression
 - 12/12 tests pass
