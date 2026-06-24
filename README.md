@@ -59,7 +59,7 @@
 
 <br/>
 
-[**🔥 5 Problems Solved**](#-5-real-world-problems-mathir-solves) · [**🆕 What's new in 8.4**](#-whats-new-in-v840--living-memory) · [**🔌 MCP Plug & Play**](#-mcp-plug--play--2-lines) · [**🔧 Dynamic Injection & Sync (NEW)**](#-dynamic-injection--sync-v841) · [**📖 The Story**](#-the-story-that-hurts) · [**⚡ Quick Start**](#-quick-start-30-seconds) · [**🏗️ Architecture**](#-architecture) · [**🆚 vs Alternatives**](#-vs-alternatives-honest-2026-comparison)
+[**🧭 Project Origin**](#-project-origin--2-years-1-question) · [**🔥 5 Problems Solved**](#-5-real-world-problems-mathir-solves) · [**🆕 What's new in 8.4**](#-whats-new-in-v840--living-memory) · [**🔌 MCP Plug & Play**](#-mcp-plug--play--2-lines) · [**📖 The Story**](#-the-story-that-hurts) · [**⚡ Quick Start**](#-quick-start-30-seconds) · [**🏗️ Architecture**](#-architecture) · [**🆚 vs Alternatives**](#-vs-alternatives-honest-2026-comparison)
 
 </div>
 
@@ -68,6 +68,48 @@
 ![MATHIR Architecture](docs/assets/Mathir_architecture.png)
 
 <br/>
+
+---
+
+## 🧭 Project Origin — 2 years, 1 question
+
+This is the story behind MATHIR. It's also my end-of-study project.
+
+### The original question (2024)
+
+Watching modern cars — with their dozens of sensors, cameras, lidars, ultrasonic arrays — I asked myself a simple question:
+
+> **Can they actually navigate an *unknown* environment?**
+
+Not a highway with lane markings. Not a pre-mapped city. A place they've never seen, where the rules change every meter.
+
+### The 2D simulator (Pygame)
+
+My first attempt to answer that question was a 2D simulator in Pygame. I knew it had limits — no real lidar, no ROS, no real sensor noise, no SLAM. But the question wasn't about precision. The question was more fundamental:
+
+> **Is a car really autonomous and intelligent?**
+
+The answer was a clear **NO**. A car following pre-programmed rules in a perfect simulation isn't intelligent — it's scripted. True autonomy requires the ability to *learn*, *remember*, and *adapt* across situations it's never seen before.
+
+### MATHIR's original purpose
+
+That's where MATHIR started. Its first goal was to be a **long-term memory** for an autonomous agent — initially as a competitor to LSTM-based memory (you can still see the LSTM-era code in `_deprecated/` for historical reference). The idea was simple:
+
+> An AI can't be intelligent if it can't **remember**. Every session starts from zero — that's amnesia, not intelligence.
+
+### 2 years later: LSTM is dead, the question evolved
+
+LSTM-based memory aged out in 2 years. The AI landscape shifted toward transformers and retrieval-augmented generation. So I refactored MATHIR to use vector search, semantic consolidation, link graphs, and Ebbinghaus forgetting — the cognitive architecture you see today.
+
+But the deeper question stayed:
+
+> **Is AI itself intelligent? Or just better at looking intelligent?**
+
+### The next step: a real 3D RC car
+
+MATHIR has been validated in software (173/173 tests, 5-tier architecture, plug-and-play MCP). The next step is to **build a 3D-printed RC car** and test MATHIR as its actual memory layer in a real autonomous-driving scenario — physical sensors, real noise, real unknowns.
+
+That's the validation I can't fake with a Pygame simulation. **Stay tuned.**
 
 ---
 
