@@ -70,7 +70,10 @@ class VecMemory:
     # Whitelist of valid embedding dimensions (prevents SQL injection via embedding_dim)
     VALID_DIMS = {64, 128, 256, 384, 512, 768, 1024, 2048, 4096}
 
-    # Tier promotion order — must match mathir_lib.TIERS exactly.
+    # Tier promotion order — must match mathir_lib.TIERS_STORAGE exactly.
+    # This is the 4 user-facing storage tiers (working -> episodic -> semantic -> procedural).
+    # 'immunological' is the 5th tier (TIERS_DETECTION) but is TERMINAL — it does NOT
+    # participate in this promotion chain. Anomaly memories stay in immunological forever.
     TIER_ORDER = ("working_memory", "episodic", "semantic", "procedural")
 
     def _schema_kind(self) -> str:

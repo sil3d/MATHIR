@@ -26,4 +26,4 @@
 - 10 MCP tools → 17 MCP tools
 - Install via `pip install -e ./mathir_mcp` (editable, portable)
 - Console scripts: mathir-daemon, mathir-mcp, mathir-client, mathir-watchdog
-- Tier taxonomy confirmed: working_memory | episodic | semantic | procedural (immunological is internal anomaly slot, NOT a tier)
+- Tier taxonomy: working_memory | episodic | semantic | procedural | immunological (5 tiers; immunological is a real, queryable, writable tier for threat-signature / anomaly storage, not just an internal detection slot)

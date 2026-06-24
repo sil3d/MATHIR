@@ -109,8 +109,8 @@ def main():
     p.add_argument('content', help='Content to remember')
     p.add_argument('-a', '--agent', required=True, help='Agent name')
     p.add_argument('-t', '--block-type', default='episodic', 
-                   choices=['working_memory', 'episodic', 'semantic', 'procedural'],
-                   help='Memory type')
+                   choices=['working_memory', 'episodic', 'semantic', 'procedural', 'immunological'],
+                   help='Memory type (immunological = anomaly/threat-signature storage)')
     p.add_argument('-l', '--label', required=True, help='Short label')
     p.add_argument('-p', '--priority', type=int, default=5, help='Priority 0-10')
     

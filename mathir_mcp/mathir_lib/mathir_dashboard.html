@@ -13,6 +13,7 @@
   --cyan:#22d3ee; --violet:#a78bfa; --green:#34d399; --orange:#fb923c; --red:#f87171;
   --cyan-g:rgba(34,211,238,0.12); --violet-g:rgba(167,139,250,0.12);
   --green-g:rgba(52,211,153,0.12); --orange-g:rgba(251,146,60,0.12);
+  --red-g:rgba(248,113,113,0.12);
 }
 
 *{margin:0;padding:0;box-sizing:border-box}
@@ -69,21 +70,25 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .stat-card.episodic::before{background:linear-gradient(90deg,var(--violet),rgba(167,139,250,0.3))}
 .stat-card.semantic::before{background:linear-gradient(90deg,var(--green),rgba(52,211,153,0.3))}
 .stat-card.procedural::before{background:linear-gradient(90deg,var(--orange),rgba(251,146,60,0.3))}
+.stat-card.immunological::before{background:linear-gradient(90deg,var(--red),rgba(248,113,113,0.3))}
 .stat-card.working::after{background:linear-gradient(transparent,var(--cyan-g))}
 .stat-card.episodic::after{background:linear-gradient(transparent,var(--violet-g))}
 .stat-card.semantic::after{background:linear-gradient(transparent,var(--green-g))}
 .stat-card.procedural::after{background:linear-gradient(transparent,var(--orange-g))}
+.stat-card.immunological::after{background:linear-gradient(transparent,var(--red-g))}
 .stat-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:16px}
 .working .stat-icon{background:var(--cyan-g);color:var(--cyan)}
 .episodic .stat-icon{background:var(--violet-g);color:var(--violet)}
 .semantic .stat-icon{background:var(--green-g);color:var(--green)}
 .procedural .stat-icon{background:var(--orange-g);color:var(--orange)}
+.immunological .stat-icon{background:var(--red-g);color:var(--red)}
 .stat-label{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:var(--text-2);margin-bottom:6px;font-weight:500}
 .stat-value{font-size:42px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
 .working .stat-value{color:var(--cyan)}
 .episodic .stat-value{color:var(--violet)}
 .semantic .stat-value{color:var(--green)}
 .procedural .stat-value{color:var(--orange)}
+.immunological .stat-value{color:var(--red)}
 .stat-sub{font-size:12px;color:var(--text-2);margin-top:8px;font-family:'JetBrains Mono',monospace}
 
 /* Animate counter */
@@ -117,6 +122,7 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .tier-card.episodic::after{background:linear-gradient(transparent,var(--violet-g))}
 .tier-card.semantic::after{background:linear-gradient(transparent,var(--green-g))}
 .tier-card.procedural::after{background:linear-gradient(transparent,var(--orange-g))}
+.tier-card.immunological::after{background:linear-gradient(transparent,var(--red-g))}
 .tier-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
 .tier-name{display:flex;align-items:center;gap:10px}
 .tier-dot{width:10px;height:10px;border-radius:50%;animation:dotPulse 2s ease-in-out infinite}
@@ -124,16 +130,18 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .episodic .tier-dot{background:var(--violet);box-shadow:0 0 12px var(--violet)}
 .semantic .tier-dot{background:var(--green);box-shadow:0 0 12px var(--green)}
 .procedural .tier-dot{background:var(--orange);box-shadow:0 0 12px var(--orange)}
+.immunological .tier-dot{background:var(--red);box-shadow:0 0 12px var(--red)}
 @keyframes dotPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(0.7);opacity:0.6}}
 .tier-title{font-weight:600;font-size:14px}
 .tier-count{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700}
-.working .tier-count{color:var(--cyan)}.episodic .tier-count{color:var(--violet)}.semantic .tier-count{color:var(--green)}.procedural .tier-count{color:var(--orange)}
+.working .tier-count{color:var(--cyan)}.episodic .tier-count{color:var(--violet)}.semantic .tier-count{color:var(--green)}.procedural .tier-count{color:var(--orange)}.immunological .tier-count{color:var(--red)}
 .capacity-track{height:6px;background:var(--bg-3);border-radius:3px;margin:12px 0;overflow:hidden}
 .capacity-fill{height:100%;border-radius:3px;transition:width 1.2s cubic-bezier(0.4,0,0.2,1)}
 .working .capacity-fill{background:linear-gradient(90deg,var(--cyan),rgba(34,211,238,0.5))}
 .episodic .capacity-fill{background:linear-gradient(90deg,var(--violet),rgba(167,139,250,0.5))}
 .semantic .capacity-fill{background:linear-gradient(90deg,var(--green),rgba(52,211,153,0.5))}
 .procedural .capacity-fill{background:linear-gradient(90deg,var(--orange),rgba(251,146,60,0.5))}
+.immunological .capacity-fill{background:linear-gradient(90deg,var(--red),rgba(248,113,113,0.5))}
 .cap-info{display:flex;justify-content:space-between;font-size:11px;color:var(--text-2);font-family:'JetBrains Mono',monospace}
 .agent-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
 .agent-chip{background:var(--bg-2);border:1px solid var(--border);padding:3px 10px;border-radius:6px;font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--text-1);transition:all 0.2s}
@@ -181,6 +189,7 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .w-fill.episodic{background:linear-gradient(90deg,var(--violet),rgba(167,139,250,0.6))}
 .w-fill.semantic{background:linear-gradient(90deg,var(--green),rgba(52,211,153,0.6))}
 .w-fill.procedural{background:linear-gradient(90deg,var(--orange),rgba(251,146,60,0.6))}
+.w-fill.immunological{background:linear-gradient(90deg,var(--red),rgba(248,113,113,0.6))}
 
 /* Config */
 .config-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
@@ -204,6 +213,7 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .mem-type.episodic{background:var(--violet-g);color:var(--violet)}
 .mem-type.semantic{background:var(--green-g);color:var(--green)}
 .mem-type.procedural{background:var(--orange-g);color:var(--orange)}
+.mem-type.immunological{background:var(--red-g);color:var(--red)}
 .mem-date{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-2)}
 .del-btn{background:transparent;border:1px solid var(--border);color:var(--text-2);padding:5px 10px;border-radius:8px;cursor:pointer;font-size:10px;font-family:'JetBrains Mono',monospace;transition:all 0.2s;font-weight:500}
 .del-btn:hover{border-color:var(--red);color:var(--red);background:rgba(248,113,113,0.08)}
@@ -273,6 +283,7 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
     <div class="stat-card episodic"><div class="stat-icon">&#9733;</div><div class="stat-label">Episodic Memory</div><div class="stat-value count-up" id="vEpisodic">0</div><div class="stat-sub" id="sEpisodic"></div><div class="section-desc">Past experiences — what the agent did, why, and outcomes. Boosts future recall by +37.8%.</div></div>
     <div class="stat-card semantic"><div class="stat-icon">&#9670;</div><div class="stat-label">Semantic Memory</div><div class="stat-value count-up" id="vSemantic">0</div><div class="stat-sub" id="sSemantic"></div><div class="section-desc">Project knowledge — stack, patterns, conventions, architecture decisions.</div></div>
     <div class="stat-card procedural"><div class="stat-icon">&#9881;</div><div class="stat-label">Procedural Memory</div><div class="stat-value count-up" id="vProcedural">0</div><div class="stat-sub" id="sProcedural"></div><div class="section-desc">How-to knowledge — workflows, checklists, recipes, best practices.</div></div>
+    <div class="stat-card immunological"><div class="stat-icon">&#9760;</div><div class="stat-label">Immunological Memory</div><div class="stat-value count-up" id="vImmunological">0</div><div class="stat-sub" id="sImmunological"></div><div class="section-desc">Threat signatures — detected anomalies, prompt injections, suspicious patterns. First-class tier, queryable for pattern matching.</div></div>
   </div>
 
   <div class="radar-section">
@@ -369,7 +380,7 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 
 <script>
 const A=window.location.origin;
-const TC={working_memory:'#22d3ee',episodic:'#a78bfa',semantic:'#34d399',procedural:'#fb923c'};
+const TC={working_memory:'#22d3ee',episodic:'#a78bfa',semantic:'#34d399',procedural:'#fb923c',immunological:'#f87171'};
 
 async function jf(p,o){const r=await fetch(A+p,o);return r.json()}
 
@@ -461,10 +472,10 @@ function anim(el,to){const from=parseInt(el.textContent)||0;const dur=600;const 
 function drawRadar(weights){
   const svg=document.getElementById('radarSvg');
   const cx=150,cy=150,r=110;
-  const tiers=['working','episodic','semantic','procedural'];
-  const labels=['Working','Episodic','Semantic','Procedural'];
-  const colors=[TC.working_memory,TC.episodic,TC.semantic,TC.procedural];
-  const n=4;
+  const tiers=['working','episodic','semantic','procedural','immunological'];
+  const labels=['Working','Episodic','Semantic','Procedural','Immune'];
+  const colors=[TC.working_memory,TC.episodic,TC.semantic,TC.procedural,TC.immunological];
+  const n=5;
   const angles=tiers.map((_,i)=>(Math.PI*2*i/n)-Math.PI/2);
 
   let html='';
@@ -504,11 +515,13 @@ async function loadOverview(){
   anim(document.getElementById('vEpisodic'),d.tiers.episodic||0);
   anim(document.getElementById('vSemantic'),d.tiers.semantic||0);
   anim(document.getElementById('vProcedural'),d.tiers.procedural||0);
+  anim(document.getElementById('vImmunological'),d.tiers.immunological||0);
   const c=d.config;
   document.getElementById('sWorking').textContent=`/${c.working_capacity} slots`;
   document.getElementById('sEpisodic').textContent=`/${c.episodic_capacity} slots`;
   document.getElementById('sSemantic').textContent=`/${c.semantic_prototypes} proto`;
   document.getElementById('sProcedural').textContent=`/${c.semantic_prototypes} proto`;
+  document.getElementById('sImmunological').textContent=`/${c.immunological_capacity} slots`;
   document.getElementById('dbInfo').textContent=`${d.total_memories} memories · ${fs(d.db_size_bytes)}`;
   // Update project info bar
   document.getElementById('projectMemories').textContent=`${d.total_memories} memories`;
@@ -526,7 +539,7 @@ async function loadTimeline(){
   document.getElementById('tierBadge').textContent=tl.length+' periods';
   if(!tl.length){el.innerHTML='<div class="tl-empty">No data yet</div>';return;}
   const max=Math.max(...tl.map(t=>t.total),1);
-  const tiers=['working_memory','episodic','semantic','procedural'];
+  const tiers=['working_memory','episodic','semantic','procedural','immunological'];
   let h='<div class="tl-wrap">';
   tl.forEach((b,i)=>{
     let segs='';let totalH=0;
@@ -543,8 +556,8 @@ async function loadTimeline(){
 async function loadTiers(){
   const d=await jf('/api/tiers'+projectParam());
   const c=document.getElementById('tiersContainer');
-  const order=['working','episodic','semantic','procedural'];
-  const names={working:'Working Memory',episodic:'Episodic Memory',semantic:'Semantic Memory',procedural:'Procedural Memory'};
+  const order=['working','episodic','semantic','procedural','immunological'];
+  const names={working:'Working Memory',episodic:'Episodic Memory',semantic:'Semantic Memory',procedural:'Procedural Memory',immunological:'Immunological Memory'};
   let total=0;order.forEach(t=>{total+=(d[t]||{}).count||0});
   document.getElementById('tierBadge').textContent=total+' total';
   let h='';
