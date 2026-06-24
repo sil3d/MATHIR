@@ -8,7 +8,7 @@ Tests: context_overflow, factual_recall, adversarial_jailbreak, session_continui
 import json, time, urllib.request, urllib.error
 from datetime import datetime
 
-API_KEY = "***REMOVED***"
+API_KEY = os.environ.get("OPENROUTER_API_KEY", "YOUR_OPENROUTER_API_KEY_HERE")
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
 
 WORKING_MODELS = [
