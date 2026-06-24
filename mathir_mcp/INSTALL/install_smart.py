@@ -30,7 +30,7 @@ def banner():
     print(f"""
 {C.CYAN}╔══════════════════════════════════════════════════════════╗
 ║       MATHIR Smart Installer — Auto-Detect & Inject      ║
-║       4-tier cognitive memory for 40+ coding agents      ║
+║       5-tier cognitive memory for 40+ coding agents      ║
 ╚══════════════════════════════════════════════════════════╝{C.RESET}
 """)
 
@@ -872,11 +872,11 @@ def inject_instructions(agent: Dict) -> Tuple[bool, str]:
         return False, f"MATHIR GLOBAL_INSTRUCTIONS.md not found"
     with open(mathir_instructions, "r", encoding="utf-8") as f:
         content = f.read()
-    # Check if already injected
+    # Check if already injected (look for stable MATHIR signature, not version)
     if instructions_path.exists():
         with open(instructions_path, "r", encoding="utf-8") as f:
             existing = f.read()
-        if "MATHIR" in existing and "4-tier cognitive memory" in existing:
+        if "MATHIR Memory-Augmented Tensor Hybrid" in existing:
             return True, f"Already injected"
     instructions_path.parent.mkdir(parents=True, exist_ok=True)
     if instructions_path.exists():
