@@ -200,14 +200,26 @@ def get_project_db_path(project_name: str = None) -> Path:
                 return db_path
         log.warning(f"Project '{project_name}' not found and no registry DBs available.")
         return None
-    
+
+    # Try CWD/.mathir first, fall back to ~/.mathir/ if mkdir fails
     mathir_dir = cwd / ".mathir"
-    mathir_dir.mkdir(exist_ok=True)
-    db_path = mathir_dir / "mathir.db"
-    
+    try:
+        mathir_dir.mkdir(exist_ok=True)
+        db_path = mathir_dir / "mathir.db"
+    except (PermissionError, OSError) as e:
+        # CWD is read-only or no permissions — fall back to user home
+        fallback_dir = home / ".mathir" / "mathir_global"
+        log.warning(f"Cannot create .mathir in CWD ({cwd}): {e}. Falling back to {fallback_dir}")
+        try:
+            fallback_dir.mkdir(parents=True, exist_ok=True)
+            db_path = fallback_dir / "mathir.db"
+        except (PermissionError, OSError) as e2:
+            log.error(f"Cannot create .mathir anywhere: {e2}")
+            return None
+
     # Register for future lookups
     register_project(project_name, str(db_path), str(cwd))
-    
+
     return db_path
 
 

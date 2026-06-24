@@ -111,12 +111,12 @@ def _sanitize_error(exc: Exception, method: str) -> str:
     Returns:
         Sanitized error message string safe for client consumption.
     """
-    safe_types = (ValueError, KeyError, TypeError)
+    safe_types = (ValueError, KeyError, TypeError, OSError, PermissionError, FileNotFoundError)
     if isinstance(exc, safe_types):
         msg = str(exc)[:200]
         return f"{type(exc).__name__}: {msg}"
     log.error(f"Error handling {method}: {exc}", exc_info=True)
-    return f"Internal error in {method}"
+    return f"Internal error in {method}: {type(exc).__name__}"
 
 
 def _validate_input(params: dict) -> Optional[str]:
