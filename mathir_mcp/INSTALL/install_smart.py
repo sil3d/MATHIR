@@ -8,6 +8,9 @@ import os
 import sys
 import json
 import platform
+import shutil
+import argparse
+import subprocess
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -925,7 +928,354 @@ def show_menu(detected: List[Dict]) -> List[Dict]:
     return selected
 
 
+# ── Auto-Start Setup (Windows / macOS / Linux) ───────────────
+def _mathir_bin_dir() -> Path:
+    """Resolve the MATHIR bin/ directory from this script's location.
+
+    Works for both source layout (mathir_mcp/INSTALL/install_smart.py -> ../bin)
+    and deployed layout (~/.config/opencode/bin/INSTALL/install_smart.py -> ../bin).
+    """
+    return Path(__file__).resolve().parent.parent / "bin"
+
+
+def _setup_autostart_windows(bin_dir: Path, dry_run: bool = False) -> Tuple[bool, str]:
+    """Set up MATHIR daemon auto-start on Windows.
+
+    Strategy:
+      1. No-admin (preferred): copy auto_start.bat to the user's Startup folder.
+         Uses the existing auto_start.bat (which uses `start "" /B` to detach).
+      2. Optionally also drop a hidden VBS wrapper for zero-flash startup.
+      3. If admin (best-effort): register a Task Scheduler entry via
+         auto_start_helpers.ps1.
+    Returns (success, message).
+    """
+    userprofile = Path(os.environ.get("USERPROFILE", str(Path.home())))
+    startup = userprofile / "AppData" / "Roaming" / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup"
+
+    bat_src = bin_dir / "auto_start.bat"
+    vbs_src = bin_dir / "auto_start_vbs.vbs"
+    helpers_ps1 = bin_dir / "auto_start_helpers.ps1"
+
+    if not bat_src.exists():
+        return False, f"Missing source: {bat_src}"
+
+    if dry_run:
+        return True, (
+            f"Would copy auto_start.bat -> {startup}\\mathir_daemon_startup.bat "
+            f"+ optional VBS wrapper (no admin) "
+            f"+ optional Task Scheduler entry via {helpers_ps1.name}"
+        )
+
+    try:
+        startup.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        return False, f"Cannot create Startup folder ({startup}): {e}"
+
+    # 1) Copy auto_start.bat to Startup folder (always works, no admin)
+    target_bat = startup / "mathir_daemon_startup.bat"
+    try:
+        shutil.copy2(bat_src, target_bat)
+    except Exception as e:
+        return False, f"Failed to copy auto_start.bat -> Startup: {e}"
+
+    placed = [f"copied .bat -> {target_bat}"]
+
+    # 2) Optional: hidden VBS wrapper so the console never flashes
+    if vbs_src.exists():
+        try:
+            import re
+            target_vbs = startup / "mathir_daemon_startup.vbs"
+            vbs_text = vbs_src.read_text(encoding="utf-8")
+            # Rewrite the Const BAT_PATH = "..." line to point at the .bat we
+            # just placed in the Startup folder. Use a callable for the
+            # replacement so Windows backslashes in target_bat are NOT
+            # interpreted as regex backreferences by re.sub.
+            new_line = 'Const BAT_PATH = "{}"'.format(str(target_bat))
+            vbs_text = re.sub(
+                r'Const BAT_PATH\s*=\s*"[^"]+"',
+                lambda _m: new_line,
+                vbs_text,
+                count=1,
+            )
+            target_vbs.write_text(vbs_text, encoding="utf-8")
+            placed.append(f"copied .vbs -> {target_vbs}")
+        except Exception as e:
+            placed.append(f"VBS wrapper skipped ({e})")
+
+    # 3) Optional: Task Scheduler via helpers (only if elevated). Best-effort.
+    if helpers_ps1.exists():
+        try:
+            probe = subprocess.run(
+                ["powershell", "-NoProfile", "-Command",
+                 "(New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)"],
+                capture_output=True, text=True, timeout=10,
+            )
+            if "True" in probe.stdout:
+                # Try to register a Task Scheduler entry (DELAYED, so it doesn't
+                # block login if python is slow to spin up).
+                task_cmd = (
+                    f"$a = New-ScheduledTaskAction -Execute 'powershell.exe' "
+                    f"-Argument '-NoProfile -ExecutionPolicy Bypass -File \"{helpers_ps1}\"'; "
+                    f"$t = New-ScheduledTaskTrigger -AtLogOn; "
+                    f"$p = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive; "
+                    f"Register-ScheduledTask -TaskName 'MATHIR Daemon' "
+                    f"-Action $a -Trigger $t -Principal $p -Force | Out-Null; "
+                    f"Write-Output 'TASK_REGISTERED'"
+                )
+                reg = subprocess.run(
+                    ["powershell", "-NoProfile", "-Command", task_cmd],
+                    capture_output=True, text=True, timeout=30,
+                )
+                if "TASK_REGISTERED" in (reg.stdout or ""):
+                    placed.append("registered Task Scheduler entry: 'MATHIR Daemon'")
+                else:
+                    placed.append(f"Task Scheduler skipped (register output: {(reg.stdout or '').strip()[:120]})")
+            else:
+                placed.append("Task Scheduler skipped (not admin — Startup folder launcher is active)")
+        except Exception as e:
+            placed.append(f"Task Scheduler probe failed ({e})")
+
+    return True, "; ".join(placed)
+
+
+def _setup_autostart_macos(bin_dir: Path, dry_run: bool = False) -> Tuple[bool, str]:
+    """Set up MATHIR daemon auto-start on macOS via launchd.
+
+    Renders com.mathir.daemon.plist with the actual user's $HOME path (since
+    plist strings are literal and `~` is not expanded), copies it into
+    ~/Library/LaunchAgents/, and loads it with `launchctl load -w`.
+    """
+    plist_src = bin_dir / "com.mathir.daemon.plist"
+    if not plist_src.exists():
+        return False, f"Missing source: {plist_src}"
+
+    home = Path.home()
+    launch_agents = home / "Library" / "LaunchAgents"
+    target = launch_agents / "com.mathir.daemon.plist"
+
+    if dry_run:
+        return True, (
+            f"Would render {plist_src.name} with home={home}, "
+            f"copy -> {target}, then `launchctl load -w {target}`"
+        )
+
+    try:
+        launch_agents.mkdir(parents=True, exist_ok=True)
+    except Exception as e:
+        return False, f"Cannot create {launch_agents}: {e}"
+
+    # Render: substitute /Users/USERNAME placeholder with actual $HOME.
+    python_path = "/usr/bin/python3"
+    # Try to discover a venv python first (more user-friendly)
+    venv_python = home / ".config" / "opencode" / "bin" / ".venv" / "bin" / "python3"
+    if venv_python.exists():
+        python_path = str(venv_python)
+
+    rendered = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
+        '<plist version="1.0">\n'
+        '<dict>\n'
+        '    <key>Label</key>\n'
+        '    <string>com.mathir.daemon</string>\n'
+        '    <key>ProgramArguments</key>\n'
+        '    <array>\n'
+        f'        <string>{python_path}</string>\n'
+        f'        <string>{home}/.config/opencode/bin/mathir_daemon.py</string>\n'
+        '    </array>\n'
+        '    <key>RunAtLoad</key>\n'
+        '    <true/>\n'
+        '    <key>KeepAlive</key>\n'
+        '    <true/>\n'
+        '    <key>StandardOutPath</key>\n'
+        f'    <string>{home}/.config/opencode/bin/mathir_daemon.log</string>\n'
+        '    <key>StandardErrorPath</key>\n'
+        f'    <string>{home}/.config/opencode/bin/mathir_daemon.err.log</string>\n'
+        '    <key>WorkingDirectory</key>\n'
+        f'    <string>{home}/.config/opencode/bin</string>\n'
+        '</dict>\n'
+        '</plist>\n'
+    )
+
+    try:
+        target.write_text(rendered, encoding="utf-8")
+    except Exception as e:
+        return False, f"Failed to write {target}: {e}"
+
+    # Unload old version if present, then load new one
+    try:
+        subprocess.run(
+            ["launchctl", "unload", str(target)],
+            capture_output=True, timeout=10,
+        )
+    except Exception:
+        pass  # not loaded yet is fine
+
+    try:
+        load = subprocess.run(
+            ["launchctl", "load", "-w", str(target)],
+            capture_output=True, text=True, timeout=15,
+        )
+    except FileNotFoundError:
+        return False, "launchctl not found on PATH (are you on macOS?)"
+    except Exception as e:
+        return False, f"launchctl load failed: {e}"
+
+    if load.returncode != 0:
+        return False, f"launchctl load returned {load.returncode}: {(load.stderr or load.stdout).strip()}"
+
+    return True, f"wrote {target}; `launchctl load -w` succeeded (RunAtLoad + KeepAlive enabled)"
+
+
+def _setup_autostart_linux(bin_dir: Path, dry_run: bool = False) -> Tuple[bool, str]:
+    """Set up MATHIR daemon auto-start on Linux via systemd user services.
+
+    Copies mathir-daemon.service to ~/.config/systemd/user/, runs daemon-reload,
+    then enables + starts the service. Warns about `loginctl enable-linger`
+    on headless servers (without it, user services stop when the user logs out).
+    """
+    service_src = bin_dir / "mathir-daemon.service"
+    if not service_src.exists():
+        return False, f"Missing source: {service_src}"
+
+    home = Path.home()
+    user_systemd = home / ".config" / "systemd" / "user"
+    target = user_systemd / "mathir-daemon.service"
+
+    if dry_run:
+        return True, (
+            f"Would copy {service_src.name} -> {target}, "
+            f"run `systemctl --user daemon-reload && enable --now mathir-daemon`. "
+            f"Note: headless servers need `loginctl enable-linger $USER`."
+        )
+
+    # Detect if systemd is available
+    systemctl = shutil.which("systemctl")
+    if not systemctl:
+        return False, "systemctl not found on PATH (systemd not available on this Linux)"
+
+    try:
+        user_systemd.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(service_src, target)
+    except Exception as e:
+        return False, f"Failed to install service file: {e}"
+
+    notes = []
+
+    try:
+        subprocess.run([systemctl, "--user", "daemon-reload"],
+                       capture_output=True, timeout=15, check=True)
+    except subprocess.CalledProcessError as e:
+        return False, f"systemctl --user daemon-reload failed: {e}"
+
+    try:
+        subprocess.run([systemctl, "--user", "enable", "mathir-daemon.service"],
+                       capture_output=True, timeout=15, check=True)
+    except subprocess.CalledProcessError as e:
+        return False, f"systemctl --user enable mathir-daemon.service failed: {e}"
+
+    try:
+        subprocess.run([systemctl, "--user", "start", "mathir-daemon.service"],
+                       capture_output=True, timeout=15, check=True)
+    except subprocess.CalledProcessError as e:
+        notes.append(f"enable OK, but start failed: {e}")
+
+    # Linger warning for headless / server use
+    linger_path = Path("/var/lib/systemd/linger") / os.environ.get("USER", "")
+    if not linger_path.exists():
+        notes.append(
+            "Heads-up: for headless servers, run "
+            f"`loginctl enable-linger {os.environ.get('USER', '$USER')}` "
+            "so the daemon survives logout."
+        )
+
+    msg = f"installed {target}; enabled + started via systemctl --user"
+    if notes:
+        msg += " (" + "; ".join(notes) + ")"
+    return True, msg
+
+
+def _setup_autostart(dry_run: bool = False) -> Tuple[bool, str]:
+    """Top-level auto-start dispatcher. Detects OS and runs the right setup.
+
+    Never raises — failures return (False, reason) so the install can continue.
+    """
+    plat = detect_platform()
+    bin_dir = _mathir_bin_dir()
+
+    if not bin_dir.exists():
+        return False, f"MATHIR bin/ directory not found at {bin_dir}"
+
+    if dry_run:
+        if plat == "windows":
+            return _setup_autostart_windows(bin_dir, dry_run=True)
+        if plat == "darwin":
+            return _setup_autostart_macos(bin_dir, dry_run=True)
+        if plat == "linux":
+            return _setup_autostart_linux(bin_dir, dry_run=True)
+        return False, f"Unknown platform '{plat}' — no auto-start configured"
+
+    print(f"  {C.CYAN}Setting up auto-start for {plat}...{C.RESET}")
+
+    try:
+        if plat == "windows":
+            ok, msg = _setup_autostart_windows(bin_dir)
+        elif plat == "darwin":
+            ok, msg = _setup_autostart_macos(bin_dir)
+        elif plat == "linux":
+            ok, msg = _setup_autostart_linux(bin_dir)
+        else:
+            return False, f"Unsupported platform: {plat}"
+    except Exception as e:
+        return False, f"Auto-start setup raised: {type(e).__name__}: {e}"
+
+    if ok:
+        print(f"    {C.GREEN}\u2713{C.RESET} Auto-start: {msg}")
+    else:
+        print(f"    {C.YELLOW}!{C.RESET} Auto-start: {msg}")
+    return ok, msg
+
+
+def _parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
+    p = argparse.ArgumentParser(
+        prog="install_smart.py",
+        description="MATHIR Smart Installer — detect coding agents, inject config, "
+                    "and (optionally) set up daemon auto-start.",
+    )
+    p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would happen without modifying anything (auto-start step is described).",
+    )
+    p.add_argument(
+        "--no-autostart",
+        action="store_true",
+        help="Skip the auto-start setup step (agent config injection only).",
+    )
+    p.add_argument(
+        "--autostart-only",
+        action="store_true",
+        help="Only set up auto-start for the MATHIR daemon — skip agent detection/injection.",
+    )
+    return p.parse_args(argv)
+
+
 def main():
+    args = _parse_args()
+
+    # ── --autostart-only short-circuit ──
+    if args.autostart_only:
+        banner()
+        print(f"{C.CYAN}[autostart-only]{C.RESET} Setting up auto-start (no agent changes).\n")
+        ok, msg = _setup_autostart(dry_run=args.dry_run)
+        if ok:
+            print(f"\n{C.GREEN}\u2713 Auto-start ready.{C.RESET}")
+            print(f"  {msg}\n")
+        else:
+            print(f"\n{C.YELLOW}! Auto-start setup failed.{C.RESET}")
+            print(f"  {msg}\n")
+        return
+
     banner()
     # ── Verify server path resolves correctly ──
     server_path = _resolve_server_path()
@@ -936,7 +1286,10 @@ def main():
         print(f"{C.YELLOW}  Server not found locally — using -m fallback (requires pip install -e .){C.RESET}")
     print(f"{C.DIM}  Command: {' '.join(cmd)}{C.RESET}\n")
 
-    print(f"{C.CYAN}[1/3]{C.RESET} Detecting coding agents...\n")
+    if args.dry_run:
+        print(f"{C.CYAN}[1/3]{C.RESET} Detecting coding agents (dry-run)...\n")
+    else:
+        print(f"{C.CYAN}[1/3]{C.RESET} Detecting coding agents...\n")
     detected = detect_agents()
     if not detected:
         print(f"{C.RED}No coding agents found.{C.RESET}")
@@ -969,7 +1322,32 @@ def main():
   ZH: Ruguio anzhuan shibai, ba ~/.config/MATHIR/ zhengge danglu gei nide coding agent.
       Hui du docs/AGENT.md zidong peizhi MATHIR.
 """)
+        # Even with no agent, autostart is still useful
+        if not args.no_autostart:
+            print(f"\n{C.CYAN}[2/3]{C.RESET} Auto-start setup...\n")
+            _setup_autostart(dry_run=args.dry_run)
         return
+
+    if args.dry_run:
+        selected = installed_only(detected)
+        if not selected:
+            print(f"{C.YELLOW}No installed agents detected in dry-run.{C.RESET}")
+            if not args.no_autostart:
+                print(f"\n{C.CYAN}[2/3]{C.RESET} Auto-start setup (dry-run)...\n")
+                ok, msg = _setup_autostart(dry_run=True)
+                print(f"    {C.GREEN}\u2713{C.RESET} {msg}" if ok else f"    {C.YELLOW}!{C.RESET} {msg}")
+            return
+        print(f"{C.CYAN}[2/3]{C.RESET} Dry-run: would inject into {len(selected)} agent(s):\n")
+        for agent in selected:
+            print(f"    {C.CYAN}\u00b7{C.RESET} {agent['name']}")
+        print()
+        if not args.no_autostart:
+            print(f"{C.CYAN}[3/3]{C.RESET} Auto-start setup (dry-run)...\n")
+            ok, msg = _setup_autostart(dry_run=True)
+            print(f"    {C.GREEN}\u2713{C.RESET} {msg}" if ok else f"    {C.YELLOW}!{C.RESET} {msg}")
+        print(f"\n{C.DIM}  (dry-run: no files were modified){C.RESET}\n")
+        return
+
     selected = show_menu(detected)
     if not selected:
         print(f"\n{C.YELLOW}No agents selected.{C.RESET}")
@@ -991,7 +1369,14 @@ def main():
             if not agent.get("supports_instructions"):
                 needs_manual_instructions.append(agent["name"])
         print()
-    print(f"{C.CYAN}[3/3]{C.RESET} Done!\n")
+
+    if args.no_autostart:
+        print(f"{C.CYAN}[3/3]{C.RESET} Done!\n")
+    else:
+        print(f"{C.CYAN}[3/3]{C.RESET} Setting up MATHIR daemon auto-start...\n")
+        _setup_autostart(dry_run=False)
+        print()
+
     print(f"{C.GREEN}=== MATHIR configured for {len(selected)} agent(s) ==={C.RESET}\n")
     print(f"  Restart your agent(s) to use MATHIR.\n")
     print(f"  Each project gets its own database at .mathir/mathir.db\n")
@@ -1012,8 +1397,13 @@ def main():
     print(f"{C.BOLD}── Troubleshooting ──{C.RESET}")
     print(f"{C.DIM}  EN: If problems occur, give ~/.config/MATHIR/ to your agent. It reads docs/AGENT.md.")
     print(f"  FR: Si problemes, donnez ~/.config/MATHIR/ a votre agent. Il lit docs/AGENT.md.")
-    print(f"  ES: Si hay problemas, dea ~/.config/MATHIR/ a su agente. Lee docs/AGENT.md.")
+    print(f"  ES: Si hay problemas, dea toda la carpeta ~/.config/MATHIR/ a su agente. Lee docs/AGENT.md.")
     print(f"  ZH: Ruguio wenti, ba ~/.config/MATHIR/ gei nide agent. Hui du docs/AGENT.md.{C.RESET}\n")
+
+
+def installed_only(detected: List[Dict]) -> List[Dict]:
+    """Helper for --dry-run: list the agents that would be auto-configured."""
+    return [a for a in detected if a["installed"]]
 
 
 if __name__ == "__main__":
