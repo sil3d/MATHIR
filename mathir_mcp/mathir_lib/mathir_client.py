@@ -11,6 +11,14 @@ import socket
 import argparse
 import time
 
+# Fix Windows console encoding for Unicode output (→, emojis, accented chars)
+# Without this, json.dumps with ensure_ascii=False crashes on cp1252 consoles
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+except (AttributeError, OSError):
+    pass  # Python < 3.7 or non-standard stream
+
 HOST = '127.0.0.1'
 PORT = 7338
 TIMEOUT = 30
