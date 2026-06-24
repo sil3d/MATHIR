@@ -321,6 +321,41 @@ python -m mathir_mcp
 >
 > Just say to your agent: *"Install the MATHIR MCP server from https://github.com/sil3d/MATHIR"*. The `mathir_inject.py` and `mathir_sync.py` tools will handle the rest automatically.
 
+### 📦 Cross-platform install scripts
+
+For developers who prefer manual install, two smart installers are shipped in `mathir_mcp/bin/`:
+
+| Platform | Script | What it does |
+|---|---|---|
+| **Windows** | `install.bat` (wraps `install_smart.py`) | Auto-detects 40+ coding agents, injects MCP config + system prompt |
+| **Linux / macOS** | `install.sh` (wraps `install_smart.py`) | Same as Windows but bash |
+
+```bash
+# Linux/Mac
+git clone https://github.com/sil3d/MATHIR.git
+cd MATHIR/mathir_mcp/bin
+./install.sh
+```
+
+```powershell
+# Windows
+git clone https://github.com/sil3d/MATHIR.git
+cd MATHIR\mathir_mcp\bin
+install.bat
+```
+
+### 📖 Platform-specific install guides
+
+For complete step-by-step instructions (including auto-start setup):
+
+- 🪟 [`INSTALL/INSTALL_WINDOWS.md`](mathir_mcp/INSTALL/INSTALL_WINDOWS.md) — Task Scheduler, `mathir.bat`, troubleshooting
+- 🐧 [`INSTALL/INSTALL_LINUX.md`](mathir_mcp/INSTALL/INSTALL_LINUX.md) — systemd user unit, `loginctl enable-linger`, Apple Silicon note
+- 🍎 [`INSTALL/INSTALL_MACOS.md`](mathir_mcp/INSTALL/INSTALL_MACOS.md) — launchd LaunchAgent, Homebrew fix, Apple Silicon
+
+### 🚀 Auto-start the daemon after reboot
+
+Once installed, the daemon needs to be started after every PC reboot. See [⚠️ After PC Reboot](#%E2%9A%A0%EF%B8%8F-after-pc-reboot--manual-start-required) below for details.
+
 ---
 
 ## 🔧 Dynamic Injection & Sync (v8.4.1)
