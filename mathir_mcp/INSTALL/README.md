@@ -108,6 +108,19 @@ cd MATHIR/mathir_mcp
 | Memory has data | `python mathir_client.py stats` |
 | All agents updated | `python mathir_inject.py --check --target all` |
 
+## One-click dashboard launcher
+
+At the **repo root** (`mathir_mcp/`), there are two shortcuts to launch the
+dashboard without going through the smart installer:
+
+| File | Platform | What it does |
+|---|---|---|
+| `mathir_dashboard.bat` | Windows | Starts `mathir_stats_server.py` + opens browser to http://127.0.0.1:7420 |
+| `mathir_dashboard.sh` | Mac/Linux | Same (uses `xdg-open` / `open` / `wslview` for cross-platform browser) |
+
+Both scripts auto-resolve paths (no hardcoded `C:\...` or `/home/...`), so
+they work from any clone.
+
 ## Uninstall
 
 ```bash
