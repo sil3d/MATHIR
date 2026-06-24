@@ -41,6 +41,57 @@ results = m.recall("test", k=3)
 
 ---
 
+## 🔍 HOW TO RECALL MEMORY — The Right Command
+
+> **⚠️ CRITICAL:** `memory_recall` is an MCP tool. You do NOT call it from the shell.
+> Trying `memory_recall --query "..."` in PowerShell will FAIL with "command not found".
+> And waiting on a stuck recall will TIMEOUT after 30s.
+
+### ✅ Correct way to recall memory
+
+**Method 1 — MCP tool (preferred, fastest):**
+Just call the `memory_recall` tool with these parameters:
+- `query`: string (what to search for)
+- `k`: int (number of results, default 5)
+
+**Method 2 — CLI (always works, even without MCP):**
+```powershell
+cd "C:\Users\So-i-learn-3D\.config\opencode\bin"
+python mathir_client.py recall "your query here" -k 5
+```
+
+**Method 3 — Python (fallback if both above fail):**
+```python
+import sys
+sys.path.insert(0, r"C:\Users\So-i-learn-3D\.config\opencode\bin")
+from mathir_lib import MATHIR
+m = MATHIR(project="current")
+results = m.recall("your query here", k=5)
+for r in results:
+    print(f"[{r.block_type}/{r.agent}] {r.label}: {r.content[:200]}")
+```
+
+### ❌ WRONG — Don't do this
+
+```powershell
+# ❌ This is NOT a PowerShell command — will fail
+memory_recall --query "Mycerise" --k 5
+```
+
+```powershell
+# ❌ Don't wait more than 30 seconds for a stuck recall
+# If it's taking too long, kill it and use Method 2 or 3
+```
+
+### 🆘 If recall times out
+
+1. Check daemon is up: `Test-NetConnection -ComputerName localhost -Port 7338 -InformationLevel Quiet`
+2. If down → run auto_start_helpers.ps1
+3. If up but still slow → restart daemon: `& auto_start_helpers.ps1 -Action Restart`
+4. Then use Method 2 (CLI) or Method 3 (Python) as fallback
+
+---
+
 ## 🚀 Cross-Platform Auto-Start (v8.4.2+)
 
 The MATHIR daemon needs to be started after every PC reboot. Three cross-platform helpers are available:
