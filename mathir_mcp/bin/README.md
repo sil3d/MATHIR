@@ -9,24 +9,18 @@ MATHIR on a fresh machine.
 | File | What it does |
 |---|---|
 | **`mathir_daemon.py`** | The persistent background process. Loads the embedding model into RAM/VRAM once, then answers JSON-RPC requests over TCP port 7338. **Without this, nothing works.** |
-| **`mathir_mcp_server.py`** | The MCP (Model Context Protocol) server. Speaks stdio JSON-RPC so any MCP-aware agent (OpenCode, Claude Code, etc.) can call `memory_recall`, `memory_save`, etc. Talks to the daemon internally. |
-| **`mathir_stats_server.py`** | HTTP server on port 7420 that powers the dashboard (HTML/SVG/JS frontend). Calls the daemon for live stats. |
+| (MCP server) | See `../INSTALL/` for the smart installer which sets up the MCP server |
+| (Stats server) | See `../INSTALL/` |
 
 ## Client tools (for humans and scripts)
 
 | File | What it does | When to use |
 |---|---|---|
 | **`mathir_client.py`** | Python CLI: `python mathir_client.py recall "query" -k 5` | Fallback universal — works on all platforms with Python |
-| **`mathir_daemon.ps1`** | PowerShell direct-socket module: `. ./mathir_daemon.ps1; Search-Mathir "q" -K 5` | **Windows, fastest** (50-150ms, no Python startup) |
-| **`mathir_daemon.sh`** | Bash direct-socket module: `source ./mathir_daemon.sh; mathir_recall "q" 5` | **Mac/Linux, fastest** (200-450ms via /dev/tcp) |
+| **`mathir_client.ps1`** | PowerShell direct-socket module: `. ./mathir_client.ps1; Search-Mathir "q" -K 5` | **Windows, fastest** (50-150ms, no Python startup) |
+| **`mathir_client.sh`** | Bash direct-socket module: `source ./mathir_client.sh; mathir_recall "q" 5` | **Mac/Linux, fastest** (200-450ms via /dev/tcp) |
 
-## Smart installer (one-shot setup)
-
-| File | What it does |
-|---|---|
-| **`install.bat`** | Windows wrapper around `install_smart.py` |
-| **`install.sh`** | Mac/Linux wrapper around `install_smart.py` |
-| **`install_smart.py`** | Auto-detects 40+ coding agents (OpenCode, Claude, Cursor, MiMo, etc.) and injects MATHIR config + system prompt into each |
+> **Naming convention:** `mathir_daemon.py` = the daemon. `mathir_client.{ps1,sh}` = clients that talk to the daemon.
 
 ## Auto-start (after PC reboot)
 
@@ -45,6 +39,12 @@ MATHIR on a fresh machine.
 |---|---|
 | **`mathir_inject.py`** | Injects the MATHIR memory block into all agent `.md` files (agents, commands, skills, docs). Idempotent. |
 | **`mathir_sync.py`** | Copies new files from source repo to deployed configs. Safe by default (never overwrites). |
+
+## Smart installer
+
+> Moved to `../INSTALL/` to keep this folder lean. The installer scripts
+> (`install.bat`, `install.sh`, `install_smart.py`) and platform guides
+> live there.
 
 ## Benchmarks
 
