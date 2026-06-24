@@ -31,5 +31,5 @@ When you create a new skill in `skills/<name>/SKILL.md`:
 | New pattern discovered | `memory_save(... block_type="semantic", label="<pattern>")` |
 
 **MCP tools:** `memory_save`, `memory_recall`, `memory_stats`
-**block_type:** `working_memory` | `episodic` | `semantic` | `procedural`
+**block_type:** `working_memory` | `episodic` | `semantic` | `procedural` | `immunological` (5 tiers; immunological is for threat signatures / anomaly storage)
 **Port:** 7338 (daemon) | **Model:** paraphrase-multilingual-MiniLM-L12-v2 (384d)

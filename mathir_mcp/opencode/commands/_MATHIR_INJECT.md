@@ -76,6 +76,6 @@ When you create a new slash command in `commands/`:
 - `memory_dashboard(action)` — launch/check dashboard
 - `memory_export(project)` — export memories as JSON
 
-**block_type:** `working_memory` | `episodic` | `semantic` | `procedural`
+**block_type:** `working_memory` | `episodic` | `semantic` | `procedural` | `immunological` (5 tiers; immunological is for threat signatures / anomaly storage)
 **priority:** 1–10 (higher = more important)
 **Port:** 7338 (daemon) | **Model:** paraphrase-multilingual-MiniLM-L12-v2 (384d)
