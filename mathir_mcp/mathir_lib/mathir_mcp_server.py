@@ -354,8 +354,8 @@ TOOLS = [
                 "agent": {"type": "string", "description": "Agent name (e.g. 'coder', 'swarm')"},
                 "block_type": {
                     "type": "string",
-                    "enum": ["working_memory", "episodic", "semantic", "procedural"],
-                    "description": "Memory type"
+                    "enum": ["working_memory", "episodic", "semantic", "procedural", "immunological"],
+                    "description": "Memory tier. immunological stores detected anomalies (prompt injections, suspicious patterns, threat signatures). It is both queryable and writable — save detected threats to it for pattern matching over time."
                 },
                 "label": {"type": "string", "description": "Short label for this memory"},
                 "priority": {"type": "integer", "description": "Priority 0-10", "default": 5},

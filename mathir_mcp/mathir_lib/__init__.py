@@ -18,19 +18,40 @@ Or, when importing from outside the mathir_mcp/ directory (e.g. via
 from pathlib import Path
 import os
 
-__version__ = "8.4.1"
+__version__ = "8.4.2"
 
 # Tier taxonomy - SINGLE SOURCE OF TRUTH. Matches the enum in
-# mathir_mcp_server.py line ~260 and the JSON schema in TOOLS.
-TIERS = ("working_memory", "episodic", "semantic", "procedural")
+# mathir_mcp_server.py (memory_save tool schema) and the JSON schema in TOOLS.
+#
+# MATHIR has 5 tiers total:
+#   - 4 user-facing storage tiers that follow the lifecycle promotion chain
+#     (working_memory -> episodic -> semantic -> procedural)
+#   - 1 detection tier (immunological) for anomaly storage: prompt injections,
+#     threat signatures, suspicious patterns. It is first-class: queryable,
+#     consolidatable, and linkable, but does NOT participate in the standard
+#     promotion chain (it is terminal, like procedural).
+TIERS = ("working_memory", "episodic", "semantic", "procedural", "immunological")  # all 5 tiers
+
+# Subset of TIERS that participate in the user-facing promotion chain.
+# Use this for: argparse choices, TIER_ORDER in mathir_vec, lifecycle tests.
+TIERS_STORAGE = ("working_memory", "episodic", "semantic", "procedural")
+
+# Anomaly-detection tier. Use this for: threat-signature storage, prompt-
+# injection quarantine, immune-response pattern matching.
+TIERS_DETECTION = ("immunological",)
+
 BLOCK_TYPES = TIERS
 
-# Backward-compat alias - some old V7 code references this name
+# Backward-compat alias - some old V7 code references this name.
+# NOTE: this returns the FULL 5-tier list. For the 4-tier promotion chain,
+# use TIERS_STORAGE explicitly.
 TIER_NAMES = TIERS
 
 __all__ = [
     "__version__",
     "TIERS",
+    "TIERS_STORAGE",
+    "TIERS_DETECTION",
     "TIER_NAMES",
     "BLOCK_TYPES",
     "get_lib_dir",

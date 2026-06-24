@@ -151,7 +151,7 @@ def api_overview(project_name: str = None):
     except Exception:
         rows = []
 
-    tiers = {"working": 0, "episodic": 0, "semantic": 0, "procedural": 0, "unknown": 0}
+    tiers = {"working": 0, "episodic": 0, "semantic": 0, "procedural": 0, "immunological": 0, "unknown": 0}
     agents = {}
     total = 0
 
