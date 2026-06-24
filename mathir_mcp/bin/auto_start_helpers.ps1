@@ -171,7 +171,12 @@ while ($attempt -lt $MaxRetries) {
         $psi = New-Object System.Diagnostics.ProcessStartInfo
         $psi.FileName               = $PythonPath
         $psi.Arguments              = "`"$DaemonPath`""
-        $psi.WorkingDirectory       = $BinDir
+        # WorkingDirectory MUST be the user home (or project root), NOT $BinDir.
+        # The daemon resolves its DB path from CWD via .mathir/ — if CWD is bin/,
+        # it creates bin/.mathir/ which has no project context, and worse, may
+        # be read-only or write into a wrong dir. Use USERPROFILE so it falls
+        # back to ~/.mathir/mathir_global/ when no .mathir exists in CWD.
+        $psi.WorkingDirectory       = $env:USERPROFILE
         $psi.UseShellExecute        = $false
         $psi.CreateNoWindow         = $true
         $psi.RedirectStandardOutput = $true
@@ -210,7 +215,8 @@ while ($attempt -lt $MaxRetries) {
                 $psiS = New-Object System.Diagnostics.ProcessStartInfo
                 $psiS.FileName               = $PythonPath
                 $psiS.Arguments              = "`"$StatsPath`""
-                $psiS.WorkingDirectory       = $BinDir
+                # Same as daemon: use USERPROFILE not BinDir (see comment above).
+                $psiS.WorkingDirectory       = $env:USERPROFILE
                 $psiS.UseShellExecute        = $false
                 $psiS.CreateNoWindow         = $true
                 $psiS.RedirectStandardOutput = $true
