@@ -107,7 +107,7 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .radar-section{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:40px}
 .radar-card{background:var(--bg-1);border:1px solid var(--border);border-radius:18px;padding:32px;display:flex;flex-direction:column;align-items:center;justify-content:center}
 .radar-title{font-size:13px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-2);margin-bottom:24px;font-weight:500}
-.radar-svg{width:100%;max-width:280px;height:auto;aspect-ratio:1;display:block}
+.radar-svg{width:100%;max-width:220px;height:auto;aspect-ratio:1;display:block;margin:0 auto}
 .radar-label{font-size:11px;fill:var(--text-2);font-family:'JetBrains Mono',monospace}
 .radar-ring{fill:none;stroke:var(--border);stroke-width:1}
 .radar-area{transition:all 0.8s cubic-bezier(0.4,0,0.2,1)}
@@ -182,11 +182,11 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .r-card{background:var(--bg-1);border:1px solid var(--border);border-radius:16px;padding:24px}
 .r-label{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-2);margin-bottom:10px;font-weight:500}
 .r-value{font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace}
-.weight-bars{margin-top:20px}
-.w-row{display:flex;align-items:center;gap:14px;margin-bottom:12px}
-.w-label{width:90px;font-size:12px;color:var(--text-1);text-align:right;font-family:'JetBrains Mono',monospace}
-.w-track{flex:1;height:28px;background:var(--bg-3);border-radius:8px;overflow:hidden;position:relative}
-.w-fill{height:100%;border-radius:8px;transition:width 1s cubic-bezier(0.4,0,0.2,1);display:flex;align-items:center;padding-left:12px;font-size:11px;font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--bg-0);min-width:fit-content}
+.weight-bars{margin-top:20px;width:100%;max-width:100%;overflow:hidden}
+.w-row{display:flex;align-items:center;gap:14px;margin-bottom:12px;min-width:0}
+.w-label{width:90px;font-size:12px;color:var(--text-1);text-align:right;font-family:'JetBrains Mono',monospace;flex-shrink:0}
+.w-track{flex:1;height:28px;background:var(--bg-3);border-radius:8px;overflow:hidden;position:relative;min-width:0;max-width:100%}
+.w-fill{height:100%;border-radius:8px;transition:width 1s cubic-bezier(0.4,0,0.2,1);display:flex;align-items:center;padding-left:12px;font-size:11px;font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--bg-0);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .w-fill.working{background:linear-gradient(90deg,var(--cyan),rgba(34,211,238,0.6))}
 .w-fill.episodic{background:linear-gradient(90deg,var(--violet),rgba(167,139,250,0.6))}
 .w-fill.semantic{background:linear-gradient(90deg,var(--green),rgba(52,211,153,0.6))}
@@ -346,6 +346,12 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
   <div class="section">
     <div class="section-header"><h2>Agents</h2><div class="badge" id="agentsBadge"></div></div>
     <div class="section-desc">Memory usage per agent. Shows how many memories each agent (coder, debugger, swarm, etc.) has stored.</div>
+    <div class="filters">
+      <select id="agentFilter" class="mem-select" onchange="onAgentFilterChange()">
+        <option value="">All agents</option>
+      </select>
+      <span id="agentsCount" style="font-size:11px;color:var(--text-2);font-family:'JetBrains Mono',monospace"></span>
+    </div>
     <div class="agents-grid" id="agentsGrid"><div class="ld">Loading...</div></div>
   </div>
 
@@ -651,14 +657,30 @@ async function loadTiers(){
   c.innerHTML=h;
 }
 
+let agentsCache=[];
+
 async function loadAgents(){
   const d=await jf('/api/agents'+projectParam());
   const g=document.getElementById('agentsGrid');
-  const ag=Object.entries(d.agents||{}).sort((a,b)=>b[1].total-a[1].total);
-  document.getElementById('agentsBadge').textContent=ag.length+' agents';
-  if(!ag.length){g.innerHTML='<div class="ld">No agents</div>';return;}
+  agentsCache=Object.entries(d.agents||{}).sort((a,b)=>b[1].total-a[1].total);
+  document.getElementById('agentsBadge').textContent=agentsCache.length+' agents';
+  const sel=document.getElementById('agentFilter');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">All agents ('+agentsCache.length+')</option>'+agentsCache.map(([n])=>`<option value="${n}">${n}</option>`).join('');
+  if(cur&&agentsCache.some(([n])=>n===cur))sel.value=cur;
+  renderAgents();
+}
+
+function renderAgents(){
+  const g=document.getElementById('agentsGrid');
+  const sel=document.getElementById('agentFilter');
+  const f=sel.value;
+  const list=f?agentsCache.filter(([n])=>n===f):agentsCache;
+  const cnt=document.getElementById('agentsCount');
+  cnt.textContent=f?`Showing 1 / ${agentsCache.length} agents`:`Showing ${agentsCache.length} agents`;
+  if(!list.length){g.innerHTML='<div class="ld">No agents</div>';return;}
   let h='';
-  ag.forEach(([name,data])=>{
+  list.forEach(([name,data])=>{
     const tiers=data.tiers||{};const total=data.total;
     let segs='',leg='';
     Object.entries(tiers).forEach(([t,c])=>{
@@ -670,6 +692,8 @@ async function loadAgents(){
   });
   g.innerHTML=h;
 }
+
+function onAgentFilterChange(){renderAgents();}
 
 async function loadRouter(){
   const d=await jf('/api/router'+projectParam());
