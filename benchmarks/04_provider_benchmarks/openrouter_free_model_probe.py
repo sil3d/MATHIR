@@ -6,7 +6,7 @@ Free models can be unavailable at any time - test one by one.
 import json, time, urllib.request, urllib.error
 from datetime import datetime
 
-API_KEY = "***REMOVED***"
+API_KEY = os.environ.get("OPENROUTER_API_KEY", "YOUR_OPENROUTER_API_KEY_HERE")
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
 
 # All 27 free models from our discovery
