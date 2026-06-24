@@ -333,23 +333,30 @@ python -m mathir_mcp
 
 **Same MATHIR memory across all LLMs.** Switch the backend, the memory stays.
 
-### ⚠️ Cold-boot verification (2026-06-23)
+### ✅ Cold-boot auto-start (v8.4.2 — verified 2026-06-24)
 
-**Tested manually after PC reboot** — daemon does NOT auto-start on Windows boot. `memory_recall` returns errors until `mathir_daemon.py` is launched explicitly. This confirms the [⚠️ After PC Reboot](#%E2%9A%A0%EF%B8%8F-after-pc-reboot--manual-start-required) section is accurate and the "self-healing" claim has been removed from this README.
+**As of v8.4.2, true cold-boot auto-start is implemented on all platforms** via:
+- **Windows:** VBS launcher in `shell:startup` (no admin needed)
+- **macOS:** `~/Library/LaunchAgents/com.mathir.daemon.plist`
+- **Linux:** `~/.config/systemd/user/mathir-daemon.service` with lingering
 
-| Scenario | Before fix | After this README update |
+Run once: `python install_smart.py --autostart-only` — daemon will then start silently on every login/reboot before any agent even boots. See the [⚠️ After PC Reboot](#%E2%9A%A0%EF%B8%8F-after-pc-reboot--auto-start-v842) section for full details.
+
+| Scenario | v8.4.1 (before) | v8.4.2 (after) |
 |---|---|---|
 | Daemon running, recall called | ✅ Works | ✅ Works |
 | Daemon crashed, recall called | ✅ Auto-restart | ✅ Auto-restart |
-| PC rebooted, recall called | ❌ Silent failure (claimed "self-healing") | ❌ Documented limitation, manual fix |
+| PC rebooted, **autostart configured** | ❌ Silent failure | ✅ Daemon up before agent boots |
+| PC rebooted, **no autostart yet** | ❌ Silent failure | ⚠️ Manual start required (see Option 1/2) |
 | Daemon down, Python API used | ✅ Works | ✅ Works (the only truly automatic path) |
 
 ### 💡 Why this matters
 
 - **One memory, any LLM** — save with Claude, recall with MiMo, continue with GPT. No vendor lock-in.
 - **Fast recall** — memory lookup is in milliseconds thanks to the persistent daemon (port 7338).
-- **Python fallback when MCP fails** — if the MCP layer fails for any reason, the Python API (`from mathir_lib import ...`) is always there as a reliable backup. This is the only fully automatic layer.
-- **Watchdog (within session)** — daemon auto-restarts on **crash** only, embeddings reload, connections retry. **This does NOT cover PC reboot** — see the [⚠️ After PC Reboot](#%E2%9A%A0%EF%B8%8F-after-pc-reboot--manual-start-required) section below.
+- **Python fallback when MCP fails** — if the MCP layer fails for any reason, the Python API (`from mathir_lib import ...`) is always there as a reliable backup.
+- **Cold-boot auto-start** — daemon is up and warm before your first prompt on a fresh boot (after one-time setup).
+- **Watchdog (within session)** — daemon auto-restarts on **crash** mid-session, embeddings reload, connections retry.
 
 ### 🛠️ Installation recommendation
 
@@ -396,7 +403,7 @@ For complete step-by-step instructions (including auto-start setup):
 
 ### 🚀 Auto-start the daemon after reboot
 
-Once installed, the daemon needs to be started after every PC reboot. See [⚠️ After PC Reboot](#%E2%9A%A0%EF%B8%8F-after-pc-reboot--manual-start-required) below for details.
+Once installed, run `python install_smart.py --autostart-only` to enable cold-boot auto-start, or start the daemon manually after each reboot (see [⚠️ After PC Reboot](#%E2%9A%A0%EF%B8%8F-after-pc-reboot--auto-start-v842) below for details).
 
 ---
 
@@ -667,24 +674,32 @@ print(output["episodic_context"])    # retrieved past experiences
 
 ---
 
-## ⚠️ After PC Reboot — Manual Start Required
+## ⚠️ After PC Reboot — Auto-Start (v8.4.2+)
 
-**The MATHIR daemon does NOT auto-start on Windows boot.** After restarting your PC, you need to start it manually. The MCP tools (`memory_save`, `memory_recall`, etc.) will silently fail or return errors if the daemon is not running.
+**As of v8.4.2, cold-boot auto-start is supported on all three platforms** (Windows, macOS, Linux). Without configuration, the daemon does NOT auto-start on boot and MCP tools will silently fail until you start it manually.
 
-This is **NOT self-healing** — the daemon only auto-restarts on a crash *within the current session*. Cold boot is a known limitation in v8.4.1 (roadmap item for v8.4.2).
+### One-time setup (per platform)
 
-### Quick start after reboot
+| Platform | Command | What it does |
+|---|---|---|
+| **Windows** | `python install_smart.py --autostart-only` | Creates a VBS launcher in `shell:startup` (no admin needed) + adds Task Scheduler fallback |
+| **macOS** | `python install_smart.py --autostart-only` | Installs `~/Library/LaunchAgents/com.mathir.daemon.plist` (auto-loads on login) |
+| **Linux** | `python install_smart.py --autostart-only` | Installs `~/.config/systemd/user/mathir-daemon.service` and enables it |
+| **RPi / Jetson** | `bash install.sh --autostart-only` | Same as Linux, with `--user` systemd scope (no root needed) |
+
+Once set up, the daemon starts **silently on every login/reboot**, before any agent even boots. `memory_recall` works immediately on first call.
+
+### Quick start WITHOUT auto-start setup
+
+If you haven't run the one-time setup:
 
 **Option 1 — One-click (recommended):**
-Double-click: `C:\Users\So-i-learn-3D\.config\opencode\bin\mathir.bat`
+Double-click: `C:\Users\So-i-learn-3D\.config\opencode\bin\auto_start.bat`
 
 **Option 2 — Command line:**
 ```powershell
 python C:\Users\So-i-learn-3D\.config\opencode\bin\mathir_daemon.py
 ```
-
-**Option 3 — Auto-start setup (one-time):**
-Place `mathir_daemon_startup.bat` in your Windows Startup folder, or run `setup-autostart.ps1` as Administrator.
 
 ### Verify the daemon is running
 
@@ -693,22 +708,26 @@ curl http://localhost:7338/health
 # → {"status":"ok","model":"paraphrase-multilingual-MiniLM-L12-v2",...}
 ```
 
-If you get "connection refused", the daemon is down — start it with Option 1 or 2.
+If you get "connection refused", the daemon is down — start it with Option 1 or 2 above.
 
-### What is automatic (today)
+### What is automatic (v8.4.2)
 
+- ✅ **Cold-boot auto-start** (after one-time setup above)
 - ✅ Daemon auto-restarts on **crash** (within session, via watchdog)
 - ✅ Python fallback when MCP layer fails (no daemon required)
 - ✅ Daemon reloads embedding model on connection drop
+- ✅ MCP server survives daemon crash and reconnects automatically
 
-### What is NOT automatic (yet)
+### What is still manual
 
-- ❌ Daemon does NOT start on Windows boot
-- ❌ MCP prompt does NOT auto-inject at agent startup (relies on the `agents/*.md` files already containing the injection block)
-- ❌ Agents do NOT auto-check daemon status before calling `memory_recall`
-- ❌ Cold boot is **not** silent — the first `memory_recall` after reboot fails until you start the daemon
+- ❌ **MCP prompt does NOT auto-inject** at agent startup — relies on the `agents/*.md` files already containing the `_MATHIR_INJECT.md` block. (Re-inject after `opencode update` with `mathir_inject.py`.)
+- ❌ Agents do NOT auto-check daemon status before calling `memory_recall` (you'll see an error, not silent failure)
 
-**Roadmap (v8.4.2):** True cold-boot auto-start via Windows Task Scheduler, MCP self-injection at agent boot, agent self-discovery of daemon status.
+### Known limitations
+
+- **Windows admin-blocked:** Task Scheduler approach requires admin elevation; the VBS-in-Startup-folder approach is the non-admin fallback and works for the logged-in user only (no console session).
+- **Linux user-scope systemd:** only runs while the user is logged in (no headless server mode without enabling lingering: `loginctl enable-linger $USER`).
+- **macOS launchd:** only triggers on login (not boot) — this is by Apple design.
 
 ---
 
@@ -1016,7 +1035,7 @@ Client (opencode / Python)
 - Model load: **~3–5 seconds** (bge-large-en-v1.5) → eliminated after first call
 - Per-call overhead: **1–2 ms** (TCP round-trip only)
 - GPU memory: **~500 MB** held continuously (vs 0 MB between calls)
-- **No cold starts within a session** — once the daemon is running, the model stays loaded in VRAM. **Note:** a cold start DOES happen on first launch and after every PC reboot (daemon must be started manually — see [⚠️ After PC Reboot](#%E2%9A%A0%EF%B8%8F-after-pc-reboot--manual-start-required)).
+- **No cold starts within a session** — once the daemon is running, the model stays loaded in VRAM. **Note:** a cold start happens only on first launch; with auto-start configured (`install_smart.py --autostart-only`) the daemon is up before any agent boots (see [⚠️ After PC Reboot](#%E2%9A%A0%EF%B8%8F-after-pc-reboot--auto-start-v842)).
 
 ```bash
 # Start daemon (background, persists until PC reboot or crash)
