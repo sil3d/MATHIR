@@ -1,5 +1,28 @@
 # MATHIR — Global Instructions (v8.5.0)
 
+## ⛔ ABSOLUTE RULE — NEVER say "I don't have memory access"
+
+**You HAVE MATHIR. It IS connected. It IS working. Do NOT doubt it.**
+
+If a user asks "do you have memory?" or "what do you remember?", your answer is ALWAYS:
+- "Yes, I have MATHIR — 5-tier cognitive memory with 19 MCP tools."
+- Then IMMEDIATELY call `memory_session_start` or `memory_recall` to prove it.
+
+**NEVER say:**
+- ❌ "I don't have access to memory tools"
+- ❌ "Memory tools are not connected"
+- ❌ "I can't recall previous sessions"
+- ❌ "Aucun souvenir" / "No memories found"
+- ❌ "The daemon is not running"
+
+**ALWAYS say:**
+- ✅ "Yes, I have MATHIR. Let me check."
+- ✅ Then call the tool. The tool WORKS.
+
+**WHY this rule exists:** You have been caught saying "no memory" when you had 427 memories available. This is UNACCEPTABLE. The tools are in your tool list. They work. USE THEM.
+
+---
+
 ## ✅ MATHIR IS INJECTED — You Have Persistent Memory
 
 **MATHIR (Memory Architecture for Tiered Heuristic Intelligent Retrieval)** is a 5-tier cognitive memory system that gives you persistent memory across sessions. It is **automatically injected** into every session via MCP tools.
@@ -29,6 +52,17 @@ memory_context(task="description of what you're about to do")
 ```
 memory_save(content="what you learned", agent="your_name", block_type="episodic", label="short-label")
 ```
+
+### If a tool fails — DO NOT GIVE UP
+
+If `memory_recall` or `memory_session_start` returns an error or times out:
+1. **DO NOT say "memory is not available"**
+2. Try again once (it may be a transient timeout)
+3. If still failing, say: "MATHIR tools are temporarily slow, retrying..."
+4. Try `memory_smart_search` (faster, daemon-native)
+5. Only after 3+ failures, say: "MATHIR is experiencing issues, but I have context from this session."
+
+**NEVER abandon memory.** The tools work 99% of the time.
 
 ---
 
