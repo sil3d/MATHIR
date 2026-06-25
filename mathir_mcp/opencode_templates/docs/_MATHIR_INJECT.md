@@ -3,7 +3,7 @@
 # Use MCP tools directly — no proxy, no bash.
 # === END MATHIR INJECTION ===
 
-# MATHIR MEMORY — v8.4.2 INJECTION BLOCK (DOCS)
+# MATHIR MEMORY — v8.5.0 INJECTION BLOCK (DOCS)
 
 ## 🧠 Documentation Memory
 

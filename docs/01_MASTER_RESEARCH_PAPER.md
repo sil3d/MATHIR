@@ -340,7 +340,7 @@ MATHIR evolved through eight major versions (V1–V8.4.1), each addressing a spe
 | V8.1 | Multimodal support | Multimodal support (text, image, audio, video) | ✓ |
 | V8.2 | Daemon + per-project DBs | Daemon push API + per-project databases | ✓ |
 | V8.3 | Thread safety | HybridSearch thread safety + bug fixes | ✓ |
-| V8.4.0 | Living memory | Living memory — Ebbinghaus lifecycle, 5 tiers, link graph, 17 MCP tools | ✓ (this paper) |
+| v8.5.0 | Living memory | Living memory — Ebbinghaus lifecycle, 5 tiers, link graph, 19 MCP tools | ✓ (this paper) |
 | V8.4.1 | Dynamic injection | Dynamic injection + sync tools | ✓ (this paper) |
 
 ![MATHIR Architecture](assets/Mathir_architecture.png)
@@ -369,7 +369,7 @@ A KL-constrained router $R_t : \mathcal{X} \to \Delta_5$ (a **five-way** probabi
 
 ### 3.3 MCP Tool Surface (V8.4.1)
 
-MATHIR V8.4.1 exposes 17 tools via the Model Context Protocol (MCP), enabling any LLM to interact with the memory system. The tools are organized into three groups:
+MATHIR V8.4.1 exposes 19 tools via the Model Context Protocol (MCP), enabling any LLM to interact with the memory system. The tools are organized into three groups:
 
 | Group | Tools | Purpose |
 |-------|-------|---------|
@@ -794,7 +794,7 @@ The two modes compose: an incoming query is first scored for embedding-match ano
 
 #### 3.13.6 Integration with the other 5 tiers — cross-tier linking
 
-> Note: with the v8.4.2 release, immunological is now a real 5th tier, so the system has 5 tiers total (working, episodic, semantic, procedural, immunological). This section describes the current 5-tier architecture.
+> Note: with the v8.5.0 release, immunological is now a real 5th tier, so the system has 5 tiers total (working, episodic, semantic, procedural, immunological). This section describes the current 5-tier architecture.
 
 The immunological tier is not isolated; it integrates with the other four tiers through MATHIR's link graph (see tool #11, `memory_link`):
 
@@ -1519,7 +1519,7 @@ This paper has presented the V8.4.1 release of MATHIR, which adds four novel ret
 
 Several directions remain for future research:
 
-1. **V8 (completed): Production cascade architecture.** MATHIR V8.0 introduced `HybridSearch` with auto-scaling backends (numpy → USearch HNSW), SQLite WAL metadata store, and LRU result cache (80-85% hit rate). V8.1 added multimodal support (text, image, audio, video). V8.2 added daemon push API and per-project databases. V8.3 fixed hybrid search thread safety. V8.4.0 introduced the living-memory architecture (Ebbinghaus lifecycle, link graph, 17 MCP tools). V8.4.1 added dynamic injection and sync tools. This work is now complete and documented in this paper.
+1. **V8 (completed): Production cascade architecture.** MATHIR V8.0 introduced `HybridSearch` with auto-scaling backends (numpy → USearch HNSW), SQLite WAL metadata store, and LRU result cache (80-85% hit rate). V8.1 added multimodal support (text, image, audio, video). V8.2 added daemon push API and per-project databases. V8.3 fixed hybrid search thread safety. v8.5.0 introduced the living-memory architecture (Ebbinghaus lifecycle, link graph, 19 MCP tools). V8.4.1 added dynamic injection and sync tools. This work is now complete and documented in this paper.
 
 2. **V9: Edge deployment.** The current implementation requires CPU. A Rust/PyO3 port of the cross-encoder would enable edge deployment on Jetson and Raspberry Pi. Expected speedup: 10–50× for the cross-encoder, bringing Approach D's latency from 494 ms to approximately 10–50 ms.
 
@@ -1537,7 +1537,7 @@ All code, tests, and benchmark scripts are available at the project repository:
 - **Test scripts:** `tests/test_hybrid.py`, `tests/test_raw_embedding.py`, `tests/test_ensemble.py`, `tests/test_faiss_memory.py`
 - **Benchmark scripts:** `benchmarks/compare_all_approaches.py`, `benchmarks/approach_d_vs_faiss.py`
 - **Results:** `compare_all_approaches_results.json`, `approach_d_vs_faiss_results.json`, `v6_vs_v7_results.json`
-- **Daemon:** `mathir_mcp/mathir_lib/mathir_daemon.py` (TCP socket server, port 7338)
+- **Daemon:** `mathir_mcp/mathir_lib/mathir_server.py` (TCP socket server, port 7338)
 - **Hybrid search:** `mathir_search.py` (HybridSearch with BM25 + RRF fusion)
 
 To reproduce the results:

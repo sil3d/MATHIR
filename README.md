@@ -45,7 +45,9 @@
 
 <br/>
 
-> **🆕 v8.4.2 — Immunological is now a real 5th tier.** The architecture (working, episodic, semantic, procedural) is extended with a first-class `immunological` tier for prompt-injection detection and input anomaly scoring. All 17 MCP tools gain tier-aware routing. 173/173 tests pass.
+> **🆕 v8.5.0 — FastMCP rewrite + auto-injection.** MCP server rewritten using FastMCP 3.4.2 (19 tools). Memories auto-injected into agent system prompts via plugin. Unified Flask+Waitress server (single process, single port). Direct DB access, no daemon bridge.
+>
+> **v8.4.2 — Immunological is now a real 5th tier.** The architecture (working, episodic, semantic, procedural) is extended with a first-class `immunological` tier for prompt-injection detection and input anomaly scoring. All 17 MCP tools gain tier-aware routing. 173/173 tests pass.
 >
 > **v8.4.0 — Living memory, not a write-only disk.** MATHIR now ships a full **Ebbinghaus forgetting curve**, **tier promotion** (working → episodic → semantic → procedural), **semantic consolidation** (auto-merge near-duplicates), and a **link graph** (spreading activation à la Collins & Loftus 1975). Memories that get recalled grow stronger; memories that don't, decay and archive. **7 new MCP tools. 173/173 tests pass.**
 
@@ -54,7 +56,7 @@
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-8.4.2-6366f1?style=for-the-badge)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-8.5.0-6366f1?style=for-the-badge)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/Tests-173%20passed-22c55e?style=for-the-badge)](#-tests--benchmarks)
 
 <br/>
@@ -151,6 +153,29 @@ You want to fine-tune a model, but your data is scattered across Notion, Slack, 
 That API endpoint you documented 6 months ago? It changed. But your old notes still say the old URL. Your team follows outdated instructions. Nobody knows which version is current.
 
 **With MATHIR:** Memories decay when unused. When an API changes, the old memory fades and the new one takes over. MATHIR self-maintains its knowledge — no human cleanup needed.
+
+---
+
+## 🆕 What's new in v8.5.0 — FastMCP + Auto-Injection
+
+MATHIR v8.5.0 is a major rewrite. The hand-rolled JSON-RPC MCP server is replaced by **FastMCP 3.4.2** (used by 70% of MCP servers in the wild). Memories are now **auto-injected** into agent system prompts — no manual recall needed.
+
+### Key changes
+- **FastMCP 3.4.2** — 19 MCP tools, stdio transport, battle-tested
+- **Auto-injection plugin** — memories injected at session start + during session
+- **Unified server** — single process, single port (7338), Flask + Waitress
+- **Direct DB access** — no HTTP daemon bridge for core operations
+- **Embedder pre-warmed** — 25-30s first load, then cached in memory
+- **Portable config** — no OpenCode hardcodes in templates
+
+### 19 MCP tools
+
+| Category | Tools |
+|---|---|
+| Auto-injection | `memory_session_start`, `memory_context` |
+| Basic CRUD | `memory_save`, `memory_recall`, `memory_smart_search`, `memory_hybrid_search`, `memory_delete`, `memory_stats` |
+| Lifecycle | `memory_promote`, `memory_auto_promote`, `memory_decay`, `memory_consolidate`, `memory_link`, `memory_get_links`, `memory_build_links` |
+| Other | `memory_export`, `memory_audit`, `memory_sessions`, `memory_dashboard` |
 
 ---
 
@@ -277,7 +302,7 @@ You want to detect prompt injection. "That's not what we do."
 
 ## 🔌 MCP Plug & Play — 2 lines
 
-**One daemon, 17 tools, same memory.** Connect any LLM in 2 steps:
+**One server, 19 tools, same memory.** Connect any LLM in 2 steps:
 
 ```bash
 # 1. Start the daemon (once)

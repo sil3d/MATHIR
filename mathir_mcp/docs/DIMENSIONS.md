@@ -274,7 +274,7 @@ MATHIR auto-detects dimension mismatches:
 **Warning**: vec0 rebuild can take minutes for large databases. Existing memories are not lost — only the vector index is recreated.
 
 ```python
-# Auto-detection in mathir_daemon.py
+# Auto-detection in mathir_server.py
 existing_dim = db.execute("SELECT vec_length(embedding) FROM memory LIMIT 1").fetchone()
 if existing_dim and existing_dim[0] != model_dim:
     db.execute("DROP TABLE IF EXISTS vec0")

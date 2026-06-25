@@ -43,7 +43,7 @@ MATHIR is a memory system for LLMs. These benchmarks test if it works.
 
 ```bash
 # 1. Start MATHIR daemon
-python /path/to/MATHIR/bin/mathir_daemon.py
+python /path/to/MATHIR/bin/mathir_server.py
 
 # 2. Run cross-LLM benchmark
 cd /path/to/MATHIR/benchmarks

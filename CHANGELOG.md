@@ -8,6 +8,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [8.5.0] — 2026-06-25 — ⚡ FASTMCP REWRITE + AUTO-INJECTION
+
+**Major rewrite.** v8.5.0 replaces the hand-rolled JSON-RPC MCP server with FastMCP 3.4.2, adds auto-injection of memories into agent system prompts, and unifies the daemon/stats server into a single Flask+Waitress process.
+
+### Key changes
+- MCP server rewritten using FastMCP 3.4.2 (19 tools, stdio transport)
+- Auto-injection plugin: memories injected into system prompt at session start + during session
+- `memory_session_start` + `memory_context` tools for explicit session context
+- `/api/context` HTTP endpoint for plugin auto-injection
+- Unified server: single process, single port (7338), Flask + Waitress
+- Direct DB access via mathir_vec.py — no HTTP daemon bridge for core operations
+- Embedder pre-warmed at startup (25-30s first load, then cached)
+- config_template.json: portable paths, no OpenCode hardcodes
+- OpenRouter API key purged from git history
+- Bun segfault fixed: `"runtime": {"backend": "node"}` in opencode.json
+
+### Security
+- Input length caps: content 100KB, query 5KB, label 200B, agent 100B
+- API key purged from all commits (git-filter-repo)
+- 0 real keys found in codebase scan
+
+---
+
 ## [8.4.1] — 2026-06-23 — DYNAMIC INJECTION + SYNC
 
 **Dev-loop release.** v8.4.1 ships two new developer tools (`mathir_inject.py`, `mathir_sync.py`), 5 target-specific injection templates, and fixes the install/import path story so the package is reproducible from a clean clone.

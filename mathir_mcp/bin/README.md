@@ -8,7 +8,7 @@ MATHIR on a fresh machine.
 
 | File | What it does |
 |---|---|
-| **`mathir_daemon.py`** | The persistent background process. Loads the embedding model into RAM/VRAM once, then answers JSON-RPC requests over TCP port 7338. **Without this, nothing works.** |
+| **`mathir_server.py`** | The persistent background process. Loads the embedding model into RAM/VRAM once, then answers JSON-RPC requests over TCP port 7338. **Without this, nothing works.** |
 | (MCP server) | See `../INSTALL/` for the smart installer which sets up the MCP server |
 | (Stats server) | See `../INSTALL/` |
 
@@ -20,7 +20,7 @@ MATHIR on a fresh machine.
 | **`mathir_client.ps1`** | PowerShell direct-socket module: `. ./mathir_client.ps1; Search-Mathir "q" -K 5` | **Windows, fastest** (50-150ms, no Python startup) |
 | **`mathir_client.sh`** | Bash direct-socket module: `source ./mathir_client.sh; mathir_recall "q" 5` | **Mac/Linux, fastest** (200-450ms via /dev/tcp) |
 
-> **Naming convention:** `mathir_daemon.py` = the daemon. `mathir_client.{ps1,sh}` = clients that talk to the daemon.
+> **Naming convention:** `mathir_server.py` = the daemon. `mathir_client.{ps1,sh}` = clients that talk to the daemon.
 
 ## Auto-start (after PC reboot)
 

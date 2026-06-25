@@ -2,7 +2,7 @@
 
 **Audience:** developers running OpenCode on macOS 10.15+ (Intel or Apple Silicon).
 **Time:** ~5 minutes.
-**Result:** `mathir_daemon.py` running on `127.0.0.1:7338`, auto-started at login via a **LaunchAgent** (`~/Library/LaunchAgents/`), and registered as an MCP server in `opencode.json`.
+**Result:** `mathir_server.py` running on `127.0.0.1:7338`, auto-started at login via a **LaunchAgent** (`~/Library/LaunchAgents/`), and registered as an MCP server in `opencode.json`.
 
 > **Why LaunchAgent, not LaunchDaemon?**
 > LaunchAgents run as the logged-in user, have your `$HOME`, your `$PATH`, and your keychain. LaunchDaemons run as root and need to bind to ports < 1024. We want 7338 (unprivileged) and per-user data, so LaunchAgent it is. They start at login and respawn automatically if they die.
@@ -50,7 +50,7 @@ From the cloned repo:
 ```bash
 REPO=/path/to/mathir_mcp            # adjust to your checkout
 cp -r "$REPO/mathir_lib" "$BIN/"
-ls "$BIN/mathir_lib/mathir_daemon.py"   # sanity check
+ls "$BIN/mathir_lib/mathir_server.py"   # sanity check
 ```
 
 ---
@@ -77,7 +77,7 @@ Then use `/opt/homebrew/bin/python3` everywhere `python3` appears in the plist (
 ## 4. Smoke test — start the daemon in the foreground
 
 ```bash
-python3 "$BIN/mathir_lib/mathir_daemon.py"
+python3 "$BIN/mathir_lib/mathir_server.py"
 ```
 
 You should see:
@@ -112,7 +112,7 @@ Stop the foreground daemon with `Ctrl+C` before continuing.
 
 ## 5. Install the LaunchAgent
 
-The plist ships in the repo at `bin/com.mathir.daemon.plist`. It contains a placeholder `/Users/USERNAME/.config/opencode/bin/mathir_daemon.py` — we need to substitute the real path.
+The plist ships in the repo at `bin/com.mathir.daemon.plist`. It contains a placeholder `/Users/USERNAME/.config/opencode/bin/mathir_server.py` — we need to substitute the real path.
 
 ```bash
 PLIST_SRC=/path/to/mathir_mcp/bin/com.mathir.daemon.plist
@@ -121,7 +121,7 @@ PLIST_DST=~/Library/LaunchAgents/com.mathir.daemon.plist
 # Substitute the real home directory and the real python3 path
 REAL_HOME="$HOME"
 REAL_PY="$(command -v python3 || echo /usr/bin/python3)"
-DAEMON_PATH="$REAL_HOME/.config/opencode/bin/mathir_lib/mathir_daemon.py"
+DAEMON_PATH="$REAL_HOME/.config/opencode/bin/mathir_lib/mathir_server.py"
 
 # Sanity check — fail loudly if the daemon isn't there yet
 test -f "$DAEMON_PATH" || { echo "[FAIL] Daemon not found at $DAEMON_PATH"; exit 1; }

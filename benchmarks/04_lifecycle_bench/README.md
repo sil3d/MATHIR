@@ -1,4 +1,4 @@
-# MATHIR v8.4.0 — Benchmarks
+# MATHIR v8.5.0 — Benchmarks
 
 Four complementary benchmarks that prove the **living memory** (promote /
 decay / consolidate / link graph) improves retrieval quality measurably.

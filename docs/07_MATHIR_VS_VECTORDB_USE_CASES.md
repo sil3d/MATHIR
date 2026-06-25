@@ -50,7 +50,7 @@ The two architectures under comparison share the same goal — augment an LLM wi
 
 **Properties.** Flat-topology memory; write-once-read-many; a single scalar score per candidate; cosine / L2 / inner-product similarity. The index is built once, updated in append-only mode, and never adapts to the query distribution. There is no concept of "novel" input — every vector is matched to its nearest neighbour regardless of distance.
 
-### 2.2 MATHIR + LLM (the V7.1 stack)
+### 2.2 MATHIR + LLM (the v8.5 stack)
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
@@ -60,7 +60,7 @@ The two architectures under comparison share the same goal — augment an LLM wi
                  │  embedding  (raw 384–4096 dim, no projection)
                  ▼
 ┌────────────────────────────────────────────────────────────────┐
-│             MATHIR V7.1  (60 KB · ~1–500 ms · ~500 MB VRAM)     │
+│             MATHIR v8.5  (60 KB · ~1–500 ms · ~500 MB VRAM)     │
 │                                                                │
 │  ┌─────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────────┐  │
 │  │ Working │  │ Episodic │  │ Semantic │  │  Immunological   │  │
@@ -92,7 +92,7 @@ The two architectures under comparison share the same goal — augment an LLM wi
 
 ### 2.3 Side-by-side
 
-| Property | VectorDB (FAISS) | MATHIR V7.1 |
+| Property | VectorDB (FAISS) | MATHIR v8.5 |
 |---|---|---|
 | Topology | Flat | 7-tier hierarchy |
 | Learning | None (append-only) | Online (Robbins-Monro, EMA, KL) |
@@ -115,7 +115,7 @@ A conversational assistant (customer support, personal assistant, technical copi
 
 ### 3.1 Detailed comparison
 
-| Dimension | FAISS VectorDB | MATHIR V7.1 (Approach D, cold) | MATHIR V7.1 (warm + cache) | Winner |
+| Dimension | FAISS VectorDB | MATHIR v8.5 (Approach D, cold) | MATHIR v8.5 (warm + cache) | Winner |
 |---|---|---|---|---|
 | **Latency (median)** | 0.05 ms | 494 ms | **6 ms** (cache hit) | VectorDB on raw speed; MATHIR on warm path |
 | **Latency (P95)** | 0.18 ms | 1 860 ms | 2 466 ms | VectorDB |
@@ -167,7 +167,7 @@ An autonomous-driving stack — typically a vision-language model (Qwen3-VL, LLa
 
 ### 4.1 Detailed comparison
 
-| Dimension | FAISS VectorDB | MATHIR V7.1 + LRU + anomaly | Winner |
+| Dimension | FAISS VectorDB | MATHIR v8.5 + LRU + anomaly | Winner |
 |---|---|---|---|
 | **Latency (per-frame, 20 Hz loop)** | 0.05 ms (well within 50 ms budget) | 6 ms (warm) — 494 ms (cold) | VectorDB on raw latency |
 | **Real-time `store()`** | Append-only, O(log n) per insert | O(1) with sparse-coding + TurboQuant | TIE |
@@ -188,7 +188,7 @@ An autonomous-driving stack — typically a vision-language model (Qwen3-VL, LLa
 
 VectorDB treats all 4 environments (highway, city, country, tunnel) the same — same cosine, same top-1. MATHIR's episodic memory **differentiates them within 30 minutes** because `store()` calls fill the bank with the situations the policy actually handles. The semantic prototypes converge to environment-specific clusters. The immunological memory learns the tunnel-illumination distribution separately from the highway-shadow distribution. After one hour of driving:
 
-| Memory state after 1 h | VectorDB | MATHIR V7.1 |
+| Memory state after 1 h | VectorDB | MATHIR v8.5 |
 |---|---|---|
 | Episodic bank contents | First 1000 random situations ever seen | The 1000 situations this car has actually encountered |
 | Semantic prototypes | Cluster centroids of the static corpus | Cluster centroids of *this driver's routes* |
@@ -203,14 +203,14 @@ This is the single most important distinction. Consider the input: an embedding 
 
 **FAISS VectorDB.** Returns the nearest neighbour with high confidence. If the fleet's most-similar vector is "road surface" (cosine 0.78), the policy receives the input *with* a high-similarity match and proceeds as if the road is normal. **Failure mode: silent mis-classification.**
 
-**MATHIR V7.1.** The Mahalanobis distance $D_M(x; \mu, \Sigma)$ against the running $\Sigma$ (estimated from the last 1000 normal driving embeddings) yields $D_M = 6.2$, which exceeds $\tau_{0.01} = \sqrt{\chi^2_{d, 0.99}} \approx 1.6$ for $d = 384$. The immunological tier fires; the policy head receives a high-anomaly flag and can route to an emergency maneuver (brake, swerve, slow down). **Theorem 4 certifies this detector as NP-optimal for Gaussian normal data** — no other anomaly statistic (Euclidean, cosine, learned) can achieve a higher true-positive rate at the same false-positive rate in the asymptotic limit. Empirically, on a 50/50 normal/out-of-distribution test, MATHIR's Mahalanobis detector reaches F1 = 0.89 ± 0.03 vs Euclidean baseline F1 = 0.71 ± 0.04.
+**MATHIR v8.5.** The Mahalanobis distance $D_M(x; \mu, \Sigma)$ against the running $\Sigma$ (estimated from the last 1000 normal driving embeddings) yields $D_M = 6.2$, which exceeds $\tau_{0.01} = \sqrt{\chi^2_{d, 0.99}} \approx 1.6$ for $d = 384$. The immunological tier fires; the policy head receives a high-anomaly flag and can route to an emergency maneuver (brake, swerve, slow down). **Theorem 4 certifies this detector as NP-optimal for Gaussian normal data** — no other anomaly statistic (Euclidean, cosine, learned) can achieve a higher true-positive rate at the same false-positive rate in the asymptotic limit. Empirically, on a 50/50 normal/out-of-distribution test, MATHIR's Mahalanobis detector reaches F1 = 0.89 ± 0.03 vs Euclidean baseline F1 = 0.71 ± 0.04.
 
 ### 4.4 On-car deployment profile (NVIDIA Jetson AGX Orin 8 GB)
 
 | Component | VRAM | Latency (P50) |
 |---|---:|---:|
 | VLM (Qwen3-VL 7B, INT8) | 7.0 GB | 80 ms |
-| MATHIR V7.1 plugin (bge-large embedding) | ~500 MB | 6–494 ms (warm–cold) |
+| MATHIR v8.5 plugin (bge-large embedding) | ~500 MB | 6–494 ms (warm–cold) |
 | LRU cache | 0.01 GB | 0.1 ms |
 | **Total** | **~7.51 GB** | **86–580 ms** |
 
@@ -252,7 +252,7 @@ All numbers below are from `benchmarks/` and `compare_all_approaches_results.jso
 | System | Top-1 overlap | Top-1 semantic match | Queries ≥ 30 % | Queries ≥ 50 % |
 |---|:---:|:---:|:---:|:---:|
 | FAISS VectorDB (raw 384-dim) | 31.6 % | 45 % | 28/50 | 20/50 |
-| **MATHIR V7.1 — Approach D (Hybrid)** | **45.7 %** | **59 %** | **40/50** | **31/50** |
+| **MATHIR v8.5 — Approach D (Hybrid)** | **45.7 %** | **59 %** | **40/50** | **31/50** |
 | **Δ** | **+14.1 pp** | **+14 pp** | **+12** | **+11** |
 
 ### 6.2 Memory compression (1000 × 272-dim embeddings)
@@ -317,19 +317,19 @@ Four concrete examples that illustrate when to reach for MATHIR versus when a ve
 
 ### Scenario 1 — Customer-support chatbot with 10 K FAQs and 1 M historical tickets
 
-- **Recommended:** FAISS VectorDB as the **L1 retriever**, MATHIR V7.1 as the **L2 reranker** (cascade).
+- **Recommended:** FAISS VectorDB as the **L1 retriever**, MATHIR v8.5 as the **L2 reranker** (cascade).
 - **Reasoning:** 1 M tickets + 10 K FAQs require the throughput of FAISS (20 K QPS). The 50 ms budget per turn is dominated by the LLM (40 ms), leaving 10 ms for retrieval. FAISS does the first pass in 0.05 ms; MATHIR reranks the top-50 in 150 ms amortized. Cache hit rate 80 % drops MATHIR's median to 6 ms.
 - **MATHIR's value:** +14.1 pp top-1 quality on the first pass; anomaly flag on never-before-seen questions; personalised prototype clusters per customer cohort.
 
 ### Scenario 2 — Personal AI assistant that learns the user's name, job, allergies, project deadlines
 
-- **Recommended:** MATHIR V7.1 alone.
+- **Recommended:** MATHIR v8.5 alone.
 - **Reasoning:** The corpus is small (< 1 000 items) and personal. Ebbinghaus spaced-repetition keeps "peanut allergy" and "wife's birthday" indefinitely. VectorDB's FIFO drops them after 1000 inserts. The KL router learns that this user asks short, conversational questions and routes to working memory 60 % of the time.
 - **MATHIR's value:** Permanent retention of critical personal facts; per-user prototype adaptation; novelty flag for unusual requests.
 
 ### Scenario 3 — Autonomous driving in a new city (no HD map, no fleet data)
 
-- **Recommended:** MATHIR V7.1 + episodic store only.
+- **Recommended:** MATHIR v8.5 + episodic store only.
 - **Reasoning:** The first 30 minutes of driving fills the episodic bank with the situations the policy actually encounters. The semantic prototypes converge to environment-specific clusters (roundabouts, tram crossings, school zones). The Mahalanobis immunological memory flags novel situations (e.g. a horse-drawn cart on a main road) that no fleet has seen. VectorDB has no notion of "novel"; it returns the nearest miss with high confidence — a safety hazard.
 - **MATHIR's value:** Real-time adaptation to the new city; novelty signal for the policy head; safety argument from Theorem 4.
 
@@ -343,7 +343,7 @@ Four concrete examples that illustrate when to reach for MATHIR versus when a ve
 
 ## 8. Decision Matrix
 
-| Use-case characteristic | VectorDB | MATHIR V7.1 | Cascade (VectorDB + MATHIR) |
+| Use-case characteristic | VectorDB | MATHIR v8.5 | Cascade (VectorDB + MATHIR) |
 |---|:---:|:---:|:---:|
 | Sub-10 ms SLA (autocomplete, typeahead) | ✅ | ❌ (cold) / ✅ (warm) | ✅ |
 | First-turn cold start, no history | ✅ | ❌ | ✅ (use VectorDB) |
@@ -402,11 +402,11 @@ MATHIR is **slower on the cold path** (494 ms median for Approach D vs 0.05 ms f
 ```bash
 # From the project root (D:/SECRET_PROJECT/MATHIR)
 
-# V7.1 master retrieval comparison (5 systems × 50 queries × 200 chunks)
+# v8.5 master retrieval comparison (5 systems × 50 queries × 200 chunks)
 python benchmarks/compare_all_approaches.py
 # → compare_all_approaches_results.json
 
-# V7.1 Approach D vs FAISS deep dive
+# v8.5 Approach D vs FAISS deep dive
 python benchmarks/approach_d_vs_faiss.py
 # → approach_d_vs_faiss_results.json
 
@@ -425,7 +425,7 @@ python benchmarks/stress_cache_warm.py
 # V7 unit tests (49/49 pass)
 pytest tests/test_v7_memory.py
 
-# V7.1 unit tests (A: 28, B: 36, C: 32, D: 34, total 130/130 pass)
+# v8.5 unit tests (A: 28, B: 36, C: 32, D: 34, total 130/130 pass)
 pytest tests/test_approach_a_raw.py
 pytest tests/test_approach_b_multi_encoder.py
 pytest tests/test_approach_c_faiss.py
@@ -436,9 +436,9 @@ pytest tests/test_approach_d_hybrid.py
 
 | File | Purpose |
 |---|---|
-| `docs/MASTER_RESEARCH_PAPER.md` | Doctoral-level V7.1 paper with 6 theorem proofs |
+| `docs/MASTER_RESEARCH_PAPER.md` | Doctoral-level v8.5 paper with 6 theorem proofs |
 | `docs/THEORY_V7.md` | Mathematical foundations (58 KB) |
-| `docs/BENCHMARK_V6_VS_V7.md` | V6 vs V7 benchmark + 5-system V7.1 comparison |
+| `docs/BENCHMARK_V6_VS_V7.md` | V6 vs V7 benchmark + 5-system v8.5 comparison |
 | `docs/MATHIR_VS_RAG_COMPARISON.md` | V6 RAG / VectorDB comparison (single-fact recall) |
 | `compare_all_approaches_results.json` | Raw output: 5-system × 50-query × 200-chunk |
 | `approach_d_vs_faiss_results.json` | Raw output: Approach D vs FAISS deep dive |

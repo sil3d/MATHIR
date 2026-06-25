@@ -109,7 +109,7 @@ Model VRAM requirements:
 
 ```
 ┌─────────────────────────────────────────┐
-│            mathir_daemon.py             │
+│            mathir_server.py             │
 │         (persistent process)            │
 ├─────────────────────────────────────────┤
 │  TCP Socket (127.0.0.1:7338)           │

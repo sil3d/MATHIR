@@ -1,6 +1,6 @@
 # mathir-raspberry-jetson
 
-**MATHIR Memory for Raspberry Pi / NVIDIA Jetson — CPU-only portable subset (v8.4.0).**
+**MATHIR Memory for Raspberry Pi / NVIDIA Jetson — CPU-only portable subset (v8.5.0).**
 
 This is a thin deployment wrapper around the portable
 [`mathir-mcp`](../mathir_mcp/) package. It does NOT ship a parallel copy of the
@@ -40,7 +40,7 @@ Then it `exec`s `python3 -m mathir_mcp` (which starts the daemon).
 
 ```bash
 python3 -m mathir_mcp --selftest            # 9/9 should pass
-python3 -m mathir_mcp --version             # MATHIR v8.4.0
+python3 -m mathir_mcp --version             # MATHIR v8.5.0
 python3 -c "from mathir_mcp.mathir_lib import __version__; print(__version__)"
 ```
 
@@ -94,7 +94,7 @@ writable) or `~/.local/share/mathir`. On Windows (for testing):
 ## What is NOT here (vs old structure)
 
 This package used to be a 41-file carbon copy of `mcp/`. As of V8.3.0
-(2026-06-22 audit cleanup), all duplicate code was removed. As of V8.4.0
+(2026-06-22 audit cleanup), all duplicate code was removed. As of v8.5.0
 (2026-06-23), `__init__.py` was updated to use the nested
 `from mathir_mcp.mathir_lib import __version__` form (top-level
 `mathir_lib` is no longer importable after the package restructure).
