@@ -315,6 +315,71 @@ def api_memories():
     return jsonify({"memories": memories, "total": len(memories), "project": project})
 
 
+@app.route("/api/context")
+def api_context():
+    """Auto-injection endpoint for OpenCode plugins.
+    Returns relevant memories formatted for system prompt injection.
+    GET /api/context?task=description&k=8&project=name
+    """
+    task = request.args.get("task", "")
+    k = min(int(request.args.get("k", 8)), 20)
+    project = request.args.get("project")
+    if not task:
+        return jsonify({"error": "task parameter required"}), 400
+    try:
+        vec_mem, db_path, embedder = _resolve_db()
+        query_vec = _encode_query(embedder, task)
+        results = vec_mem.search(query_vec, k=k)
+        # Normalize results to dicts with metadata
+        normalized = []
+        for r in results:
+            d = {
+                "memory_id": r.get("memory_id", ""),
+                "score": r.get("score", 0.0),
+                "block_type": r.get("metadata", {}).get("block_type", "unknown"),
+                "label": r.get("metadata", {}).get("label", ""),
+                "content": r.get("metadata", {}).get("content", ""),
+                "agent": r.get("metadata", {}).get("agent", ""),
+                "priority": r.get("metadata", {}).get("priority", 5),
+            }
+            # Also check top-level metadata
+            if d["block_type"] == "unknown" and "block_type" in r:
+                d["block_type"] = r["block_type"]
+            if d["label"] == "" and "label" in r:
+                d["label"] = r["label"]
+            if d["content"] == "" and "content" in r:
+                d["content"] = r["content"]
+            if d["agent"] == "" and "agent" in r:
+                d["agent"] = r["agent"]
+            normalized.append(d)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    # Group by tier
+    tiers: dict[str, list] = {}
+    for r in normalized:
+        tier = r.get("block_type", "unknown")
+        if tier not in tiers:
+            tiers[tier] = []
+        tiers[tier].append({
+            "label": r.get("label", ""),
+            "content": r.get("content", "")[:400],
+            "agent": r.get("agent", ""),
+            "score": r.get("score", 0.0),
+        })
+    # Format as injection text
+    lines = [f"## MATHIR Auto-Context — {len(normalized)} memories for: {task[:100]}"]
+    for tier, items in tiers.items():
+        lines.append(f"\n### {tier.upper()} ({len(items)})")
+        for item in items:
+            lines.append(f"- [{item['agent']}] {item['label']}: {item['content'][:200]}")
+    return jsonify({
+        "context": "\n".join(lines),
+        "tiers": {t: len(v) for t, v in tiers.items()},
+        "total": len(normalized),
+        "task": task[:200],
+    })
+
+
 @app.route("/api/projects")
 def api_projects():
     return jsonify({"projects": _list_projects()})
