@@ -1,192 +1,129 @@
+#!/usr/bin/env python3
 """
-MATHIR Daemon Watchdog
-======================
-Monitors the MATHIR daemon and restarts it if it crashes.
-Designed to run as a background service on Windows.
-
-Features:
-- Pings daemon every N seconds
-- Restarts if no response
-- Logs to ~/.config/opencode/logs/mathir_watchdog.log
-- Has its own PID lockfile to prevent multiple instances
-- Graceful shutdown on Ctrl+C
+MATHIR Server Watchdog — v8.5.0
+Ensures the unified server is running on port 7338.
+Run this at startup or periodically via cron/task scheduler.
 
 Usage:
-    python mathir_watchdog.py                    # default settings
-    python mathir_watchdog.py --interval 10     # ping every 10s
-    python mathir_watchdog.py --max-restarts 10  # max 10 restarts before giving up
+  python mathir_watchdog.py           # check + start if needed
+  python mathir_watchdog.py --status  # just check status
+  python mathir_watchdog.py --kill    # kill all MATHIR servers
 """
+
 import sys
 import os
-import time
-import socket
-import argparse
 import subprocess
-import logging
+import urllib.request
+import time
+import argparse
 from pathlib import Path
 
-HOST = '127.0.0.1'
 PORT = 7338
-PING_TIMEOUT = 2  # seconds
-LOG_DIR = Path(__file__).parent.parent / "logs"
-LOG_FILE = LOG_DIR / "mathir_watchdog.log"
-PID_FILE = LOG_DIR / "mathir_watchdog.pid"
+HEALTH_URL = f"http://127.0.0.1:{PORT}/health"
+SERVER_SCRIPT = Path(__file__).parent / "mathir_server.py"
+WORKDIR = Path(os.environ.get("USERPROFILE", str(Path.home())))
 
-LOG_DIR.mkdir(parents=True, exist_ok=True)
-
-log = logging.getLogger("MATHIR-WATCHDOG")
-log.setLevel(logging.INFO)
-fh = logging.FileHandler(LOG_FILE, encoding='utf-8')
-fh.setFormatter(logging.Formatter('%(asctime)s [%(name)s] %(levelname)s %(message)s'))
-log.addHandler(fh)
-ch = logging.StreamHandler()
-ch.setFormatter(logging.Formatter('%(asctime)s [%(name)s] %(levelname)s %(message)s'))
-log.addHandler(ch)
-
-
-def is_daemon_alive(timeout: float = PING_TIMEOUT) -> bool:
-    """Check if daemon responds to ping."""
+def check_server() -> bool:
+    """Check if server is responding on port 7338."""
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(timeout)
-        s.connect((HOST, PORT))
-        # Send ping
-        s.sendall(b'{"method":"ping","params":{}}')
-        chunks = []
-        try:
-            s.settimeout(timeout)
-            chunk = s.recv(4096)
-            if chunk:
-                chunks.append(chunk)
-        except socket.timeout:
-            pass
-        s.close()
-        if not chunks:
-            return False
-        body = b''.join(chunks).decode('utf-8', errors='ignore').strip()
-        return 'pong' in body.lower() or 'dim' in body
-    except (socket.error, ConnectionRefusedError):
-        return False
+        res = urllib.request.urlopen(HEALTH_URL, timeout=3)
+        return res.status == 200
     except Exception:
         return False
 
-
-def start_daemon() -> bool:
-    """Start the daemon as a background process."""
-    daemon_script = Path(__file__).parent / "mathir_daemon.py"
-    if not daemon_script.exists():
-        log.error(f"Daemon script not found: {daemon_script}")
-        return False
-    
+def check_port() -> bool:
+    """Check if port 7338 is in use."""
     try:
-        # Start as detached process
-        kwargs = {
-            'stdin': subprocess.DEVNULL,
-            'stdout': subprocess.DEVNULL,
-            'stderr': subprocess.DEVNULL,
-        }
-        if sys.platform == 'win32':
-            # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
-            DETACHED_PROCESS = 0x00000008
-            CREATE_NEW_PROCESS_GROUP = 0x00000200
-            kwargs['creationflags'] = DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
-            kwargs['close_fds'] = True
-        else:
-            kwargs['start_new_session'] = True
-        
-        proc = subprocess.Popen(
-            [sys.executable, str(daemon_script)],
-            **kwargs
-        )
-        log.info(f"Started daemon PID {proc.pid}")
-        return True
-    except Exception as e:
-        log.error(f"Failed to start daemon: {e}")
+        import socket
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(1)
+            return s.connect_ex(("127.0.0.1", PORT)) == 0
+    except Exception:
         return False
 
+def start_server() -> int:
+    """Start the server in background. Returns PID."""
+    proc = subprocess.Popen(
+        [sys.executable, str(SERVER_SCRIPT)],
+        cwd=str(WORKDIR),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+    )
+    return proc.pid
 
-def acquire_pid_lock():
-    """Prevent multiple watchdog instances."""
-    if PID_FILE.exists():
-        try:
-            old_pid = int(PID_FILE.read_text().strip())
-            # Check if process still alive
-            import psutil
-            if psutil.pid_exists(old_pid):
-                print(f"Another watchdog already running (PID {old_pid})")
-                sys.exit(1)
-        except (ImportError, ValueError):
-            pass  # psutil not available or stale PID file
-    PID_FILE.write_text(str(os.getpid()))
-
-
-def release_pid_lock():
-    if PID_FILE.exists():
-        try:
-            PID_FILE.unlink()
-        except Exception:
-            pass
-
+def kill_servers():
+    """Kill all MATHIR server processes."""
+    if sys.platform == "win32":
+        subprocess.run(
+            ["taskkill", "/F", "/IM", "python.exe", "/FI", f"WINDOWTITLE eq mathir*"],
+            capture_output=True,
+        )
+        # Also kill by port
+        result = subprocess.run(
+            ["netstat", "-ano", "-p", "TCP"],
+            capture_output=True, text=True,
+        )
+        for line in result.stdout.splitlines():
+            if f":{PORT}" in line and "LISTENING" in line:
+                parts = line.split()
+                pid = parts[-1]
+                subprocess.run(["taskkill", "/F", "/PID", pid], capture_output=True)
+    else:
+        result = subprocess.run(
+            ["lsof", "-ti", f":{PORT}"],
+            capture_output=True, text=True,
+        )
+        for pid in result.stdout.strip().split("\n"):
+            if pid:
+                subprocess.run(["kill", "-9", pid], capture_output=True)
 
 def main():
-    parser = argparse.ArgumentParser(description='MATHIR Daemon Watchdog')
-    parser.add_argument('--interval', type=int, default=15, help='Ping interval in seconds (default: 15)')
-    parser.add_argument('--max-restarts', type=int, default=0, help='Max restarts before giving up (0=infinite)')
-    parser.add_argument('--cooldown', type=int, default=5, help='Seconds to wait after restart before pinging')
+    parser = argparse.ArgumentParser(description="MATHIR Server Watchdog")
+    parser.add_argument("--status", action="store_true", help="Check server status")
+    parser.add_argument("--kill", action="store_true", help="Kill all MATHIR servers")
+    parser.add_argument("--force", action="store_true", help="Force restart")
     args = parser.parse_args()
-    
-    acquire_pid_lock()
-    
-    log.info(f"Watchdog started (PID {os.getpid()})")
-    log.info(f"  Target: {HOST}:{PORT}")
-    log.info(f"  Ping interval: {args.interval}s")
-    log.info(f"  Max restarts: {'infinite' if args.max_restarts == 0 else args.max_restarts}")
-    log.info(f"  Cooldown: {args.cooldown}s")
-    
-    restart_count = 0
-    last_restart_time = 0
-    last_alive_time = time.time()
-    
-    try:
-        while True:
-            time.sleep(args.interval)
-            
-            alive = is_daemon_alive()
-            now = time.time()
-            
-            if alive:
-                if not (last_alive_time > last_restart_time):
-                    log.info(f"Daemon is ALIVE (uptime: {now - last_restart_time:.0f}s since restart)")
-                last_alive_time = now
-                continue
-            
-            log.warning(f"Daemon is DOWN (last seen {now - last_alive_time:.0f}s ago)")
-            
-            if args.max_restarts > 0 and restart_count >= args.max_restarts:
-                log.error(f"Max restarts ({args.max_restarts}) reached. Giving up.")
-                break
-            
-            log.info(f"Restarting daemon (attempt #{restart_count + 1})...")
-            if start_daemon():
-                restart_count += 1
-                last_restart_time = time.time()
-                log.info(f"Waiting {args.cooldown}s for daemon to come up...")
-                time.sleep(args.cooldown)
-                
-                # Verify it's up
-                if is_daemon_alive(timeout=5):
-                    log.info("Daemon successfully restarted and responding.")
-                    last_alive_time = time.time()
-                else:
-                    log.warning("Daemon started but not responding yet (model still loading).")
-            else:
-                log.error("Failed to start daemon. Will retry on next interval.")
-    
-    except KeyboardInterrupt:
-        log.info("Watchdog stopped (Ctrl+C)")
-    finally:
-        release_pid_lock()
 
+    if args.kill:
+        print("Killing all MATHIR servers...")
+        kill_servers()
+        print("Done.")
+        return
+
+    # Check status
+    port_open = check_port()
+    server_ok = check_server() if port_open else False
+
+    if args.status:
+        print(f"Port {PORT}: {'OPEN' if port_open else 'CLOSED'}")
+        print(f"Server: {'RESPONDING' if server_ok else 'NOT RESPONDING'}")
+        return
+
+    # Auto-start if needed
+    if server_ok and not args.force:
+        print(f"Server OK on port {PORT}")
+        return
+
+    if not port_open:
+        print(f"Port {PORT} not in use. Starting server...")
+    else:
+        print(f"Port {PORT} open but server not responding. Restarting...")
+        kill_servers()
+        time.sleep(2)
+
+    pid = start_server()
+    print(f"Server starting (PID: {pid}). Waiting 35s for embedder...")
+
+    # Wait for server to be ready
+    for i in range(7):
+        time.sleep(5)
+        if check_server():
+            print(f"Server ready after {(i+1)*5}s")
+            return
+
+    print("Server still not ready after 35s. Check logs.")
+    sys.exit(1)
 
 if __name__ == "__main__":
     main()
