@@ -2,6 +2,8 @@
 
 **5-tier cognitive memory for 50 AI coding agents. Install once, use everywhere.**
 
+> **v8.5.0** — FastMCP 3.4.2, 19 MCP tools, auto-injection plugin, unified server.
+
 ---
 
 ## Quick Start (3 Steps)
