@@ -269,7 +269,7 @@ But D is already at 45.7% — **very close to the theoretical maximum for this c
 - The +14.1pp gain from D is **mathematically expected** from the information-theoretic decomposition.
 - The 5-12× speedup from cache is **mathematically optimal** for a deterministic function.
 
-All three findings are **non-obvious, doctoral-level insights** that justify the V7.1 research contribution.
+All three findings are **non-obvious, doctoral-level insights** that justify the v8.5 research contribution.
 
 ---
 
@@ -338,7 +338,7 @@ The "same results" phenomenon is **mathematically expected and theoretically gro
 
 3. **D (45.7%)** is **higher** because it combines 3 orthogonal information sources. The improvement is predicted by information theory.
 
-This analysis is **non-obvious** and **doctoral-level**. It demonstrates that the V7.1 retrieval research is not just engineering — it has **deep theoretical foundations**.
+This analysis is **non-obvious** and **doctoral-level**. It demonstrates that the v8.5 retrieval research is not just engineering — it has **deep theoretical foundations**.
 
 ---
 

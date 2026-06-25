@@ -96,7 +96,7 @@ It will read `docs/AGENT.md` and configure MATHIR automatically.
 ~/.config/MATHIR/                    ← Global install (once)
 ├── mathir_lib/                      ← Core library
 │   ├── mathir_mcp_server.py         ← MCP server entry point
-│   ├── mathir_daemon.py             ← Persistent daemon
+│   ├── mathir_server.py             ← Persistent daemon
 │   ├── mathir_client.py             ← CLI client
 │   ├── mathir_vec.py                ← VecMemory (sqlite-vec)
 │   ├── mathir_search.py             ← HybridSearch (vector + BM25 + RRF)
@@ -253,7 +253,7 @@ Vector + BM25 + RRF fusion (k=60). ~60ms per search.
 | `memory_smart_search` | Hybrid (vector + text, best quality) |
 | `memory_hybrid_search` | Explicit vector+BM25 fusion with tunable weights |
 
-Note: `memory_search` was removed in v8.3 — functionality folded into `memory_smart_search` (auto-tuned weights, default k=10). v8.4.1 has **17 tools total** (10 basic + 7 lifecycle).
+Note: `memory_search` was removed in v8.3 — functionality folded into `memory_smart_search` (auto-tuned weights, default k=10). v8.4.1 has **19 tools total** (10 basic + 7 lifecycle).
 
 ---
 
@@ -327,7 +327,7 @@ For agents that can't call MCP tools directly:
 
 > **Note:** OpenCode doesn't support `baseUrl` configuration, so Path A (direct MCP tools) is the only working path. Other agents (Claude Code, Cursor, MiMo) can use either path.
 
-**In both paths, the agent has 17 tools (10 basic + 7 lifecycle) at its disposal — no manual `memory_recall` is strictly required if instructions are properly loaded.**
+**In both paths, the agent has 19 tools (10 basic + 7 lifecycle) at its disposal — no manual `memory_recall` is strictly required if instructions are properly loaded.**
 
 ---
 

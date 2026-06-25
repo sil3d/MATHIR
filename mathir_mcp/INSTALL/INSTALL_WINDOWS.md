@@ -2,7 +2,7 @@
 
 **Audience:** developers running OpenCode on Windows.
 **Time:** ~10 minutes.
-**Result:** `mathir_daemon.py` running on `127.0.0.1:7338`, restarting on logon, and registered as an MCP server in `opencode.json`.
+**Result:** `mathir_server.py` running on `127.0.0.1:7338`, restarting on logon, and registered as an MCP server in `opencode.json`.
 
 > **What "install MATHIR" actually means here:**
 > 1. A long-running **daemon** holds the embedding model in RAM (port 7338) — *this* is what you auto-start.
@@ -63,7 +63,7 @@ You should now have:
 
 ```
 C:\Users\<YOU>\.config\opencode\bin\mathir_lib\
-    mathir_daemon.py          ← the background process
+    mathir_server.py          ← the background process
     mathir_mcp_server.py      ← the MCP stdio server
     mathir_inject.py          ← template injection tool
     requirements.txt
@@ -92,7 +92,7 @@ Verify the install works before wiring up auto-start:
 ```powershell
 # Launch in a hidden window so it survives the shell closing
 Start-Process python `
-  -ArgumentList "$env:USERPROFILE\.config\opencode\bin\mathir_lib\mathir_daemon.py" `
+  -ArgumentList "$env:USERPROFILE\.config\opencode\bin\mathir_lib\mathir_server.py" `
   -WindowStyle Hidden
 Start-Sleep -Seconds 5
 ```
@@ -108,7 +108,7 @@ Expected output: `True`. If `False`, wait 5 more seconds (model load is slow on 
 ```powershell
 Get-EventLog -LogName Application -Source "Python" -Newest 20  -ErrorAction SilentlyContinue
 # Or just run the daemon in the foreground to see errors:
-python "$env:USERPROFILE\.config\opencode\bin\mathir_lib\mathir_daemon.py"
+python "$env:USERPROFILE\.config\opencode\bin\mathir_lib\mathir_server.py"
 ```
 
 **Stop the manual daemon** before setting up auto-start (to avoid port conflicts):
@@ -138,7 +138,7 @@ Windows has no idiomatic user-level autostart for background daemons — Task Sc
 ```powershell
 $action  = New-ScheduledTaskAction `
   -Execute "python" `
-  -Argument "`"$env:USERPROFILE\.config\opencode\bin\mathir_lib\mathir_daemon.py`""
+  -Argument "`"$env:USERPROFILE\.config\opencode\bin\mathir_lib\mathir_server.py`""
 $trigger = New-ScheduledTaskTrigger -AtLogOn
 $settings = New-ScheduledTaskSettingsSet `
   -AllowStartIfOnBatteries `
@@ -163,7 +163,7 @@ Register-ScheduledTask `
 3. **Triggers** tab → New… → "At log on" → your username
 4. **Actions** tab → New… →
    - Program: `python`
-   - Arguments: `"C:\Users\<YOU>\.config\opencode\bin\mathir_lib\mathir_daemon.py"`
+   - Arguments: `"C:\Users\<YOU>\.config\opencode\bin\mathir_lib\mathir_server.py"`
 5. **Conditions** tab → uncheck "Start only if on AC power"
 6. **Settings** tab →
    - "Allow task to be run on demand" ✓
@@ -197,7 +197,7 @@ If you'd rather start the daemon by hand each session (e.g. on a shared dev box)
 ```bat
 @echo off
 setlocal
-set "DAEMON=%USERPROFILE%\.config\opencode\bin\mathir_lib\mathir_daemon.py"
+set "DAEMON=%USERPROFILE%\.config\opencode\bin\mathir_lib\mathir_server.py"
 if not exist "%DAEMON%" (
   echo MATHIR not installed at: %DAEMON%
   exit /b 1
@@ -310,7 +310,7 @@ Copy-Item -Path "$repo\mathir_lib" -Destination $dest -Recurse -Force
 python -m pip install -r "$dest\mathir_lib\requirements.txt"
 
 # 3. Scheduled task
-$action  = New-ScheduledTaskAction -Execute "python" -Argument "`"$dest\mathir_lib\mathir_daemon.py`""
+$action  = New-ScheduledTaskAction -Execute "python" -Argument "`"$dest\mathir_lib\mathir_server.py`""
 $trigger = New-ScheduledTaskTrigger -AtLogOn
 $settings = New-ScheduledTaskSettingsSet -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
 Register-ScheduledTask -TaskName "MATHIR Daemon" -Action $action -Trigger $trigger -Settings $settings -Force

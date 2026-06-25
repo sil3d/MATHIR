@@ -3,7 +3,7 @@
 # Use MCP tools directly — no proxy, no bash.
 # === END MATHIR INJECTION ===
 
-# MATHIR MEMORY — v8.4.2 INJECTION BLOCK (COMMANDS)
+# MATHIR MEMORY — v8.5.0 INJECTION BLOCK (COMMANDS)
 
 ## ⚡ BEFORE YOU DO ANYTHING — Daemon Health Check
 
@@ -20,7 +20,7 @@ If `False` → start it:
 # Windows: use the auto_start helper (recommended)
 & "C:\Users\So-i-learn-3D\.config\opencode\bin\auto_start_helpers.ps1"
 # Or direct launch
-Start-Process python -ArgumentList "C:\Users\So-i-learn-3D\.config\opencode\bin\mathir_daemon.py" -WindowStyle Hidden
+Start-Process python -ArgumentList "C:\Users\So-i-learn-3D\.config\opencode\bin\mathir_server.py" -WindowStyle Hidden
 Start-Sleep -Seconds 3
 Test-NetConnection -ComputerName localhost -Port 7338 -InformationLevel Quiet
 ```

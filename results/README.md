@@ -20,7 +20,7 @@ This directory is intentionally kept for backward compatibility. All new benchma
 - All JSONs are flat (no nested metadata) and are safe to load with
   `json.load(open(...))` — see the schemas in each script that produces
   them.
-- `compare_all_approaches.json` is the canonical V7.1 retrieval-quality
+- `compare_all_approaches.json` is the canonical v8.5 retrieval-quality
   report — start there.
 - `book_stress_test_real_emb.json` is the most realistic real-embedding
   benchmark (uses MiniLM).
@@ -50,4 +50,4 @@ call near the end of each one.
 
 ---
 
-*Last reorganized: V7.4 (2026-06-03). BEIR benchmarks added V7.5 (2026-06-05).*
+*Last reorganized: v8.5 (2026-06-03). BEIR benchmarks added v8.5 (2026-06-05).*

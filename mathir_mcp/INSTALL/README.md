@@ -128,7 +128,7 @@ python install_smart.py --uninstall
 ```
 
 Removes MCP config from all detected agents, deletes auto-start, leaves
-the daemon + DB alone (run `mathir_daemon.py --uninstall` for those).
+the daemon + DB alone (run `mathir_server.py --uninstall` for those).
 
 ## See also
 

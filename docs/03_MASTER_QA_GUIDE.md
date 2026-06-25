@@ -13,7 +13,7 @@
 5. [Theoretical Foundations (6 theorems)](#5-theorems)
 6. [V7 New Algorithms (8 novel)](#6-v7-algorithms)
 7. [Retrieval Approaches A/B/C/D](#7-retrieval)
-8. [Latency Optimizations (V7.2)](#8-latency)
+8. [Latency Optimizations (v8.5)](#8-latency)
 9. [VectorDB Comparison](#9-vectordb)
 10. [Chat Use Case](#10-chat)
 11. [Autonomous Driving Use Case](#11-driving)
@@ -106,8 +106,8 @@ MATHIR is the **Architecture + Framework** — like "Transformer + HuggingFace" 
 | V5.1 | 21 bug fixes across 18 files | Legacy |
 | V6 | `MATHIRPlugin` API (LLM-agnostic) | Still supported |
 | V7 | 8 new algorithms + 6 theorems | Legacy |
-| V7.1 | 4 retrieval approaches (A/B/C/D) | Current |
-| V7.2 | Latency optimization (cache + adaptive) | Supported |
+| v8.5 | 4 retrieval approaches (A/B/C/D) | Current |
+| v8.5 | Latency optimization (cache + adaptive) | Supported |
 | V8.0.0 | HybridSearch auto-backend, full HybridSearch integration | Supported |
 | **V8.4.1** | **HybridSearch thread-safety fix + daemon push + brain architecture (5 phases)** | **Current latest** |
 
@@ -176,7 +176,7 @@ memory:
 **A:** Theorem 4 proves that MATHIR's Mahalanobis anomaly detector is **mathematically optimal** — no other detector (Euclidean, cosine, learned) can achieve a higher true-positive rate at the same false-positive rate, for Gaussian-distributed normal data.
 
 ### Q5.3: What does the Johnson-Lindenstrauss lemma have to do with MATHIR?
-**A:** This is the key insight that drove the V7.1 retrieval research. The 64-dim projection violated the JL bound (need ~132 dims for n=200, ε=0.3), causing 12-14pp quality loss. The fix: use raw 384-dim embeddings.
+**A:** This is the key insight that drove the v8.5 retrieval research. The 64-dim projection violated the JL bound (need ~132 dims for n=200, ε=0.3), causing 12-14pp quality loss. The fix: use raw 384-dim embeddings.
 
 ---
 
@@ -238,12 +238,12 @@ Each source captures orthogonal information (semantic, lexical, interactive), so
 
 ---
 
-## 8. Latency Optimizations (V7.2) {#8-latency}
+## 8. Latency Optimizations (v8.5) {#8-latency}
 
 ### Q8.1: What was the latency problem?
 **A:** Approach D's hybrid retrieval took **494ms per query** — too slow for real-time applications. The cross-encoder alone took ~480ms.
 
-### Q8.2: How did V7.2 fix the latency?
+### Q8.2: How did v8.5 fix the latency?
 **A:** With a **cross-encoder result cache** (LRU on `(query, doc)` pairs):
 - Cold cache: 1000ms (unchanged)
 - Warm cache: **3-220ms** (5-12× speedup)
@@ -522,8 +522,8 @@ MATHIRPluginV7(embedding_dim=4096)  # LLaMA-3
 **A:**
 - V6 default: 1.30 MB per 1000 memories
 - V7 (with compression): **117 KB** per 1000 memories (9.3× smaller)
-- V7.1 Raw (no compression): 1.5 MB
-- V7.1 Hybrid (with CE): 2.5 MB
+- v8.5 Raw (no compression): 1.5 MB
+- v8.5 Hybrid (with CE): 2.5 MB
 
 ### Q13.3: What's the latency?
 **A:** On White's Fluid Mechanics (200 chunks, 50 queries):
@@ -556,7 +556,7 @@ MATHIRPluginV7(embedding_dim=4096)  # LLaMA-3
 - 36 ensemble tests
 - 32 FAISS-backed tests
 
-Plus daemon stress tests (50/50 pass in V8.3) and hybrid search integration tests.
+Plus daemon stress tests (50/50 pass in v8.5) and hybrid search integration tests.
 
 ### Q14.3: How do I run the tests?
 **A:**
@@ -591,7 +591,7 @@ streamlit run benchmarks/streamlit_app.py
 2. **Memory overhead**: 2.5MB for hybrid with CE (cross-encoder model size)
 3. **Sub-Gaussian assumption**: Theorem 4 assumes Gaussian normal data
 4. **No fine-tuning**: Pre-trained embedding models are frozen
-5. **CPU-only for V7.2 cache**: GPU would be 5-10× faster
+5. **CPU-only for v8.5 cache**: GPU would be 5-10× faster
 
 ### Q15.2: What's planned for V8?
 **A:** The two-stage cascade architecture (FAISS + MATHIR D) is the immediate next step. Also:

@@ -2,7 +2,7 @@
 
 **8 production-quality diagrams + 1 self-contained HTML report.**
 
-These were previously at the project root (`visualizations/`) before V7.4.
+These were previously at the project root (`visualizations/`) before v8.5.
 They are now co-located with the rest of the documentation in `docs/`.
 
 ---
@@ -15,7 +15,7 @@ They are now co-located with the rest of the documentation in `docs/`.
 | `build_report.py` | Builds `visual_report.html` with all PNGs embedded as base64. |
 | `01_architecture_main.png` | 5-tier MATHIR architecture (high-level system diagram). |
 | `02_4_memory_tiers.png` | Memory tier deep-dive with slot visualizations. |
-| `03_retrieval_comparison.png` | Quality comparison of 5 retrieval systems (V7.1). |
+| `03_retrieval_comparison.png` | Quality comparison of 5 retrieval systems (v8.5). |
 | `04_latency_quality_tradeoff.png` | Speed-quality Pareto frontier. |
 | `05_multi_agent_stress.png` | Concurrent-stores stress test (20 agents). |
 | `06_multimodal_fusion.png` | Multi-modal memory (text/image/audio/video). |
@@ -60,4 +60,4 @@ xdg-open docs/visualizations/visual_report.html  # Linux
 
 ---
 
-*Last reorganized: V7.4 (2026-06-03).*
+*Last reorganized: v8.5 (2026-06-03).*

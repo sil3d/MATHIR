@@ -4,7 +4,7 @@ A web playground to chat with vision/audio LLMs (via OpenRouter) and exercise th
 MATHIR memory backend (via the running daemon). **NO HARDCODED PATHS** — everything
 is configurable via JSON files.
 
-**v8.4.0**: Migrated from local `llama.cpp` binaries (~1GB) to **OpenRouter** cloud API. No more `bin/` or `models/` directories — all inference goes through `https://openrouter.ai/api/v1`.
+**v8.5.0**: Migrated from local `llama.cpp` binaries (~1GB) to **OpenRouter** cloud API. No more `bin/` or `models/` directories — all inference goes through `https://openrouter.ai/api/v1`.
 
 ## Quick Start
 
@@ -191,7 +191,7 @@ Compact system prompt (~126 tokens). Defines identity, behavior rules, and conte
 - Internet connection required for chat/describe/ask endpoints
 - Webcam + microphone required for Camera view
 
-## What was removed in v8.4.0
+## What was removed in v8.5.0
 
 | Removed | Replacement |
 |---|---|

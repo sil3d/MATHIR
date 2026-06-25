@@ -3,7 +3,7 @@
 **Audience:** developers running OpenCode on a modern Linux desktop or server.
 **Tested on:** Ubuntu 22.04+, Debian 12+, Fedora 39+, Arch (current), Raspberry Pi OS Bookworm.
 **Time:** ~5 minutes.
-**Result:** `mathir_daemon.py` running on `127.0.0.1:7338`, auto-started at login via **user systemd** (`~/.config/systemd/user/`), and registered as an MCP server in `opencode.json`.
+**Result:** `mathir_server.py` running on `127.0.0.1:7338`, auto-started at login via **user systemd** (`~/.config/systemd/user/`), and registered as an MCP server in `opencode.json`.
 
 > **Why user systemd, not system systemd?**
 > The daemon holds a per-user database (`~/.config/opencode/data/.mathir/`). A user unit runs as you, has your `$HOME`, doesn't need `sudo`, and starts at *your* login (not at boot). On a headless server, just `loginctl enable-linger <user>` to make user services survive logout.
@@ -57,7 +57,7 @@ From the cloned repo:
 ```bash
 REPO=/path/to/mathir_mcp            # adjust to your checkout
 cp -r "$REPO/mathir_lib" "$BIN/"
-ls "$BIN/mathir_lib/mathir_daemon.py"   # sanity check
+ls "$BIN/mathir_lib/mathir_server.py"   # sanity check
 ```
 
 > If you only need the daemon (not the MCP server, dashboard, or CLI), you can prune the copy — but the full `mathir_lib/` is only ~3 MB, so just take it all.
@@ -88,7 +88,7 @@ See `docs/GPU_SETUP.md` for the full ONNX/CUDA matrix.
 ## 4. Smoke test — start the daemon in the foreground
 
 ```bash
-python3 "$BIN/mathir_lib/mathir_daemon.py"
+python3 "$BIN/mathir_lib/mathir_server.py"
 ```
 
 You should see logs like:

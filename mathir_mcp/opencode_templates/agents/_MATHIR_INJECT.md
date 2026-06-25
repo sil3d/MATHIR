@@ -1,4 +1,4 @@
-# MATHIR MEMORY — v8.4.2 INJECTION BLOCK
+# MATHIR MEMORY — v8.5.0 INJECTION BLOCK
 # Injected at the top of every agent's system_prompt.
 # Use MCP tools directly — no proxy, no bash.
 
@@ -20,7 +20,7 @@ If `False` → start it:
 & "C:\Users\So-i-learn-3D\.config\opencode\bin\auto_start_helpers.ps1"
 
 # Or direct launch (slower, no venv/port checks)
-Start-Process python -ArgumentList "C:\Users\So-i-learn-3D\.config\opencode\bin\mathir_daemon.py" -WorkingDirectory "C:\Users\So-i-learn-3D" -WindowStyle Hidden
+Start-Process python -ArgumentList "C:\Users\So-i-learn-3D\.config\opencode\bin\mathir_server.py" -WorkingDirectory "C:\Users\So-i-learn-3D" -WindowStyle Hidden
 
 # Wait 3 seconds, then verify
 Start-Sleep -Seconds 3
@@ -66,7 +66,7 @@ Search-Mathir "your query" -K 5
 | `Internal error in memory_stats` | Daemon CWD read-only (e.g. Python install dir) | Restart with `-WorkingDirectory "C:\Users\So-i-learn-3D"` |
 | `Port 7338 already in use` | Multiple daemons | Kill all, restart one |
 | Port 8182 "down" | NOT a real port — it's legacy | Ignore. Use 7338. |
-| `mathir_client.py` Unicode error | Console cp1252 | Already fixed in v8.4.2 |
+| `mathir_client.py` Unicode error | Console cp1252 | Already fixed in v8.5.0 |
 | Recall returns 0 results | Wrong DB (CWD issue) | Same fix as Internal error |
 
 **RULE: Always prefer MCP tool. If MCP fails, check process count FIRST. Don't import Python modules directly.**
@@ -124,7 +124,7 @@ memory_recall --query "Mycerise" --k 5
 
 ---
 
-## 🚀 Cross-Platform Auto-Start (v8.4.2+)
+## 🚀 Cross-Platform Auto-Start (v8.5.0+)
 
 The MATHIR daemon needs to be started after every PC reboot. Three cross-platform helpers are available:
 
@@ -151,7 +151,7 @@ When you need to reference MATHIR files, use these paths:
 
 | What | Path |
 |---|---|
-| Daemon | `~/.config/opencode/bin/mathir_daemon.py` |
+| Daemon | `~/.config/opencode/bin/mathir_server.py` |
 | MCP server | `~/.config/opencode/bin/mathir_mcp_server.py` |
 | Auto-start (Win) | `~/.config/opencode/bin/auto_start.bat` |
 | Auto-start (PS) | `~/.config/opencode/bin/auto_start_helpers.ps1` |
@@ -173,7 +173,7 @@ When you need to reference MATHIR files, use these paths:
 
 ---
 
-## MATHIR v8.4.2 — LIVING MEMORY (5 TIERS)
+## MATHIR v8.5.0 — LIVING MEMORY (5 TIERS)
 
 Your memory is **alive**. It has **5 tiers** and a full lifecycle (Ebbinghaus forgetting, promotion, consolidation, link graph). Use the right tool at the right time.
 
@@ -189,7 +189,7 @@ Your memory is **alive**. It has **5 tiers** and a full lifecycle (Ebbinghaus fo
 
 **Rule of thumb:** start with `episodic` for most things. The lifecycle will auto-promote to `semantic` if the memory is recalled often enough. Use `working_memory` for session-scoped stuff (it's promoted to episodic on session end). Use `procedural` for runbooks (label must start with `how-to:` or `recipe:`). Use `immunological` to store detected threat patterns and anomalies — this tier is queryable, writable, and is the system's immune system for flagging and quarantining unsafe content.
 
-### 17 MCP tools at your disposal
+### 19 MCP tools at your disposal
 
 #### Basic CRUD (use these every day)
 
