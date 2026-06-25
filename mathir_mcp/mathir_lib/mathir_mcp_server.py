@@ -1008,11 +1008,17 @@ if __name__ == "__main__":
     log.info("MATHIR MCP Server v2 (FastMCP) starting...")
     log.info(f"Embedding dim: {EMBEDDING_DIM}")
     log.info(f"Config: {CONFIG_PATH}")
-    # Pre-warm embedder (25-30s on first load, cached after)
-    try:
-        get_embedder()
-        log.info("Embedder pre-warmed successfully")
-    except Exception as e:
-        log.error(f"Embedder pre-warm failed: {e}")
+    # Start embedder pre-warm in background thread (non-blocking)
+    # This way the MCP server responds immediately, and embedder is ready
+    # by the time someone actually calls a memory tool.
+    def _warm_embedder():
+        try:
+            log.info("Background: pre-warming embedder...")
+            get_embedder()
+            log.info("Background: embedder ready")
+        except Exception as e:
+            log.error(f"Background: embedder pre-warm failed: {e}")
+
+    threading.Thread(target=_warm_embedder, daemon=True).start()
 
     mcp.run()
