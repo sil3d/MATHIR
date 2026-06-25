@@ -1,5 +1,23 @@
 # MATHIR Changelog
 
+## [8.5.0] — 2026-06-25 — ⚡ FASTMCP REWRITE
+
+### Changed
+- MCP server rewritten using FastMCP 3.4.2 (replaces hand-rolled JSON-RPC stdio loop)
+- 17 tools preserved with identical signatures
+- Direct DB access via mathir_vec.py — no HTTP daemon bridge for core operations
+- Embedder pre-warmed at startup (25-30s first load, then cached in memory)
+- Dependencies: added `fastmcp>=3.4.0`, removed `aiohttp`, `pyzmq` (no longer needed)
+- Version bumped to 8.5.0
+
+### Fixed
+- Bun v1.3.13 segfault on Windows: added `"runtime": {"backend": "node"}` to opencode.json
+- Deployed bin/ files synced back to source repo (mathir_lib/, bin/)
+
+### Security
+- Input length caps retained: content 100KB, query 5KB, label 200B, agent 100B
+- Memory ID validation regex retained
+
 ## [8.4.0] — 2026-06-23 — 🧠 LIVING MEMORY
 
 ### Added
