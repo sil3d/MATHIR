@@ -82,8 +82,8 @@ It will read `docs/AGENT.md` and configure MATHIR automatically.
 ```
 ~/.config/MATHIR/
 ├── mathir_lib/                      ← Core library
-│   ├── mathir_mcp_server.py         ← MCP server (9 tools)
-│   ├── mathir_daemon.py             ← Persistent daemon
+│   ├── mathir_mcp_server.py         ← MCP server (FastMCP, 19 tools)
+│   ├── mathir_server.py             ← Unified Flask server (port 7338)
 │   ├── mathir_client.py             ← CLI client
 │   ├── mathir_vec.py                ← VecMemory (sqlite-vec)
 │   ├── mathir_search.py             ← HybridSearch

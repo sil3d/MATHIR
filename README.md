@@ -723,7 +723,7 @@ Double-click: `C:\Users\So-i-learn-3D\.config\opencode\bin\auto_start.bat`
 
 **Option 2 — Command line:**
 ```powershell
-python C:\Users\So-i-learn-3D\.config\opencode\bin\mathir_daemon.py
+python C:\Users\So-i-learn-3D\.config\opencode\bin\mathir_server.py
 ```
 
 ### Verify the daemon is running
@@ -1043,7 +1043,7 @@ Client (opencode / Python)
          │ TCP socket (localhost:7338)
          ▼
 ┌─────────────────────────────────────┐
-│  mathir_daemon.py (persistent)      │
+│  mathir_server.py (Flask+Waitress)      │
 │  ├── Model loaded ONCE at startup   │
 │  ├── GPU memory held across calls   │
 │  ├── TCP server on port 7338        │
