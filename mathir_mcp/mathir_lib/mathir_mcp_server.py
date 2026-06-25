@@ -748,6 +748,111 @@ def memory_dashboard(action: str = "status") -> str:
 
 
 # ===========================================================================
+# Auto-injection tools (memory_context, memory_session_start)
+# ===========================================================================
+
+@mcp.tool()
+def memory_context(task: str, project: str = None) -> str:
+    """Get pre-filtered, ranked memories for a task. Call this BEFORE starting work.
+
+    Returns formatted context blocks grouped by tier (semantic, episodic, procedural, working_memory).
+    Each block includes: memory_id, label, content, score, agent.
+
+    Args:
+        task: Description of what you're about to do (e.g. "fix auth bug", "add dark mode")
+        project: Project name (optional, auto-detected from cwd)
+    """
+    _err = _check_lengths(query=task, project=project)
+    if _err:
+        return json.dumps(_err)
+    _err = _validate_project(project)
+    if _err:
+        return json.dumps(_err)
+
+    # Search across all tiers
+    query_np = _encode_to_np(task)
+    vec = _get_vec(project)
+    results = vec.search(query_embedding=query_np, k=10)
+
+    # Group by tier (metadata fields are at top level, not nested)
+    tiers = {}
+    for r in results:
+        tier = r.get("block_type", "unknown")
+        if tier not in tiers:
+            tiers[tier] = []
+        tiers[tier].append({
+            "memory_id": r.get("memory_id", ""),
+            "label": r.get("label", ""),
+            "content": r.get("content", "")[:500],
+            "score": r.get("score", 0.0),
+            "agent": r.get("agent", ""),
+            "priority": r.get("priority", 5),
+        })
+
+    # Format output
+    proj = project or get_project_name()
+    output = {
+        "project": proj,
+        "task": task,
+        "total_memories": len(results),
+        "tiers": tiers,
+        "timestamp": datetime.now().isoformat(),
+    }
+    return json.dumps(output)
+
+
+@mcp.tool()
+def memory_session_start(session_title: str = "", project: str = None) -> str:
+    """Call at session start. Returns the most relevant memories for this session's context.
+
+    Provides a quick snapshot of what the agent should know before starting work.
+    Includes: recent decisions, known bugs, project patterns, and relevant procedures.
+
+    Args:
+        session_title: Brief title of what this session is about (e.g. "MATHIR v8.5.0 FastMCP rewrite")
+        project: Project name (optional, auto-detected from cwd)
+    """
+    proj = project or get_project_name()
+
+    # Build query from session title or default
+    query = session_title if session_title else f"project {proj} recent work"
+    _err = _check_lengths(query=query, project=project)
+    if _err:
+        return json.dumps(_err)
+
+    # Search across all tiers
+    query_np = _encode_to_np(query)
+    vec = _get_vec(project)
+    results = vec.search(query_embedding=query_np, k=8)
+
+    # Build context summary (metadata fields are at top level)
+    context_items = []
+    for r in results:
+        context_items.append({
+            "memory_id": r.get("memory_id", ""),
+            "tier": r.get("block_type", "unknown"),
+            "label": r.get("label", ""),
+            "content": r.get("content", "")[:300],
+            "agent": r.get("agent", ""),
+            "priority": r.get("priority", 5),
+            "score": r.get("score", 0.0),
+        })
+
+    # Get stats
+    memory = _get_memory(project)
+    stats = memory.get_stats() if memory else {}
+
+    return json.dumps({
+        "session_title": session_title,
+        "project": proj,
+        "relevant_memories": context_items,
+        "stats": stats,
+        "instruction": "These memories are from your past sessions. Use them to avoid repeating work and maintain consistency.",
+        "timestamp": datetime.now().isoformat(),
+    })
+
+
+# ===========================================================================
 # Memory lifecycle tools (promote, decay, consolidate, links)
 # ===========================================================================
 

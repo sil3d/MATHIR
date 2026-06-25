@@ -1,4 +1,4 @@
-# MATHIR — Global Instructions (v8.4.2)
+# MATHIR — Global Instructions (v8.5.0)
 
 ## ✅ MATHIR IS INJECTED — You Have Persistent Memory
 
@@ -10,23 +10,49 @@
 - Links related memories in a graph for spreading activation
 - Works across all 32 agents (swarm, coder, debugger, etc.)
 
-**What you MUST do:**
-- `memory_recall()` before every task (you'll see relevant past memories)
-- `memory_save()` after every task (so future sessions remember)
+---
 
-**For more info:** https://github.com/sil3d/MATHIR
+## 🚨 MANDATORY — Session Start Protocol
+
+**You MUST call `memory_session_start` at the START of every session.** This returns the most relevant memories for your current context.
+
+```
+memory_session_start(session_title="what this session is about")
+```
+
+**Then** call `memory_context` before each major task:
+```
+memory_context(task="description of what you're about to do")
+```
+
+**After completing work**, save what you learned:
+```
+memory_save(content="what you learned", agent="your_name", block_type="episodic", label="short-label")
+```
 
 ---
 
 ## How to Use (3 Steps)
 
-1. **Tools are ready** — your MCP client exposes `memory_*` tools automatically.
-2. **Save after every task** — `memory_save(content, agent, block_type, label)`.
-3. **Recall before starting work** — `memory_recall(query, k=5)`.
+1. **Session start** — `memory_session_start(session_title="...")` → get context
+2. **Before each task** — `memory_context(task="...")` → get relevant memories
+3. **After each task** — `memory_save(content="...", agent="...", block_type="episodic", label="...")`
 
 ---
 
 ## Tool Signatures
+
+### Auto-injection (v8.5.0 — call these FIRST)
+
+```
+memory_session_start(session_title: str = "", project: str = None) -> dict
+  # Returns: relevant_memories, stats, instruction
+  # Call at session start with a brief title of what you're working on
+
+memory_context(task: str, project: str = None) -> dict
+  # Returns: memories grouped by tier (semantic, episodic, procedural, working_memory)
+  # Call before each major task with a description of what you're about to do
+```
 
 ### Basic (every day)
 
@@ -43,7 +69,7 @@ memory_stats()
 memory_dashboard(action: str = "status")
 ```
 
-### Lifecycle (v8.4.0 NEW — living memory)
+### Lifecycle (v8.4.0 — living memory)
 
 ```
 memory_promote(memory_id: str = None, force: bool = False)
@@ -55,7 +81,7 @@ memory_get_links(memory_id: str, depth: int = 2, decay: float = 0.5)
 memory_build_links(threshold: float = 0.7, limit: int = 1000)
 ```
 
-**17 tools total** (10 basic + 7 lifecycle) — matches `mathir_mcp/mathir_lib/mathir_mcp_server.py` TOOLS array (lines 313–515).
+**19 tools total** (2 auto-injection + 10 basic + 7 lifecycle).
 
 **block_type:** `working_memory` | `episodic` | `semantic` | `procedural`
 **priority:** 1–10 (see scale below)
