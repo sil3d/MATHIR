@@ -1,4 +1,5 @@
 import type { Plugin } from "@opencode-ai/plugin";
+import { spawn } from "child_process";
 
 /**
  * MATHIR Auto-Injection Plugin — v8.5.0
@@ -6,10 +7,16 @@ import type { Plugin } from "@opencode-ai/plugin";
  * Hooks into experimental.chat.system.transform to inject relevant memories
  * into the system prompt at session start and during the session.
  *
- * Requires: MATHIR unified server running on port 7338.
+ * Features:
+ * - Health check on session start
+ * - Auto-restart if server is down
+ * - Retry logic with exponential backoff
+ * - Graceful degradation if server unavailable
  */
 
 const MATHIR_URL = process.env.MATHIR_URL || "http://127.0.0.1:7338";
+const MATHIR_SERVER = process.env.MATHIR_SERVER || "C:\\Users\\So-i-learn-3D\\.config\\opencode\\bin\\mathir_server.py";
+const MATHIR_WORKDIR = process.env.MATHIR_WORKDIR || "C:\\Users\\So-i-learn-3D";
 const DEBUG = process.env.MATHIR_PLUGIN_DEBUG === "1";
 
 // Track which sessions already got the startup injection
@@ -18,13 +25,109 @@ const startupInjected = new Set<string>();
 const lastInjection = new Map<string, number>();
 const INJECTION_COOLDOWN_MS = 30_000; // 30s between injections
 
+// Server state
+let serverRunning = false;
+let serverStarting = false;
+let lastHealthCheck = 0;
+const HEALTH_CHECK_INTERVAL_MS = 60_000; // 1 min between health checks
+
 let projectPath: string | null = null;
 
+// ── Health check ──
+async function checkHealth(): Promise<boolean> {
+  const now = Date.now();
+  if (now - lastHealthCheck < HEALTH_CHECK_INTERVAL_MS && serverRunning) {
+    return true;
+  }
+  lastHealthCheck = now;
+
+  try {
+    const res = await fetch(`${MATHIR_URL}/health`, { signal: AbortSignal.timeout(3000) });
+    if (res.ok) {
+      serverRunning = true;
+      return true;
+    }
+  } catch {
+    // Server not responding
+  }
+  serverRunning = false;
+  return false;
+}
+
+// ── Auto-start server ──
+function startServer(): void {
+  if (serverStarting) return;
+  serverStarting = true;
+
+  if (DEBUG) console.log("[mathir] Starting server...");
+
+  try {
+    const proc = spawn("python", [MATHIR_SERVER], {
+      cwd: MATHIR_WORKDIR,
+      detached: true,
+      stdio: "ignore",
+    });
+
+    proc.on("error", (err) => {
+      if (DEBUG) console.error("[mathir] Server start failed:", err.message);
+      serverStarting = false;
+    });
+
+    proc.on("exit", () => {
+      serverStarting = false;
+    });
+
+    // Detach so it survives plugin restarts
+    proc.unref();
+
+    // Server needs ~30s to load embedder
+    if (DEBUG) console.log("[mathir] Server starting (PID: " + proc.pid + "), waiting 35s...");
+  } catch (e) {
+    if (DEBUG) console.error("[mathir] Spawn error:", (e as Error).message);
+    serverStarting = false;
+  }
+}
+
+// ── Fetch with retry ──
+async function fetchWithRetry(url: string, retries = 2): Promise<Response | null> {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      if (res.ok) return res;
+      if (res.status >= 500 && i < retries) {
+        // Server error, retry after delay
+        await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+        continue;
+      }
+      return null;
+    } catch (e) {
+      if (i < retries) {
+        await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+        continue;
+      }
+      return null;
+    }
+  }
+  return null;
+}
+
 async function fetchContext(task: string, k = 8): Promise<string | null> {
+  // Health check first
+  const healthy = await checkHealth();
+  if (!healthy) {
+    if (DEBUG) console.log("[mathir] Server unhealthy, attempting restart...");
+    startServer();
+    // Wait for server to start (max 35s)
+    for (let i = 0; i < 7; i++) {
+      await new Promise(r => setTimeout(r, 5000));
+      if (await checkHealth()) break;
+    }
+  }
+
   try {
     const url = `${MATHIR_URL}/api/context?task=${encodeURIComponent(task)}&k=${k}`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
-    if (!res.ok) return null;
+    const res = await fetchWithRetry(url);
+    if (!res) return null;
     const data = await res.json() as { context?: string; error?: string };
     if (data.error) return null;
     return data.context || null;
@@ -36,8 +139,8 @@ async function fetchContext(task: string, k = 8): Promise<string | null> {
 
 async function fetchStats(): Promise<string | null> {
   try {
-    const res = await fetch(`${MATHIR_URL}/api/stats`, { signal: AbortSignal.timeout(5000) });
-    if (!res.ok) return null;
+    const res = await fetchWithRetry(`${MATHIR_URL}/api/stats`);
+    if (!res) return null;
     const data = await res.json() as { total_memories?: number; by_tier?: Record<string, number> };
     if (!data.total_memories) return null;
     const tiers = Object.entries(data.by_tier || {})
@@ -53,14 +156,25 @@ export default function mathirPlugin(): Plugin {
   return {
     name: "mathir-auto-inject",
     hooks: {
-      // ── session.started: inject startup context ──
+      // ── session.started: health check + inject startup context ──
       "session.started": async (input) => {
         const sid = input.sessionID;
         if (!sid) return;
+
+        // Store project path
+        if (input.projectPath) projectPath = input.projectPath;
+
+        // Health check on first session
+        if (!startupInjected.has(sid)) {
+          const healthy = await checkHealth();
+          if (!healthy && DEBUG) {
+            console.log("[mathir] Server not running on session start, attempting auto-start...");
+            startServer();
+          }
+        }
+
         if (startupInjected.has(sid)) return;
         startupInjected.add(sid);
-        // Store project path for later
-        if (input.projectPath) projectPath = input.projectPath;
       },
 
       // ── experimental.chat.system.transform: inject memories ──
@@ -89,6 +203,8 @@ export default function mathirPlugin(): Plugin {
         if (context) {
           output.system.push(`<mathir-auto-injection>\n${context}\n</mathir-auto-injection>`);
           if (DEBUG) console.log(`[mathir] Injected ${context.length} chars for: ${userMessage.slice(0, 50)}`);
+        } else if (DEBUG) {
+          console.log(`[mathir] No context injected (server may be starting)`);
         }
       },
 
