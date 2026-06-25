@@ -1,89 +1,95 @@
 #!/usr/bin/env python3
 """
-MATHIR Client — Fast client that connects to the persistent daemon.
-No model loading on each call — just socket communication.
+MATHIR Client — HTTP client for the unified MATHIR server (Flask + Waitress).
+No model loading on each call — just HTTP requests.
 """
 
 import sys
 import os
 import json
-import socket
 import argparse
 import time
+import urllib.request
+import urllib.error
 
 # Fix Windows console encoding for Unicode output (→, emojis, accented chars)
-# Without this, json.dumps with ensure_ascii=False crashes on cp1252 consoles
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 except (AttributeError, OSError):
-    pass  # Python < 3.7 or non-standard stream
+    pass
 
-HOST = '127.0.0.1'
-PORT = 7338
+HOST = os.environ.get('MATHIR_HOST', '127.0.0.1')
+PORT = int(os.environ.get('MATHIR_PORT', '7338'))
 TIMEOUT = 30
-MAX_RESPONSE_SIZE = 10 * 1024 * 1024  # 10 MB max response from daemon
+# Use IP, not 'localhost' — Windows urllib resolves localhost to IPv6 first
+# which times out after 2s. 127.0.0.1 is always IPv4 and instant.
+BASE_URL = f'http://{HOST}:{PORT}'
+
+
+# RPC method → (HTTP method, route)
+_METHOD_MAP = {
+    'ping':                  ('GET',  '/api/ping'),
+    'memory_save':           ('POST', '/api/memory/save'),
+    'memory_recall':         ('POST', '/api/memory/recall'),
+    'memory_stats':          ('GET',  '/api/memory/stats'),
+    'memory_delete':         ('POST', '/api/memory/delete'),
+    'memory_smart_search':   ('POST', '/api/memory/smart_search'),
+    'memory_push':           ('POST', '/api/memory/push'),
+    'memory_hybrid_search':  ('POST', '/api/memory/hybrid_search'),
+    'memory_risk_check':     ('POST', '/api/memory/risk_check'),
+    'memory_promote':        ('POST', '/api/memory/promote'),
+    'memory_auto_promote':   ('POST', '/api/memory/auto_promote'),
+    'memory_decay':          ('POST', '/api/memory/decay'),
+    'memory_consolidate':    ('POST', '/api/memory/consolidate'),
+    'memory_link':           ('POST', '/api/memory/link'),
+    'memory_get_links':      ('POST', '/api/memory/get_links'),
+    'memory_build_links':    ('POST', '/api/memory/build_links'),
+    'push_cache_stats':      ('GET',  '/api/push_cache_stats'),
+}
 
 
 def call(method, params=None):
-    """Call daemon method via socket.
+    """Call server method via HTTP.
 
     Args:
         method: The RPC method name (e.g. 'memory_recall', 'memory_save').
         params: Dict of parameters for the method (default empty).
 
     Returns:
-        Dict with the daemon's response, or an error dict if the call fails.
+        Dict with the server's response, or an error dict if the call fails.
     """
     if params is None:
         params = {}
 
-    # SECURITY: wrap socket lifecycle in try/finally to avoid FD leaks on exception
-    # (previous version leaked the socket on socket.error mid-recv).
-    client = None
+    mapping = _METHOD_MAP.get(method)
+    if mapping is None:
+        return {'error': f'unknown method: {method}'}
+
+    http_method, route = mapping
+    url = f'{BASE_URL}{route}'
+
     try:
-        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client.settimeout(TIMEOUT)
-        client.connect((HOST, PORT))
-
-        request = json.dumps({'method': method, 'params': params})
-        client.sendall(request.encode('utf-8'))
-
-        # Read full response — TCP is a stream, may need multiple recv calls
-        chunks: list[bytes] = []
-        total = 0
-        while True:
-            chunk = client.recv(65536)
-            if not chunk:
-                break
-            chunks.append(chunk)
-            total += len(chunk)
-            if total > MAX_RESPONSE_SIZE:
-                return {'error': f'Response too large ({total} bytes > {MAX_RESPONSE_SIZE} limit)'}
-            # Try to parse once we have enough data
-            try:
-                data = b''.join(chunks)
-                result = json.loads(data.decode('utf-8'))
-                return result
-            except (json.JSONDecodeError, UnicodeDecodeError):
-                # Incomplete — keep reading
-                continue
-
-        # Connection closed before complete JSON
-        return {'error': 'Daemon closed connection before sending complete response'}
-    except socket.error as e:
-        return {'error': 'Daemon not running. Start with: python mathir_daemon.py'}
-    finally:
-        # SECURITY: always close the socket to avoid FD leak on any error path
-        if client is not None:
-            try:
-                client.shutdown(socket.SHUT_RDWR)
-            except OSError:
-                pass
-            try:
-                client.close()
-            except OSError:
-                pass
+        if http_method == 'GET':
+            req = urllib.request.Request(url, method='GET')
+            with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+                return json.loads(resp.read().decode('utf-8'))
+        else:
+            body = json.dumps(params).encode('utf-8')
+            req = urllib.request.Request(
+                url, data=body, method='POST',
+                headers={'Content-Type': 'application/json'}
+            )
+            with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+                return json.loads(resp.read().decode('utf-8'))
+    except urllib.error.HTTPError as e:
+        try:
+            body = e.read().decode('utf-8')
+            return json.loads(body)
+        except Exception:
+            return {'error': f'HTTP {e.code}: {e.reason}'}
+    except (urllib.error.URLError, OSError, ConnectionError) as e:
+        return {'error': f'Server not running. Start with: python mathir_server.py ({e})'}
 
 
 def main():

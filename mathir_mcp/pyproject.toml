@@ -4,31 +4,24 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mathir-mcp"
-version = "8.4.1"
-description = "MATHIR Memory MCP Server - portable cognitive memory for LLM agents"
+version = "8.5.0"
+description = "MATHIR Memory MCP Server - FastMCP-based cognitive memory for LLM agents"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
     "sentence-transformers>=2.2.0",
     "sqlite-vec>=0.1.0",
     "numpy>=1.24",
-    "aiohttp>=3.9",
-    "pyzmq>=25.0",
+    "fastmcp>=3.4.0",
+    "torch>=2.0",
 ]
 license = {text = "MIT"}
 
 [project.scripts]
-# Daemon (the core TCP server for memory operations)
-mathir-daemon = "mathir_mcp.mathir_lib.mathir_daemon:main"
-# MCP server (stdio JSON-RPC for AI agent hosts)
+# MCP server (FastMCP, stdio, 17 tools)
 mathir-mcp = "mathir_mcp.mathir_lib.mathir_mcp_server:main"
-# CLI client (connects to daemon, fast interactive mode)
+# CLI client (HTTP to unified server)
 mathir-client = "mathir_mcp.mathir_lib.mathir_client:main"
-# Watchdog (auto-restarts daemon on crash)
-mathir-watchdog = "brain.mathir_watchdog:main"
-
-# Note: mathir_brain and mathir_prime are CLI tools without a `main()` shim —
-# invoke them via `python -m brain.mathir_brain` / `python -m brain.mathir_prime`.
 
 [tool.setuptools]
 packages = ["mathir_mcp", "mathir_mcp.mathir_lib", "brain"]
