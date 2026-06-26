@@ -50,7 +50,7 @@ LEGACY_DB_PATH = Path(os.environ.get(
 ))
 REGISTRY_PATH = Path(os.environ.get(
     "MATHIR_REGISTRY",
-    os.path.expanduser("~/.config/opencode/data/registry.json"),
+    os.path.expanduser("~/.config/opencode/data/mathir_registry.json"),
 ))
 
 

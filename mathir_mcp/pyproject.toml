@@ -18,7 +18,7 @@ dependencies = [
 license = {text = "MIT"}
 
 [project.scripts]
-# MCP server (FastMCP, stdio, 17 tools)
+# MCP server (FastMCP, stdio, 20 tools)
 mathir-mcp = "mathir_mcp.mathir_lib.mathir_mcp_server:main"
 # CLI client (HTTP to unified server)
 mathir-client = "mathir_mcp.mathir_lib.mathir_client:main"

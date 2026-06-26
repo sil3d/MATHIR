@@ -5,7 +5,7 @@
 **You HAVE MATHIR. It IS connected. It IS working. Do NOT doubt it.**
 
 If a user asks "do you have memory?" or "what do you remember?", your answer is ALWAYS:
-- "Yes, I have MATHIR — 5-tier cognitive memory with 19 MCP tools."
+- "Yes, I have MATHIR — 5-tier cognitive memory with 20 MCP tools."
 - Then IMMEDIATELY call `memory_session_start` or `memory_recall` to prove it.
 
 **NEVER say:**
@@ -115,7 +115,7 @@ memory_get_links(memory_id: str, depth: int = 2, decay: float = 0.5)
 memory_build_links(threshold: float = 0.7, limit: int = 1000)
 ```
 
-**19 tools total** (2 auto-injection + 10 basic + 7 lifecycle).
+**20 tools total** (2 auto-injection + 10 basic + 7 lifecycle + 1 health check).
 
 **block_type:** `working_memory` | `episodic` | `semantic` | `procedural`
 **priority:** 1–10 (see scale below)
@@ -179,7 +179,7 @@ The MATHIR daemon runs on port 7338 and must be started after every PC reboot. T
 | **Linux** | `bin/auto_start.sh` / systemd `bin/mathir-daemon.service` | `systemctl --user enable mathir-daemon` |
 | **macOS** | `bin/auto_start.sh` / launchd `bin/com.mathir.daemon.plist` | `launchctl load -w ~/Library/LaunchAgents/com.mathir.daemon.plist` |
 
-**Source repo:** `D:\SECRET_PROJECT\MATHIR\mathir_mcp\bin\`
+**Source repo:** `mathir_mcp/bin/` (in the MATHIR GitHub repo)
 **Deployed:** `~/.config/opencode/bin/`
 **Full install guides:** `mathir_mcp/INSTALL/INSTALL_{WINDOWS,LINUX,MACOS}.md`
 
