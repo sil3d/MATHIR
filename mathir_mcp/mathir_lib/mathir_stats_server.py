@@ -518,11 +518,10 @@ def api_import_db(project_name: str, db_data_b64: str, db_path: str = "") -> dic
             f.write(db_bytes)
         
         # Register in central registry
-        registry_path = Path(os.path.expanduser("~/.config/opencode/data/mathir_registry.json"))
         registry = {"projects": {}}
-        if registry_path.exists():
+        if REGISTRY_PATH.exists():
             try:
-                with open(registry_path) as f:
+                with open(REGISTRY_PATH) as f:
                     registry = json.load(f)
             except:
                 pass
@@ -535,8 +534,8 @@ def api_import_db(project_name: str, db_data_b64: str, db_path: str = "") -> dic
             "imported": True
         }
         
-        registry_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(registry_path, "w") as f:
+        REGISTRY_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(REGISTRY_PATH, "w") as f:
             json.dump(registry, f, indent=2, default=str)
         
         return {

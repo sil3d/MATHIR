@@ -2,7 +2,8 @@
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                         OPENCODE HOST                            │
+│                         AGENT HOST                               │
+│  (OpenCode, Claude Code, Cursor, Cline, Roo Code, 50+ agents)   │
 │                                                                  │
 │  ┌─────────────────────┐    ┌──────────────────────────────────┐ │
 │  │  mathir-auto-inject │    │  GLOBAL_INSTRUCTIONS.md          │ │
@@ -46,6 +47,12 @@
 │    POST /api/memory/save, /recall, /stats, /delete, ...        │
 │    GET  /api/context, /api/stats, /api/memories, /health       │
 └──────────────────────────────────────────────────────────────────┘
+
+CONFIGURATION (env vars — all paths are agent-agnostic):
+  MATHIR_CONFIG      → config file (default: ~/.config/opencode/config/mathir.json)
+  MATHIR_PROJECTS_DIR → projects directory (default: ~/.config/opencode/data/projects)
+  MATHIR_DB          → legacy DB path (default: ~/.config/opencode/data/mathir.db)
+  MATHIR_REGISTRY    → registry file (default: ~/.config/opencode/data/mathir_registry.json)
 
 TIERS:
   working_memory → episodic → semantic → procedural
