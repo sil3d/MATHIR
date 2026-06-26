@@ -1,28 +1,35 @@
 # MATHIR Changelog
 
-## [8.5.0] — 2026-06-25 — ⚡ FASTMCP REWRITE + AUTO-INJECTION
+## [8.5.0] — 2026-06-25 — ⚡ FASTMCP REWRITE + AUTO-INJECTION + MULTI-SESSION
 
 ### Changed
 - MCP server rewritten using FastMCP 3.4.2 (replaces hand-rolled JSON-RPC stdio loop)
+- MCP server v3 = thin HTTP proxy to daemon (port 7338) — NO local embedder loading
 - 19 MCP tools (2 auto-injection + 10 basic + 7 lifecycle)
-- Direct DB access via mathir_vec.py — no HTTP daemon bridge for core operations
-- Embedder pre-warmed at startup (25-30s first load, then cached in memory)
-- Dependencies: added `fastmcp>=3.4.0`, removed `aiohttp`, `pyzmq` (no longer needed)
+- Multi-session safe: multiple OpenCode sessions share ONE daemon embedder (no CUDA conflicts)
 - Unified Flask+Waitress server (mathir_server.py) replaces TCP daemon + http.server
 - Auto-injection plugin (mathir-auto-inject.ts) injects memories into system prompt
 - `/api/context` endpoint for plugin auto-injection
 - `memory_session_start` + `memory_context` tools for session context
+- Registry-based DB resolution (checks registry → projects dir → CWD → legacy)
+- `127.0.0.1` instead of `localhost` (Windows IPv6 resolution delay)
+- Dependencies: added `fastmcp>=3.4.0`, removed `aiohttp`, `pyzmq` (no longer needed)
 - Version bumped to 8.5.0
 
 ### Fixed
+- PyTorch 2.6 meta tensor crash ("Cannot copy out of meta tensor; no data!") — MCP v3 avoids by not loading embedder
+- Multi-session CUDA crash — root cause was 2+ MCP servers each loading embedder on GPU
+- Missing `import threading` in MCP server (crash on startup)
+- Hardcoded `Desktop/SECRET_CODE/Mycerise_V2_Taur` path in `get_project_db_path`
+- NULL embeddings (17 memories saved via direct sqlite had NULL vectors)
 - Bun v1.3.13 segfault on Windows: added `"runtime": {"backend": "node"}` to opencode.json
-- Deployed bin/ files synced back to source repo (mathir_lib/, bin/)
 - config_template.json: portable paths, no OpenCode hardcodes
 - OpenRouter API key purged from git history (commit 2a45de0)
 
 ### Security
 - Input length caps retained: content 100KB, query 5KB, label 200B, agent 100B
 - Memory ID validation regex retained
+- ABSOLUTE RULE: agent must never say "I don't have memory access"
 
 ## [8.4.0] — 2026-06-23 — 🧠 LIVING MEMORY
 
