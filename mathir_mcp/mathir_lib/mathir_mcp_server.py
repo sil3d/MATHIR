@@ -83,7 +83,8 @@ def get_project_db_path(project: str = None) -> Optional[Path]:
     if REGISTRY_PATH.exists():
         try:
             reg = json.loads(REGISTRY_PATH.read_text())
-            for proj_name, info in reg.items():
+            projects = reg.get("projects", reg)  # support both {"projects":{}} and flat {}
+            for proj_name, info in projects.items():
                 db = Path(info.get("db_path", ""))
                 if db.exists():
                     return db
@@ -173,7 +174,7 @@ def _call_daemon(method: str, params: dict = None) -> dict:
         "memory_get_links": "/api/memory/get_links",
         "memory_build_links": "/api/memory/build_links",
         "memory_context": "/api/context",
-        "memory_session_start": "/api/session_start",
+        "memory_session_start": "/api/context",
     }
 
     endpoint = endpoint_map.get(method, f"/api/memory/{method.replace('memory_', '')}")
