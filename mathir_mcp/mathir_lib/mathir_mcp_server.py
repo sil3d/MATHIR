@@ -377,7 +377,7 @@ def memory_context(task: str, project: str = None) -> str:
 def memory_session_start(session_title: str = "", project: str = None) -> str:
     """Start a memory session with relevant context."""
     result = _call_daemon("memory_session_start", {
-        "session_title": session_title,
+        "task": session_title or "session start",
         "project": project,
     })
     return json.dumps(result) if isinstance(result, dict) else str(result)
