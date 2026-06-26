@@ -70,6 +70,37 @@ You'll see a warning in the MCP server logs if the path is stale.
 
 ---
 
+## Multi-Agent Configuration
+
+MATHIR works with 50+ agents. The defaults target OpenCode (`~/.config/opencode/`), but **all paths are configurable via env vars**:
+
+```bash
+# For Claude Code
+export MATHIR_CONFIG=~/.config/claude-code/config/mathir.json
+export MATHIR_PROJECTS_DIR=~/.config/claude-code/data/projects
+export MATHIR_DB=~/.config/claude-code/data/mathir.db
+export MATHIR_REGISTRY=~/.config/claude-code/data/mathir_registry.json
+
+# For Cursor
+export MATHIR_CONFIG=~/.config/cursor/config/mathir.json
+export MATHIR_PROJECTS_DIR=~/.config/cursor/data/projects
+
+# For any agent
+export MATHIR_CONFIG=/my/custom/path/mathir.json
+export MATHIR_PROJECTS_DIR=/my/custom/path/projects
+```
+
+| Env Var | Default | Purpose |
+|---------|---------|---------|
+| `MATHIR_CONFIG` | `~/.config/opencode/config/mathir.json` | Config file |
+| `MATHIR_PROJECTS_DIR` | `~/.config/opencode/data/projects` | Projects directory |
+| `MATHIR_DB` | `~/.config/opencode/data/mathir.db` | Legacy DB path |
+| `MATHIR_REGISTRY` | `~/.config/opencode/data/mathir_registry.json` | Registry file |
+
+The `install_smart.py` script auto-detects installed agents and injects the correct paths. For agents not yet supported, set the env vars above.
+
+---
+
 ## If Installer Fails
 
 Give the entire `~/.config/MATHIR/` folder to your coding agent.
@@ -133,7 +164,7 @@ It will read `docs/AGENT.md` and configure MATHIR automatically.
 | `memory_get_links` | BFS traversal of link graph |
 | `memory_build_links` | Auto-build graph from cosine similarities |
 
-Canonical list — matches `mathir_lib/mathir_mcp_server.py` (19 `@mcp.tool()` decorators).
+Canonical list — matches `mathir_lib/mathir_mcp_server.py` (20 `@mcp.tool()` decorators).
 
 ---
 
