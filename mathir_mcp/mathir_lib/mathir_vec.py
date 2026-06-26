@@ -9,6 +9,7 @@ import struct
 import stat
 import numpy as np
 import logging
+import time
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from datetime import datetime
@@ -134,8 +135,11 @@ class VecMemory:
     def _get_conn(self) -> sqlite3.Connection:
         """Get or create SQLite connection with sqlite-vec loaded."""
         if self._conn is None:
-            self._conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
+            self._conn = sqlite3.connect(str(self.db_path), check_same_thread=False, timeout=30)
             self._conn.row_factory = sqlite3.Row
+            # Enable WAL mode for better concurrency
+            self._conn.execute("PRAGMA journal_mode=WAL")
+            self._conn.execute("PRAGMA busy_timeout=5000")
             # SECURITY: tighten DB file permissions (0o600) on first connect
             _tighten_perms(self.db_path)
             if HAS_VEC:
@@ -144,6 +148,36 @@ class VecMemory:
                 self._conn.enable_load_extension(False)
                 log.info(f"sqlite-vec loaded for {self.db_path.name}")
         return self._conn
+    
+    def _execute_with_retry(self, sql, params=None, retries=3):
+        """Execute SQL with retry on database locked."""
+        conn = self._get_conn()
+        for attempt in range(retries):
+            try:
+                if params:
+                    return conn.execute(sql, params)
+                else:
+                    return conn.execute(sql)
+            except sqlite3.OperationalError as e:
+                if "locked" in str(e) and attempt < retries - 1:
+                    import time
+                    time.sleep(0.1 * (attempt + 1))
+                    continue
+                raise
+    
+    def _commit_with_retry(self, retries=3):
+        """Commit with retry on database locked."""
+        conn = self._get_conn()
+        for attempt in range(retries):
+            try:
+                conn.commit()
+                return
+            except sqlite3.OperationalError as e:
+                if "locked" in str(e) and attempt < retries - 1:
+                    import time
+                    time.sleep(0.1 * (attempt + 1))
+                    continue
+                raise
     
     def _ensure_db(self):
         """Create tables if they don't exist."""
@@ -477,19 +511,18 @@ class VecMemory:
         if source_id == target_id:
             raise ValueError("source_id and target_id must differ (no self-links)")
 
-        conn = self._get_conn()
         # Detect insert vs update so we can report `created` accurately.
-        existing = conn.execute(
+        existing = self._execute_with_retry(
             "SELECT 1 FROM memory_links WHERE source_id = ? AND target_id = ?",
             [source_id, target_id],
         ).fetchone()
         created = existing is None
 
-        conn.execute(
-            "INSERT OR REPLACE INTO memory_links(source_id, target_id, weight) VALUES (?, ?, ?)",
-            [source_id, target_id, float(weight)],
+        self._execute_with_retry(
+            "INSERT OR REPLACE INTO memory_links(source_id, target_id, weight, created_at) VALUES (?, ?, ?, ?)",
+            [source_id, target_id, float(weight), time.time()],
         )
-        conn.commit()
+        self._commit_with_retry()
 
         return {
             "source_id": source_id,
@@ -674,11 +707,20 @@ class VecMemory:
             writes.append((tgt, src, w))
 
         if writes:
-            conn.executemany(
-                "INSERT OR REPLACE INTO memory_links(source_id, target_id, weight) VALUES (?, ?, ?)",
-                writes,
-            )
-            conn.commit()
+            conn = self._get_conn()
+            for attempt in range(3):
+                try:
+                    conn.executemany(
+                        "INSERT OR REPLACE INTO memory_links(source_id, target_id, weight, created_at) VALUES (?, ?, ?, ?)",
+                        [(s, t, w, time.time()) for s, t, w in writes],
+                    )
+                    conn.commit()
+                    break
+                except sqlite3.OperationalError as e:
+                    if "locked" in str(e) and attempt < 2:
+                        time.sleep(0.1 * (attempt + 1))
+                        continue
+                    raise
 
         return {
             "links_created": len(writes),

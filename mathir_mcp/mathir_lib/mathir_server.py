@@ -122,7 +122,8 @@ def get_embedder_dim():
 
 def _sanitize_error(exc, method):
     safe_types = (ValueError, KeyError, TypeError, OSError, PermissionError, FileNotFoundError)
-    if isinstance(exc, safe_types):
+    import sqlite3
+    if isinstance(exc, (*safe_types, sqlite3.IntegrityError, sqlite3.OperationalError)):
         return f"{type(exc).__name__}: {str(exc)[:200]}"
     log.error(f"Error in {method}: {exc}", exc_info=True)
     return f"Internal error in {method}: {type(exc).__name__}"
@@ -315,15 +316,22 @@ def api_memories():
     return jsonify({"memories": memories, "total": len(memories), "project": project})
 
 
-@app.route("/api/context")
+@app.route("/api/context", methods=["GET", "POST"])
 def api_context():
     """Auto-injection endpoint for OpenCode plugins.
     Returns relevant memories formatted for system prompt injection.
     GET /api/context?task=description&k=8&project=name
+    POST /api/context with JSON body: {"task": "...", "k": 8, "project": "..."}
     """
-    task = request.args.get("task", "")
-    k = min(int(request.args.get("k", 8)), 20)
-    project = request.args.get("project")
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        task = data.get("task") or data.get("session_title") or ""
+        k = min(int(data.get("k", 8)), 20)
+        project = data.get("project")
+    else:
+        task = request.args.get("task") or request.args.get("session_title") or ""
+        k = min(int(request.args.get("k", 8)), 20)
+        project = request.args.get("project")
     if not task:
         return jsonify({"error": "task parameter required"}), 400
     try:
@@ -772,6 +780,79 @@ def memory_build_links():
         ))
     except Exception as e:
         return jsonify({'error': _sanitize_error(e, 'memory_build_links')}), 500
+
+
+@app.route("/api/memory/audit", methods=["POST", "GET"])
+def memory_audit():
+    """Audit log of recent operations."""
+    params = _get_params()
+    try:
+        vec_mem, _, _ = _resolve_db()
+        agent = params.get("agent")
+        limit = params.get("limit", 50)
+        conn = vec_mem._get_conn()
+        # Check if audit table exists
+        tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
+        if "memory_audit" not in tables:
+            return jsonify({"entries": [], "total": 0, "note": "audit table not yet created"})
+        if agent:
+            rows = conn.execute(
+                "SELECT * FROM memory_audit WHERE agent=? ORDER BY rowid DESC LIMIT ?",
+                (agent, limit)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM memory_audit ORDER BY rowid DESC LIMIT ?",
+                (limit,)
+            ).fetchall()
+        entries = [dict(r) for r in rows] if rows else []
+        return jsonify({"entries": entries, "total": len(entries)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/memory/export", methods=["POST", "GET"])
+def memory_export():
+    """Export all memories as JSON."""
+    params = _get_params()
+    try:
+        vec_mem, _, _ = _resolve_db()
+        conn = vec_mem._get_conn()
+        rows = conn.execute("SELECT memory_id, tier, stability, recall_count, timestamp FROM memories ORDER BY rowid").fetchall()
+        memories = [dict(r) for r in rows] if rows else []
+        return jsonify({"memories": memories, "total": len(memories)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/memory/sessions", methods=["POST", "GET"])
+def memory_sessions():
+    """List recent memory sessions."""
+    params = _get_params()
+    try:
+        vec_mem, _, _ = _resolve_db()
+        limit = params.get("limit", 10)
+        conn = vec_mem._get_conn()
+        # Sessions are derived from metadata JSON field
+        rows = conn.execute(
+            "SELECT * FROM memories ORDER BY timestamp DESC LIMIT ?",
+            (limit,)
+        ).fetchall()
+        sessions = []
+        for r in rows:
+            try:
+                meta = json.loads(r["metadata"]) if r["metadata"] else {}
+                sessions.append({
+                    "memory_id": r["memory_id"],
+                    "agent": meta.get("agent", "unknown"),
+                    "label": meta.get("label", ""),
+                    "timestamp": r["timestamp"],
+                })
+            except:
+                pass
+        return jsonify({"sessions": sessions, "total": len(sessions)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/push_cache_stats", methods=["GET"])
