@@ -100,21 +100,40 @@ It will read `docs/AGENT.md` and configure MATHIR automatically.
 
 ---
 
-## MCP Tools (9)
+## MCP Tools (19)
 
+### Auto-injection (call these FIRST)
 | Tool | Description |
 |------|-------------|
-| `memory_save` | Save a memory block |
-| `memory_recall` | Search by similarity |
-| `memory_smart_search` | Hybrid search (vector + BM25 + RRF) |
-| `memory_audit` | View memory audit trail |
-| `memory_export` | Export all memory data as JSON |
-| `memory_delete` | Soft-delete a memory |
-| `memory_sessions` | List recent memory sessions |
-| `memory_stats` | Get statistics |
-| `memory_dashboard` | Launch / check Neural Memory Dashboard |
+| `memory_session_start` | Start session with relevant context — call at session start |
+| `memory_context` | Get memories for current task — call before each major task |
 
-Canonical list — matches `mathir_lib/mathir_mcp_server.py` TOOLS array (lines 249–358).
+### Basic (every day)
+| Tool | Description |
+|------|-------------|
+| `memory_save` | Save a memory (5 tiers: working_memory, episodic, semantic, procedural, immunological) |
+| `memory_recall` | Semantic search (auto-touches: boosts stability) |
+| `memory_smart_search` | Hybrid semantic + keyword search with cross-lingual support |
+| `memory_hybrid_search` | Vector + BM25 + RRF fusion |
+| `memory_delete` | Soft-delete (sets tier to archived) |
+| `memory_stats` | Totals by tier/agent/project + DB size |
+| `memory_audit` | Audit log of recent operations |
+| `memory_export` | Export all memories as JSON |
+| `memory_sessions` | List recent memory sessions |
+| `memory_dashboard` | Dashboard info / status |
+
+### Lifecycle (proactively)
+| Tool | Description |
+|------|-------------|
+| `memory_promote` | Move memory to next tier (working→episodic→semantic→procedural) |
+| `memory_auto_promote` | Scan + auto-promote all eligible memories |
+| `memory_decay` | Ebbinghaus decay: 5%/30d for unused memories |
+| `memory_consolidate` | Merge near-duplicate memories (cosine > threshold) |
+| `memory_link` | Add edge to spreading-activation graph |
+| `memory_get_links` | BFS traversal of link graph |
+| `memory_build_links` | Auto-build graph from cosine similarities |
+
+Canonical list — matches `mathir_lib/mathir_mcp_server.py` (19 `@mcp.tool()` decorators).
 
 ---
 
