@@ -3,6 +3,7 @@
 MATHIR MCP Server v3 — Thin proxy to daemon (port 7338).
 NO embedder loading — daemon handles all embedding.
 Safe for multiple concurrent OpenCode sessions.
+Keeps get_embedder/get_project_db_path/get_project_name for daemon compatibility.
 """
 
 import json
@@ -10,6 +11,7 @@ import os
 import sys
 import logging
 import urllib.request
+from pathlib import Path
 from typing import Optional
 
 from fastmcp import FastMCP
@@ -33,6 +35,117 @@ MAX_CONTENT_LENGTH = 100000
 MAX_LABEL_LENGTH = 200
 MAX_AGENT_LENGTH = 100
 
+CONFIG_PATH = Path(os.environ.get(
+    "MATHIR_CONFIG",
+    os.path.expanduser("~/.config/opencode/config/mathir.json"),
+))
+EMBEDDING_DIM = int(os.environ.get("MATHIR_EMBEDDING_DIM", "384"))
+PROJECTS_DIR = Path(os.environ.get(
+    "MATHIR_PROJECTS_DIR",
+    os.path.expanduser("~/.config/opencode/data/projects"),
+))
+LEGACY_DB_PATH = Path(os.environ.get(
+    "MATHIR_DB",
+    os.path.expanduser("~/.config/opencode/data/mathir.db"),
+))
+REGISTRY_PATH = Path(os.environ.get(
+    "MATHIR_REGISTRY",
+    os.path.expanduser("~/.config/opencode/data/registry.json"),
+))
+
+
+# ---------------------------------------------------------------------------
+# Compatibility functions (used by mathir_server.py daemon)
+# ---------------------------------------------------------------------------
+def load_config() -> dict:
+    if CONFIG_PATH.exists():
+        with open(CONFIG_PATH) as f:
+            return json.load(f)
+    return {}
+
+
+def get_project_name() -> str:
+    """Auto-detect project from CWD."""
+    config = load_config()
+    if "project" in config:
+        return config["project"]
+    cwd = Path.cwd()
+    # Check if CWD is under a known project
+    for proj_dir in PROJECTS_DIR.iterdir() if PROJECTS_DIR.exists() else []:
+        if cwd.is_relative_to(proj_dir):
+            return proj_dir.name
+    return cwd.name
+
+
+def get_project_db_path(project: str = None) -> Optional[Path]:
+    """Resolve DB path for project — matches original v2 logic."""
+    # 1. Registry
+    if REGISTRY_PATH.exists():
+        try:
+            reg = json.loads(REGISTRY_PATH.read_text())
+            for proj_name, info in reg.items():
+                db = Path(info.get("db_path", ""))
+                if db.exists():
+                    return db
+        except Exception:
+            pass
+
+    # 2. Projects dir — most recently modified
+    if PROJECTS_DIR.exists():
+        candidates = []
+        for proj_dir in PROJECTS_DIR.iterdir():
+            db = proj_dir / ".mathir" / "mathir.db"
+            if db.exists():
+                candidates.append((db.stat().st_mtime, db))
+        if candidates:
+            candidates.sort(reverse=True)
+            return candidates[0][1]
+
+    # 3. CWD
+    cwd_db = Path.cwd() / ".mathir" / "mathir.db"
+    if cwd_db.exists():
+        return cwd_db
+
+    # 4. Legacy
+    if LEGACY_DB_PATH.exists():
+        return LEGACY_DB_PATH
+
+    # 5. Well-known paths
+    for known in [
+        Path.home() / "Desktop" / "SECRET_CODE" / "Mycerise_V2_Taur" / ".mathir" / "mathir.db",
+    ]:
+        if known.exists():
+            return known
+
+    return None
+
+
+def get_embedder():
+    """Load embedder on demand (for daemon compatibility). CACHED."""
+    global _cached_embedder
+    if _cached_embedder is not None:
+        return _cached_embedder
+    from sentence_transformers import SentenceTransformer
+    import torch
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model_name = load_config().get("embedding", {}).get(
+        "model", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    )
+    _cached_embedder = SentenceTransformer(model_name, device=device)
+    return _cached_embedder
+
+
+_cached_embedder = None
+
+
+def get_embedder_dim() -> int:
+    embedder = get_embedder()
+    if hasattr(embedder, 'dim'):
+        return embedder.dim
+    if hasattr(embedder, 'get_embedding_dimension'):
+        return embedder.get_embedding_dimension()
+    return EMBEDDING_DIM
+
 # ---------------------------------------------------------------------------
 # FastMCP
 # ---------------------------------------------------------------------------
@@ -43,13 +156,10 @@ mcp = FastMCP("mathir-mcp")
 # Helpers — forward to daemon via HTTP
 # ---------------------------------------------------------------------------
 def _call_daemon(method: str, params: dict = None) -> dict:
-    """Forward JSON-RPC call to daemon HTTP API."""
-    payload = json.dumps({
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": method,
-        "params": params or {},
-    }).encode()
+    """Forward call to daemon HTTP API."""
+    # Remove None values and send as flat JSON
+    clean = {k: v for k, v in (params or {}).items() if v is not None}
+    payload = json.dumps(clean).encode()
 
     # Map method names to daemon HTTP endpoints
     endpoint_map = {
@@ -83,6 +193,10 @@ def _call_daemon(method: str, params: dict = None) -> dict:
         )
         resp = urllib.request.urlopen(req, timeout=30)
         return json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        body = e.read().decode() if hasattr(e, 'read') else ''
+        log.error(f"Daemon HTTP {e.code} on {endpoint}: {body}")
+        return {"error": f"Daemon HTTP {e.code}: {body}"}
     except urllib.error.URLError as e:
         log.error(f"Daemon unreachable at {DAEMON_URL}: {e}")
         return {"error": f"Daemon unreachable: {e}"}
@@ -120,18 +234,24 @@ def memory_save(
     project: str = None,
 ) -> str:
     """Save a memory. Block types: working_memory, episodic, semantic, procedural."""
+    log.info(f"memory_save called: content={content[:50]}... agent={agent} block_type={block_type} label={label} priority={priority} project={project}")
     _err = _check_lengths(content=content, label=label, agent=agent)
     if _err:
         return json.dumps(_err)
 
-    result = _call_daemon("memory_save", {
+    params = {
         "content": content,
         "agent": agent,
         "block_type": block_type,
         "label": label,
         "priority": priority,
-        "project": project,
-    })
+    }
+    if project:
+        params["project"] = project
+    
+    log.info(f"memory_save forwarding to daemon: {params.keys()}")
+    result = _call_daemon("memory_save", params)
+    log.info(f"memory_save result: {str(result)[:200]}")
     return json.dumps(result) if isinstance(result, dict) else str(result)
 
 
