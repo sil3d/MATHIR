@@ -110,13 +110,6 @@ def get_project_db_path(project: str = None) -> Optional[Path]:
     if LEGACY_DB_PATH.exists():
         return LEGACY_DB_PATH
 
-    # 5. Well-known paths
-    for known in [
-        Path.home() / "Desktop" / "SECRET_CODE" / "Mycerise_V2_Taur" / ".mathir" / "mathir.db",
-    ]:
-        if known.exists():
-            return known
-
     return None
 
 
