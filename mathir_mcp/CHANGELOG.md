@@ -5,7 +5,7 @@
 ### Changed
 - MCP server rewritten using FastMCP 3.4.2 (replaces hand-rolled JSON-RPC stdio loop)
 - MCP server v3 = thin HTTP proxy to daemon (port 7338) — NO local embedder loading
-- 19 MCP tools (2 auto-injection + 10 basic + 7 lifecycle)
+- 20 MCP tools (2 auto-injection + 10 basic + 7 lifecycle + 1 health check)
 - Multi-session safe: multiple OpenCode sessions share ONE daemon embedder (no CUDA conflicts)
 - Unified Flask+Waitress server (mathir_server.py) replaces TCP daemon + http.server
 - Auto-injection plugin (mathir-auto-inject.ts) injects memories into system prompt

@@ -1,4 +1,4 @@
-# MATHIR Architecture
+# MATHIR Architecture (v8.5.0 — Thin Proxy)
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -12,43 +12,39 @@
 │  │  transform          │    │  mandatory triggers              │ │
 │  └─────────┬───────────┘    └──────────────┬───────────────────┘ │
 │            │                               │                     │
-│            │  HTTP /api/context            │  MCP tools           │
+│            │  HTTP /api/context            │  MCP tools (stdio)  │
 │            ▼                               ▼                     │
 │  ┌──────────────────────────────────────────────────────────────┐│
-│  │                    MATHIR MCP SERVER                         ││
-│  │                    (FastMCP 3.4.2)                           ││
-│  │                    port 7338                                 ││
+│  │                    MATHIR MCP SERVER (v3)                    ││
+│  │                    Thin proxy — NO embedder                  ││
+│  │                    Forwards to daemon via HTTP               ││
 │  │                                                              ││
 │  │  ┌─────────────┐  ┌──────────────┐  ┌────────────────────┐  ││
-│  │  │ 19 tools    │  │ /api/context │  │ /api/stats         │  ││
-│  │  │             │  │ auto-inject  │  │ dashboard          │  ││
+│  │  │ 20 tools    │  │ /api/context │  │ /api/stats         │  ││
+│  │  │ (19 memory  │  │ auto-inject  │  │ dashboard          │  ││
+│  │  │  + health)  │  │              │  │                    │  ││
 │  │  └──────┬──────┘  └──────┬───────┘  └────────────────────┘  ││
 │  │         │                │                                   ││
 │  │         ▼                ▼                                   ││
-│  │  ┌──────────────────────────────────┐                       ││
-│  │  │         mathir_vec.py            │                       ││
-│  │  │  sqlite-vec + sentence-transform │                       ││
-│  │  │  384d embeddings, cosine search  │                       ││
-│  │  └──────────────┬───────────────────┘                       ││
-│  │                 │                                           ││
-│  │                 ▼                                           ││
-│  │  ┌──────────────────────────────────┐                       ││
-│  │  │       mathir.db (sqlite)         │                       ││
-│  │  │  ┌──────────────────────────┐    │                       ││
-│  │  │  │ memories                 │    │                       ││
-│  │  │  │  id, embedding, tier,    │    │                       ││
-│  │  │  │  label, content, agent,  │    │                       ││
-│  │  │  │  priority, recall_count, │    │                       ││
-│  │  │  │  stability, created_at   │    │                       ││
-│  │  │  ├──────────────────────────┤    │                       ││
-│  │  │  │ memory_links             │    │                       ││
-│  │  │  │  source → target, weight │    │                       ││
-│  │  │  ├──────────────────────────┤    │                       ││
-│  │  │  │ memory_audit             │    │                       ││
-│  │  │  │  action, timestamp       │    │                       ││
-│  │  │  └──────────────────────────┘    │                       ││
-│  │  └──────────────────────────────────┘                       ││
-│  └──────────────────────────────────────────────────────────────┘│
+│  │    HTTP to daemon (127.0.0.1:7338)                          ││
+│  └────────────────────┬─────────────────────────────────────────┘│
+└───────────────────────┼──────────────────────────────────────────┘
+                        │
+                        ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                    MATHIR DAEMON (Flask + Waitress)              │
+│                    Port 7338 — 1 embedder (cached)              │
+│                                                                  │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌────────────────┐ │
+│  │ sentence-        │  │ mathir_vec.py    │  │ mathir.db      │ │
+│  │ transformers     │  │ sqlite-vec       │  │ (sqlite)       │ │
+│  │ 384d embeddings  │  │ cosine search    │  │                │ │
+│  │ (cached global)  │  │                  │  │ memories       │ │
+│  └──────────────────┘  └──────────────────┘  │ memory_links   │ │
+│                                              │ memory_audit   │ │
+│  Endpoints:                                  └────────────────┘ │
+│    POST /api/memory/save, /recall, /stats, /delete, ...        │
+│    GET  /api/context, /api/stats, /api/memories, /health       │
 └──────────────────────────────────────────────────────────────────┘
 
 TIERS:
