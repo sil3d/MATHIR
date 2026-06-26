@@ -242,8 +242,11 @@ def get_embedder():
     import torch
     from sentence_transformers import SentenceTransformer
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    log.info(f"Device: {device}")
+    # PyTorch 2.6 + CUDA has intermittent meta tensor crashes.
+    # MCP server MUST be stable (crash = all agents lose memory).
+    # CPU is fast enough for this small model (384d, ~10ms).
+    device = "cpu"
+    log.info(f"Device: {device} (stable mode, no CUDA meta tensor risk)")
 
     _embedder = SentenceTransformer(model_name, device=device)
     model_dim = _embedder.get_embedding_dimension()
@@ -261,7 +264,13 @@ def get_embedder():
 def _encode_to_np(text: str) -> np.ndarray:
     """Encode text to float32 numpy vector."""
     embedder = get_embedder()
-    emb = embedder.encode(text)
+    try:
+        emb = embedder.encode(text)
+    except Exception as e:
+        if "meta tensor" in str(e).lower():
+            log.error(f"Meta tensor error during encode, cannot recover: {e}")
+            raise
+        raise
     if hasattr(emb, "cpu"):
         return emb.cpu().numpy().astype(np.float32).reshape(-1)
     return np.array(emb, dtype=np.float32).reshape(-1)
