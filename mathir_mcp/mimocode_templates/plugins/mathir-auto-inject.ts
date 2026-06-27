@@ -1,13 +1,14 @@
-import type { Plugin } from "@opencode-ai/plugin";
+import type { Plugin } from "@mimo-ai/plugin";
 import { spawn } from "child_process";
 import * as os from "os";
 import * as path from "path";
 
 /**
- * MATHIR Auto-Injection Plugin — v8.5.0
+ * MATHIR Auto-Injection Plugin for mimocode — v8.5.0
  *
- * Hooks into experimental.chat.system.transform to inject relevant memories
- * into the system prompt at session start and during the session.
+ * Port of the opencode plugin. Hooks into experimental.chat.system.transform
+ * to inject relevant memories into the system prompt at session start and
+ * during the session.
  *
  * Features:
  * - Health check on session start
@@ -20,7 +21,7 @@ import * as path from "path";
 const HOME = os.homedir();
 const MATHIR_URL = process.env.MATHIR_URL || "http://127.0.0.1:7338";
 const MATHIR_SERVER = process.env.MATHIR_SERVER ||
-  path.join(HOME, ".config", "opencode", "bin", "mathir_server.py");
+  path.join(HOME, ".config", "mimocode", "bin", "mathir_server.py");
 const MATHIR_WORKDIR = process.env.MATHIR_WORKDIR || HOME;
 const DEBUG = process.env.MATHIR_PLUGIN_DEBUG === "1";
 
