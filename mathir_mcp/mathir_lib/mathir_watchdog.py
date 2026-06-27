@@ -52,31 +52,69 @@ def start_server() -> int:
     )
     return proc.pid
 
-def kill_servers():
-    """Kill all MATHIR server processes."""
+def kill_servers(grace_seconds: float = 3.0):
+    """Kill all MATHIR server processes — graceful SIGTERM first, then force.
+
+    The server has a SIGTERM handler that closes all VecMemory connections
+    (forcing SQLite WAL checkpoint) before exiting. A hard taskkill /F skips
+    that cleanup and on Windows can leave the -wal sidecar in a state where
+    the next startup fails with WinError 32. So we send a graceful signal
+    first, wait briefly, and escalate to /F only if the process is still alive.
+    """
+    import time as _time
+
+    def _graceful_then_force(pid: str):
+        pid = str(pid).strip()
+        if not pid or pid == "0":
+            return
+        try:
+            if sys.platform == "win32":
+                # taskkill (no /F) sends WM_CLOSE → lets the Python signal
+                # handler run a graceful shutdown.
+                subprocess.run(["taskkill", "/PID", pid], capture_output=True)
+                _time.sleep(max(0.5, grace_seconds / 3))
+                # Check if still alive, then force
+                still = subprocess.run(
+                    ["tasklist", "/FI", f"PID eq {pid}", "/NH", "/FO", "CSV"],
+                    capture_output=True, text=True,
+                )
+                if pid in still.stdout and "No tasks" not in still.stdout:
+                    subprocess.run(["taskkill", "/F", "/PID", pid], capture_output=True)
+            else:
+                subprocess.run(["kill", "-TERM", pid], capture_output=True)
+                _time.sleep(grace_seconds)
+                try:
+                    os.kill(int(pid), 0)
+                    subprocess.run(["kill", "-9", pid], capture_output=True)
+                except (OSError, ProcessLookupError):
+                    pass
+        except (OSError, subprocess.SubprocessError):
+            pass
+
     if sys.platform == "win32":
-        subprocess.run(
-            ["taskkill", "/F", "/IM", "python.exe", "/FI", f"WINDOWTITLE eq mathir*"],
-            capture_output=True,
-        )
-        # Also kill by port
+        # Kill anything bound to OUR port (the running server, regardless of
+        # how it was launched). Avoids the indiscriminate "all python.exe with
+        # WINDOWTITLE mathir" heuristic that could kill unrelated work.
         result = subprocess.run(
             ["netstat", "-ano", "-p", "TCP"],
             capture_output=True, text=True,
         )
+        killed = []
         for line in result.stdout.splitlines():
             if f":{PORT}" in line and "LISTENING" in line:
                 parts = line.split()
                 pid = parts[-1]
-                subprocess.run(["taskkill", "/F", "/PID", pid], capture_output=True)
+                if pid not in killed:
+                    killed.append(pid)
+        for pid in killed:
+            _graceful_then_force(pid)
     else:
         result = subprocess.run(
             ["lsof", "-ti", f":{PORT}"],
             capture_output=True, text=True,
         )
         for pid in result.stdout.strip().split("\n"):
-            if pid:
-                subprocess.run(["kill", "-9", pid], capture_output=True)
+            _graceful_then_force(pid)
 
 def main():
     parser = argparse.ArgumentParser(description="MATHIR Server Watchdog")

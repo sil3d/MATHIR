@@ -20,9 +20,12 @@ import sys
 import os
 import json
 import time
+import signal
 import threading
 import logging
+import logging.handlers
 import argparse
+import traceback
 from typing import Optional
 from pathlib import Path
 
@@ -33,13 +36,35 @@ _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE))
 
 # ---------------------------------------------------------------------------
-# Logging
+# Logging — stderr + rotating file (independent of launcher pipe redirection
+# so crash traces survive even when stdout/stderr are DEVNULL'd by a watchdog)
 # ---------------------------------------------------------------------------
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [MATHIR-SERVER] %(levelname)s %(message)s",
-    stream=sys.stderr,
-)
+_LOG_DIR = Path(os.environ.get(
+    "MATHIR_LOG_DIR",
+    str(Path.home() / ".config" / "opencode" / "bin"),
+))
+try:
+    _LOG_DIR.mkdir(parents=True, exist_ok=True)
+except OSError:
+    _LOG_DIR = Path(os.environ.get("TEMP", "/tmp")) / "mathir_logs"
+    _LOG_DIR.mkdir(parents=True, exist_ok=True)
+_LOG_PATH = _LOG_DIR / "mathir_server.log"
+_PID_PATH = _LOG_DIR / "mathir_server.pid"
+
+_root = logging.getLogger()
+_root.setLevel(logging.INFO)
+_fmt = logging.Formatter("%(asctime)s [MATHIR-SERVER] %(levelname)s %(message)s")
+_sh = logging.StreamHandler(sys.stderr)
+_sh.setFormatter(_fmt)
+_root.addHandler(_sh)
+try:
+    _fh = logging.handlers.RotatingFileHandler(
+        _LOG_PATH, maxBytes=2_000_000, backupCount=5, encoding="utf-8"
+    )
+    _fh.setFormatter(_fmt)
+    _root.addHandler(_fh)
+except OSError:
+    pass  # File logging unavailable — stderr still works
 log = logging.getLogger("mathir-server")
 
 # ---------------------------------------------------------------------------
@@ -877,18 +902,162 @@ def _warmup():
         log.warning(f"DB warmup failed: {e}")
 
 
+# ---------------------------------------------------------------------------
+# Graceful shutdown + single-instance lock + crash logging
+# ---------------------------------------------------------------------------
+_SHUTTING_DOWN = threading.Event()
+
+
+def _shutdown(reason: str = "unknown") -> None:
+    """Close all cached VecMemory connections so SQLite WAL is checkpointed.
+
+    Idempotent — safe to call from signal handler and atexit. Without this,
+    a hard taskkill leaves the -wal sidecar un-checkpointed and the next
+    startup can fail to bind or read stale data.
+    """
+    if _SHUTTING_DOWN.is_set():
+        return
+    _SHUTTING_DOWN.set()
+    log.info(f"Shutting down (reason: {reason})")
+    with _vec_cache_lock:
+        for (db_path, _dim), vec_mem in list(_vec_cache.items()):
+            try:
+                close = getattr(vec_mem, "close", None)
+                if close:
+                    close()
+                    log.info(f"Closed VecMemory for {Path(db_path).name}")
+            except Exception as e:
+                log.warning(f"Error closing VecMemory {db_path}: {e}")
+        _vec_cache.clear()
+    # Remove PID file
+    try:
+        _PID_PATH.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
+def _install_signal_handlers() -> None:
+    """Catch SIGINT/SIGTERM/SIGBREAK for graceful shutdown + flush log buffer."""
+    def _handler(signum, _frame):
+        sig_name = signal.Signals(signum).name if hasattr(signal, "Signals") else str(signum)
+        log.info(f"Received signal {sig_name}")
+        _shutdown(sig_name)
+        # Give the logger a beat to flush, then exit non-zero so the watchdog
+        # knows the slot is free for a fresh start.
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(0 if signum == signal.SIGINT else 0)
+
+    for sig_name in ("SIGINT", "SIGTERM", "SIGBREAK", "SIGHUP"):
+        sig = getattr(signal, sig_name, None)
+        if sig is not None:
+            try:
+                signal.signal(sig, _handler)
+            except (ValueError, OSError):
+                pass  # Not a main thread or signal unsupported on this platform
+
+
+def _install_excepthooks() -> None:
+    """Capture uncaught exceptions into the rotating log file."""
+    def _sys_hook(exc_type, exc, tb):
+        is_kb = issubclass(exc_type, KeyboardInterrupt)
+        msg = "".join(traceback.format_exception(exc_type, exc, tb))
+        if is_kb:
+            log.info("Interrupted by user (KeyboardInterrupt)")
+        else:
+            log.error(f"Uncaught exception:\n{msg}")
+        if not is_kb:
+            sys.__excepthook__(exc_type, exc, tb)
+
+    def _thread_hook(args):
+        msg = "".join(traceback.format_exception(args.exc_type, args.exc_value, args.exc_traceback))
+        log.error(
+            f"Uncaught exception in thread {args.thread.name!r} "
+            f"({args.exc_type.__name__}): {msg}"
+        )
+
+    sys.excepthook = _sys_hook
+    if hasattr(threading, "excepthook"):
+        threading.excepthook = _thread_hook
+
+
+def _pid_alive(pid: int) -> bool:
+    """Best-effort cross-platform 'is this PID a running process' check."""
+    if pid <= 0:
+        return False
+    try:
+        if sys.platform == "win32":
+            import ctypes
+            PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+            STILL_ACTIVE = 259
+            kernel32 = ctypes.windll.kernel32
+            h = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+            if not h:
+                return False
+            try:
+                code = ctypes.c_ulong()
+                if not kernel32.GetExitCodeProcess(h, ctypes.byref(code)):
+                    return False
+                return code.value == STILL_ACTIVE
+            finally:
+                kernel32.CloseHandle(h)
+        else:
+            os.kill(pid, 0)
+            return True
+    except (OSError, ProcessLookupError, PermissionError):
+        return False
+    except Exception:
+        return False
+
+
+def _acquire_pid_lock() -> bool:
+    """Return True if we may start; False if another live server owns the lock."""
+    if _PID_PATH.exists():
+        try:
+            old_pid = int(_PID_PATH.read_text().strip())
+            if _pid_alive(old_pid):
+                log.warning(
+                    f"Another mathir_server appears to be running (PID {old_pid}, "
+                    f"pidfile {_PID_PATH}). Refusing to start to avoid a port/DB race."
+                )
+                return False
+        except (ValueError, OSError):
+            pass
+        try:
+            _PID_PATH.unlink()
+        except OSError:
+            pass
+    try:
+        _PID_PATH.write_text(str(os.getpid()))
+    except OSError as e:
+        log.warning(f"Could not write PID file {_PID_PATH}: {e}")
+    return True
+
+
 def main():
     parser = argparse.ArgumentParser(description="MATHIR Unified Server")
     parser.add_argument("--port", type=int, default=int(os.environ.get("MATHIR_PORT", "7338")))
     parser.add_argument("--host", default=os.environ.get("MATHIR_HOST", "127.0.0.1"))
     parser.add_argument("--workers", type=int, default=4, help="Waitress threads")
+    parser.add_argument("--force", action="store_true",
+                        help="Ignore stale PID lock and start anyway")
     args = parser.parse_args()
+
+    _install_excepthooks()
+
+    if not args.force and not _acquire_pid_lock():
+        sys.exit(2)
+
+    _install_signal_handlers()
+    import atexit
+    atexit.register(_shutdown, "atexit")
+
+    log.info(f"MATHIR server starting on {args.host}:{args.port} "
+             f"(PID {os.getpid()}, log {_LOG_PATH})")
 
     # Warm up in background
     t = threading.Thread(target=_warmup, daemon=True)
     t.start()
-
-    log.info(f"MATHIR server starting on {args.host}:{args.port}")
 
     try:
         from waitress import serve
@@ -897,6 +1066,8 @@ def main():
     except ImportError:
         log.warning("waitress not installed, using Flask dev server (not for production)")
         app.run(host=args.host, port=args.port, threaded=True)
+    finally:
+        _shutdown("serve returned")
 
 
 if __name__ == "__main__":

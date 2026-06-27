@@ -9,9 +9,12 @@ import sys
 import os
 import json
 import time
+import signal
 import socket
 import threading
 import logging
+import logging.handlers
+import traceback
 from typing import Optional
 
 # Add bin to path
@@ -33,11 +36,36 @@ MAX_CONTENT_LENGTH = 100000 # Max chars for memory content
 MAX_QUERY_LENGTH = 5000     # Max chars for search queries
 MAX_LABEL_LENGTH = 500      # Max chars for memory labels
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [MATHIR-DAEMON] %(levelname)s %(message)s",
-    stream=sys.stderr
-)
+# ---------------------------------------------------------------------------
+# Logging — stderr + rotating file (decoupled from launcher pipes so crash
+# traces survive even when stdout/stderr are DEVNULL'd by a watchdog)
+# ---------------------------------------------------------------------------
+from pathlib import Path as _Path
+_log_dir = _Path(os.environ.get(
+    "MATHIR_LOG_DIR",
+    str(_Path.home() / ".config" / "opencode" / "bin"),
+))
+try:
+    _log_dir.mkdir(parents=True, exist_ok=True)
+except OSError:
+    _log_dir = _Path(os.environ.get("TEMP", "/tmp")) / "mathir_logs"
+    _log_dir.mkdir(parents=True, exist_ok=True)
+_LOG_PATH = _log_dir / "mathir_daemon.log"
+
+_root = logging.getLogger()
+_root.setLevel(logging.INFO)
+_fmt = logging.Formatter("%(asctime)s [MATHIR-DAEMON] %(levelname)s %(message)s")
+_sh = logging.StreamHandler(sys.stderr)
+_sh.setFormatter(_fmt)
+_root.addHandler(_sh)
+try:
+    _fh = logging.handlers.RotatingFileHandler(
+        _LOG_PATH, maxBytes=2_000_000, backupCount=5, encoding="utf-8"
+    )
+    _fh.setFormatter(_fmt)
+    _root.addHandler(_fh)
+except OSError:
+    pass
 log = logging.getLogger("mathir-daemon")
 
 HOST = os.environ.get("MATHIR_HOST", "127.0.0.1")
@@ -702,8 +730,52 @@ def get_embedder_dim():
     return int(os.environ.get('MATHIR_EMBEDDING_DIM', '384'))
 
 
+def _install_excepthooks():
+    """Capture uncaught exceptions into the rotating log file."""
+    def _sys_hook(exc_type, exc, tb):
+        is_kb = issubclass(exc_type, KeyboardInterrupt)
+        msg = "".join(traceback.format_exception(exc_type, exc, tb))
+        if is_kb:
+            log.info("Interrupted by user (KeyboardInterrupt)")
+        else:
+            log.error(f"Uncaught exception:\n{msg}")
+        if not is_kb:
+            sys.__excepthook__(exc_type, exc, tb)
+
+    def _thread_hook(args):
+        msg = "".join(traceback.format_exception(args.exc_type, args.exc_value, args.exc_traceback))
+        log.error(
+            f"Uncaught exception in thread {args.thread.name!r} "
+            f"({args.exc_type.__name__}): {msg}"
+        )
+
+    sys.excepthook = _sys_hook
+    if hasattr(threading, "excepthook"):
+        threading.excepthook = _thread_hook
+
+
+def _close_vec_cache(reason: str = "unknown") -> None:
+    """Close all cached VecMemory connections so SQLite WAL is checkpointed.
+
+    Critical on Windows where a hard taskkill otherwise leaves the -wal sidecar
+    un-checkpointed and the next startup fails with WinError 32.
+    """
+    with _vec_cache_lock:
+        for (db_path, _dim), vec_mem in list(_vec_cache.items()):
+            try:
+                close = getattr(vec_mem, "close", None)
+                if close:
+                    close()
+                    log.info(f"Closed VecMemory for {_Path(db_path).name} ({reason})")
+            except Exception as e:
+                log.warning(f"Error closing VecMemory {db_path}: {e}")
+        _vec_cache.clear()
+
+
 def main():
     """Run daemon server."""
+    _install_excepthooks()
+
     # SECURITY: warn loudly if the daemon is binding to a non-loopback address.
     # The TCP socket has NO AUTHENTICATION — anyone reachable on PORT can read
     # and write the entire MATHIR database. This is acceptable for 127.0.0.1
@@ -716,14 +788,47 @@ def main():
             "Set MATHIR_HOST=127.0.0.1 unless you have a firewall rule in place.",
             HOST, HOST, PORT,
         )
+
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server.bind((HOST, PORT))
+    try:
+        server.bind((HOST, PORT))
+    except OSError as e:
+        log.error(f"bind({HOST}:{PORT}) failed: {e}. "
+                  f"Another process may own the port; refusing to start.")
+        sys.exit(3)
     server.listen(5)
+
+    # Graceful shutdown: SIGINT/SIGTERM/SIGBREAK → close server + VecMemory
+    _shutting_down = {"done": False}
+    def _handler(signum, _frame):
+        sig_name = getattr(signal, "Signals", None)
+        name = sig_name(signum).name if sig_name else str(signum)
+        if _shutting_down["done"]:
+            return
+        _shutting_down["done"] = True
+        log.info(f"Received signal {name}, shutting down")
+        try:
+            server.close()
+        except OSError:
+            pass
+        _close_vec_cache(name)
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(0)
+    for sig_name in ("SIGINT", "SIGTERM", "SIGBREAK", "SIGHUP"):
+        sig = getattr(signal, sig_name, None)
+        if sig is not None:
+            try:
+                signal.signal(sig, _handler)
+            except (ValueError, OSError):
+                pass
+    import atexit
+    atexit.register(_close_vec_cache, "atexit")
 
     dim = get_embedder_dim()
     log.info(f"Using embedding dim: {dim}")
-    log.info(f"MATHIR daemon listening on {HOST}:{PORT}")
+    log.info(f"MATHIR daemon listening on {HOST}:{PORT} (PID {os.getpid()}, log {_LOG_PATH})")
     print(f"DAEMON_READY:{PORT}:{dim}", flush=True)
 
     try:
@@ -733,9 +838,10 @@ def main():
             thread.daemon = True
             thread.start()
     except KeyboardInterrupt:
-        log.info("Shutting down")
+        log.info("Shutting down (KeyboardInterrupt)")
     finally:
         server.close()
+        _close_vec_cache("finally")
 
 
 if __name__ == '__main__':

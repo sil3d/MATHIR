@@ -157,27 +157,15 @@ def _cmd_selftest():
     _check("All 17 tools registered", _tools)
 
     def _daemon():
-        import os, socket, json
+        import os, urllib.request, json as _json
         port = int(os.environ.get("MATHIR_PORT", "7338"))
         try:
-            s = socket.socket()
-            s.settimeout(2)
-            s.connect(("127.0.0.1", port))
-            s.sendall(json.dumps({"method": "ping", "params": {}}).encode())
-            chunks = []
-            while True:
-                try:
-                    c = s.recv(1024)
-                except socket.timeout:
-                    break
-                if not c:
-                    break
-                chunks.append(c)
-            s.close()
-            data = b"".join(chunks).decode()
-            if "pong" in data:
+            url = f"http://127.0.0.1:{port}/api/ping"
+            with urllib.request.urlopen(url, timeout=2) as r:
+                data = _json.loads(r.read().decode("utf-8", "ignore"))
+            if data.get("pong"):
                 return f"port={port}"
-            raise RuntimeError(f"no pong in response: {data[:100]}")
+            raise RuntimeError(f"no pong in response: {str(data)[:100]}")
         except Exception as e:
             raise RuntimeError(f"daemon not reachable on port {port}: {e}")
     print("  [..]   Daemon reachable on port 7338 (may not be running, this is OK)")
@@ -289,9 +277,11 @@ def main():
             mathir_mcp_server = _import("mathir_mcp_server")
             return mathir_mcp_server.main()
 
-    # No special flag → start the daemon (TCP on MATHIR_PORT)
-    mathir_daemon = _import("mathir_daemon")
-    return mathir_daemon.main()
+    # No special flag → start the unified HTTP server on MATHIR_PORT.
+    # As of v8.5.0 the TCP daemon (mathir_daemon.py) is retired in favour of
+    # mathir_server.py (Flask + Waitress). All MCP clients speak HTTP.
+    mathir_server = _import("mathir_server")
+    return mathir_server.main()
 
 
 if __name__ == "__main__":
