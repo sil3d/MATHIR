@@ -582,9 +582,68 @@ def mathir_health() -> str:
 
 
 # ---------------------------------------------------------------------------
+# Prompts capability — auto-fetched by MCP-prompt-aware hosts (Claude Desktop,
+# Cursor, Cline, Roo, Continue, …) at session start. Universal MCP-native
+# alternative to per-host plugin runtime injection.
+# ---------------------------------------------------------------------------
+
+@mcp.prompt()
+def mathir_session_start(session_title: str = "") -> str:
+    """MATHIR auto-context for this session — fetched at session start.
+
+    Returns up to 8 memories relevant to the session title (or the most
+    recent episodic memories if no title). Agents that support the MCP
+    `prompts` capability will auto-invoke this; others can call it manually.
+    """
+    task = (session_title or "").strip() or "current session context"
+    resp = _call_daemon_raw("memory_context", {"task": task, "k": 8})
+    if not isinstance(resp, dict):
+        return f"MATHIR: context unavailable ({resp})"
+    context = resp.get("context")
+    if not context:
+        # Fallback: surface most recent episodic memories
+        recent = _call_daemon_raw("memory_recall", {"query": task, "k": 5})
+        if isinstance(recent, dict) and recent.get("results"):
+            lines = [f"## MATHIR — {len(recent['results'])} recent memories"]
+            for r in recent["results"]:
+                meta = r.get("metadata") or {}
+                lines.append(
+                    f"- [{meta.get('agent', '?')}] "
+                    f"{meta.get('label', '')}: "
+                    f"{(meta.get('content') or '')[:200]}"
+                )
+            context = "\n".join(lines)
+        else:
+            context = "MATHIR: no relevant memories found."
+    # Also surface quick stats so the agent knows MATHIR is alive
+    stats = _call_daemon_raw("memory_stats", {})
+    stats_line = ""
+    if isinstance(stats, dict) and not stats.get("error"):
+        stats_line = f"\n\n_MATHIR stats: {stats}_"
+    return f"{context}{stats_line}"
+
+
+@mcp.prompt()
+def mathir_recall(query: str, k: int = 5) -> str:
+    """Pull specific memories matching a query — usable as a prompt template."""
+    resp = _call_daemon_raw("memory_recall", {"query": query, "k": k})
+    if not isinstance(resp, dict) or not resp.get("results"):
+        return f"MATHIR: no memories match '{query}'."
+    lines = [f"## MATHIR — {len(resp['results'])} memories for '{query}'"]
+    for r in resp["results"]:
+        meta = r.get("metadata") or {}
+        lines.append(
+            f"- [{meta.get('agent', '?')}] (score {r.get('score', 0):.2f}) "
+            f"{meta.get('label', '')}: {(meta.get('content') or '')[:200]}"
+        )
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
-    log.info(f"MATHIR MCP Server v3.0.0 (thin proxy to daemon at {DAEMON_URL})")
+    log.info(f"MATHIR MCP Server v3.1.0 (thin proxy to daemon at {DAEMON_URL})")
     log.info("No embedder loaded — daemon handles all embedding.")
+    log.info("Prompts capability enabled: mathir_session_start, mathir_recall")
     mcp.run()
