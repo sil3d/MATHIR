@@ -71,6 +71,10 @@ AGENTS = [
             "linux": str(_home() / ".config" / "opencode" / "GLOBAL_INSTRUCTIONS.md"),
             "darwin": str(_home() / ".config" / "opencode" / "GLOBAL_INSTRUCTIONS.md"),
         },
+        # Plugin system: deploys mathir-auto-inject.ts for true auto-injection
+        # of relevant memories into the system prompt at session start.
+        "plugins_subdir": "plugins",
+        "plugin_variant": "opencode",
     },
     {
         "name": "MiMo Code",
@@ -86,6 +90,9 @@ AGENTS = [
             "linux": str(_home() / ".config" / "mimocode" / "GLOBAL_INSTRUCTIONS.md"),
             "darwin": str(_home() / ".config" / "mimocode" / "GLOBAL_INSTRUCTIONS.md"),
         },
+        # Plugin system: fork of opencode, uses @mimo-ai/plugin import.
+        "plugins_subdir": "plugins",
+        "plugin_variant": "mimocode",
     },
     {
         "name": "Claude Code",
@@ -662,9 +669,47 @@ def detect_platform() -> str:
     return {"windows": "windows", "linux": "linux", "darwin": "darwin"}.get(s, "linux")
 
 
+def _deploy_auto_inject_plugin(agent: Dict, agent_config_dir: Path) -> Tuple[bool, str]:
+    """Deploy the mathir-auto-inject plugin for agents that support it.
+
+    Plugin-aware hosts (opencode, mimocode) load .ts plugins from their
+    plugins/ subdirectory. The plugin hooks session.started +
+    experimental.chat.system.transform to inject relevant memories into
+    the system prompt — true auto-injection that doesn't rely on the agent
+    remembering to call memory_recall.
+
+    Returns (success, message).
+    """
+    plugins_subdir = agent.get("plugins_subdir")
+    plugin_variant = agent.get("plugin_variant")
+    if not plugins_subdir or not plugin_variant:
+        return True, "no plugin support for this agent (directive-only)"
+
+    # Locate the plugin template: mathir_mcp/{variant}_templates/plugins/mathir-auto-inject.ts
+    source_dir = Path(__file__).resolve().parent.parent  # mathir_mcp/
+    plugin_src = source_dir / f"{plugin_variant}_templates" / "plugins" / "mathir-auto-inject.ts"
+    if not plugin_src.is_file():
+        return False, f"plugin template not found: {plugin_src}"
+
+    plugins_dst_dir = agent_config_dir / plugins_subdir
+    try:
+        plugins_dst_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        return False, f"mkdir {plugins_dst_dir} failed: {e}"
+
+    plugin_dst = plugins_dst_dir / "mathir-auto-inject.ts"
+    try:
+        import shutil
+        shutil.copy2(plugin_src, plugin_dst)
+    except OSError as e:
+        return False, f"copy plugin failed: {e}"
+
+    return True, f"plugin deployed → {plugin_dst}"
+
+
 def _copy_mathir_to_agent(agent_config_dir: Path) -> Path:
     """Copy the entire mathir_mcp package into the agent's tools directory.
-    
+
     This makes MATHIR standalone — no dependency on source folder location.
     Returns the path to the copied package.
     """
@@ -810,6 +855,13 @@ def inject_mcp_config(agent: Dict) -> Tuple[bool, str]:
         copied_dir = _copy_mathir_to_agent(config_dir)
     except Exception as e:
         return False, f"Failed to copy MATHIR: {e}"
+
+    # Step 1b: Deploy auto-inject plugin (for plugin-aware hosts only)
+    try:
+        plugin_ok, plugin_msg = _deploy_auto_inject_plugin(agent, config_dir)
+        print(f"  {C.CYAN}Plugin: {plugin_msg}{C.RESET}")
+    except Exception as e:
+        print(f"  {C.YELLOW}Plugin deploy skipped: {e}{C.RESET}")
     
     # Step 2: Get command pointing to copied standalone package
     config = read_config(config_path)
