@@ -31,8 +31,14 @@ from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
 _CANDIDATES = [
+    # Source-tree layout: mathir_mcp/bin/mathir_daemon.py → ../mathir_lib/
     _HERE.parent / "mathir_lib" / "mathir_server.py",
+    # Flat deployed layout: ~/.config/{agent}/bin/mathir_server.py
     _HERE / "mathir_server.py",
+    # Package deployed by install_smart.py: ~/.config/{agent}/tools/mathir_mcp/mathir_lib/
+    _HERE.parent / "tools" / "mathir_mcp" / "mathir_lib" / "mathir_server.py",
+    # Other common relative layouts
+    _HERE.parent / "mathir_lib" / "mathir_server.py",
 ]
 _server_path = next((p for p in _CANDIDATES if p.is_file()), None)
 
