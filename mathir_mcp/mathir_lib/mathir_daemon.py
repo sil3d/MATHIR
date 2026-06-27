@@ -533,6 +533,59 @@ def _handle_memory_build_links(params):
     )
 
 
+def _handle_memory_context(params):
+    """Get relevant memories for current task context."""
+    vec_mem, _db_path, embedder = _resolve_db()
+    task = params.get('task', '')
+    if not task:
+        return {'memories': [], 'error': 'task required'}
+
+    # Search for relevant memories using the task as query
+    q_np = _encode_query(embedder, task)
+    results = vec_mem.search(
+        query_embedding=q_np, k=10,
+        agent_filter=params.get('agent'),
+    )
+
+    # Group by tier
+    grouped = {}
+    for r in results:
+        tier = r.get('tier', 'episodic')
+        if tier not in grouped:
+            grouped[tier] = []
+        grouped[tier].append(r)
+
+    return {
+        'task': task,
+        'memories': results,
+        'grouped': grouped,
+        'total': len(results),
+    }
+
+
+def _handle_memory_session_start(params):
+    """Start a memory session with relevant context."""
+    vec_mem, _db_path, embedder = _resolve_db()
+    session_title = params.get('task', 'session start')
+
+    # Search for relevant memories
+    q_np = _encode_query(embedder, session_title)
+    results = vec_mem.search(
+        query_embedding=q_np, k=10,
+        agent_filter=params.get('agent'),
+    )
+
+    # Get stats
+    stats = vec_mem.stats()
+
+    return {
+        'session_title': session_title,
+        'relevant_memories': results,
+        'stats': stats,
+        'instruction': 'Use memory_recall for specific queries, memory_save to store new memories.',
+    }
+
+
 # Dispatch table  (method name → handler function)
 _METHOD_HANDLERS = {
     'ping':                  _handle_ping,
@@ -553,6 +606,9 @@ _METHOD_HANDLERS = {
     'memory_link':           _handle_memory_link,
     'memory_get_links':      _handle_memory_get_links,
     'memory_build_links':    _handle_memory_build_links,
+    # Context & session
+    'memory_context':        _handle_memory_context,
+    'memory_session_start':  _handle_memory_session_start,
 }
 
 
