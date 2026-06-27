@@ -149,8 +149,8 @@ mcp = FastMCP("mathir-mcp")
 # ---------------------------------------------------------------------------
 # Helpers — forward to daemon via HTTP
 # ---------------------------------------------------------------------------
-def _call_daemon(method: str, params: dict = None) -> dict:
-    """Forward call to daemon HTTP API."""
+def _call_daemon_raw(method: str, params: dict = None) -> dict:
+    """Forward call to daemon HTTP API (no augmentation)."""
     # Remove None values and send as flat JSON
     clean = {k: v for k, v in (params or {}).items() if v is not None}
     payload = json.dumps(clean).encode()
@@ -197,6 +197,108 @@ def _call_daemon(method: str, params: dict = None) -> dict:
     except Exception as e:
         log.error(f"Daemon call failed: {e}")
         return {"error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# Auto-recall — augment every tool response with related memories
+# ---------------------------------------------------------------------------
+# Methods where auto-recall is REDUNDANT (already returns matches) or NONSENSICAL
+# (no textual content to query with). For everything else, we attach a
+# `related_memories` top-3 to the response so the agent sees prior context
+# every time it touches MATHIR — without having to call memory_recall itself.
+_AUTO_RECALL_SKIP = {
+    "memory_recall", "memory_smart_search", "memory_hybrid_search",
+    "memory_context", "memory_session_start",
+    "memory_stats", "memory_audit", "memory_export", "memory_sessions",
+    "memory_auto_promote", "memory_decay", "memory_consolidate",
+    "memory_get_links", "memory_build_links", "memory_delete",
+    "memory_promote",   # memory_id is a key, not a query
+}
+
+
+def _extract_query(method: str, params: dict) -> Optional[str]:
+    """Pick the best textual signal to use as recall query for this call."""
+    if method == "memory_save":
+        return params.get("content") or params.get("label")
+    if method == "memory_link":
+        # No content; use label-ish fields if any
+        return params.get("source_id") or params.get("target_id")
+    # Generic fallbacks
+    for field in ("content", "query", "task", "session_title", "label"):
+        v = params.get(field)
+        if v and isinstance(v, str) and len(v) >= 10:
+            return v
+    return None
+
+
+def _augment_response(method: str, params: dict, response: dict) -> dict:
+    """Attach related_memories (top-3) to a successful tool response.
+
+    Best-effort: any failure is swallowed so the main call never breaks.
+    Threshold for "near-duplicate" is 0.92 — surfaced separately so the agent
+    can decide whether the new save is redundant.
+    """
+    if not isinstance(response, dict) or "error" in response:
+        return response
+    if method in _AUTO_RECALL_SKIP:
+        return response
+
+    query = _extract_query(method, params or {})
+    if not query or len(query) < 10:
+        return response
+
+    try:
+        recall_resp = _call_daemon_raw("memory_recall", {
+            "query": query[:MAX_QUERY_LENGTH],
+            "k": 3,
+            "agent": params.get("agent"),
+        })
+        results = recall_resp.get("results") if isinstance(recall_resp, dict) else None
+        if not results:
+            return response
+
+        # Exclude the just-saved memory (self-match) when method == memory_save
+        self_id = response.get("memory_id") if method == "memory_save" else None
+
+        related = []
+        near_duplicates = []
+        for r in results[:5]:
+            if self_id and r.get("memory_id") == self_id:
+                continue  # skip self-match
+            score = float(r.get("score", 0.0))
+            meta = r.get("metadata") or {}
+            item = {
+                "memory_id": r.get("memory_id"),
+                "label": meta.get("label", r.get("label", "")),
+                "content": (meta.get("content") or r.get("content") or "")[:300],
+                "score": round(score, 3),
+                "agent": meta.get("agent", r.get("agent", "")),
+                "block_type": meta.get("block_type", r.get("block_type", "")),
+            }
+            related.append(item)
+            if score >= 0.92 and method == "memory_save":
+                near_duplicates.append(item)
+            if len(related) >= 3:
+                break
+
+        if related:
+            response["related_memories"] = related
+        if near_duplicates:
+            response["near_duplicates"] = near_duplicates
+            log.info(f"auto-recall {method}: {len(related)} related, "
+                     f"{len(near_duplicates)} near-duplicate(s)")
+        else:
+            log.info(f"auto-recall {method}: {len(related)} related attached")
+    except Exception as e:
+        log.warning(f"auto-recall failed for {method} (non-fatal): {e}")
+
+    return response
+
+
+def _call_daemon(method: str, params: dict = None) -> dict:
+    """Forward call to daemon HTTP API + attach auto-recall context."""
+    response = _call_daemon_raw(method, params)
+    return _augment_response(method, params, response)
 
 
 def _check_lengths(**kwargs) -> Optional[dict]:
