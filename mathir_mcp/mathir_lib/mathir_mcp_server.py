@@ -6,6 +6,7 @@ Safe for multiple concurrent OpenCode sessions.
 Keeps get_embedder/get_project_db_path/get_project_name for daemon compatibility.
 """
 
+import hashlib
 import json
 import os
 import sys
@@ -35,23 +36,22 @@ MAX_CONTENT_LENGTH = 100000
 MAX_LABEL_LENGTH = 200
 MAX_AGENT_LENGTH = 100
 
-CONFIG_PATH = Path(os.environ.get(
-    "MATHIR_CONFIG",
-    os.path.expanduser("~/.config/opencode/config/mathir.json"),
-))
+# Block types a client may write. "immunological" is reserved for the internal
+# anomaly detector and is rejected on the save path.
+_CLIENT_BLOCK_TYPES = {"working_memory", "episodic", "semantic", "procedural"}
+
+try:
+    from .mathir_paths import CONFIG_PATH as _P_CONFIG, PROJECTS_DIR as _P_PROJECTS
+    from .mathir_paths import LEGACY_DB_PATH as _P_DB, REGISTRY_PATH as _P_REGISTRY
+except ImportError:
+    from mathir_paths import CONFIG_PATH as _P_CONFIG, PROJECTS_DIR as _P_PROJECTS
+    from mathir_paths import LEGACY_DB_PATH as _P_DB, REGISTRY_PATH as _P_REGISTRY
+
+CONFIG_PATH = Path(os.environ.get("MATHIR_CONFIG", str(_P_CONFIG)))
 EMBEDDING_DIM = int(os.environ.get("MATHIR_EMBEDDING_DIM", "384"))
-PROJECTS_DIR = Path(os.environ.get(
-    "MATHIR_PROJECTS_DIR",
-    os.path.expanduser("~/.config/opencode/data/projects"),
-))
-LEGACY_DB_PATH = Path(os.environ.get(
-    "MATHIR_DB",
-    os.path.expanduser("~/.config/opencode/data/mathir.db"),
-))
-REGISTRY_PATH = Path(os.environ.get(
-    "MATHIR_REGISTRY",
-    os.path.expanduser("~/.config/opencode/data/mathir_registry.json"),
-))
+PROJECTS_DIR = Path(os.environ.get("MATHIR_PROJECTS_DIR", str(_P_PROJECTS)))
+LEGACY_DB_PATH = Path(os.environ.get("MATHIR_DB", str(_P_DB)))
+REGISTRY_PATH = Path(os.environ.get("MATHIR_REGISTRY", str(_P_REGISTRY)))
 
 
 # ---------------------------------------------------------------------------
@@ -316,6 +316,34 @@ def _check_lengths(**kwargs) -> Optional[dict]:
     return None
 
 
+def _sanitize_for_prompt(text: str) -> str:
+    """Defang memory-sourced text before it is concatenated into an LLM prompt.
+
+    Defends against stored prompt-injection from recalled memory content:
+      - neutralize literal ``</mathir-...>`` closing tags so injected text
+        cannot prematurely close any wrapping structure tag;
+      - strip markdown heading markers (``### ``) that could impersonate
+        prompt-section headers;
+      - drop tokenizer special-token markers (``<|``) that some hosts may
+        interpret as control tokens.
+    Returned text is still readable but no longer tag/heading-shaped.
+    """
+    if not text:
+        return ""
+    s = text
+    s = s.replace("</mathir-", "&lt;/mathir-")
+    s = s.replace("### ", "")
+    s = s.replace("<|", "")
+    return s
+
+
+def _content_hash(text: str) -> str:
+    """Short SHA-8 fingerprint for log redaction (no cleartext leak)."""
+    if not text:
+        return "0"
+    return hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()[:8]
+
+
 # ---------------------------------------------------------------------------
 # Tools — thin wrappers over daemon HTTP
 # ---------------------------------------------------------------------------
@@ -330,10 +358,19 @@ def memory_save(
     project: str = None,
 ) -> str:
     """Save a memory. Block types: working_memory, episodic, semantic, procedural."""
-    log.info(f"memory_save called: content={content[:50]}... agent={agent} block_type={block_type} label={label} priority={priority} project={project}")
+    log.info(
+        f"memory_save called: content_len={len(content)} "
+        f"content_sha8={_content_hash(content)} label_len={len(label or '')} "
+        f"label_sha8={_content_hash(label)} agent={agent} "
+        f"block_type={block_type} priority={priority} project={project}"
+    )
     _err = _check_lengths(content=content, label=label, agent=agent)
     if _err:
         return json.dumps(_err)
+    if block_type == "immunological":
+        return json.dumps({"error": "block_type 'immunological' is reserved for the internal anomaly detector and cannot be written by clients"})
+    if block_type not in _CLIENT_BLOCK_TYPES:
+        return json.dumps({"error": f"invalid block_type '{block_type}'. Valid: {sorted(_CLIENT_BLOCK_TYPES)}"})
 
     params = {
         "content": content,
@@ -347,7 +384,21 @@ def memory_save(
     
     log.info(f"memory_save forwarding to daemon: {params.keys()}")
     result = _call_daemon("memory_save", params)
-    log.info(f"memory_save result: {str(result)[:200]}")
+    # Log only structural keys + counts; never raw content/label (may be echoed
+    # back via related_memories auto-recall).
+    if isinstance(result, dict):
+        safe_summary = {
+            k: result.get(k)
+            for k in ("memory_id", "status", "error")
+            if k in result
+        }
+        if "related_memories" in result:
+            safe_summary["related_count"] = len(result["related_memories"])
+        if "near_duplicates" in result:
+            safe_summary["near_dup_count"] = len(result["near_duplicates"])
+        log.info(f"memory_save result: {safe_summary}")
+    else:
+        log.info("memory_save result: <non-dict>")
     return json.dumps(result) if isinstance(result, dict) else str(result)
 
 
@@ -607,11 +658,14 @@ def mathir_session_start(session_title: str = "") -> str:
             lines = [f"## MATHIR — {len(recent['results'])} recent memories"]
             for r in recent["results"]:
                 meta = r.get("metadata") or {}
-                lines.append(
-                    f"- [{meta.get('agent', '?')}] "
-                    f"{meta.get('label', '')}: "
-                    f"{(meta.get('content') or '')[:200]}"
-                )
+                agent = _sanitize_for_prompt(str(meta.get("agent", "?")))[:40]
+                label = _sanitize_for_prompt(meta.get("label", ""))[:120]
+                content = _sanitize_for_prompt((meta.get("content") or "")[:200])
+                lines.append(f"- [{agent}] {label}:")
+                # Quote each content line so injected memory text cannot
+                # impersonate prompt structure or host instructions.
+                for cline in content.splitlines() or [""]:
+                    lines.append(f"> {cline}")
             context = "\n".join(lines)
         else:
             context = "MATHIR: no relevant memories found."
@@ -629,21 +683,35 @@ def mathir_recall(query: str, k: int = 5) -> str:
     resp = _call_daemon_raw("memory_recall", {"query": query, "k": k})
     if not isinstance(resp, dict) or not resp.get("results"):
         return f"MATHIR: no memories match '{query}'."
-    lines = [f"## MATHIR — {len(resp['results'])} memories for '{query}'"]
+    safe_query = _sanitize_for_prompt(query)[:120]
+    lines = [f"## MATHIR — {len(resp['results'])} memories for '{safe_query}'"]
     for r in resp["results"]:
         meta = r.get("metadata") or {}
-        lines.append(
-            f"- [{meta.get('agent', '?')}] (score {r.get('score', 0):.2f}) "
-            f"{meta.get('label', '')}: {(meta.get('content') or '')[:200]}"
-        )
+        agent = _sanitize_for_prompt(str(meta.get("agent", "?")))[:40]
+        label = _sanitize_for_prompt(meta.get("label", ""))[:120]
+        content = _sanitize_for_prompt((meta.get("content") or "")[:200])
+        try:
+            score = float(r.get("score", 0.0))
+        except (TypeError, ValueError):
+            score = 0.0
+        lines.append(f"- [{agent}] (score {score:.2f}) {label}:")
+        # Quote each content line so injected memory text cannot impersonate
+        # prompt structure or host instructions.
+        for cline in content.splitlines() or [""]:
+            lines.append(f"> {cline}")
     return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
-if __name__ == "__main__":
+def main() -> None:
+    """Console-script entry point (`mathir-mcp`). Runs the FastMCP stdio server."""
     log.info(f"MATHIR MCP Server v3.1.0 (thin proxy to daemon at {DAEMON_URL})")
     log.info("No embedder loaded — daemon handles all embedding.")
     log.info("Prompts capability enabled: mathir_session_start, mathir_recall")
     mcp.run()
+
+
+if __name__ == "__main__":
+    main()

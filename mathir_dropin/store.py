@@ -35,6 +35,7 @@ caller can still use ``search_by_text`` and ``get_all``.
 from __future__ import annotations
 
 import json
+import logging
 import math
 import sqlite3
 import struct
@@ -43,6 +44,8 @@ from contextlib import contextmanager
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from .exceptions import StorageError
+
+_log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -423,6 +426,12 @@ class SQLiteStore:
         q = np.asarray(query_embedding, dtype=np.float32).reshape(-1)
         q_norm = float(np.linalg.norm(q))
         if q_norm == 0.0:
+            _log.warning(
+                "search_by_embedding_multi: query embedding has zero "
+                "norm; returning [] (provider=%r). This usually means "
+                "the upstream embedder returned a zero vector.",
+                provider,
+            )
             return []
         q_unit = q / q_norm
 
@@ -758,11 +767,17 @@ class SQLiteStore:
                     "SELECT memory_id, modality, embedding, embedding_dim, metadata,"
                     "       modality_text, timestamp, tier, stability, recall_count,"
                     "       provider, model "
-                    "FROM memories WHERE modality_text LIKE ? LIMIT ?"
+                    "FROM memories WHERE modality_text LIKE ?"
                 )
-                rows = self._conn.execute(
-                    fallback, (f"%{query_text}%", int(k))
-                ).fetchall()
+                fb_params: List[Any] = [f"%{query_text}%"]
+                if modality is not None:
+                    # Mirror the primary query's modality filter so the
+                    # fallback doesn't silently leak cross-modality hits.
+                    fallback += " AND modality = ?"
+                    fb_params.append(modality)
+                fallback += " LIMIT ?"
+                fb_params.append(int(k))
+                rows = self._conn.execute(fallback, fb_params).fetchall()
             except sqlite3.Error as e2:
                 raise StorageError(
                     f"search_by_text failed: {e2}", original=e2
@@ -797,12 +812,29 @@ class SQLiteStore:
             raise StorageError(f"drop_all failed: {e}", original=e) from e
 
     def vacuum(self) -> None:
-        """Rebuild the DB file to reclaim disk space after bulk deletes."""
-        try:
-            with self._lock:
-                self._conn.execute("VACUUM")
-        except sqlite3.Error as e:
-            raise StorageError(f"vacuum failed: {e}", original=e) from e
+        """Rebuild the DB file to reclaim disk space after bulk deletes.
+
+        ``VACUUM`` cannot run inside a transaction (SQLite raises
+        ``cannot VACUUM from within a transaction``). We therefore open
+        a *separate* connection in autocommit mode
+        (``isolation_level=None``) and run ``VACUUM`` there. The main
+        connection's ``self._lock`` is still held so no other thread
+        can start a write transaction on it while VACUUM holds the
+        database file lock.
+
+        Note: for ``":memory:"`` databases each connection is a distinct
+        database, so VACUUM there is a no-op on an empty temp DB —
+        harmless and never raises.
+        """
+        with self._lock:
+            try:
+                conn = sqlite3.connect(self.db_path, isolation_level=None)
+                try:
+                    conn.execute("VACUUM")
+                finally:
+                    conn.close()
+            except sqlite3.Error as e:
+                raise StorageError(f"vacuum failed: {e}", original=e) from e
 
 
 # ---------------------------------------------------------------------------

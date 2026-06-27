@@ -7,6 +7,7 @@ import os
 import sqlite3
 import struct
 import stat
+import threading
 import numpy as np
 import logging
 import time
@@ -85,10 +86,11 @@ class VecMemory:
         where ``recall_count``/``label``/``priority`` live (column vs metadata
         JSON) — callers must handle both.
         """
-        conn = self._get_conn()
-        cursor = conn.execute("PRAGMA table_info(memories)")
-        columns = {col[1] for col in cursor.fetchall()}
-        return "new" if "content" in columns else "legacy"
+        with self._db_lock:
+            conn = self._get_conn()
+            cursor = conn.execute("PRAGMA table_info(memories)")
+            columns = {col[1] for col in cursor.fetchall()}
+            return "new" if "content" in columns else "legacy"
 
     def _field_sql(self, field: str, kind: str) -> str:
         """Return a SQL expression that reads ``field`` regardless of schema.
@@ -130,6 +132,8 @@ class VecMemory:
         self.db_path = db_path
         self.embedding_dim = embedding_dim
         self._conn = None
+        # H1: serialize concurrent DB ops; RLock allows re-entry from nested helpers.
+        self._db_lock = threading.RLock()
         self._ensure_db()
     
     def _get_conn(self) -> sqlite3.Connection:
@@ -151,341 +155,352 @@ class VecMemory:
     
     def _execute_with_retry(self, sql, params=None, retries=3):
         """Execute SQL with retry on database locked."""
-        conn = self._get_conn()
-        for attempt in range(retries):
-            try:
-                if params:
-                    return conn.execute(sql, params)
-                else:
-                    return conn.execute(sql)
-            except sqlite3.OperationalError as e:
-                if "locked" in str(e) and attempt < retries - 1:
-                    import time
-                    time.sleep(0.1 * (attempt + 1))
-                    continue
-                raise
-    
+        with self._db_lock:
+            conn = self._get_conn()
+            for attempt in range(retries):
+                try:
+                    if params:
+                        return conn.execute(sql, params)
+                    else:
+                        return conn.execute(sql)
+                except sqlite3.OperationalError as e:
+                    if "locked" in str(e) and attempt < retries - 1:
+                        time.sleep(0.1 * (attempt + 1))
+                        continue
+                    raise
+
     def _commit_with_retry(self, retries=3):
         """Commit with retry on database locked."""
-        conn = self._get_conn()
-        for attempt in range(retries):
-            try:
-                conn.commit()
-                return
-            except sqlite3.OperationalError as e:
-                if "locked" in str(e) and attempt < retries - 1:
-                    import time
-                    time.sleep(0.1 * (attempt + 1))
-                    continue
-                raise
+        with self._db_lock:
+            conn = self._get_conn()
+            for attempt in range(retries):
+                try:
+                    conn.commit()
+                    return
+                except sqlite3.OperationalError as e:
+                    if "locked" in str(e) and attempt < retries - 1:
+                        time.sleep(0.1 * (attempt + 1))
+                        continue
+                    raise
     
     def _ensure_db(self):
         """Create tables if they don't exist."""
-        conn = self._get_conn()
+        with self._db_lock:
+            conn = self._get_conn()
 
-        # Check if memories table exists and get its schema
-        cursor = conn.execute("PRAGMA table_info(memories)")
-        columns = {col[1]: col[2] for col in cursor.fetchall()}
+            # Check if memories table exists and get its schema
+            cursor = conn.execute("PRAGMA table_info(memories)")
+            columns = {col[1]: col[2] for col in cursor.fetchall()}
 
-        if not columns:
-            # Create new table with our schema (includes last_recalled_at from the start)
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS memories (
-                    memory_id TEXT PRIMARY KEY,
-                    content TEXT,
-                    agent TEXT,
-                    block_type TEXT,
-                    label TEXT,
-                    priority INTEGER DEFAULT 5,
-                    tier TEXT DEFAULT 'episodic',
-                    project TEXT,
-                    created_at TEXT,
-                    last_recalled_at REAL DEFAULT 0,
-                    metadata JSON
-                )
-            """)
-            log.info("Created new memories table")
-        else:
-            # Use existing schema - we'll adapt our queries.
-            # Idempotent migration: add last_recalled_at column if missing (v8.3+).
-            if "last_recalled_at" not in columns:
+            if not columns:
+                # Create new table with our schema (includes last_recalled_at from the start)
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS memories (
+                        memory_id TEXT PRIMARY KEY,
+                        content TEXT,
+                        agent TEXT,
+                        block_type TEXT,
+                        label TEXT,
+                        priority INTEGER DEFAULT 5,
+                        tier TEXT DEFAULT 'episodic',
+                        project TEXT,
+                        created_at TEXT,
+                        last_recalled_at REAL DEFAULT 0,
+                        metadata JSON
+                    )
+                """)
+                log.info("Created new memories table")
+            else:
+                # Use existing schema - we'll adapt our queries.
+                # Idempotent migration: add last_recalled_at column if missing (v8.3+).
+                if "last_recalled_at" not in columns:
+                    try:
+                        conn.execute("ALTER TABLE memories ADD COLUMN last_recalled_at REAL DEFAULT 0")
+                        log.info("Migrated memories table: added last_recalled_at column")
+                    except sqlite3.OperationalError as exc:
+                        # Column already exists (race / re-run) — safe to ignore.
+                        if "duplicate column name" not in str(exc):
+                            raise
+                log.info(f"Using existing memories table with columns: {list(columns.keys())}")
+
+            # Vec table for vector search (if sqlite-vec available)
+            if HAS_VEC:
+                # Auto-detect dimension from existing vec_memories table
+                import re
                 try:
-                    conn.execute("ALTER TABLE memories ADD COLUMN last_recalled_at REAL DEFAULT 0")
-                    log.info("Migrated memories table: added last_recalled_at column")
-                except sqlite3.OperationalError as exc:
-                    # Column already exists (race / re-run) — safe to ignore.
-                    if "duplicate column name" not in str(exc):
-                        raise
-            log.info(f"Using existing memories table with columns: {list(columns.keys())}")
-        
-        # Vec table for vector search (if sqlite-vec available)
-        if HAS_VEC:
-            # Auto-detect dimension from existing vec_memories table
-            import re
-            try:
-                cursor = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='vec_memories'")
-                row = cursor.fetchone()
-                if row:
-                    m = re.search(r'FLOAT\[(\d+)\]', row[0])
-                    if m:
-                        existing_dim = int(m.group(1))
-                        if existing_dim != self.embedding_dim:
-                            log.info(f"Auto-detecting dimension: DB has {existing_dim}, requested {self.embedding_dim}. Using DB dimension.")
-                            self.embedding_dim = existing_dim
-            except Exception:
-                pass
+                    cursor = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='vec_memories'")
+                    row = cursor.fetchone()
+                    if row:
+                        m = re.search(r'FLOAT\[(\d+)\]', row[0])
+                        if m:
+                            existing_dim = int(m.group(1))
+                            if existing_dim != self.embedding_dim:
+                                log.warning(f"Auto-detecting dimension: DB has {existing_dim}, requested {self.embedding_dim}. Using DB dimension.")
+                                self.embedding_dim = existing_dim
+                except (re.error, sqlite3.OperationalError):
+                    pass
 
-            conn.execute(f"""
-                CREATE VIRTUAL TABLE IF NOT EXISTS vec_memories USING vec0(
-                    memory_id TEXT PRIMARY KEY,
-                    embedding FLOAT[{self.embedding_dim}] distance_metric=cosine
-                )
-            """)
-            log.info(f"vec0 table ready: dim={self.embedding_dim}")
-        else:
-            # Brute-force fallback table
+                conn.execute(f"""
+                    CREATE VIRTUAL TABLE IF NOT EXISTS vec_memories USING vec0(
+                        memory_id TEXT PRIMARY KEY,
+                        embedding FLOAT[{self.embedding_dim}] distance_metric=cosine
+                    )
+                """)
+                log.info(f"vec0 table ready: dim={self.embedding_dim}")
+            else:
+                # Brute-force fallback table
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS embeddings_brute (
+                        memory_id TEXT PRIMARY KEY,
+                        embedding BLOB
+                    )
+                """)
+
+            # Link graph for spreading activation (Phase 3 of MATHIR Brain).
+            # Built via cosine > threshold, then traversed BFS-style for recall.
             conn.execute("""
-                CREATE TABLE IF NOT EXISTS embeddings_brute (
-                    memory_id TEXT PRIMARY KEY,
-                    embedding BLOB
+                CREATE TABLE IF NOT EXISTS memory_links (
+                    source_id TEXT NOT NULL,
+                    target_id TEXT NOT NULL,
+                    weight REAL DEFAULT 1.0,
+                    created_at REAL DEFAULT (julianday('now')),
+                    PRIMARY KEY (source_id, target_id)
                 )
             """)
+            # Idempotent indexes — speed up BFS in both directions.
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_links_source ON memory_links(source_id)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_links_target ON memory_links(target_id)")
 
-        # Link graph for spreading activation (Phase 3 of MATHIR Brain).
-        # Built via cosine > threshold, then traversed BFS-style for recall.
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS memory_links (
-                source_id TEXT NOT NULL,
-                target_id TEXT NOT NULL,
-                weight REAL DEFAULT 1.0,
-                created_at REAL DEFAULT (julianday('now')),
-                PRIMARY KEY (source_id, target_id)
-            )
-        """)
-        # Idempotent indexes — speed up BFS in both directions.
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_links_source ON memory_links(source_id)")
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_links_target ON memory_links(target_id)")
-
-        conn.commit()
+            conn.commit()
     
     def store(self, memory_id: str, embedding: np.ndarray, metadata: Dict[str, Any]) -> str:
         """Store a memory with its embedding vector."""
-        conn = self._get_conn()
+        with self._db_lock:
+            conn = self._get_conn()
 
-        # Ensure embedding is the right shape and type
-        vec = np.asarray(embedding, dtype=np.float32).reshape(-1)
-        if len(vec) != self.embedding_dim:
-            raise ValueError(f"Embedding dim {len(vec)} != expected {self.embedding_dim}")
+            # Ensure embedding is the right shape and type
+            vec = np.asarray(embedding, dtype=np.float32).reshape(-1)
+            if len(vec) != self.embedding_dim:
+                raise ValueError(f"Embedding dim {len(vec)} != expected {self.embedding_dim}")
 
-        # Use the canonical schema detection (avoid duplicating PRAGMA table_info)
-        if self._schema_kind() == "new":
-            # New schema
-            conn.execute("""
-                INSERT OR REPLACE INTO memories 
-                (memory_id, content, agent, block_type, label, priority, tier, project, created_at, metadata)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                memory_id,
-                metadata.get("content", ""),
-                metadata.get("agent", ""),
-                metadata.get("block_type", ""),
-                metadata.get("label", ""),
-                metadata.get("priority", 5),
-                metadata.get("tier", "episodic"),
-                metadata.get("project", ""),
-                datetime.now().isoformat(),
-                json.dumps(metadata)
-            ))
-        else:
-            # Existing MATHIR schema — pull recall_count/stability from metadata
-            # if the caller supplied them; otherwise fall back to the legacy
-            # defaults (1.0 / 0) for backward compatibility.
-            try:
-                _stability = float(metadata.get("stability", 1.0) or 1.0)
-            except (TypeError, ValueError):
-                _stability = 1.0
-            try:
-                _recall = int(metadata.get("recall_count", 0) or 0)
-            except (TypeError, ValueError):
-                _recall = 0
-            conn.execute("""
-                INSERT OR REPLACE INTO memories 
-                (memory_id, modality, embedding, embedding_dim, metadata, modality_text, timestamp, tier, stability, recall_count, provider, model)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                memory_id,
-                "text",
-                vec.tobytes(),
-                self.embedding_dim,
-                json.dumps(metadata),
-                metadata.get("content", ""),
-                datetime.now().timestamp(),
-                metadata.get("tier", "episodic"),
-                _stability,
-                _recall,
-                "mathir-vec",
-                "vec"
-            ))
-        
-        # Store vector
-        if HAS_VEC:
-            # Delete existing if present (sqlite-vec doesn't support INSERT OR REPLACE)
-            conn.execute("DELETE FROM vec_memories WHERE memory_id = ?", [memory_id])
-            conn.execute(
-                "INSERT INTO vec_memories(memory_id, embedding) VALUES (?, ?)",
-                [memory_id, _serialize_embedding(vec)]
-            )
-        else:
-            # Brute-force: store as BLOB with length header
-            blob = struct.pack("<i", vec.size) + vec.tobytes()
-            conn.execute(
-                "INSERT OR REPLACE INTO embeddings_brute(memory_id, embedding) VALUES (?, ?)",
-                [memory_id, blob]
-            )
-        
-        conn.commit()
-        return memory_id
+            # Use the canonical schema detection (avoid duplicating PRAGMA table_info)
+            if self._schema_kind() == "new":
+                # New schema
+                conn.execute("""
+                    INSERT OR REPLACE INTO memories
+                    (memory_id, content, agent, block_type, label, priority, tier, project, created_at, metadata)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    memory_id,
+                    metadata.get("content", ""),
+                    metadata.get("agent", ""),
+                    metadata.get("block_type", ""),
+                    metadata.get("label", ""),
+                    metadata.get("priority", 5),
+                    metadata.get("tier", "episodic"),
+                    metadata.get("project", ""),
+                    datetime.now().isoformat(),
+                    json.dumps(metadata)
+                ))
+            else:
+                # Existing MATHIR schema — pull recall_count/stability from metadata
+                # if the caller supplied them; otherwise fall back to the legacy
+                # defaults (1.0 / 0) for backward compatibility.
+                try:
+                    _stability = float(metadata.get("stability", 1.0) or 1.0)
+                except (TypeError, ValueError):
+                    _stability = 1.0
+                try:
+                    _recall = int(metadata.get("recall_count", 0) or 0)
+                except (TypeError, ValueError):
+                    _recall = 0
+                _existing_ts = conn.execute(
+                    "SELECT timestamp FROM memories WHERE memory_id=?",
+                    (memory_id,),
+                ).fetchone()
+                _ts = _existing_ts[0] if _existing_ts else datetime.now().timestamp()
+                conn.execute("""
+                    INSERT OR REPLACE INTO memories
+                    (memory_id, modality, embedding, embedding_dim, metadata, modality_text, timestamp, tier, stability, recall_count, provider, model)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    memory_id,
+                    "text",
+                    vec.tobytes(),
+                    self.embedding_dim,
+                    json.dumps(metadata),
+                    metadata.get("content", ""),
+                    _ts,
+                    metadata.get("tier", "episodic"),
+                    _stability,
+                    _recall,
+                    "mathir-vec",
+                    "vec"
+                ))
+
+            # Store vector
+            if HAS_VEC:
+                # Delete existing if present (sqlite-vec doesn't support INSERT OR REPLACE)
+                conn.execute("DELETE FROM vec_memories WHERE memory_id = ?", [memory_id])
+                conn.execute(
+                    "INSERT INTO vec_memories(memory_id, embedding) VALUES (?, ?)",
+                    [memory_id, _serialize_embedding(vec)]
+                )
+            else:
+                # Brute-force: store as BLOB with length header
+                blob = struct.pack("<i", vec.size) + vec.tobytes()
+                conn.execute(
+                    "INSERT OR REPLACE INTO embeddings_brute(memory_id, embedding) VALUES (?, ?)",
+                    [memory_id, blob]
+                )
+
+            conn.commit()
+            return memory_id
     
-    def search(self, query_embedding: np.ndarray, k: int = 5, 
+    def search(self, query_embedding: np.ndarray, k: int = 5,
                agent_filter: str = None, block_type_filter: str = None) -> List[Dict[str, Any]]:
         """Search for similar memories using vector similarity."""
-        conn = self._get_conn()
-        
-        query_vec = np.asarray(query_embedding, dtype=np.float32).reshape(-1)
-        if len(query_vec) != self.embedding_dim:
-            raise ValueError(f"Query dim {len(query_vec)} != expected {self.embedding_dim}")
+        with self._db_lock:
+            conn = self._get_conn()
 
-        # Use the canonical schema detection (avoid duplicating PRAGMA table_info)
-        new_schema = self._schema_kind() == "new"
-        
-        # Build WHERE clause for metadata filters
-        where_clauses = []
-        params = []
-        if agent_filter:
-            if new_schema:
-                where_clauses.append("m.agent = ?")
+            query_vec = np.asarray(query_embedding, dtype=np.float32).reshape(-1)
+            if len(query_vec) != self.embedding_dim:
+                raise ValueError(f"Query dim {len(query_vec)} != expected {self.embedding_dim}")
+
+            # Use the canonical schema detection (avoid duplicating PRAGMA table_info)
+            new_schema = self._schema_kind() == "new"
+
+            # Build WHERE clause for metadata filters
+            where_clauses = []
+            params = []
+            if agent_filter:
+                if new_schema:
+                    where_clauses.append("m.agent = ?")
+                else:
+                    where_clauses.append("json_extract(m.metadata, '$.agent') = ?")
+                params.append(agent_filter)
+            if block_type_filter:
+                if new_schema:
+                    where_clauses.append("m.block_type = ?")
+                else:
+                    where_clauses.append("json_extract(m.metadata, '$.block_type') = ?")
+                params.append(block_type_filter)
+
+            where_sql = " AND ".join(where_clauses)
+            if where_sql:
+                where_sql = "AND " + where_sql
+
+            if HAS_VEC:
+                # Use sqlite-vec for fast search
+                query_blob = _serialize_embedding(query_vec)
+                if new_schema:
+                    sql = f"""
+                        SELECT m.memory_id, m.content, m.agent, m.block_type, m.label,
+                               m.priority, m.tier, m.project, m.created_at, v.distance
+                        FROM vec_memories v
+                        JOIN memories m ON v.memory_id = m.memory_id
+                        WHERE v.embedding MATCH ?
+                          AND k = ?
+                          {where_sql}
+                    """
+                else:
+                    # Existing MATHIR schema
+                    sql = f"""
+                        SELECT m.memory_id,
+                               json_extract(m.metadata, '$.content') as content,
+                               json_extract(m.metadata, '$.agent') as agent,
+                               json_extract(m.metadata, '$.block_type') as block_type,
+                               json_extract(m.metadata, '$.label') as label,
+                               json_extract(m.metadata, '$.priority') as priority,
+                               m.tier,
+                               json_extract(m.metadata, '$.project') as project,
+                               m.timestamp as created_at,
+                               v.distance
+                        FROM vec_memories v
+                        JOIN memories m ON v.memory_id = m.memory_id
+                        WHERE v.embedding MATCH ?
+                          AND k = ?
+                          {where_sql}
+                    """
+                # H2: over-fetch k*4 so post-filter still yields ~k results.
+                params = [query_blob, k * 4] + params
             else:
-                where_clauses.append("json_extract(m.metadata, '$.agent') = ?")
-            params.append(agent_filter)
-        if block_type_filter:
-            if new_schema:
-                where_clauses.append("m.block_type = ?")
-            else:
-                where_clauses.append("json_extract(m.metadata, '$.block_type') = ?")
-            params.append(block_type_filter)
-        
-        where_sql = " AND ".join(where_clauses)
-        if where_sql:
-            where_sql = "AND " + where_sql
-        
-        if HAS_VEC:
-            # Use sqlite-vec for fast search
-            query_blob = _serialize_embedding(query_vec)
-            if new_schema:
-                sql = f"""
-                    SELECT m.memory_id, m.content, m.agent, m.block_type, m.label, 
-                           m.priority, m.tier, m.project, m.created_at, v.distance
-                    FROM vec_memories v
-                    JOIN memories m ON v.memory_id = m.memory_id
-                    WHERE v.embedding MATCH ?
-                      AND k = ?
-                      {where_sql}
-                """
-            else:
-                # Existing MATHIR schema
-                sql = f"""
-                    SELECT m.memory_id, 
-                           json_extract(m.metadata, '$.content') as content,
-                           json_extract(m.metadata, '$.agent') as agent,
-                           json_extract(m.metadata, '$.block_type') as block_type,
-                           json_extract(m.metadata, '$.label') as label,
-                           json_extract(m.metadata, '$.priority') as priority,
-                           m.tier,
-                           json_extract(m.metadata, '$.project') as project,
-                           m.timestamp as created_at,
-                           v.distance
-                    FROM vec_memories v
-                    JOIN memories m ON v.memory_id = m.memory_id
-                    WHERE v.embedding MATCH ?
-                      AND k = ?
-                      {where_sql}
-                """
-            params = [query_blob, k * 2] + params  # Extra for filtering
-        else:
-            # Brute-force fallback
-            rows = conn.execute("SELECT memory_id, embedding FROM embeddings_brute").fetchall()
-            if not rows:
-                return []
-            
-            # Decode all embeddings
-            embs = []
-            ids = []
-            for row in rows:
-                blob = row["embedding"]
-                embs.append(_decode_brute_blob(blob))
-                ids.append(row["memory_id"])
-            
-            embs = np.stack(embs)
-            query_unit = query_vec / np.linalg.norm(query_vec)
-            norms = np.linalg.norm(embs, axis=1)
-            norms = np.where(norms == 0, 1.0, norms)
-            embs_unit = embs / norms[:, None]
-            sims = embs_unit @ query_unit
-            
-            # Top-k
-            if k >= len(sims):
-                top_idx = np.argsort(-sims)
-            else:
-                top_idx = np.argpartition(-sims, k)[:k]
-                top_idx = top_idx[np.argsort(-sims[top_idx])]
-            
-            # Build results with metadata
+                # Brute-force fallback
+                rows = conn.execute("SELECT memory_id, embedding FROM embeddings_brute").fetchall()
+                if not rows:
+                    return []
+
+                # Decode all embeddings
+                embs = []
+                ids = []
+                for row in rows:
+                    blob = row["embedding"]
+                    embs.append(_decode_brute_blob(blob))
+                    ids.append(row["memory_id"])
+
+                embs = np.stack(embs)
+                query_unit = query_vec / np.linalg.norm(query_vec)
+                norms = np.linalg.norm(embs, axis=1)
+                norms = np.where(norms == 0, 1.0, norms)
+                embs_unit = embs / norms[:, None]
+                sims = embs_unit @ query_unit
+
+                # H2: over-fetch when filtering so the post-filter pass still
+                # has enough candidates to return k matches.
+                fetch_k = k * 4 if (agent_filter or block_type_filter) else k
+                if fetch_k >= len(sims):
+                    top_idx = np.argsort(-sims)
+                else:
+                    top_idx = np.argpartition(-sims, fetch_k)[:fetch_k]
+                    top_idx = top_idx[np.argsort(-sims[top_idx])]
+
+                # Build results with metadata
+                results = []
+                for idx in top_idx:
+                    mid = ids[idx]
+                    meta = conn.execute(
+                        "SELECT * FROM memories WHERE memory_id = ?", [mid]
+                    ).fetchone()
+                    if meta:
+                        if agent_filter and meta["agent"] != agent_filter:
+                            continue
+                        if block_type_filter and meta["block_type"] != block_type_filter:
+                            continue
+                        results.append({
+                            "memory_id": mid,
+                            "content": meta["content"],
+                            "agent": meta["agent"],
+                            "block_type": meta["block_type"],
+                            "label": meta["label"],
+                            "priority": meta["priority"],
+                            "score": float(sims[idx]),
+                            "created_at": meta["created_at"],
+                            "project": meta["project"],
+                        })
+                        if len(results) >= k:
+                            break
+                return results
+
+            # Execute sqlite-vec query
+            rows = conn.execute(sql, params).fetchall()
+
             results = []
-            for idx in top_idx:
-                mid = ids[idx]
-                meta = conn.execute(
-                    "SELECT * FROM memories WHERE memory_id = ?", [mid]
-                ).fetchone()
-                if meta:
-                    if agent_filter and meta["agent"] != agent_filter:
-                        continue
-                    if block_type_filter and meta["block_type"] != block_type_filter:
-                        continue
-                    results.append({
-                        "memory_id": mid,
-                        "content": meta["content"],
-                        "agent": meta["agent"],
-                        "block_type": meta["block_type"],
-                        "label": meta["label"],
-                        "priority": meta["priority"],
-                        "score": float(sims[idx]),
-                        "created_at": meta["created_at"],
-                        "project": meta["project"],
-                    })
-                    if len(results) >= k:
-                        break
+            for row in rows:
+                results.append({
+                    "memory_id": row["memory_id"],
+                    "content": row["content"],
+                    "agent": row["agent"],
+                    "block_type": row["block_type"],
+                    "label": row["label"],
+                    "priority": row["priority"],
+                    "score": 1.0 - row["distance"],  # Convert distance to similarity
+                    "created_at": row["created_at"],
+                    "project": row["project"],
+                })
+                if len(results) >= k:
+                    break
+
             return results
-        
-        # Execute sqlite-vec query
-        rows = conn.execute(sql, params).fetchall()
-        
-        results = []
-        for row in rows:
-            results.append({
-                "memory_id": row["memory_id"],
-                "content": row["content"],
-                "agent": row["agent"],
-                "block_type": row["block_type"],
-                "label": row["label"],
-                "priority": row["priority"],
-                "score": 1.0 - row["distance"],  # Convert distance to similarity
-                "created_at": row["created_at"],
-                "project": row["project"],
-            })
-            if len(results) >= k:
-                break
-        
-        return results
     
     # ────────────────────────────────────────────────────────────────────
     # LINK GRAPH — Spreading Activation (Phase 3 of MATHIR Brain)
@@ -511,25 +526,26 @@ class VecMemory:
         if source_id == target_id:
             raise ValueError("source_id and target_id must differ (no self-links)")
 
-        # Detect insert vs update so we can report `created` accurately.
-        existing = self._execute_with_retry(
-            "SELECT 1 FROM memory_links WHERE source_id = ? AND target_id = ?",
-            [source_id, target_id],
-        ).fetchone()
-        created = existing is None
+        with self._db_lock:
+            # Detect insert vs update so we can report `created` accurately.
+            existing = self._execute_with_retry(
+                "SELECT 1 FROM memory_links WHERE source_id = ? AND target_id = ?",
+                [source_id, target_id],
+            ).fetchone()
+            created = existing is None
 
-        self._execute_with_retry(
-            "INSERT OR REPLACE INTO memory_links(source_id, target_id, weight, created_at) VALUES (?, ?, ?, ?)",
-            [source_id, target_id, float(weight), time.time()],
-        )
-        self._commit_with_retry()
+            self._execute_with_retry(
+                "INSERT OR REPLACE INTO memory_links(source_id, target_id, weight, created_at) VALUES (?, ?, ?, ?)",
+                [source_id, target_id, float(weight), time.time()],
+            )
+            self._commit_with_retry()
 
-        return {
-            "source_id": source_id,
-            "target_id": target_id,
-            "weight": float(weight),
-            "created": created,
-        }
+            return {
+                "source_id": source_id,
+                "target_id": target_id,
+                "weight": float(weight),
+                "created": created,
+            }
 
     def get_links(
         self,
@@ -553,65 +569,84 @@ class VecMemory:
         if not (0.0 < decay <= 1.0):
             raise ValueError("decay must be in (0, 1]")
 
-        conn = self._get_conn()
-        visited: Dict[str, Dict[str, Any]] = {}
+        with self._db_lock:
+            conn = self._get_conn()
+            visited: Dict[str, Dict[str, Any]] = {}
 
-        # Seed: outgoing AND incoming 1-hop neighbors. Treat the seed itself
-        # as distance 0 (not returned), so we never echo back the query node.
-        seed_rows = conn.execute(
-            """
-            SELECT target_id AS mid, weight FROM memory_links WHERE source_id = ?
-            UNION ALL
-            SELECT source_id AS mid, weight FROM memory_links WHERE target_id = ?
-            """,
-            [memory_id, memory_id],
-        ).fetchall()
-
-        for row in seed_rows:
-            mid = row["mid"]
-            if mid == memory_id:
-                continue
-            if mid not in visited:
-                visited[mid] = {
-                    "memory_id": mid,
-                    "distance": 1,
-                    "cumulative_weight": float(row["weight"]) * decay,
-                }
-
-        # BFS for deeper hops. frontier tracks nodes discovered at the
-        # previous distance so we don't expand the whole graph in one query.
-        frontier = list(visited.keys())
-        for d in range(2, depth + 1):
-            if not frontier:
-                break
-            placeholders = ",".join("?" for _ in frontier)
-            next_rows = conn.execute(
-                f"""
-                SELECT source_id AS a, target_id AS b, weight FROM memory_links
-                WHERE source_id IN ({placeholders})
-                   OR target_id IN ({placeholders})
+            # Seed: outgoing AND incoming 1-hop neighbors. Treat the seed itself
+            # as distance 0 (not returned), so we never echo back the query node.
+            # cum_weight at distance 1 = edge_weight * decay (implicit parent weight = 1.0).
+            seed_rows = conn.execute(
+                """
+                SELECT target_id AS mid, weight FROM memory_links WHERE source_id = ?
+                UNION ALL
+                SELECT source_id AS mid, weight FROM memory_links WHERE target_id = ?
                 """,
-                frontier + frontier,
+                [memory_id, memory_id],
             ).fetchall()
-            next_frontier: List[str] = []
-            decay_factor = decay ** d
-            for row in next_rows:
-                a, b, w = row["a"], row["b"], float(row["weight"])
-                candidate = b if a in {*frontier, memory_id} else a
-                if candidate == memory_id or candidate in visited:
-                    continue
-                visited[candidate] = {
-                    "memory_id": candidate,
-                    "distance": d,
-                    "cumulative_weight": w * decay_factor,
-                }
-                next_frontier.append(candidate)
-            frontier = next_frontier
 
-        # Stable ordering: highest weight first, then shortest path, then id.
-        results = list(visited.values())
-        results.sort(key=lambda r: (-r["cumulative_weight"], r["distance"], r["memory_id"]))
-        return results
+            for row in seed_rows:
+                mid = row["mid"]
+                if mid == memory_id:
+                    continue
+                if mid not in visited:
+                    visited[mid] = {
+                        "memory_id": mid,
+                        "distance": 1,
+                        "cumulative_weight": float(row["weight"]) * decay,
+                    }
+
+            # BFS for deeper hops. frontier tracks nodes discovered at the
+            # previous distance so we don't expand the whole graph in one query.
+            # H4: carry the running product from the parent rather than only
+            # the final edge weight — cum_weight[neighbor] =
+            # cum_weight[parent] * edge_weight * decay.
+            frontier = list(visited.keys())
+            for d in range(2, depth + 1):
+                if not frontier:
+                    break
+                frontier_set = set(frontier)
+                placeholders = ",".join("?" for _ in frontier)
+                next_rows = conn.execute(
+                    f"""
+                    SELECT source_id AS a, target_id AS b, weight FROM memory_links
+                    WHERE source_id IN ({placeholders})
+                       OR target_id IN ({placeholders})
+                    """,
+                    frontier + frontier,
+                ).fetchall()
+                next_frontier: List[str] = []
+                for row in next_rows:
+                    a, b, w = row["a"], row["b"], float(row["weight"])
+                    # Identify which endpoint is the parent (in frontier) vs.
+                    # the neighbor to discover.
+                    if a in frontier_set:
+                        parent, neighbor = a, b
+                    elif b in frontier_set:
+                        parent, neighbor = b, a
+                    else:
+                        continue
+                    if neighbor == memory_id or neighbor in visited:
+                        continue
+                    # Parent is always in visited (frontier nodes are). The seed
+                    # itself acts as cum_weight=1.0 for distance-1 hops.
+                    parent_cum = (
+                        visited[parent]["cumulative_weight"]
+                        if parent in visited
+                        else 1.0
+                    )
+                    visited[neighbor] = {
+                        "memory_id": neighbor,
+                        "distance": d,
+                        "cumulative_weight": parent_cum * w * decay,
+                    }
+                    next_frontier.append(neighbor)
+                frontier = next_frontier
+
+            # Stable ordering: highest weight first, then shortest path, then id.
+            results = list(visited.values())
+            results.sort(key=lambda r: (-r["cumulative_weight"], r["distance"], r["memory_id"]))
+            return results
 
     def build_links_all(self, threshold: float = 0.7, limit: int = 1000) -> Dict[str, int]:
         """Build the link graph for all stored memories.
@@ -633,99 +668,100 @@ class VecMemory:
         if limit < 1:
             raise ValueError("limit must be >= 1")
 
-        conn = self._get_conn()
-
-        # Pull up to `limit` memories with their embedding vectors.
-        if HAS_VEC:
-            rows = conn.execute(
-                """
-                SELECT m.memory_id, v.embedding
-                FROM vec_memories v
-                JOIN memories m ON v.memory_id = m.memory_id
-                LIMIT ?
-                """,
-                [limit],
-            ).fetchall()
-        else:
-            rows = conn.execute(
-                """
-                SELECT m.memory_id, e.embedding
-                FROM embeddings_brute e
-                JOIN memories m ON e.memory_id = m.memory_id
-                LIMIT ?
-                """,
-                [limit],
-            ).fetchall()
-
-        if not rows:
-            return {"links_created": 0, "memories_scanned": 0}
-
-        ids: List[str] = []
-        vecs: List[np.ndarray] = []
-        for row in rows:
-            mid = row["memory_id"]
-            blob = row["embedding"]
-            if HAS_VEC:
-                vec = _deserialize_embedding(blob)
-            else:
-                vec = _decode_brute_blob(blob)
-            ids.append(mid)
-            vecs.append(vec)
-
-        if not vecs:
-            return {"links_created": 0, "memories_scanned": 0}
-
-        # Matrix cosine: M[i, j] = cosine(vecs[i], vecs[j])
-        # Normalise rows, then dot product = cosine similarity.
-        stack = np.stack(vecs).astype(np.float32)
-        norms = np.linalg.norm(stack, axis=1)
-        norms = np.where(norms == 0, 1.0, norms)
-        unit = stack / norms[:, None]
-        sim = unit @ unit.T  # shape (N, N)
-
-        # Build directed edges for every pair above threshold.
-        # Symmetric write avoids a second pass and keeps the graph consistent.
-        iu, ju = np.where(sim >= threshold)
-        # Drop self-loops.
-        mask = iu != ju
-        iu, ju = iu[mask], ju[mask]
-
-        edges = [(ids[i], ids[j], float(sim[i, j])) for i, j in zip(iu.tolist(), ju.tolist())]
-
-        # Dedup just in case (cosine matrix is symmetric so each pair appears
-        # twice with (i,j) and (j,i)). We write both directions deliberately,
-        # so leave them — but Dedupe within a batch to avoid hitting the same
-        # PK twice when N is small and we re-build.
-        seen_pairs: set = set()
-        writes: List[tuple] = []
-        for src, tgt, w in edges:
-            key = (min(src, tgt), max(src, tgt))
-            if key in seen_pairs:
-                continue
-            seen_pairs.add(key)
-            writes.append((src, tgt, w))
-            writes.append((tgt, src, w))
-
-        if writes:
+        with self._db_lock:
             conn = self._get_conn()
-            for attempt in range(3):
-                try:
-                    conn.executemany(
-                        "INSERT OR REPLACE INTO memory_links(source_id, target_id, weight, created_at) VALUES (?, ?, ?, ?)",
-                        [(s, t, w, time.time()) for s, t, w in writes],
-                    )
-                    conn.commit()
-                    break
-                except sqlite3.OperationalError as e:
-                    if "locked" in str(e) and attempt < 2:
-                        time.sleep(0.1 * (attempt + 1))
-                        continue
-                    raise
 
-        return {
-            "links_created": len(writes),
-            "memories_scanned": len(ids),
-        }
+            # Pull up to `limit` memories with their embedding vectors.
+            if HAS_VEC:
+                rows = conn.execute(
+                    """
+                    SELECT m.memory_id, v.embedding
+                    FROM vec_memories v
+                    JOIN memories m ON v.memory_id = m.memory_id
+                    LIMIT ?
+                    """,
+                    [limit],
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    """
+                    SELECT m.memory_id, e.embedding
+                    FROM embeddings_brute e
+                    JOIN memories m ON e.memory_id = m.memory_id
+                    LIMIT ?
+                    """,
+                    [limit],
+                ).fetchall()
+
+            if not rows:
+                return {"links_created": 0, "memories_scanned": 0}
+
+            ids: List[str] = []
+            vecs: List[np.ndarray] = []
+            for row in rows:
+                mid = row["memory_id"]
+                blob = row["embedding"]
+                if HAS_VEC:
+                    vec = _deserialize_embedding(blob)
+                else:
+                    vec = _decode_brute_blob(blob)
+                ids.append(mid)
+                vecs.append(vec)
+
+            if not vecs:
+                return {"links_created": 0, "memories_scanned": 0}
+
+            # Matrix cosine: M[i, j] = cosine(vecs[i], vecs[j])
+            # Normalise rows, then dot product = cosine similarity.
+            stack = np.stack(vecs).astype(np.float32)
+            norms = np.linalg.norm(stack, axis=1)
+            norms = np.where(norms == 0, 1.0, norms)
+            unit = stack / norms[:, None]
+            sim = unit @ unit.T  # shape (N, N)
+
+            # Build directed edges for every pair above threshold.
+            # Symmetric write avoids a second pass and keeps the graph consistent.
+            iu, ju = np.where(sim >= threshold)
+            # Drop self-loops.
+            mask = iu != ju
+            iu, ju = iu[mask], ju[mask]
+
+            edges = [(ids[i], ids[j], float(sim[i, j])) for i, j in zip(iu.tolist(), ju.tolist())]
+
+            # Dedup just in case (cosine matrix is symmetric so each pair appears
+            # twice with (i,j) and (j,i)). We write both directions deliberately,
+            # so leave them — but Dedupe within a batch to avoid hitting the same
+            # PK twice when N is small and we re-build.
+            seen_pairs: set = set()
+            writes: List[tuple] = []
+            for src, tgt, w in edges:
+                key = (min(src, tgt), max(src, tgt))
+                if key in seen_pairs:
+                    continue
+                seen_pairs.add(key)
+                writes.append((src, tgt, w))
+                writes.append((tgt, src, w))
+
+            if writes:
+                conn = self._get_conn()
+                for attempt in range(3):
+                    try:
+                        conn.executemany(
+                            "INSERT OR REPLACE INTO memory_links(source_id, target_id, weight, created_at) VALUES (?, ?, ?, ?)",
+                            [(s, t, w, time.time()) for s, t, w in writes],
+                        )
+                        conn.commit()
+                        break
+                    except sqlite3.OperationalError as e:
+                        if "locked" in str(e) and attempt < 2:
+                            time.sleep(0.1 * (attempt + 1))
+                            continue
+                        raise
+
+            return {
+                "links_created": len(writes),
+                "memories_scanned": len(ids),
+            }
 
     def find_related(
         self,
@@ -749,152 +785,156 @@ class VecMemory:
         if max_hops < 0:
             raise ValueError("max_hops must be >= 0")
 
-        conn = self._get_conn()
+        with self._db_lock:
+            conn = self._get_conn()
 
-        # Pull the seed embedding. If the memory has no embedding, we can
-        # still traverse the graph — vector hits will just be empty.
-        seed_vec: Optional[np.ndarray] = None
-        if HAS_VEC:
-            row = conn.execute(
-                "SELECT embedding FROM vec_memories WHERE memory_id = ?",
-                [memory_id],
-            ).fetchone()
-            if row:
-                seed_vec = _deserialize_embedding(row["embedding"])
-        else:
-            row = conn.execute(
-                "SELECT embedding FROM embeddings_brute WHERE memory_id = ?",
-                [memory_id],
-            ).fetchone()
-            if row:
-                seed_vec = _decode_brute_blob(row["embedding"])
-
-        # 1. Vector channel — k=10 neighbours of the seed embedding.
-        vector_hits: Dict[str, Dict[str, Any]] = {}
-        if seed_vec is not None:
-            try:
-                vec_results = self.search(seed_vec, k=10)
-            except Exception:
-                vec_results = []
-            for r in vec_results:
-                mid = r["memory_id"]
-                if mid == memory_id:
-                    continue
-                vector_hits[mid] = {
-                    "memory_id": mid,
-                    "score": float(r.get("score", 0.0)),
-                    "distance": 0,
-                    "source": "vector",
-                }
-
-        # 2. Graph channel — BFS up to max_hops with decay=0.5 (spec default).
-        link_results: List[Dict[str, Any]] = []
-        if max_hops >= 1:
-            link_results = self.get_links(memory_id, depth=max_hops, decay=0.5)
-
-        # 3. Merge: graph weights are already decayed per-hop; treat the
-        # cumulative weight as the score for the graph channel.
-        merged: Dict[str, Dict[str, Any]] = dict(vector_hits)
-        for r in link_results:
-            mid = r["memory_id"]
-            score = r["cumulative_weight"]
-            if score < min_weight:
-                continue
-            if mid in merged:
-                merged[mid]["source"] = "both"
-                # Prefer the higher score; keep the smaller distance.
-                if score > merged[mid]["score"]:
-                    merged[mid]["score"] = score
-                merged[mid]["distance"] = min(merged[mid]["distance"], r["distance"])
+            # Pull the seed embedding. If the memory has no embedding, we can
+            # still traverse the graph — vector hits will just be empty.
+            seed_vec: Optional[np.ndarray] = None
+            if HAS_VEC:
+                row = conn.execute(
+                    "SELECT embedding FROM vec_memories WHERE memory_id = ?",
+                    [memory_id],
+                ).fetchone()
+                if row:
+                    seed_vec = _deserialize_embedding(row["embedding"])
             else:
-                merged[mid] = {
-                    "memory_id": mid,
-                    "score": score,
-                    "distance": r["distance"],
-                    "source": "link",
-                }
+                row = conn.execute(
+                    "SELECT embedding FROM embeddings_brute WHERE memory_id = ?",
+                    [memory_id],
+                ).fetchone()
+                if row:
+                    seed_vec = _decode_brute_blob(row["embedding"])
 
-        results = list(merged.values())
-        results.sort(key=lambda r: (-r["score"], r["distance"], r["memory_id"]))
-        return results
+            # 1. Vector channel — k=10 neighbours of the seed embedding.
+            vector_hits: Dict[str, Dict[str, Any]] = {}
+            if seed_vec is not None:
+                try:
+                    vec_results = self.search(seed_vec, k=10)
+                except Exception:
+                    vec_results = []
+                for r in vec_results:
+                    mid = r["memory_id"]
+                    if mid == memory_id:
+                        continue
+                    vector_hits[mid] = {
+                        "memory_id": mid,
+                        "score": float(r.get("score", 0.0)),
+                        "distance": 0,
+                        "source": "vector",
+                    }
+
+            # 2. Graph channel — BFS up to max_hops with decay=0.5 (spec default).
+            link_results: List[Dict[str, Any]] = []
+            if max_hops >= 1:
+                link_results = self.get_links(memory_id, depth=max_hops, decay=0.5)
+
+            # 3. Merge: graph weights are already decayed per-hop; treat the
+            # cumulative weight as the score for the graph channel.
+            merged: Dict[str, Dict[str, Any]] = dict(vector_hits)
+            for r in link_results:
+                mid = r["memory_id"]
+                score = r["cumulative_weight"]
+                if score < min_weight:
+                    continue
+                if mid in merged:
+                    merged[mid]["source"] = "both"
+                    # Prefer the higher score; keep the smaller distance.
+                    if score > merged[mid]["score"]:
+                        merged[mid]["score"] = score
+                    merged[mid]["distance"] = min(merged[mid]["distance"], r["distance"])
+                else:
+                    merged[mid] = {
+                        "memory_id": mid,
+                        "score": score,
+                        "distance": r["distance"],
+                        "source": "link",
+                    }
+
+            results = list(merged.values())
+            results.sort(key=lambda r: (-r["score"], r["distance"], r["memory_id"]))
+            return results
 
     def count(self) -> int:
         """Get total number of memories."""
-        conn = self._get_conn()
-        row = conn.execute("SELECT COUNT(*) as cnt FROM memories").fetchone()
-        return row["cnt"]
-    
+        with self._db_lock:
+            conn = self._get_conn()
+            row = conn.execute("SELECT COUNT(*) as cnt FROM memories").fetchone()
+            return row["cnt"]
+
     def delete(self, memory_id: str) -> bool:
         """Delete a memory by ID."""
-        conn = self._get_conn()
-        conn.execute("DELETE FROM memories WHERE memory_id = ?", [memory_id])
-        if HAS_VEC:
-            conn.execute("DELETE FROM vec_memories WHERE memory_id = ?", [memory_id])
-        else:
-            conn.execute("DELETE FROM embeddings_brute WHERE memory_id = ?", [memory_id])
-        conn.commit()
-        return True
+        with self._db_lock:
+            conn = self._get_conn()
+            conn.execute("DELETE FROM memories WHERE memory_id = ?", [memory_id])
+            if HAS_VEC:
+                conn.execute("DELETE FROM vec_memories WHERE memory_id = ?", [memory_id])
+            else:
+                conn.execute("DELETE FROM embeddings_brute WHERE memory_id = ?", [memory_id])
+            conn.commit()
+            return True
     
     def stats(self) -> Dict[str, Any]:
         """Get memory statistics for this project."""
-        conn = self._get_conn()
-        
-        # Total memories
-        total_row = conn.execute("SELECT COUNT(*) as cnt FROM memories").fetchone()
-        total = total_row["cnt"] if total_row else 0
-        
-        # Count by block_type (extracted from JSON metadata)
-        by_block_type = {}
-        try:
-            rows = conn.execute(
-                "SELECT json_extract(metadata, '$.block_type') as bt, COUNT(*) as cnt "
-                "FROM memories GROUP BY bt"
-            ).fetchall()
-            for row in rows:
-                key = row["bt"] if row["bt"] else "(none)"
-                by_block_type[key] = row["cnt"]
-        except Exception:
-            pass
+        with self._db_lock:
+            conn = self._get_conn()
 
-        # Count by agent (extracted from JSON metadata)
-        by_agent = {}
-        try:
-            rows = conn.execute(
-                "SELECT json_extract(metadata, '$.agent') as ag, COUNT(*) as cnt "
-                "FROM memories GROUP BY ag ORDER BY cnt DESC"
-            ).fetchall()
-            for row in rows:
-                key = row["ag"] if row["ag"] else "(none)"
-                by_agent[key] = row["cnt"]
-        except Exception:
-            pass
+            # Total memories
+            total_row = conn.execute("SELECT COUNT(*) as cnt FROM memories").fetchone()
+            total = total_row["cnt"] if total_row else 0
 
-        # Count by project (extracted from JSON metadata)
-        by_project = {}
-        try:
-            rows = conn.execute(
-                "SELECT json_extract(metadata, '$.project') as pj, COUNT(*) as cnt "
-                "FROM memories GROUP BY pj ORDER BY cnt DESC"
-            ).fetchall()
-            for row in rows:
-                key = row["pj"] if row["pj"] else "(none)"
-                by_project[key] = row["cnt"]
-        except Exception:
-            pass
-        
-        # DB file size
-        db_size = self.db_path.stat().st_size if self.db_path.exists() else 0
-        
-        return {
-            "total": total,
-            "by_block_type": by_block_type,
-            "by_agent": by_agent,
-            "by_project": by_project,
-            "db_size_bytes": db_size,
-            "db_path": str(self.db_path),
-            "embedding_dim": self.embedding_dim,
-            "has_vec": HAS_VEC,
-        }
+            # Count by block_type (extracted from JSON metadata)
+            by_block_type = {}
+            try:
+                rows = conn.execute(
+                    "SELECT json_extract(metadata, '$.block_type') as bt, COUNT(*) as cnt "
+                    "FROM memories GROUP BY bt"
+                ).fetchall()
+                for row in rows:
+                    key = row["bt"] if row["bt"] else "(none)"
+                    by_block_type[key] = row["cnt"]
+            except (sqlite3.OperationalError, KeyError, ValueError):
+                pass
+
+            # Count by agent (extracted from JSON metadata)
+            by_agent = {}
+            try:
+                rows = conn.execute(
+                    "SELECT json_extract(metadata, '$.agent') as ag, COUNT(*) as cnt "
+                    "FROM memories GROUP BY ag ORDER BY cnt DESC"
+                ).fetchall()
+                for row in rows:
+                    key = row["ag"] if row["ag"] else "(none)"
+                    by_agent[key] = row["cnt"]
+            except (sqlite3.OperationalError, KeyError, ValueError):
+                pass
+
+            # Count by project (extracted from JSON metadata)
+            by_project = {}
+            try:
+                rows = conn.execute(
+                    "SELECT json_extract(metadata, '$.project') as pj, COUNT(*) as cnt "
+                    "FROM memories GROUP BY pj ORDER BY cnt DESC"
+                ).fetchall()
+                for row in rows:
+                    key = row["pj"] if row["pj"] else "(none)"
+                    by_project[key] = row["cnt"]
+            except (sqlite3.OperationalError, KeyError, ValueError):
+                pass
+
+            # DB file size
+            db_size = self.db_path.stat().st_size if self.db_path.exists() else 0
+
+            return {
+                "total": total,
+                "by_block_type": by_block_type,
+                "by_agent": by_agent,
+                "by_project": by_project,
+                "db_size_bytes": db_size,
+                "db_path": str(self.db_path),
+                "embedding_dim": self.embedding_dim,
+                "has_vec": HAS_VEC,
+            }
     
     def touch_recall(self, memory_id: str) -> Dict[str, Any]:
         """Increment recall_count, stamp last_recalled_at, AND boost stability.
@@ -914,75 +954,70 @@ class VecMemory:
         old_stability, new_stability, schema}``. If the memory doesn't exist,
         returns ``{memory_id, found: False}`` and does not raise.
         """
-        conn = self._get_conn()
-        kind = self._schema_kind()
-        now = datetime.now().timestamp()
+        with self._db_lock:
+            conn = self._get_conn()
+            kind = self._schema_kind()
+            now = datetime.now().timestamp()
 
-        # Existence check first — don't silently bump a phantom row.
-        row = conn.execute(
-            "SELECT memory_id FROM memories WHERE memory_id = ?", [memory_id]
-        ).fetchone()
-        if not row:
-            log.debug("touch_recall: memory_id %s not found", memory_id)
-            return {"memory_id": memory_id, "found": False}
-
-        old_stability: Optional[float] = None
-        new_stability: Optional[float] = None
-
-        if kind == "new":
+            # Existence check first — don't silently bump a phantom row.
             row = conn.execute(
-                "SELECT metadata FROM memories WHERE memory_id = ?", [memory_id]
+                "SELECT memory_id FROM memories WHERE memory_id = ?", [memory_id]
             ).fetchone()
-            meta: Dict[str, Any] = {}
-            if row and row["metadata"]:
-                try:
-                    parsed = json.loads(row["metadata"])
-                    if isinstance(parsed, dict):
-                        meta = parsed
-                except (json.JSONDecodeError, TypeError, ValueError):
-                    meta = {}
-            meta["recall_count"] = int(meta.get("recall_count", 0) or 0) + 1
-            meta["last_recalled_at"] = now
-            conn.execute(
-                "UPDATE memories SET metadata = ?, last_recalled_at = ? WHERE memory_id = ?",
-                [json.dumps(meta), now, memory_id],
-            )
-        else:
-            # Legacy schema: read stability first so we can return the
-            # before/after pair. Boost = stability + 0.1, capped at 1.0.
-            srow = conn.execute(
-                "SELECT stability FROM memories WHERE memory_id = ?", [memory_id]
+            if not row:
+                log.debug("touch_recall: memory_id %s not found", memory_id)
+                return {"memory_id": memory_id, "found": False}
+
+            old_stability: Optional[float] = None
+            new_stability: Optional[float] = None
+
+            if kind == "new":
+                # H21: atomic json_set avoids the read-modify-write race on the
+                # metadata JSON. The COALESCE handles rows where recall_count
+                # was never set. last_recalled_at is also stamped in the same
+                # UPDATE so the whole bump is one transaction.
+                conn.execute(
+                    "UPDATE memories SET "
+                    "metadata = json_set(metadata, '$.recall_count', "
+                    "COALESCE(json_extract(metadata, '$.recall_count'), 0) + 1), "
+                    "last_recalled_at = ? WHERE memory_id = ?",
+                    [now, memory_id],
+                )
+            else:
+                # Legacy schema: read stability first so we can return the
+                # before/after pair. Boost = stability + 0.1, capped at 1.0.
+                srow = conn.execute(
+                    "SELECT stability FROM memories WHERE memory_id = ?", [memory_id]
+                ).fetchone()
+                old_stability = (
+                    float(srow["stability"]) if (srow and srow["stability"] is not None) else 1.0
+                )
+                new_stability = min(1.0, old_stability + 0.1)
+
+                conn.execute(
+                    """
+                    UPDATE memories
+                    SET recall_count = COALESCE(recall_count, 0) + 1,
+                        last_recalled_at = ?,
+                        stability = ?
+                    WHERE memory_id = ?
+                    """,
+                    [now, new_stability, memory_id],
+                )
+
+            conn.commit()
+            new_count = conn.execute(
+                "SELECT " + self._field_sql("recall_count", kind) + " AS c FROM memories WHERE memory_id = ?",
+                [memory_id],
             ).fetchone()
-            old_stability = (
-                float(srow["stability"]) if (srow and srow["stability"] is not None) else 1.0
-            )
-            new_stability = min(1.0, old_stability + 0.1)
-
-            conn.execute(
-                """
-                UPDATE memories
-                SET recall_count = COALESCE(recall_count, 0) + 1,
-                    last_recalled_at = ?,
-                    stability = ?
-                WHERE memory_id = ?
-                """,
-                [now, new_stability, memory_id],
-            )
-
-        conn.commit()
-        new_count = conn.execute(
-            "SELECT " + self._field_sql("recall_count", kind) + " AS c FROM memories WHERE memory_id = ?",
-            [memory_id],
-        ).fetchone()
-        return {
-            "memory_id": memory_id,
-            "found": True,
-            "recall_count": int(new_count["c"]) if new_count else 0,
-            "last_recalled_at": now,
-            "schema": kind,
-            "old_stability": old_stability,
-            "new_stability": new_stability,
-        }
+            return {
+                "memory_id": memory_id,
+                "found": True,
+                "recall_count": int(new_count["c"]) if new_count else 0,
+                "last_recalled_at": now,
+                "schema": kind,
+                "old_stability": old_stability,
+                "new_stability": new_stability,
+            }
 
     # ────────────────────────────────────────────────────────────────────
     # DECAY / FORGETTING (Phase 4 of MATHIR Brain — Consolidation)
@@ -1015,56 +1050,57 @@ class VecMemory:
             {memory_id, found, schema, old_stability, new_stability, last_recalled_at, skipped?}
             If the memory doesn't exist, returns ``{memory_id, found: False}``.
         """
-        conn = self._get_conn()
-        kind = self._schema_kind()
+        with self._db_lock:
+            conn = self._get_conn()
+            kind = self._schema_kind()
 
-        # Existence check first — don't silently bump a phantom row.
-        row = conn.execute(
-            "SELECT memory_id FROM memories WHERE memory_id = ?", [memory_id]
-        ).fetchone()
-        if not row:
-            log.debug("boost_on_recall: memory_id %s not found", memory_id)
-            return {"memory_id": memory_id, "found": False, "schema": kind}
+            # Existence check first — don't silently bump a phantom row.
+            row = conn.execute(
+                "SELECT memory_id FROM memories WHERE memory_id = ?", [memory_id]
+            ).fetchone()
+            if not row:
+                log.debug("boost_on_recall: memory_id %s not found", memory_id)
+                return {"memory_id": memory_id, "found": False, "schema": kind}
 
-        if kind != "legacy":
-            log.debug("boost_on_recall: skipped (no stability column in new schema)")
+            if kind != "legacy":
+                log.debug("boost_on_recall: skipped (no stability column in new schema)")
+                return {
+                    "memory_id": memory_id,
+                    "found": True,
+                    "schema": kind,
+                    "skipped": True,
+                    "reason": "no_stability_column",
+                    "old_stability": None,
+                    "new_stability": None,
+                }
+
+            # Legacy: read current stability, compute new value, UPDATE.
+            srow = conn.execute(
+                "SELECT stability FROM memories WHERE memory_id = ?", [memory_id]
+            ).fetchone()
+            old_stability = (
+                float(srow["stability"]) if (srow and srow["stability"] is not None) else 1.0
+            )
+            new_stability = min(1.0, old_stability + 0.1)
+            now = datetime.now().timestamp()
+
+            conn.execute(
+                "UPDATE memories SET stability = ?, last_recalled_at = ? WHERE memory_id = ?",
+                [new_stability, now, memory_id],
+            )
+            conn.commit()
+            log.debug(
+                "boost_on_recall: %s stability %.3f -> %.3f",
+                memory_id, old_stability, new_stability,
+            )
             return {
                 "memory_id": memory_id,
                 "found": True,
                 "schema": kind,
-                "skipped": True,
-                "reason": "no_stability_column",
-                "old_stability": None,
-                "new_stability": None,
+                "old_stability": old_stability,
+                "new_stability": new_stability,
+                "last_recalled_at": now,
             }
-
-        # Legacy: read current stability, compute new value, UPDATE.
-        srow = conn.execute(
-            "SELECT stability FROM memories WHERE memory_id = ?", [memory_id]
-        ).fetchone()
-        old_stability = (
-            float(srow["stability"]) if (srow and srow["stability"] is not None) else 1.0
-        )
-        new_stability = min(1.0, old_stability + 0.1)
-        now = datetime.now().timestamp()
-
-        conn.execute(
-            "UPDATE memories SET stability = ?, last_recalled_at = ? WHERE memory_id = ?",
-            [new_stability, now, memory_id],
-        )
-        conn.commit()
-        log.debug(
-            "boost_on_recall: %s stability %.3f -> %.3f",
-            memory_id, old_stability, new_stability,
-        )
-        return {
-            "memory_id": memory_id,
-            "found": True,
-            "schema": kind,
-            "old_stability": old_stability,
-            "new_stability": new_stability,
-            "last_recalled_at": now,
-        }
 
     def get_decay_candidates(self, threshold_days: int = 30) -> List[Dict[str, Any]]:
         """Return memories eligible for Ebbinghaus decay, oldest first.
@@ -1101,47 +1137,48 @@ class VecMemory:
         if threshold_days < 0:
             raise ValueError("threshold_days must be >= 0")
 
-        conn = self._get_conn()
-        now = datetime.now().timestamp()
-        cutoff = now - (threshold_days * 86400.0)
+        with self._db_lock:
+            conn = self._get_conn()
+            now = datetime.now().timestamp()
+            cutoff = now - (threshold_days * 86400.0)
 
-        rows = conn.execute(
-            """
-            SELECT memory_id,
-                   stability,
-                   recall_count,
-                   tier,
-                   timestamp,
-                   COALESCE(NULLIF(last_recalled_at, 0), timestamp, 0)
-                       AS effective_recall_ts
-            FROM memories
-            WHERE tier != 'archived'
-              AND COALESCE(NULLIF(last_recalled_at, 0), timestamp, 0) > 0
-              AND COALESCE(NULLIF(last_recalled_at, 0), timestamp, 0) < ?
-            ORDER BY effective_recall_ts ASC
-            """,
-            [cutoff],
-        ).fetchall()
+            rows = conn.execute(
+                """
+                SELECT memory_id,
+                       stability,
+                       recall_count,
+                       tier,
+                       timestamp,
+                       COALESCE(NULLIF(last_recalled_at, 0), timestamp, 0)
+                           AS effective_recall_ts
+                FROM memories
+                WHERE tier != 'archived'
+                  AND COALESCE(NULLIF(last_recalled_at, 0), timestamp, 0) > 0
+                  AND COALESCE(NULLIF(last_recalled_at, 0), timestamp, 0) < ?
+                ORDER BY effective_recall_ts ASC
+                """,
+                [cutoff],
+            ).fetchall()
 
-        results: List[Dict[str, Any]] = []
-        for r in rows:
-            eff = float(r["effective_recall_ts"])
-            results.append(
-                {
-                    "memory_id": r["memory_id"],
-                    "stability": (
-                        float(r["stability"]) if r["stability"] is not None else 1.0
-                    ),
-                    "recall_count": (
-                        int(r["recall_count"]) if r["recall_count"] is not None else 0
-                    ),
-                    "tier": r["tier"],
-                    "timestamp": r["timestamp"],
-                    "effective_recall_ts": eff,
-                    "days_since_recall": (now - eff) / 86400.0,
-                }
-            )
-        return results
+            results: List[Dict[str, Any]] = []
+            for r in rows:
+                eff = float(r["effective_recall_ts"])
+                results.append(
+                    {
+                        "memory_id": r["memory_id"],
+                        "stability": (
+                            float(r["stability"]) if r["stability"] is not None else 1.0
+                        ),
+                        "recall_count": (
+                            int(r["recall_count"]) if r["recall_count"] is not None else 0
+                        ),
+                        "tier": r["tier"],
+                        "timestamp": r["timestamp"],
+                        "effective_recall_ts": eff,
+                        "days_since_recall": (now - eff) / 86400.0,
+                    }
+                )
+            return results
 
     def decay_all(
         self,
@@ -1196,60 +1233,64 @@ class VecMemory:
         if archive_floor < 0 or archive_floor > 1.0:
             raise ValueError("archive_floor must be in [0, 1]")
 
-        candidates = self.get_decay_candidates(threshold_days)
-        conn = self._get_conn()
+        with self._db_lock:
+            candidates = self.get_decay_candidates(threshold_days)
+            conn = self._get_conn()
 
-        decayed = 0
-        archived = 0
-        # Pre-build updates to use executemany for fewer round-trips.
-        decay_updates: List[tuple] = []      # (new_stability, memory_id)
-        archive_updates: List[tuple] = []    # (new_stability, memory_id)
+            decayed = 0
+            archived = 0
+            # Pre-build updates to use executemany for fewer round-trips.
+            decay_updates: List[tuple] = []      # (new_stability, memory_id)
+            archive_updates: List[tuple] = []    # (new_stability, memory_id)
 
-        for mem in candidates:
-            days_since = mem["days_since_recall"]
-            # 5% per 30 days, linear. Negative ages (clock skew) are clamped
-            # to 0 to avoid boosting stability via decay.
-            days_since = max(0.0, days_since)
-            decay_amount = days_since * 0.05 / 30.0
-            old_stability = mem["stability"]
-            new_stability = max(0.0, old_stability - decay_amount)
+            for mem in candidates:
+                days_since = mem["days_since_recall"]
+                # 5% per 30 days, linear. Negative ages (clock skew) are clamped
+                # to 0 to avoid boosting stability via decay.
+                days_since = max(0.0, days_since)
+                decay_amount = days_since * 0.05 / 30.0
+                old_stability = mem["stability"]
+                new_stability = max(0.0, old_stability - decay_amount)
 
-            if new_stability < archive_floor:
-                archive_updates.append((new_stability, mem["memory_id"]))
-                archived += 1
-            else:
-                decay_updates.append((new_stability, mem["memory_id"]))
-            decayed += 1
+                if new_stability < archive_floor:
+                    archive_updates.append((new_stability, mem["memory_id"]))
+                    archived += 1
+                else:
+                    decay_updates.append((new_stability, mem["memory_id"]))
+                    # M1: only count items actually decayed (not archived ones),
+                    # so decayed + archived == total candidates.
+                    if old_stability != new_stability:
+                        decayed += 1
 
-        if decay_updates:
-            conn.executemany(
-                "UPDATE memories SET stability = ? WHERE memory_id = ?",
-                decay_updates,
+            if decay_updates:
+                conn.executemany(
+                    "UPDATE memories SET stability = ? WHERE memory_id = ?",
+                    decay_updates,
+                )
+            if archive_updates:
+                conn.executemany(
+                    "UPDATE memories SET stability = ?, tier = 'archived' "
+                    "WHERE memory_id = ?",
+                    archive_updates,
+                )
+            conn.commit()
+
+            # Recount by_tier after the decay pass (for dashboards / assertions).
+            tier_rows = conn.execute(
+                "SELECT tier, COUNT(*) AS cnt FROM memories GROUP BY tier"
+            ).fetchall()
+            by_tier = {row["tier"]: row["cnt"] for row in tier_rows}
+
+            log.info(
+                "decay_all: decayed=%d, archived=%d, by_tier=%s",
+                decayed, archived, by_tier,
             )
-        if archive_updates:
-            conn.executemany(
-                "UPDATE memories SET stability = ?, tier = 'archived' "
-                "WHERE memory_id = ?",
-                archive_updates,
-            )
-        conn.commit()
-
-        # Recount by_tier after the decay pass (for dashboards / assertions).
-        tier_rows = conn.execute(
-            "SELECT tier, COUNT(*) AS cnt FROM memories GROUP BY tier"
-        ).fetchall()
-        by_tier = {row["tier"]: row["cnt"] for row in tier_rows}
-
-        log.info(
-            "decay_all: decayed=%d, archived=%d, by_tier=%s",
-            decayed, archived, by_tier,
-        )
-        return {
-            "decayed": decayed,
-            "archived": archived,
-            "by_tier": by_tier,
-            "schema": kind,
-        }
+            return {
+                "decayed": decayed,
+                "archived": archived,
+                "by_tier": by_tier,
+                "schema": kind,
+            }
 
     def promote(self, memory_id: str, force: bool = False) -> Dict[str, Any]:
         """Promote a memory one tier up if it meets the tier-transition rules.
@@ -1266,129 +1307,130 @@ class VecMemory:
         - ``promoted=False, found=False`` means the memory doesn't exist.
         - Memories already at ``procedural`` are a no-op (already at top tier).
         """
-        conn = self._get_conn()
-        kind = self._schema_kind()
+        with self._db_lock:
+            conn = self._get_conn()
+            kind = self._schema_kind()
 
-        sql = (
-            "SELECT memory_id, "
-            + self._field_sql("tier", kind) + " AS tier, "
-            + self._field_sql("label", kind) + " AS label, "
-            + self._field_sql("priority", kind) + " AS priority, "
-            + self._field_sql("recall_count", kind) + " AS recall_count, "
-            + self._field_sql("created_at_raw", kind) + " AS created_at, "
-            + self._field_sql("last_recalled_at", kind) + " AS last_recalled_at "
-            + "FROM memories WHERE memory_id = ?"
-        )
-        row = conn.execute(sql, [memory_id]).fetchone()
-        if not row:
-            return {
-                "memory_id": memory_id,
-                "found": False,
-                "promoted": False,
-                "old_tier": None,
-                "new_tier": None,
-                "reason": "memory not found",
-            }
+            sql = (
+                "SELECT memory_id, "
+                + self._field_sql("tier", kind) + " AS tier, "
+                + self._field_sql("label", kind) + " AS label, "
+                + self._field_sql("priority", kind) + " AS priority, "
+                + self._field_sql("recall_count", kind) + " AS recall_count, "
+                + self._field_sql("created_at_raw", kind) + " AS created_at, "
+                + self._field_sql("last_recalled_at", kind) + " AS last_recalled_at "
+                + "FROM memories WHERE memory_id = ?"
+            )
+            row = conn.execute(sql, [memory_id]).fetchone()
+            if not row:
+                return {
+                    "memory_id": memory_id,
+                    "found": False,
+                    "promoted": False,
+                    "old_tier": None,
+                    "new_tier": None,
+                    "reason": "memory not found",
+                }
 
-        old_tier = row["tier"] or "episodic"
-        if old_tier not in self.TIER_ORDER:
-            return {
-                "memory_id": memory_id,
-                "found": True,
-                "promoted": False,
-                "old_tier": old_tier,
-                "new_tier": old_tier,
-                "reason": f"unknown tier {old_tier!r}",
-            }
+            old_tier = row["tier"] or "episodic"
+            if old_tier not in self.TIER_ORDER:
+                return {
+                    "memory_id": memory_id,
+                    "found": True,
+                    "promoted": False,
+                    "old_tier": old_tier,
+                    "new_tier": old_tier,
+                    "reason": f"unknown tier {old_tier!r}",
+                }
 
-        idx = self.TIER_ORDER.index(old_tier)
-        if idx >= len(self.TIER_ORDER) - 1:
-            return {
-                "memory_id": memory_id,
-                "found": True,
-                "promoted": False,
-                "old_tier": old_tier,
-                "new_tier": old_tier,
-                "reason": "already at top tier (procedural)",
-            }
-        new_tier = self.TIER_ORDER[idx + 1]
+            idx = self.TIER_ORDER.index(old_tier)
+            if idx >= len(self.TIER_ORDER) - 1:
+                return {
+                    "memory_id": memory_id,
+                    "found": True,
+                    "promoted": False,
+                    "old_tier": old_tier,
+                    "new_tier": old_tier,
+                    "reason": "already at top tier (procedural)",
+                }
+            new_tier = self.TIER_ORDER[idx + 1]
 
-        recall_count = int(row["recall_count"] or 0)
-        priority = int(row["priority"] or 5)
-        label = row["label"] or ""
-        age_days = self._age_days(row["created_at"], kind)
+            recall_count = int(row["recall_count"] or 0)
+            priority = int(row["priority"] or 5)
+            label = row["label"] or ""
+            age_days = self._age_days(row["created_at"], kind)
 
-        # Rule evaluation — gate on force=False only.
-        reason = ""
-        eligible = True
-        if not force:
-            if old_tier == "working_memory" and new_tier == "episodic":
-                if recall_count < 3:
-                    eligible = False
-                    reason = f"recall_count={recall_count} < 3"
-                elif age_days < 1.0:
-                    eligible = False
-                    reason = f"age={age_days:.3f}d < 1 day"
+            # Rule evaluation — gate on force=False only.
+            reason = ""
+            eligible = True
+            if not force:
+                if old_tier == "working_memory" and new_tier == "episodic":
+                    if recall_count < 3:
+                        eligible = False
+                        reason = f"recall_count={recall_count} < 3"
+                    elif age_days < 1.0:
+                        eligible = False
+                        reason = f"age={age_days:.3f}d < 1 day"
+                    else:
+                        reason = f"recall_count={recall_count}>=3 AND age={age_days:.3f}d>=1d"
+                elif old_tier == "episodic" and new_tier == "semantic":
+                    if recall_count < 10:
+                        eligible = False
+                        reason = f"recall_count={recall_count} < 10"
+                    elif age_days < 7.0:
+                        eligible = False
+                        reason = f"age={age_days:.3f}d < 7 days"
+                    else:
+                        reason = f"recall_count={recall_count}>=10 AND age={age_days:.3f}d>=7d"
+                elif old_tier == "semantic" and new_tier == "procedural":
+                    if priority < 8:
+                        eligible = False
+                        reason = f"priority={priority} < 8"
+                    elif recall_count < 5:
+                        eligible = False
+                        reason = f"recall_count={recall_count} < 5"
+                    elif not (label.startswith("how-to:") or label.startswith("recipe:")):
+                        eligible = False
+                        reason = f"label={label!r} not in how-to:/recipe: prefix"
+                    else:
+                        reason = (
+                            f"priority={priority}>=8, recall_count={recall_count}>=5, "
+                            f"label={label!r}"
+                        )
                 else:
-                    reason = f"recall_count={recall_count}>=3 AND age={age_days:.3f}d>=1d"
-            elif old_tier == "episodic" and new_tier == "semantic":
-                if recall_count < 10:
+                    # (working_memory→semantic would skip episodic — handled above
+                    # by the index step. Any other transition is unsupported.)
                     eligible = False
-                    reason = f"recall_count={recall_count} < 10"
-                elif age_days < 7.0:
-                    eligible = False
-                    reason = f"age={age_days:.3f}d < 7 days"
-                else:
-                    reason = f"recall_count={recall_count}>=10 AND age={age_days:.3f}d>=7d"
-            elif old_tier == "semantic" and new_tier == "procedural":
-                if priority < 8:
-                    eligible = False
-                    reason = f"priority={priority} < 8"
-                elif recall_count < 5:
-                    eligible = False
-                    reason = f"recall_count={recall_count} < 5"
-                elif not (label.startswith("how-to:") or label.startswith("recipe:")):
-                    eligible = False
-                    reason = f"label={label!r} not in how-to:/recipe: prefix"
-                else:
-                    reason = (
-                        f"priority={priority}>=8, recall_count={recall_count}>=5, "
-                        f"label={label!r}"
-                    )
+                    reason = f"no rule for {old_tier} → {new_tier}"
             else:
-                # (working_memory→semantic would skip episodic — handled above
-                # by the index step. Any other transition is unsupported.)
-                eligible = False
-                reason = f"no rule for {old_tier} → {new_tier}"
-        else:
-            reason = "force=True (skipped rule check)"
+                reason = "force=True (skipped rule check)"
 
-        if not eligible:
+            if not eligible:
+                return {
+                    "memory_id": memory_id,
+                    "found": True,
+                    "promoted": False,
+                    "old_tier": old_tier,
+                    "new_tier": old_tier,
+                    "reason": reason,
+                }
+
+            conn.execute(
+                "UPDATE memories SET tier = ? WHERE memory_id = ?",
+                [new_tier, memory_id],
+            )
+            conn.commit()
+            log.info(
+                "promote: %s %s -> %s (%s)", memory_id, old_tier, new_tier, reason
+            )
             return {
                 "memory_id": memory_id,
                 "found": True,
-                "promoted": False,
+                "promoted": True,
                 "old_tier": old_tier,
-                "new_tier": old_tier,
+                "new_tier": new_tier,
                 "reason": reason,
             }
-
-        conn.execute(
-            "UPDATE memories SET tier = ? WHERE memory_id = ?",
-            [new_tier, memory_id],
-        )
-        conn.commit()
-        log.info(
-            "promote: %s %s -> %s (%s)", memory_id, old_tier, new_tier, reason
-        )
-        return {
-            "memory_id": memory_id,
-            "found": True,
-            "promoted": True,
-            "old_tier": old_tier,
-            "new_tier": new_tier,
-            "reason": reason,
-        }
 
     def auto_promote_all(self) -> List[Dict[str, Any]]:
         """Scan every memory and promote those that currently meet the rules.
@@ -1398,23 +1440,24 @@ class VecMemory:
         didn't qualify are not included (use ``promote(id)`` to inspect
         individually).
         """
-        conn = self._get_conn()
-        rows = conn.execute("SELECT memory_id FROM memories").fetchall()
-        promoted: List[Dict[str, Any]] = []
-        for row in rows:
-            mid = row["memory_id"]
-            result = self.promote(mid, force=False)
-            if result.get("promoted"):
-                promoted.append(
-                    {
-                        "memory_id": mid,
-                        "old_tier": result["old_tier"],
-                        "new_tier": result["new_tier"],
-                        "reason": result.get("reason", ""),
-                    }
-                )
-        log.info("auto_promote_all: scanned %d, promoted %d", len(rows), len(promoted))
-        return promoted
+        with self._db_lock:
+            conn = self._get_conn()
+            rows = conn.execute("SELECT memory_id FROM memories").fetchall()
+            promoted: List[Dict[str, Any]] = []
+            for row in rows:
+                mid = row["memory_id"]
+                result = self.promote(mid, force=False)
+                if result.get("promoted"):
+                    promoted.append(
+                        {
+                            "memory_id": mid,
+                            "old_tier": result["old_tier"],
+                            "new_tier": result["new_tier"],
+                            "reason": result.get("reason", ""),
+                        }
+                    )
+            log.info("auto_promote_all: scanned %d, promoted %d", len(rows), len(promoted))
+            return promoted
 
     def _age_days(self, created_at: Any, kind: str) -> float:
         """Return the age of a memory in days, given its raw created_at value.
@@ -1422,11 +1465,13 @@ class VecMemory:
         - legacy schema: ``created_at`` is a Unix timestamp (REAL)
         - new schema:    ``created_at`` is an ISO 8601 string
 
-        Returns 0.0 on parse failure (so the memory *will* satisfy age
-        thresholds) rather than blocking promotion on bad data.
+        Returns ``float('inf')`` on parse failure (M4) so corrupt timestamps
+        *block* age-gated promotion rather than auto-passing it. A sentinel
+        of 0.0 would have made every rule that checks ``age >= N days`` pass
+        for bad rows — the opposite of safe.
         """
         if created_at is None or created_at == "":
-            return 0.0
+            return float("inf")
         try:
             if kind == "legacy" and isinstance(created_at, (int, float)):
                 dt = datetime.fromtimestamp(float(created_at))
@@ -1436,10 +1481,10 @@ class VecMemory:
             elif isinstance(created_at, (int, float)):
                 dt = datetime.fromtimestamp(float(created_at))
             else:
-                return 0.0
+                return float("inf")
             return max(0.0, (datetime.now() - dt).total_seconds() / 86400.0)
         except (ValueError, TypeError, OSError, OverflowError):
-            return 0.0
+            return float("inf")
 
     # ------------------------------------------------------------------
     # Memory Consolidation (Phase 4 of BRAIN_ARCHITECTURE.md)
@@ -1480,16 +1525,17 @@ class VecMemory:
             has_stab     : bool   — True if `stability` is a top-level column
             columns      : set    — all column names
         """
-        conn = self._get_conn()
-        cursor = conn.execute("PRAGMA table_info(memories)")
-        cols = {col[1] for col in cursor.fetchall()}
-        return {
-            "new_schema": "content" in cols,
-            "has_metadata": "metadata" in cols,
-            "has_recall": "recall_count" in cols,
-            "has_stab": "stability" in cols,
-            "columns": cols,
-        }
+        with self._db_lock:
+            conn = self._get_conn()
+            cursor = conn.execute("PRAGMA table_info(memories)")
+            cols = {col[1] for col in cursor.fetchall()}
+            return {
+                "new_schema": "content" in cols,
+                "has_metadata": "metadata" in cols,
+                "has_recall": "recall_count" in cols,
+                "has_stab": "stability" in cols,
+                "columns": cols,
+            }
 
     def _load_meta(self, memory_id: str) -> Dict[str, Any]:
         """Load a memory row as a unified dict regardless of schema variant.
@@ -1501,58 +1547,59 @@ class VecMemory:
         For schema B (legacy): they come from top-level columns; metadata
         is still parsed if present.
         """
-        conn = self._get_conn()
-        info = self._schema_info()
-        row = conn.execute("SELECT * FROM memories WHERE memory_id = ?", [memory_id]).fetchone()
-        if row is None:
-            return {}
+        with self._db_lock:
+            conn = self._get_conn()
+            info = self._schema_info()
+            row = conn.execute("SELECT * FROM memories WHERE memory_id = ?", [memory_id]).fetchone()
+            if row is None:
+                return {}
 
-        keys = row.keys()
-        result: Dict[str, Any] = {"memory_id": row["memory_id"]}
+            keys = row.keys()
+            result: Dict[str, Any] = {"memory_id": row["memory_id"]}
 
-        # content + tier + metadata (with fallbacks for both schemas)
-        if "content" in keys:
-            result["content"] = row["content"] or ""
-        elif "modality_text" in keys:
-            result["content"] = row["modality_text"] or ""
-        else:
-            result["content"] = ""
+            # content + tier + metadata (with fallbacks for both schemas)
+            if "content" in keys:
+                result["content"] = row["content"] or ""
+            elif "modality_text" in keys:
+                result["content"] = row["modality_text"] or ""
+            else:
+                result["content"] = ""
 
-        if "tier" in keys:
-            result["tier"] = row["tier"] or "episodic"
-        else:
-            result["tier"] = "episodic"
+            if "tier" in keys:
+                result["tier"] = row["tier"] or "episodic"
+            else:
+                result["tier"] = "episodic"
 
-        # metadata: prefer top-level column, fall back to per-row content
-        meta_raw = None
-        if "metadata" in keys:
-            meta_raw = row["metadata"]
-        if meta_raw:
-            try:
-                result["metadata"] = json.loads(meta_raw)
-            except (TypeError, ValueError):
+            # metadata: prefer top-level column, fall back to per-row content
+            meta_raw = None
+            if "metadata" in keys:
+                meta_raw = row["metadata"]
+            if meta_raw:
+                try:
+                    result["metadata"] = json.loads(meta_raw)
+                except (TypeError, ValueError):
+                    result["metadata"] = {}
+            else:
                 result["metadata"] = {}
-        else:
-            result["metadata"] = {}
 
-        # recall_count / stability — schema B uses top-level columns; schema A stores them in JSON
-        if info["has_recall"]:
-            try:
-                result["recall_count"] = int(row["recall_count"] or 0)
-            except (TypeError, ValueError):
-                result["recall_count"] = 0
-        else:
-            result["recall_count"] = int(result["metadata"].get("recall_count", 0) or 0)
+            # recall_count / stability — schema B uses top-level columns; schema A stores them in JSON
+            if info["has_recall"]:
+                try:
+                    result["recall_count"] = int(row["recall_count"] or 0)
+                except (TypeError, ValueError):
+                    result["recall_count"] = 0
+            else:
+                result["recall_count"] = int(result["metadata"].get("recall_count", 0) or 0)
 
-        if info["has_stab"]:
-            try:
-                result["stability"] = float(row["stability"] or 1.0)
-            except (TypeError, ValueError):
-                result["stability"] = 1.0
-        else:
-            result["stability"] = float(result["metadata"].get("stability", 1.0) or 1.0)
+            if info["has_stab"]:
+                try:
+                    result["stability"] = float(row["stability"] or 1.0)
+                except (TypeError, ValueError):
+                    result["stability"] = 1.0
+            else:
+                result["stability"] = float(result["metadata"].get("stability", 1.0) or 1.0)
 
-        return result
+            return result
 
     def _save_meta(self, record: Dict[str, Any]) -> None:
         """Persist a normalized record back to the DB, schema-aware.
@@ -1560,53 +1607,54 @@ class VecMemory:
         Updates content, tier, recall_count, stability, and metadata
         using the column layout that exists in the current schema.
         """
-        conn = self._get_conn()
-        info = self._schema_info()
-        mid = record["memory_id"]
+        with self._db_lock:
+            conn = self._get_conn()
+            info = self._schema_info()
+            mid = record["memory_id"]
 
-        # Always rebuild metadata JSON to capture any merged_from / consolidation audit fields
-        meta = dict(record.get("metadata") or {})
-        meta["recall_count"] = int(record.get("recall_count", 0) or 0)
-        meta["stability"] = float(record.get("stability", 1.0) or 1.0)
-        if record.get("content") is not None:
-            meta["content"] = record["content"]
-        meta["tier"] = record.get("tier", meta.get("tier", "episodic"))
-        meta_json = json.dumps(meta)
+            # Always rebuild metadata JSON to capture any merged_from / consolidation audit fields
+            meta = dict(record.get("metadata") or {})
+            meta["recall_count"] = int(record.get("recall_count", 0) or 0)
+            meta["stability"] = float(record.get("stability", 1.0) or 1.0)
+            if record.get("content") is not None:
+                meta["content"] = record["content"]
+            meta["tier"] = record.get("tier", meta.get("tier", "episodic"))
+            meta_json = json.dumps(meta)
 
-        if info["new_schema"]:
-            # Schema A — content/agent/block_type/etc. are top-level columns
-            updates = {
-                "content": record.get("content", meta.get("content", "")),
-                "tier": record.get("tier", meta.get("tier", "episodic")),
-                "metadata": meta_json,
-            }
-            set_clause = ", ".join(f"{k} = ?" for k in updates.keys())
-            conn.execute(
-                f"UPDATE memories SET {set_clause} WHERE memory_id = ?",
-                list(updates.values()) + [mid],
-            )
-        elif info["has_recall"] or info["has_stab"]:
-            # Schema B — recall_count/stability are top-level; metadata holds the rest
-            updates: Dict[str, Any] = {
-                "modality_text": record.get("content", meta.get("content", "")),
-                "metadata": meta_json,
-                "tier": record.get("tier", meta.get("tier", "episodic")),
-            }
-            if info["has_recall"]:
-                updates["recall_count"] = int(record.get("recall_count", 0) or 0)
-            if info["has_stab"]:
-                updates["stability"] = float(record.get("stability", 1.0) or 1.0)
-            set_clause = ", ".join(f"{k} = ?" for k in updates.keys())
-            conn.execute(
-                f"UPDATE memories SET {set_clause} WHERE memory_id = ?",
-                list(updates.values()) + [mid],
-            )
-        else:
-            # Pure JSON-only fallback — only metadata is updatable
-            conn.execute(
-                "UPDATE memories SET metadata = ? WHERE memory_id = ?",
-                [meta_json, mid],
-            )
+            if info["new_schema"]:
+                # Schema A — content/agent/block_type/etc. are top-level columns
+                updates = {
+                    "content": record.get("content", meta.get("content", "")),
+                    "tier": record.get("tier", meta.get("tier", "episodic")),
+                    "metadata": meta_json,
+                }
+                set_clause = ", ".join(f"{k} = ?" for k in updates.keys())
+                conn.execute(
+                    f"UPDATE memories SET {set_clause} WHERE memory_id = ?",
+                    list(updates.values()) + [mid],
+                )
+            elif info["has_recall"] or info["has_stab"]:
+                # Schema B — recall_count/stability are top-level; metadata holds the rest
+                updates: Dict[str, Any] = {
+                    "modality_text": record.get("content", meta.get("content", "")),
+                    "metadata": meta_json,
+                    "tier": record.get("tier", meta.get("tier", "episodic")),
+                }
+                if info["has_recall"]:
+                    updates["recall_count"] = int(record.get("recall_count", 0) or 0)
+                if info["has_stab"]:
+                    updates["stability"] = float(record.get("stability", 1.0) or 1.0)
+                set_clause = ", ".join(f"{k} = ?" for k in updates.keys())
+                conn.execute(
+                    f"UPDATE memories SET {set_clause} WHERE memory_id = ?",
+                    list(updates.values()) + [mid],
+                )
+            else:
+                # Pure JSON-only fallback — only metadata is updatable
+                conn.execute(
+                    "UPDATE memories SET metadata = ? WHERE memory_id = ?",
+                    [meta_json, mid],
+                )
 
     def find_duplicates(self, threshold: float = 0.95, limit: int = 100) -> List[Dict[str, Any]]:
         """Find near-duplicate memory pairs with cosine similarity above `threshold`.
@@ -1627,74 +1675,75 @@ class VecMemory:
         list of dicts: [{memory_id_a, memory_id_b, similarity}, ...]
             sorted by similarity DESC, capped at `limit`.
         """
-        conn = self._get_conn()
+        with self._db_lock:
+            conn = self._get_conn()
 
-        # Candidate IDs come from the canonical memories table.
-        # We deliberately exclude 'archived' so already-merged memories don't
-        # churn the result set.
-        id_rows = conn.execute(
-            "SELECT memory_id FROM memories WHERE tier != 'archived' OR tier IS NULL"
-        ).fetchall()
-        all_ids = [r["memory_id"] for r in id_rows]
-        if len(all_ids) < 2:
-            return []
-
-        pairs: Dict[tuple, float] = {}
-
-        if HAS_VEC:
-            # Per-memory KNN — sqlite-vec returns cosine *distance*, so we
-            # convert to similarity (1 - distance) and filter.
-            # k=8 is a pragmatic cap; memories only merge with their closest
-            # neighbors in practice (near-duplicate clusters are small).
-            for mid in all_ids:
-                row = conn.execute(
-                    "SELECT embedding FROM vec_memories WHERE memory_id = ?",
-                    [mid],
-                ).fetchone()
-                if row is None:
-                    continue
-                neighbors = conn.execute(
-                    "SELECT memory_id, distance FROM vec_memories "
-                    "WHERE embedding MATCH ? AND k = 8 "
-                    "AND memory_id != ?",
-                    [row["embedding"], mid],
-                ).fetchall()
-                for nb in neighbors:
-                    sim = 1.0 - float(nb["distance"])
-                    if sim < threshold:
-                        continue
-                    a, b = (mid, nb["memory_id"]) if mid < nb["memory_id"] else (nb["memory_id"], mid)
-                    prev = pairs.get((a, b))
-                    if prev is None or sim > prev:
-                        pairs[(a, b)] = sim
-        else:
-            # Brute-force fallback — load all vectors, normalize, pairwise cosine.
-            rows = conn.execute("SELECT memory_id, embedding FROM embeddings_brute").fetchall()
-            if not rows:
+            # Candidate IDs come from the canonical memories table.
+            # We deliberately exclude 'archived' so already-merged memories don't
+            # churn the result set.
+            id_rows = conn.execute(
+                "SELECT memory_id FROM memories WHERE tier != 'archived' OR tier IS NULL"
+            ).fetchall()
+            all_ids = [r["memory_id"] for r in id_rows]
+            if len(all_ids) < 2:
                 return []
-            embs: List[np.ndarray] = []
-            ids: List[str] = []
-            for row in rows:
-                embs.append(_decode_brute_blob(row["embedding"]))
-                ids.append(row["memory_id"])
-            mat = np.stack(embs)
-            norms = np.linalg.norm(mat, axis=1)
-            norms = np.where(norms == 0, 1.0, norms)
-            mat_unit = mat / norms[:, None]
-            sims = mat_unit @ mat_unit.T
-            for i in range(len(ids)):
-                for j in range(i + 1, len(ids)):
-                    sim = float(sims[i, j])
-                    if sim < threshold:
-                        continue
-                    a, b = (ids[i], ids[j]) if ids[i] < ids[j] else (ids[j], ids[i])
-                    pairs[(a, b)] = sim
 
-        ordered = sorted(pairs.items(), key=lambda kv: kv[1], reverse=True)
-        return [
-            {"memory_id_a": a, "memory_id_b": b, "similarity": s}
-            for (a, b), s in ordered[:limit]
-        ]
+            pairs: Dict[tuple, float] = {}
+
+            if HAS_VEC:
+                # Per-memory KNN — sqlite-vec returns cosine *distance*, so we
+                # convert to similarity (1 - distance) and filter.
+                # k=8 is a pragmatic cap; memories only merge with their closest
+                # neighbors in practice (near-duplicate clusters are small).
+                for mid in all_ids:
+                    row = conn.execute(
+                        "SELECT embedding FROM vec_memories WHERE memory_id = ?",
+                        [mid],
+                    ).fetchone()
+                    if row is None:
+                        continue
+                    neighbors = conn.execute(
+                        "SELECT memory_id, distance FROM vec_memories "
+                        "WHERE embedding MATCH ? AND k = 8 "
+                        "AND memory_id != ?",
+                        [row["embedding"], mid],
+                    ).fetchall()
+                    for nb in neighbors:
+                        sim = 1.0 - float(nb["distance"])
+                        if sim < threshold:
+                            continue
+                        a, b = (mid, nb["memory_id"]) if mid < nb["memory_id"] else (nb["memory_id"], mid)
+                        prev = pairs.get((a, b))
+                        if prev is None or sim > prev:
+                            pairs[(a, b)] = sim
+            else:
+                # Brute-force fallback — load all vectors, normalize, pairwise cosine.
+                rows = conn.execute("SELECT memory_id, embedding FROM embeddings_brute").fetchall()
+                if not rows:
+                    return []
+                embs: List[np.ndarray] = []
+                ids: List[str] = []
+                for row in rows:
+                    embs.append(_decode_brute_blob(row["embedding"]))
+                    ids.append(row["memory_id"])
+                mat = np.stack(embs)
+                norms = np.linalg.norm(mat, axis=1)
+                norms = np.where(norms == 0, 1.0, norms)
+                mat_unit = mat / norms[:, None]
+                sims = mat_unit @ mat_unit.T
+                for i in range(len(ids)):
+                    for j in range(i + 1, len(ids)):
+                        sim = float(sims[i, j])
+                        if sim < threshold:
+                            continue
+                        a, b = (ids[i], ids[j]) if ids[i] < ids[j] else (ids[j], ids[i])
+                        pairs[(a, b)] = sim
+
+            ordered = sorted(pairs.items(), key=lambda kv: kv[1], reverse=True)
+            return [
+                {"memory_id_a": a, "memory_id_b": b, "similarity": s}
+                for (a, b), s in ordered[:limit]
+            ]
 
     def consolidate_pair(self, id_strong: str, id_weak: str) -> Dict[str, Any]:
         """Merge `id_weak` into `id_strong` (the canonical survivor).
@@ -1729,86 +1778,96 @@ class VecMemory:
         if id_strong == id_weak:
             raise ValueError("id_strong and id_weak must differ")
 
-        conn = self._get_conn()
-        strong = self._load_meta(id_strong)
-        weak = self._load_meta(id_weak)
-        if not strong:
-            raise ValueError(f"id_strong not found: {id_strong!r}")
-        if not weak:
-            raise ValueError(f"id_weak not found: {id_weak!r}")
+        with self._db_lock:
+            conn = self._get_conn()
+            strong = self._load_meta(id_strong)
+            weak = self._load_meta(id_weak)
+            if not strong:
+                raise ValueError(f"id_strong not found: {id_strong!r}")
+            if not weak:
+                raise ValueError(f"id_weak not found: {id_weak!r}")
 
-        events: List[str] = []
+            events: List[str] = []
 
-        # 1. recall_count: sum
-        new_recall = int(strong.get("recall_count", 0)) + int(weak.get("recall_count", 0))
-        if new_recall != int(strong.get("recall_count", 0)):
-            events.append(
-                f"recall_count {strong.get('recall_count', 0)} -> {new_recall}"
-            )
-        strong["recall_count"] = new_recall
+            # 1. recall_count: sum
+            new_recall = int(strong.get("recall_count", 0)) + int(weak.get("recall_count", 0))
+            if new_recall != int(strong.get("recall_count", 0)):
+                events.append(
+                    f"recall_count {strong.get('recall_count', 0)} -> {new_recall}"
+                )
+            strong["recall_count"] = new_recall
 
-        # 2. stability: max (more stable = more durable = keep the higher)
-        new_stab = max(float(strong.get("stability", 1.0)), float(weak.get("stability", 1.0)))
-        if new_stab != float(strong.get("stability", 1.0)):
-            events.append(
-                f"stability {strong.get('stability', 1.0)} -> {new_stab}"
-            )
-        strong["stability"] = new_stab
+            # 2. stability: max (more stable = more durable = keep the higher)
+            new_stab = max(float(strong.get("stability", 1.0)), float(weak.get("stability", 1.0)))
+            if new_stab != float(strong.get("stability", 1.0)):
+                events.append(
+                    f"stability {strong.get('stability', 1.0)} -> {new_stab}"
+                )
+            strong["stability"] = new_stab
 
-        # 3. metadata.merged_from[] audit trail
-        meta = dict(strong.get("metadata") or {})
-        merged_from = list(meta.get("merged_from") or [])
-        if id_weak not in merged_from:
-            merged_from.append(id_weak)
-        meta["merged_from"] = merged_from
+            # 3. metadata.merged_from[] audit trail
+            meta = dict(strong.get("metadata") or {})
+            merged_from = list(meta.get("merged_from") or [])
+            if id_weak not in merged_from:
+                merged_from.append(id_weak)
+            meta["merged_from"] = merged_from
 
-        # Also capture weak's metadata fields that aren't already set —
-        # useful audit context (don't overwrite stronger's values, only fill gaps)
-        weak_meta = dict(weak.get("metadata") or {})
-        weak_snapshot_keys = ("agent", "block_type", "label", "project", "created_at")
-        if not any(meta.get(k) for k in weak_snapshot_keys):
-            for k in weak_snapshot_keys:
-                if weak_meta.get(k):
-                    meta.setdefault(k, weak_meta[k])
-        meta["last_consolidation"] = datetime.now().isoformat()
-        meta["last_consolidated_with"] = id_weak
-        strong["metadata"] = meta
+            # Also capture weak's metadata fields that aren't already set —
+            # useful audit context (don't overwrite stronger's values, only fill gaps)
+            weak_meta = dict(weak.get("metadata") or {})
+            weak_snapshot_keys = ("agent", "block_type", "label", "project", "created_at")
+            if not any(meta.get(k) for k in weak_snapshot_keys):
+                for k in weak_snapshot_keys:
+                    if weak_meta.get(k):
+                        meta.setdefault(k, weak_meta[k])
+            meta["last_consolidation"] = datetime.now().isoformat()
+            meta["last_consolidated_with"] = id_weak
+            strong["metadata"] = meta
 
-        # 4. Persist the canonical
-        self._save_meta(strong)
-        events.append(f"merged metadata from {id_weak}")
+            # 4. Persist the canonical
+            self._save_meta(strong)
+            events.append(f"merged metadata from {id_weak}")
 
-        # 5. Archive the weaker: tier='archived' + record metadata.
-        #    Memory row stays for audit; vector index removes it so it
-        #    is invisible to recall.
-        weak_meta_out = dict(weak.get("metadata") or {})
-        weak_meta_out["archived_at"] = datetime.now().isoformat()
-        weak_meta_out["archived_into"] = id_strong
-        weak_meta_out["archive_reason"] = "consolidation"
-        weak_record = {
-            "memory_id": id_weak,
-            "tier": "archived",
-            "metadata": weak_meta_out,
-            "recall_count": weak.get("recall_count", 0),
-            "stability": weak.get("stability", 1.0),
-            "content": weak.get("content", ""),
-        }
-        self._save_meta(weak_record)
-        if HAS_VEC:
-            conn.execute("DELETE FROM vec_memories WHERE memory_id = ?", [id_weak])
-        else:
-            conn.execute("DELETE FROM embeddings_brute WHERE memory_id = ?", [id_weak])
-        events.append(f"archived {id_weak}")
+            # 5. Archive the weaker: tier='archived' + record metadata.
+            #    Memory row stays for audit; vector index removes it so it
+            #    is invisible to recall.
+            weak_meta_out = dict(weak.get("metadata") or {})
+            weak_meta_out["archived_at"] = datetime.now().isoformat()
+            weak_meta_out["archived_into"] = id_strong
+            weak_meta_out["archive_reason"] = "consolidation"
+            weak_record = {
+                "memory_id": id_weak,
+                "tier": "archived",
+                "metadata": weak_meta_out,
+                "recall_count": weak.get("recall_count", 0),
+                "stability": weak.get("stability", 1.0),
+                "content": weak.get("content", ""),
+            }
+            # H22: the memories archive (UPDATE) and vec-index delete (DELETE)
+            # must commit or roll back together — a failure between them would
+            # leave an archived row still searchable, or a deleted vector with
+            # no archive trail. They share `conn` with no intervening commit,
+            # so they're in one implicit transaction; the try/except below
+            # rolls that transaction back atomically on any failure.
+            try:
+                self._save_meta(weak_record)
+                if HAS_VEC:
+                    conn.execute("DELETE FROM vec_memories WHERE memory_id = ?", [id_weak])
+                else:
+                    conn.execute("DELETE FROM embeddings_brute WHERE memory_id = ?", [id_weak])
+                events.append(f"archived {id_weak}")
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
 
-        conn.commit()
-
-        return {
-            "canonical_id": id_strong,
-            "merged_from": id_weak,
-            "new_recall_count": new_recall,
-            "new_stability": new_stab,
-            "events": events,
-        }
+            return {
+                "canonical_id": id_strong,
+                "merged_from": id_weak,
+                "new_recall_count": new_recall,
+                "new_stability": new_stab,
+                "events": events,
+            }
 
     def _pick_stronger(self, a: Dict[str, Any], b: Dict[str, Any]) -> tuple:
         """Return (stronger, weaker) using: recall_count > stability > content length.
@@ -1854,76 +1913,179 @@ class VecMemory:
               "events"      : list[dict]  # per-pair consolidation event
             }
         """
-        candidates = self.find_duplicates(threshold=threshold, limit=limit)
-        by_tier: Dict[str, int] = {}
+        with self._db_lock:
+            candidates = self.find_duplicates(threshold=threshold, limit=limit)
+            by_tier: Dict[str, int] = {}
 
-        # Snapshot tier distribution BEFORE the operation so the report
-        # reflects what actually happened (or would happen) on the DB.
-        conn = self._get_conn()
-        tier_rows = conn.execute(
-            "SELECT tier, COUNT(*) AS cnt FROM memories GROUP BY tier"
-        ).fetchall()
-        for r in tier_rows:
-            by_tier[r["tier"] or "(none)"] = int(r["cnt"])
-
-        events: List[Dict[str, Any]] = []
-        merged_count = 0
-
-        for pair in candidates:
-            id_a = pair["memory_id_a"]
-            id_b = pair["memory_id_b"]
-            sim = pair["similarity"]
-
-            a = self._load_meta(id_a)
-            b = self._load_meta(id_b)
-            if not a or not b:
-                # One side disappeared between find and merge (e.g. archived
-                # by an earlier iteration) — skip silently.
-                continue
-            if a.get("tier") == "archived" or b.get("tier") == "archived":
-                continue
-
-            strong, weak = self._pick_stronger(a, b)
-            strong_id = strong["memory_id"]
-            weak_id = weak["memory_id"]
-
-            if dry_run:
-                events.append({
-                    "canonical_id": strong_id,
-                    "merged_from": weak_id,
-                    "similarity": sim,
-                    "would_set": {
-                        "new_recall_count": int(strong.get("recall_count", 0))
-                        + int(weak.get("recall_count", 0)),
-                        "new_stability": max(
-                            float(strong.get("stability", 1.0)),
-                            float(weak.get("stability", 1.0)),
-                        ),
-                    },
-                    "applied": False,
-                })
-            else:
-                result = self.consolidate_pair(strong_id, weak_id)
-                result["similarity"] = sim
-                result["applied"] = True
-                events.append(result)
-                merged_count += 1
-
-        # Final tier snapshot
-        if not dry_run:
+            # Snapshot tier distribution BEFORE the operation so the report
+            # reflects what actually happened (or would happen) on the DB.
+            conn = self._get_conn()
             tier_rows = conn.execute(
                 "SELECT tier, COUNT(*) AS cnt FROM memories GROUP BY tier"
             ).fetchall()
-            by_tier = {r["tier"] or "(none)": int(r["cnt"]) for r in tier_rows}
+            for r in tier_rows:
+                by_tier[r["tier"] or "(none)"] = int(r["cnt"])
 
-        return {
-            "dry_run": dry_run,
-            "threshold": threshold,
-            "merged": merged_count,
-            "candidates": len(candidates),
-            "by_tier": by_tier,
-            "events": events,
+            events: List[Dict[str, Any]] = []
+            merged_count = 0
+
+            for pair in candidates:
+                id_a = pair["memory_id_a"]
+                id_b = pair["memory_id_b"]
+                sim = pair["similarity"]
+
+                a = self._load_meta(id_a)
+                b = self._load_meta(id_b)
+                if not a or not b:
+                    # One side disappeared between find and merge (e.g. archived
+                    # by an earlier iteration) — skip silently.
+                    continue
+                if a.get("tier") == "archived" or b.get("tier") == "archived":
+                    continue
+
+                strong, weak = self._pick_stronger(a, b)
+                strong_id = strong["memory_id"]
+                weak_id = weak["memory_id"]
+
+                if dry_run:
+                    events.append({
+                        "canonical_id": strong_id,
+                        "merged_from": weak_id,
+                        "similarity": sim,
+                        "would_set": {
+                            "new_recall_count": int(strong.get("recall_count", 0))
+                            + int(weak.get("recall_count", 0)),
+                            "new_stability": max(
+                                float(strong.get("stability", 1.0)),
+                                float(weak.get("stability", 1.0)),
+                            ),
+                        },
+                        "applied": False,
+                    })
+                else:
+                    result = self.consolidate_pair(strong_id, weak_id)
+                    result["similarity"] = sim
+                    result["applied"] = True
+                    events.append(result)
+                    merged_count += 1
+
+            # Final tier snapshot
+            if not dry_run:
+                tier_rows = conn.execute(
+                    "SELECT tier, COUNT(*) AS cnt FROM memories GROUP BY tier"
+                ).fetchall()
+                by_tier = {r["tier"] or "(none)": int(r["cnt"]) for r in tier_rows}
+
+            return {
+                "dry_run": dry_run,
+                "threshold": threshold,
+                "merged": merged_count,
+                "candidates": len(candidates),
+                "by_tier": by_tier,
+                "events": events,
+            }
+
+    def run_maintenance(
+        self,
+        decay_rate: float = 0.05,
+        do_decay: bool = True,
+        do_promote: bool = True,
+        do_dedupe: bool = True,
+        do_links: bool = True,
+    ) -> Dict[str, Any]:
+        """Single canonical lifecycle entry point — nightly maintenance.
+
+        Composes the four lifecycle passes (decay, promote, dedupe, link
+        build) into one call so cron / the MATHIR brain have exactly ONE
+        place to invoke. Replaces the prior situation where callers had to
+        know to invoke ``decay_all`` / ``apply_decay`` (consolidate.py) /
+        ``bump_recall`` separately and they would diverge over time.
+
+        Each step is wrapped in its own try/except so a single failing step
+        doesn't abort the others — failures are recorded in ``errors`` and
+        the run continues. Sub-calls each acquire ``_db_lock`` (RLock), so
+        this method does NOT take the lock itself — that would risk
+        dead-locking against concurrent recalls.
+
+        Args:
+            decay_rate:   Per-month decay fraction (default 0.05 = 5% / 30d,
+                          per BRAIN_ARCHITECTURE.md). Currently informational
+                          — ``decay_all`` hardcodes the 0.05 rate internally
+                          and is not refactored to accept this param (do not
+                          refactor per change request). Accepted for API
+                          symmetry and future plumbing.
+            do_decay:     If True, run ``decay_all()`` (Ebbinghaus forgetting).
+            do_promote:   If True, run ``auto_promote_all()`` (tier upgrades).
+            do_dedupe:    If True, run ``consolidate_all(dry_run=False)`` to
+                          actually merge near-duplicate pairs.
+            do_links:     If True, run ``build_links_all()`` (cosine graph).
+
+        Returns:
+            {
+              'decay':    {'decayed': N, 'archived': M},  # {} if step skipped/failed
+              'promoted': K,                              # count of tier upgrades
+              'deduped':  P,                              # count of merged pairs
+              'links':    L,                              # count of links created
+              'errors':   [{'step': str, 'error': str}, ...]
+            }
+        """
+        summary: Dict[str, Any] = {
+            'decay': {},
+            'promoted': 0,
+            'deduped': 0,
+            'links': 0,
+            'errors': [],
         }
+
+        # 1. Decay — Ebbinghaus forgetting curve on cold memories.
+        if do_decay:
+            try:
+                # decay_all currently hardcodes its 0.05 rate (see line ~1251);
+                # decay_rate is accepted for API symmetry but not yet plumbed
+                # through (do NOT refactor per change request).
+                result = self.decay_all()
+                summary['decay'] = {
+                    'decayed': int(result.get('decayed', 0)),
+                    'archived': int(result.get('archived', 0)),
+                }
+            except Exception as exc:
+                summary['errors'].append({'step': 'decay', 'error': str(exc)})
+
+        # 2. Promote — bump tiers for memories meeting recall/age rules.
+        if do_promote:
+            try:
+                promoted = self.auto_promote_all()
+                summary['promoted'] = len(promoted)
+            except Exception as exc:
+                summary['errors'].append({'step': 'promote', 'error': str(exc)})
+
+        # 3. Dedupe — fold near-duplicates (cosine > 0.95) into one record.
+        if do_dedupe:
+            try:
+                # dry_run=False so maintenance actually merges pairs.
+                result = self.consolidate_all(dry_run=False)
+                summary['deduped'] = int(result.get('merged', 0))
+            except Exception as exc:
+                summary['errors'].append({'step': 'dedupe', 'error': str(exc)})
+
+        # 4. Link graph — rebuild cosine-similarity edges for spreading activation.
+        if do_links:
+            try:
+                result = self.build_links_all()
+                summary['links'] = int(result.get('links_created', 0))
+            except Exception as exc:
+                summary['errors'].append({'step': 'links', 'error': str(exc)})
+
+        log.info(
+            "run_maintenance: decayed=%d archived=%d promoted=%d deduped=%d links=%d errors=%d",
+            summary['decay'].get('decayed', 0),
+            summary['decay'].get('archived', 0),
+            summary['promoted'],
+            summary['deduped'],
+            summary['links'],
+            len(summary['errors']),
+        )
+        return summary
 
     def close(self):
         """Close database connection."""

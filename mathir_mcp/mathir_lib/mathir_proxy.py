@@ -40,19 +40,22 @@ Config (env vars):
   MATHIR_PROXY_API_KEY forwarded if set, else passthrough from Authorization header
   MATHIR_PROXY_INJECT_K default 8 (memories per request)
   MATHIR_PROXY_DEBUG   default 0 (set 1 to log every augmentation)
-  MATHIR_LOG_DIR       default ~/.config/opencode/bin
+  MATHIR_LOG_DIR       default ~/.config/mathir/logs (or $MATHIR_HOME/logs)
 """
 
 import sys
 import os
 import json
 import time
+import socket
+import ipaddress
 import logging
 import logging.handlers
 import argparse
 import urllib.request
 import urllib.error
 from pathlib import Path
+from urllib.parse import urlparse
 from typing import Optional
 
 from flask import Flask, request, Response, stream_with_context
@@ -75,10 +78,11 @@ DEBUG = os.environ.get("MATHIR_PROXY_DEBUG", "0") == "1"
 # ---------------------------------------------------------------------------
 # Logging — rotating file independent of launcher redirection
 # ---------------------------------------------------------------------------
-_log_dir = Path(os.environ.get(
-    "MATHIR_LOG_DIR",
-    str(Path.home() / ".config" / "opencode" / "bin"),
-))
+try:
+    from .mathir_paths import LOG_DIR as _P_LOG
+except ImportError:
+    from mathir_paths import LOG_DIR as _P_LOG
+_log_dir = Path(os.environ.get("MATHIR_LOG_DIR", str(_P_LOG)))
 try:
     _log_dir.mkdir(parents=True, exist_ok=True)
 except OSError:
@@ -98,6 +102,104 @@ try:
     log.addHandler(_fh)
 except OSError:
     pass
+
+# ---------------------------------------------------------------------------
+# Security helpers — shared sanitizer + SSRF redirect guard + auth allowlist
+# ---------------------------------------------------------------------------
+# Max bytes of sanitized memory text we'll inject into a system prompt.
+INJECT_MAX_BYTES = 8 * 1024
+
+# Substrings that must never appear verbatim in injected memory text —
+# they'd let a malicious memory break out of the injection block, recurse
+# into the placeholder, or inject chat-template control tokens.
+_FORBIDDEN_SUBSTRINGS = (
+    "</mathir-",          # break out of <mathir-...> injection block
+    "{{MATHIR_CONTEXT}}", # recurse into the placeholder in inject_proxy
+    "<|",                 # chat-template tokens: <|im_start|>, <|endoftext|>, ...
+)
+
+
+def sanitize_memory_for_injection(text, max_bytes: int = INJECT_MAX_BYTES) -> str:
+    """Sanitize recalled memory text before it enters an LLM system prompt.
+
+    Defense against stored prompt-injection from recalled memory content:
+      1. Strip substrings that could break out of the injection block or
+         masquerade as chat-template control tokens.
+      2. Prefix every line with ``> `` so the model treats recalled memory
+         as quoted data, not as fresh instructions from the operator.
+      3. Cap total size so a runaway recall cannot drown the prompt.
+    """
+    if not text:
+        return ""
+    cleaned = text
+    for bad in _FORBIDDEN_SUBSTRINGS:
+        cleaned = cleaned.replace(bad, "")
+    lines = cleaned.splitlines() or [""]
+    quoted = "\n".join(f"> {ln}" if ln else ">" for ln in lines)
+    encoded = quoted.encode("utf-8", errors="ignore")
+    if len(encoded) > max_bytes:
+        quoted = encoded[:max_bytes].decode("utf-8", errors="ignore")
+    return quoted
+
+
+def _is_loopback_url(url: str) -> bool:
+    """True iff every address the URL's host resolves to is loopback.
+
+    Fails closed: malformed URLs and unresolvable hosts return False.
+    """
+    try:
+        host = urlparse(url).hostname
+    except Exception:
+        return False
+    if not host:
+        return False
+    try:
+        ipaddress.ip_address(host)
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        pass
+    try:
+        infos = socket.getaddrinfo(host, None)
+    except socket.gaierror:
+        return False
+    for _, _, _, _, sockaddr in infos:
+        try:
+            if not ipaddress.ip_address(sockaddr[0]).is_loopback:
+                return False
+        except (ValueError, IndexError):
+            return False
+    return bool(infos)
+
+
+class _LoopbackOnlyRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Refuse HTTP redirects whose target is not loopback (SSRF defense)."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not _is_loopback_url(newurl):
+            log.warning(f"Refusing non-loopback redirect target: {newurl}")
+            raise urllib.error.URLError(
+                f"Refusing non-loopback redirect target: {newurl}"
+            )
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+_LOOPBACK_OPENER = urllib.request.build_opener(_LoopbackOnlyRedirectHandler())
+
+
+# Snapshot the configured upstream host at import time. If the operator
+# repoints the proxy at runtime to a different host, that runtime host is
+# NOT in this allowlist and Authorization will be stripped — preventing
+# accidental credential leakage to an unexpected upstream.
+_CONFIGURED_UPSTREAM_HOST = ""
+try:
+    _CONFIGURED_UPSTREAM_HOST = (urlparse(TARGET_URL).hostname or "").lower()
+except Exception:
+    pass
+
+_AUTH_FORWARD_ALLOWLIST = {
+    "127.0.0.1", "localhost", "::1", _CONFIGURED_UPSTREAM_HOST,
+}
+
 
 # ---------------------------------------------------------------------------
 # Flask app
@@ -135,7 +237,7 @@ def _fetch_context(task: str, k: int = INJECT_K) -> Optional[str]:
             data=payload,
             headers={"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(req, timeout=5) as resp:
+        with _LOOPBACK_OPENER.open(req, timeout=5) as resp:
             data = json.loads(resp.read().decode("utf-8", "ignore"))
         if isinstance(data, dict):
             if data.get("error"):
@@ -156,7 +258,8 @@ def _augment_messages(messages: list, context: str) -> list:
     prepend a new system message. We avoid mutating the user's existing
     system prompt semantics — we just add a clearly-delimited block.
     """
-    block = f"<mathir-auto-injection>\n{context}\n</mathir-auto-injection>"
+    safe_context = sanitize_memory_for_injection(context)
+    block = f"<mathir-auto-injection>\n{safe_context}\n</mathir-auto-injection>"
     new_messages = []
     injected = False
     for msg in messages:
@@ -232,10 +335,30 @@ def _build_upstream_url(path: str) -> str:
 
 
 def _forward_headers() -> dict:
-    """Copy through Authorization and Content-Type; drop hop-by-hop headers."""
+    """Copy through headers; drop hop-by-hop.
+
+    Authorization is forwarded ONLY when the current upstream hostname is in
+    the allowlist (loopback + the configured-openai-style host captured at
+    import time). Otherwise it is stripped and we warn loudly — defense
+    against credential leakage if the proxy is repointed at runtime.
+    """
+    try:
+        upstream_host = (urlparse(TARGET_URL).hostname or "").lower()
+    except Exception:
+        upstream_host = ""
+    allow_auth = upstream_host in _AUTH_FORWARD_ALLOWLIST
     h = {}
     for k, v in request.headers.items():
-        if k.lower() in ("host", "content-length", "connection", "transfer-encoding"):
+        kl = k.lower()
+        if kl in ("host", "content-length", "connection", "transfer-encoding"):
+            continue
+        if kl == "authorization" and not allow_auth:
+            log.warning(
+                "STRIPPING Authorization header: upstream host '%s' not in "
+                "allowlist %s (target=%s). Point proxy at loopback or the "
+                "configured openai-style host to forward credentials.",
+                upstream_host, sorted(_AUTH_FORWARD_ALLOWLIST), TARGET_URL,
+            )
             continue
         h[k] = v
     return h

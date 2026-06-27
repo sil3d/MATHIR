@@ -30,6 +30,42 @@ from mathir_vec import VecMemory
 from mathir_mcp_server import get_project_db_path, get_project_name
 
 
+# --- C8/H7 schema detection -------------------------------------------------
+# These spreading-activation helpers are best-effort features over the legacy
+# `memories` schema (which has direct `embedding` / `modality_text` / `block_type`
+# columns). Vec-era ("new" schema) DBs store that data in `vec_memories` + a
+# JSON `metadata` blob instead, so the legacy SQL below would raise
+# sqlite3.OperationalError. We detect the schema once per DB path and degrade
+# gracefully (empty result / 0) on new-schema DBs.
+_SCHEMA_WARNED: set = set()  # db paths we've already printed the one-time warning for
+
+
+def _schema_kind(db_path: Path) -> str:
+    """Return ``"legacy"`` or ``"new"`` based on the memories-table columns.
+
+    Mirrors ``VecMemory._schema_kind``: "new" means a ``content`` column exists,
+    "legacy" means the old ``embedding`` / ``modality_text`` / ``block_type``
+    BLOB/column layout is present.
+    """
+    try:
+        conn = sqlite3.connect(str(db_path))
+        cols = {col[1] for col in conn.execute("PRAGMA table_info(memories)").fetchall()}
+        conn.close()
+    except sqlite3.OperationalError:
+        return "legacy"  # table missing — let the caller's own SQL surface any error
+    return "new" if "content" in cols else "legacy"
+
+
+def _warn_new_schema(db_path: Path) -> None:
+    """Print a one-time warning that this module is a no-op on new-schema DBs."""
+    key = str(db_path)
+    if key not in _SCHEMA_WARNED:
+        _SCHEMA_WARNED.add(key)
+        print(f"[mathir_spread] schema is 'new' for {db_path.name}; "
+              "spreading-activation is legacy-only, degrading to no-op.")
+# ---------------------------------------------------------------------------
+
+
 def ensure_links_table(db_path: Path):
     """Create memory_links table if not exists."""
     conn = sqlite3.connect(str(db_path))
@@ -57,6 +93,10 @@ def build_links_for_memory(db_path: Path, memory_id: str, threshold: float = 0.6
     Find related memories via vector similarity and create links.
     Threshold: minimum cosine similarity to consider related.
     """
+    # C8/H7: legacy-only feature — no-op on vec-era DBs.
+    if _schema_kind(db_path) == "new":
+        _warn_new_schema(db_path)
+        return 0
     ensure_links_table(db_path)
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
@@ -92,7 +132,12 @@ def build_links_for_memory(db_path: Path, memory_id: str, threshold: float = 0.6
     candidates.sort(key=lambda x: -x[1])
     candidates = candidates[:max_links]
     
-    # Insert links (bidirectional)
+    # Insert links (bidirectional).
+    # NOTE (H8): These weights are intentionally ASYMMETRIC — the forward edge
+    # source->target keeps `weight`, the reverse edge target->source is damped
+    # to `weight * 0.9`. This diverges from mathir_vec.build_links_all, which
+    # uses symmetric weights. Do not "fix" the asymmetry here without also
+    # reconciling the two modules — preserving current behavior on purpose.
     now = time.time()
     for target_id, weight in candidates:
         conn.execute("""
@@ -130,6 +175,10 @@ def spread_recall(db_path: Path, initial_results: List[Dict],
     Returns:
         Combined list of memories with boosted scores
     """
+    # C8/H7: legacy-only feature — no-op on vec-era DBs.
+    if _schema_kind(db_path) == "new":
+        _warn_new_schema(db_path)
+        return []
     ensure_links_table(db_path)
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
@@ -193,6 +242,10 @@ def build_links_for_all(db_path: Path, threshold: float = 0.7, batch_size: int =
     Background job: build links for all memories in DB.
     Use during 'sleep' consolidation.
     """
+    # C8/H7: legacy-only feature — no-op on vec-era DBs.
+    if _schema_kind(db_path) == "new":
+        _warn_new_schema(db_path)
+        return 0
     ensure_links_table(db_path)
     conn = sqlite3.connect(str(db_path))
     

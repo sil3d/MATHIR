@@ -56,7 +56,7 @@
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-8.5.0-6366f1?style=for-the-badge)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/Version-9.0.0-6366f1?style=for-the-badge)](CHANGELOG.md)
 [![Tests](https://img.shields.io/badge/Tests-173%20passed-22c55e?style=for-the-badge)](#-tests--benchmarks)
 
 <br/>
@@ -307,6 +307,8 @@ You want to detect prompt injection. "That's not what we do."
 ```bash
 # 1. Start the daemon (once)
 python -m mathir_mcp
+# or use the console script:
+mathir-server
 ```
 
 ```jsonc
@@ -314,8 +316,7 @@ python -m mathir_mcp
 {
   "mcp": {
     "mathir": {
-      "command": "python",
-      "args": ["-m", "mathir_mcp"]
+      "command": "mathir-mcp"
     }
   }
 }
@@ -323,12 +324,26 @@ python -m mathir_mcp
 
 **That's it.** `memory_save`, `memory_recall`, `memory_smart_search`, `memory_hybrid_search` — available in all your tools.
 
+### v9.0 Console Scripts (universal, IDE-agnostic)
+
+| Command | What it does |
+|---------|-------------|
+| `mathir-mcp` | MCP stdio server (19 tools, 2 prompts) — for any MCP client |
+| `mathir-server` | HTTP unified server (port 7338, optional auth on LAN) |
+| `mathir-client` | CLI client: `mathir-client recall "my query"` |
+| `mathir-dashboard` | Stats dashboard (port 7420) |
+| `mathir-migrate` | One-shot legacy→new schema migration (`--dry-run` / `--apply`) |
+| `mathir-brain` | Orchestrator (starts server + watchdog + proxy) |
+
+Install: `pip install -e ./mathir_mcp`
+
 | Tool | MCP | Config |
 |------|-----|--------|
 | **OpenCode** | ✅ Native | `opencode.json` → `mcpServers` |
 | **Claude Code** | ✅ Native | `claude_desktop_config.json` |
 | **Kilo Code** | ✅ Native | Settings → MCP → Add Server |
 | **MiMo Code** | ✅ Native | Config `mcp` section |
+| **Cursor / Windsurf** | ✅ Native | Any MCP-compatible client works |
 
 **Supports:** OpenAI · Anthropic · Gemini · Groq · Ollama · llama_cpp · any LLM.
 

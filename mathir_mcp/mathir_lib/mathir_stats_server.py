@@ -7,6 +7,7 @@ Supports per-project databases.
 
 import json
 import os
+import re
 import sqlite3
 import sys
 from datetime import datetime
@@ -15,25 +16,36 @@ from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
 # Per-project database support
-PROJECTS_DIR = Path(os.environ.get(
-    "MATHIR_PROJECTS_DIR",
-    os.path.expanduser("~/.config/opencode/data/projects")
-))
-LEGACY_DB_PATH = Path(os.environ.get(
-    "MATHIR_DB",
-    os.path.expanduser("~/.config/opencode/data/mathir.db")
-))
-CONFIG_PATH = Path(os.environ.get(
-    "MATHIR_CONFIG",
-    os.path.expanduser("~/.config/opencode/config/mathir.json")
-))
+try:
+    from .mathir_paths import PROJECTS_DIR as _P_PROJECTS, LEGACY_DB_PATH as _P_DB
+    from .mathir_paths import CONFIG_PATH as _P_CONFIG, REGISTRY_PATH as _P_REGISTRY
+except ImportError:
+    from mathir_paths import PROJECTS_DIR as _P_PROJECTS, LEGACY_DB_PATH as _P_DB
+    from mathir_paths import CONFIG_PATH as _P_CONFIG, REGISTRY_PATH as _P_REGISTRY
+
+PROJECTS_DIR = Path(os.environ.get("MATHIR_PROJECTS_DIR", str(_P_PROJECTS)))
+LEGACY_DB_PATH = Path(os.environ.get("MATHIR_DB", str(_P_DB)))
+CONFIG_PATH = Path(os.environ.get("MATHIR_CONFIG", str(_P_CONFIG)))
 # Central registry - tracks all projects that have ever used MATHIR
-REGISTRY_PATH = Path(os.environ.get(
-    "MATHIR_REGISTRY",
-    os.path.expanduser("~/.config/opencode/data/mathir_registry.json")
-))
+REGISTRY_PATH = Path(os.environ.get("MATHIR_REGISTRY", str(_P_REGISTRY)))
 HTML_PATH = Path(__file__).parent / "mathir_dashboard.html"
 PORT = int(os.environ.get("MATHIR_STATS_PORT", "7420"))
+HOST = os.environ.get("MATHIR_HOST", "127.0.0.1")
+
+# ---------------------------------------------------------------------------
+# Auth gate — non-loopback binds REQUIRE MATHIR_AUTH_TOKEN (opt-in, non-breaking)
+# ---------------------------------------------------------------------------
+_AUTH_TOKEN = os.environ.get('MATHIR_AUTH_TOKEN', '') or ''
+
+
+def _is_loopback(host: str) -> bool:
+    """Return True for loopback / localhost binds that need no auth."""
+    return host in ('', '127.0.0.1', '::1', 'localhost')
+
+# Hard cap on request body size (1 MiB) to prevent Content-Length DoS.
+MAX_BODY_BYTES = 1048576
+# Strict allowlist for project_name — used in filesystem paths, must be safe.
+_PROJECT_NAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
 def get_project_db_path(project_name: str = None) -> Path:
@@ -413,10 +425,23 @@ def api_delete_memory(memory_id, reason="user requested", project_name=None):
 
 
 def validate_mathir_db(db_path: str) -> bool:
-    """Validate that a file is a valid MATHIR database."""
+    """Validate that a file is a valid MATHIR database.
+
+    SECURITY: Imported databases are untrusted artifacts. They are opened with
+    SQLite extension loading explicitly disabled (the default). Never call
+    enable_load_extension(True) on an imported DB — a malicious DB could
+    otherwise load a native extension and achieve arbitrary code execution.
+    """
     try:
         import sqlite3
         conn = sqlite3.connect(db_path)
+        # Defense in depth: enforce the default. Imported DBs must not be able
+        # to load SQLite extensions. (Older SQLite builds compile this out, so
+        # the call may not exist — that's also safe.)
+        try:
+            conn.enable_load_extension(False)
+        except AttributeError:
+            pass
         cursor = conn.cursor()
         
         # Check for required tables
@@ -458,15 +483,33 @@ def validate_mathir_db(db_path: str) -> bool:
 
 
 def api_import_db(project_name: str, db_data_b64: str, db_path: str = "") -> dict:
-    """Import a MATHIR database from base64-encoded data or file path."""
+    """Import a MATHIR database from base64-encoded data or file path.
+
+    SECURITY:
+      - project_name is restricted to [A-Za-z0-9_-]+ since it forms part of the
+        on-disk project directory name; anything looser allows path traversal.
+      - db_path must be a relative path with no '..' segments, otherwise an
+        attacker could read/overwrite arbitrary files via the validation step.
+      - The imported DB is validated with SQLite extension loading disabled
+        (see validate_mathir_db); imported DBs are untrusted and must never
+        enable extensions.
+    """
     import base64
     import tempfile
     
     if not project_name:
         return {"error": "project_name is required"}
     
+    # Strict sanitization — project_name becomes a directory name on disk.
+    if not _PROJECT_NAME_RE.match(project_name):
+        return {"error": "project_name must match ^[A-Za-z0-9_-]+$"}
+    
     # Handle file path import (local file)
     if db_path and not db_data_b64:
+        # Reject absolute paths and any traversal segments — these would allow
+        # the validation step to read/arbitrarily probe files outside the CWD.
+        if os.path.isabs(db_path) or ".." in db_path:
+            return {"error": "db_path must be a relative path without '..' segments"}
         if not os.path.exists(db_path):
             return {"error": f"File not found: {db_path}"}
         if not db_path.endswith('.db'):
@@ -550,7 +593,30 @@ def api_import_db(project_name: str, db_data_b64: str, db_path: str = "") -> dic
 
 
 class DashboardHandler(SimpleHTTPRequestHandler):
+    def _check_auth(self):
+        """Reject unauthenticated requests on non-loopback binds.
+        Loopback binds skip this entirely (current default behavior).
+        """
+        if _is_loopback(HOST) or not _AUTH_TOKEN:
+            return None  # no auth required
+        auth = self.headers.get('Authorization', '')
+        if auth != f'Bearer {_AUTH_TOKEN}':
+            self._json_response({'error': 'unauthorized'}, status=401)
+            return 'sentinel'  # caller must return immediately
+        return None
+
+    def _json_response(self, data, status=200):
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        origin = self._cors_origin()
+        if origin:
+            self.send_header("Access-Control-Allow-Origin", origin)
+        self.end_headers()
+        self.wfile.write(json.dumps(data, indent=2, default=str).encode())
+
     def do_GET(self):
+        if self._check_auth() is not None:
+            return
         parsed = urlparse(self.path)
         path = parsed.path
         params = parse_qs(parsed.query)
@@ -591,20 +657,30 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             self.send_error(404)
 
     def do_POST(self):
+        if self._check_auth() is not None:
+            return
         parsed = urlparse(self.path)
         path = parsed.path
         params = parse_qs(parsed.query)
         project = params.get("project", [None])[0]
 
+        body, too_large = self._read_json_body()
+        if too_large == 413:
+            # Reject oversize bodies without reading/draining the stream.
+            self.send_response(413)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            origin = self._cors_origin()
+            if origin:
+                self.send_header("Access-Control-Allow-Origin", origin)
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": "Request body too large"}).encode())
+            return
+
         if path == "/api/memory/delete":
-            content_length = int(self.headers.get("Content-Length", 0))
-            body = json.loads(self.rfile.read(content_length)) if content_length else {}
             memory_id = body.get("memory_id", "")
             reason = body.get("reason", "user requested")
             self._json_response(api_delete_memory(memory_id, reason, project))
         elif path == "/api/import":
-            content_length = int(self.headers.get("Content-Length", 0))
-            body = json.loads(self.rfile.read(content_length)) if content_length else {}
             project_name = body.get("project_name", "")
             db_data_b64 = body.get("db_data", "")
             db_path = body.get("db_path", "")
@@ -612,16 +688,48 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         else:
             self.send_error(404)
 
-    def _json_response(self, data):
-        self.send_response(200)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.end_headers()
-        self.wfile.write(json.dumps(data, indent=2, default=str).encode())
+    def _cors_origin(self):
+        """Return the CORS origin to echo back, or None to omit the header.
+
+        Only loopback origins (http://127.0.0.1 or http://localhost on any port)
+        are allowed. This server is bound to 127.0.0.1 and serves a dashboard
+        meant to be consumed locally; reflecting arbitrary origins would let any
+        website the user visits issue authenticated requests to it.
+        """
+        origin = self.headers.get("Origin", "") or ""
+        if not origin:
+            return None
+        for prefix in ("http://127.0.0.1", "http://localhost"):
+            if origin == prefix or origin.startswith(prefix + ":"):
+                return origin
+        return None
+
+    def _read_json_body(self):
+        """Read and parse a JSON body with a strict 1 MiB Content-Length cap.
+
+        Returns (parsed_dict, None) on success, or (None, 413) when the
+        declared Content-Length exceeds MAX_BODY_BYTES. On 413 the caller MUST
+        NOT read from rfile — nothing is drained.
+        """
+        try:
+            content_length = int(self.headers.get("Content-Length", 0) or 0)
+        except (TypeError, ValueError):
+            content_length = 0
+        if content_length > MAX_BODY_BYTES:
+            return None, 413
+        if content_length <= 0:
+            return {}, None
+        try:
+            raw = self.rfile.read(content_length)
+            return json.loads(raw), None
+        except Exception:
+            return {}, None
 
     def do_OPTIONS(self):
         self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        origin = self._cors_origin()
+        if origin:
+            self.send_header("Access-Control-Allow-Origin", origin)
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
@@ -631,6 +739,16 @@ class DashboardHandler(SimpleHTTPRequestHandler):
 
 
 def main():
+    # --- Auth gate: non-loopback requires MATHIR_AUTH_TOKEN ---
+    if not _is_loopback(HOST):
+        if not _AUTH_TOKEN:
+            print(
+                f"Refusing to bind non-loopback (host={HOST}) without "
+                f"MATHIR_AUTH_TOKEN. Set the env var or bind 127.0.0.1.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+
     # Check if any database exists
     projects = list_projects()
     if not projects:
@@ -643,12 +761,12 @@ def main():
         print(f"  Found {len(projects)} project(s):")
         for p in projects:
             print(f"    - {p['name']}: {p['size_bytes']} bytes")
-    
+
     print(f"  Config: {CONFIG_PATH}")
-    print(f"  URL:    http://127.0.0.1:{PORT}")
+    print(f"  URL:    http://{HOST}:{PORT}")
     print()
 
-    server = HTTPServer(("127.0.0.1", PORT), DashboardHandler)
+    server = HTTPServer((HOST, PORT), DashboardHandler)
     try:
         server.serve_forever()
     except KeyboardInterrupt:

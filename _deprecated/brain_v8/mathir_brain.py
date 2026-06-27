@@ -15,28 +15,29 @@ Usage:
 import sys
 import os
 import time
+import socket
 import subprocess
 import argparse
-import urllib.request
-import urllib.error
 from pathlib import Path
 
 HOST = '127.0.0.1'
 DAEMON_PORT = int(os.environ.get("MATHIR_PORT", "7338"))
 PROXY_PORT = int(os.environ.get("MATHIR_PROXY_PORT", "8182"))
 
-# Portable script resolution: all scripts live next to this file.
-_HERE = Path(__file__).parent.resolve()
-DAEMON_SCRIPT = _HERE / "mathir_daemon.py"
-WATCHDOG_SCRIPT = _HERE / "mathir_watchdog.py"
-PROXY_SCRIPT = _HERE / "mathir_inject_proxy.py"
+# Portable script resolution: the daemon lives in mathir_lib/, while
+# watchdog/proxy live next to this file in brain/. Use Path(__file__).parent
+# for everything so the brain stack works from any install location.
+_BRAIN_DIR = Path(__file__).parent.resolve()
+_LIB_DIR = _BRAIN_DIR.parent / "mathir_lib"
+DAEMON_SCRIPT = _LIB_DIR / "mathir_daemon.py"
+WATCHDOG_SCRIPT = _BRAIN_DIR / "mathir_watchdog.py"
+PROXY_SCRIPT = _BRAIN_DIR / "mathir_inject_proxy.py"
 
 LLM_TARGET = "http://localhost:8181"  # Default llama-server / OpenAI compatible
 
 
 def is_port_listening(port: int, timeout: float = 1.0) -> bool:
     try:
-        import socket
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(timeout)
         s.connect((HOST, port))
@@ -46,21 +47,20 @@ def is_port_listening(port: int, timeout: float = 1.0) -> bool:
         return False
 
 
-def is_server_alive(timeout: float = 2.0) -> bool:
-    """Probe the HTTP /health endpoint (returns True on HTTP 200).
-
-    v8.5.0+: the server is HTTP/Flask, not the old TCP JSON-RPC daemon.
-    An HTTP GET replaces the raw-socket ``sendall(b'{"method":"ping"...}')``
-    probe, which no longer works and had a ``\\n`` framing divergence
-    between the two copies.
-    """
-    health_url = f"http://{HOST}:{DAEMON_PORT}/health"
-    try:
-        with urllib.request.urlopen(health_url, timeout=timeout) as r:
-            return r.status == 200
-    except (urllib.error.URLError, urllib.error.HTTPError, OSError,
-            ConnectionError, TimeoutError):
+def is_daemon_alive() -> bool:
+    if not is_port_listening(DAEMON_PORT):
         return False
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(2)
+        s.connect((HOST, DAEMON_PORT))
+        s.sendall(b'{"method":"ping","params":{}}')
+        try:
+            chunk = s.recv(1024)
+        except socket.timeout:
+            pass
+        s.close()
+        return bool(chunk)
     except Exception:
         return False
 
@@ -96,7 +96,7 @@ def start_all():
     print()
     
     # 1. Daemon
-    if is_server_alive():
+    if is_daemon_alive():
         print("  [OK] Daemon already running")
     else:
         print("  Starting daemon...")
@@ -107,7 +107,7 @@ def start_all():
         print("  Waiting for daemon to load model (30s)...")
         for i in range(30):
             time.sleep(1)
-            if is_server_alive():
+            if is_daemon_alive():
                 print(f"  [OK] Daemon ready after {i+1}s")
                 break
         else:
@@ -126,7 +126,7 @@ def start_all():
     
     print()
     print("=== Status ===")
-    print(f"  Daemon (port {DAEMON_PORT}): {'ALIVE' if is_server_alive() else 'DOWN'}")
+    print(f"  Daemon (port {DAEMON_PORT}): {'ALIVE' if is_daemon_alive() else 'DOWN'}")
     print(f"  Proxy (port {PROXY_PORT}): {'ALIVE' if is_port_listening(PROXY_PORT) else 'DOWN'}")
     print()
     print("Point your LLM client (OpenCode, MiMo) to:")
@@ -161,7 +161,7 @@ def status():
     print("=== MATHIR Brain Stack Status ===")
     print()
     print(f"  Daemon (port {DAEMON_PORT}):")
-    if is_server_alive():
+    if is_daemon_alive():
         print(f"    Status: ALIVE")
     else:
         print(f"    Status: DOWN")
