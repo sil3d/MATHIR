@@ -78,6 +78,7 @@ class _NumpyBackend:
                 return []
             q = _normalize(query)
             sims = self._embeddings @ q
+            k = max(1, min(k, len(self._ids)))
             top_idx = np.argpartition(sims, -k)[-k:]
             top_idx = top_idx[np.argsort(sims[top_idx])[::-1]]
             return [(self._ids[i], float(sims[i])) for i in top_idx]
@@ -224,8 +225,8 @@ class _USearchBackend:
             return True
 
     def search(self, query: np.ndarray, k: int = 5) -> List[tuple]:
-        results = self._index.search(_normalize(query), count=k)
         with self._lock:
+            results = self._index.search(_normalize(query), count=k)
             return [(self._key_to_id[results[i].key], float(results[i].distance))
                     for i in range(len(results)) if results[i].key in self._key_to_id]
 
@@ -234,7 +235,9 @@ class _USearchBackend:
 
     def save(self) -> None:
         if self.index_path:
-            os.makedirs(os.path.dirname(self.index_path), exist_ok=True)
+            d = os.path.dirname(self.index_path)
+            if d:
+                os.makedirs(d, exist_ok=True)
             self._index.save(self.index_path)
 
 
@@ -263,7 +266,7 @@ class HybridSearch:
         "idx_tier": "CREATE INDEX IF NOT EXISTS idx_memories_tier ON memories(tier)",
     }
 
-    def __init__(self, dim: int = 1024, db_path: str = "mathir_vectors.db",
+    def __init__(self, dim: int = 384, db_path: str = "mathir_vectors.db",
                  strategy: Optional[str] = None, index_dir: Optional[str] = None):
         self.dim = dim
         self.db_path = db_path
@@ -357,13 +360,17 @@ class HybridSearch:
         if self.strategy != "auto" or self._current_name != "numpy":
             return
         if self._current.count() >= NUMPY_THRESHOLD:
-            if self._usearch is None:
-                self._usearch = _USearchBackend(self.dim, os.path.join(self.index_dir, f"mathir_{self.dim}d.usearch"))
-            self._current = self._usearch; self._current_name = "usearch"
-            all_items = self._meta_get_all()
-            self._current.build(all_items); self._usearch.save()
-            if self._bm25:
-                self._bm25.build(all_items)
+            with self._lock:
+                # Re-check under lock to avoid racing concurrent store()/switchers.
+                if self._current_name != "numpy":
+                    return
+                if self._usearch is None:
+                    self._usearch = _USearchBackend(self.dim, os.path.join(self.index_dir, f"mathir_{self.dim}d.usearch"))
+                self._current = self._usearch; self._current_name = "usearch"
+                all_items = self._meta_get_all()
+                self._current.build(all_items); self._usearch.save()
+                if self._bm25:
+                    self._bm25.build(all_items)
 
     # -- Public API ----------------------------------------------------------
 
@@ -379,10 +386,33 @@ class HybridSearch:
         if not items:
             return 0
         self._meta_store_batch(items)
-        for it in items:
-            self._current.add(it["memory_id"], it["embedding"])
-            if self._bm25:
-                self._bm25.add(it["memory_id"], it.get("text", ""))
+        added: List[str] = []
+        try:
+            for it in items:
+                self._current.add(it["memory_id"], it["embedding"])
+                added.append(it["memory_id"])
+                if self._bm25:
+                    self._bm25.add(it["memory_id"], it.get("text", ""))
+        except Exception:
+            # Compensate: roll back the rows we just inserted into SQL so the
+            # SQL store and the in-memory index stay consistent. Anything that
+            # was already added to the index is removed; rows that never made it
+            # into the index are deleted from SQL to avoid phantom hits.
+            for mid in (it["memory_id"] for it in items):
+                try:
+                    self._current.remove(mid)
+                except Exception:
+                    pass
+                if self._bm25:
+                    try:
+                        self._bm25.remove(mid)
+                    except Exception:
+                        pass
+                try:
+                    self._meta_delete(mid)
+                except Exception:
+                    pass
+            raise
         self._maybe_switch()
         return len(items)
 
@@ -446,10 +476,11 @@ class HybridSearch:
         return results
 
     def delete(self, memory_id: str) -> bool:
+        sql_deleted = self._meta_delete(memory_id)
         self._current.remove(memory_id)
         if self._bm25:
             self._bm25.remove(memory_id)
-        return self._meta_delete(memory_id)
+        return sql_deleted
 
     def count(self) -> int:
         return self._current.count()

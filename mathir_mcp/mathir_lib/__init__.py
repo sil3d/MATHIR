@@ -74,28 +74,38 @@ def get_config_dir() -> Path:
     custom = os.environ.get("MATHIR_CONFIG_DIR")
     if custom:
         return Path(custom).expanduser().resolve()
-    p = Path.home() / ".config" / "mathir"
+    try:
+        from .mathir_paths import HOME as _HOME
+    except ImportError:
+        from mathir_paths import HOME as _HOME
+    p = _HOME / "config"
     p.mkdir(parents=True, exist_ok=True)
     return p
 
 
 def get_data_dir() -> Path:
-    """Get user data dir. Override with MATHIR_DATA_DIR env var."""
+    """Get user data dir. Override with MATHIR_DATA_DIR env var.
+
+    Resolves onto the same base as mathir_paths (single resolver) so the
+    unified server and this helper agree on where project DBs live."""
     custom = os.environ.get("MATHIR_DATA_DIR")
     if custom:
         return Path(custom).expanduser().resolve()
-    p = Path.home() / ".local" / "share" / "mathir"
-    p.mkdir(parents=True, exist_ok=True)
-    return p
+    try:
+        from .mathir_paths import DATA_DIR as _DATA_DIR
+    except ImportError:
+        from mathir_paths import DATA_DIR as _DATA_DIR
+    _DATA_DIR.mkdir(parents=True, exist_ok=True)
+    return _DATA_DIR
 
 
 def get_db_path(project: str = "default") -> Path:
-    """Get DB path for a project. CWD-first, then data dir.
+    """Get DB path for a project. CWD-first, then the unified data dir.
 
     Discovery order:
       1. ``.mathir/mathir.db`` in the current working directory (per-project isolation)
-      2. ``$MATHIR_DATA_DIR/projects/<project>/mathir.db`` (XDG_DATA_HOME)
-      3. ``~/.local/share/mathir/projects/<project>/mathir.db`` (fallback)
+      2. ``$MATHIR_DATA_DIR/projects/<project>/mathir.db``
+      3. ``<MATHIR_HOME>/data/projects/<project>/mathir.db`` (fallback via mathir_paths)
     """
     cwd_db = Path.cwd() / ".mathir" / "mathir.db"
     if cwd_db.exists():

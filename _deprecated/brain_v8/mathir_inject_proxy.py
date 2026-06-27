@@ -28,14 +28,12 @@ import argparse
 from pathlib import Path
 from typing import Optional
 
-# Ensure daemon client and sibling modules are importable
-sys.path.insert(0, str(Path(__file__).parent))
-try:
-    from mathir_client import call as _daemon_call
-except ImportError:
-    from mathir_mcp.mathir_lib.mathir_client import call as _daemon_call
+# Ensure daemon client and prime module are importable
+_pkg_root = str(Path(__file__).resolve().parent.parent)          # mathir_mcp/
+sys.path.insert(0, _pkg_root)
+sys.path.insert(0, str(Path(__file__).resolve().parent))         # brain/
+from mathir_mcp.mathir_lib.mathir_client import call as _daemon_call
 from mathir_prime import build_priming_context, format_for_injection
-from mathir_proxy import sanitize_memory_for_injection
 
 log = logging.getLogger("MATHIR-INJECT")
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(name)s] %(levelname)s %(message)s')
@@ -185,11 +183,6 @@ def inject_into_system_prompt(body: dict) -> dict:
     if not injection:
         injection = "_No relevant memories found yet. As you learn, save with `mathir_client.py save`._"
     
-    # Sanitize before injection — strip breakout substrings, quote each line
-    # as data, and cap total size. Defends against stored prompt-injection
-    # from recalled memory content (see sanitize_memory_for_injection).
-    injection = sanitize_memory_for_injection(injection)
-
     # Replace marker
     system = system.replace(INJECT_MARKER, injection)
     

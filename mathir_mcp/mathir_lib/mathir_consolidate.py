@@ -24,6 +24,15 @@ sys.path.insert(0, str(Path(__file__).parent))
 from mathir_mcp_server import get_project_db_path
 
 
+def _has_memory_embeddings_table(conn) -> bool:
+    """Defensive (C5): True only if the legacy ``memory_embeddings`` table exists.
+    Vec-era DBs do not have this table, so DELETEs against it must be skipped."""
+    row = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='memory_embeddings'"
+    ).fetchone()
+    return row is not None
+
+
 def merge_duplicates(db_path: Path, threshold: float = 0.95) -> int:
     """
     Find near-duplicate memories (cosine > threshold) and merge them.
@@ -32,25 +41,35 @@ def merge_duplicates(db_path: Path, threshold: float = 0.95) -> int:
     """
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
-    
+
+    # H6: parameterize embedding dim instead of hardcoding 384. Read the actual
+    # dim from any row that has an embedding; fall back to 384 only if unknown.
+    try:
+        dim_row = conn.execute(
+            "SELECT embedding_dim FROM memories WHERE embedding IS NOT NULL LIMIT 1"
+        ).fetchone()
+        embedding_dim = int(dim_row[0]) if dim_row and dim_row[0] else 384
+    except sqlite3.OperationalError:
+        embedding_dim = 384
+
     # Get all memories with embeddings
     cur = conn.execute("""
         SELECT memory_id, embedding, modality_text, priority, agent, block_type, label, timestamp, recall_count
         FROM memories
-        WHERE embedding IS NOT NULL AND embedding_dim = 384
+        WHERE embedding IS NOT NULL
         ORDER BY priority DESC, recall_count DESC, timestamp DESC
     """)
-    
+
     rows = cur.fetchall()
     print(f"  Scanning {len(rows)} memories for duplicates...")
-    
+
     # Build numpy matrix for fast comparison
     embs = []
     ids = []
     for r in rows:
         try:
             emb = np.frombuffer(r['embedding'], dtype=np.float32)
-            if len(emb) == 384:
+            if len(emb) == embedding_dim:
                 embs.append(emb)
                 ids.append((r['memory_id'], r['priority'], r['recall_count'], r['timestamp']))
         except Exception:
@@ -87,8 +106,10 @@ def merge_duplicates(db_path: Path, threshold: float = 0.95) -> int:
                 merge_count += 1
     
     # Delete duplicates
+    has_me_tbl = _has_memory_embeddings_table(conn)  # C5: vec-era DBs lack this table
     for mid in to_delete:
-        conn.execute("DELETE FROM memory_embeddings WHERE memory_id = ?", (mid,))
+        if has_me_tbl:
+            conn.execute("DELETE FROM memory_embeddings WHERE memory_id = ?", (mid,))
         conn.execute("DELETE FROM memories WHERE memory_id = ?", (mid,))
         conn.execute("DELETE FROM memory_links WHERE source_id = ? OR target_id = ?", (mid, mid))
     
@@ -101,22 +122,37 @@ def apply_decay(db_path: Path, decay_rate: float = 0.05) -> int:
     """
     Apply Ebbinghaus-style decay: memories not accessed in 30+ days lose 5% stability.
     Returns number of memories decayed.
+
+    Delegates to VecMemory.decay_all() (the single canonical linear decay
+    formula) so consolidate.py and mathir_vec.py never diverge. Falls back
+    to legacy SQL if VecMemory cannot be constructed (schema mismatch, etc.).
     """
-    conn = sqlite3.connect(str(db_path))
-    cutoff = time.time() - (30 * 86400)  # 30 days ago
-    
-    # Decay memories: stability = stability * (1 - decay_rate) if last access > 30 days ago
-    cur = conn.execute("""
-        UPDATE memories 
-        SET stability = stability * ?
-        WHERE (recall_count = 0 OR timestamp < ?)
-          AND stability > 0.05
-    """, (1.0 - decay_rate, cutoff))
-    
-    decayed = cur.rowcount
-    conn.commit()
-    conn.close()
-    return decayed
+    try:
+        try:
+            from .mathir_vec import VecMemory
+        except ImportError:
+            from mathir_vec import VecMemory
+        vm = VecMemory(db_path=db_path)
+        try:
+            result = vm.decay_all()
+            return result.get("decayed", 0)
+        finally:
+            if hasattr(vm, "close"):
+                vm.close()
+    except Exception as exc:
+        print(f"[mathir_consolidate] VecMemory delegation failed ({exc}), falling back to legacy SQL")
+        conn = sqlite3.connect(str(db_path))
+        cutoff = time.time() - (30 * 86400)  # 30 days ago
+        cur = conn.execute("""
+            UPDATE memories
+            SET stability = stability * ?
+            WHERE timestamp < ?
+              AND stability > 0.05
+        """, (1.0 - decay_rate, cutoff))
+        decayed = cur.rowcount
+        conn.commit()
+        conn.close()
+        return decayed
 
 
 def archive_dead_memories(db_path: Path, min_stability: float = 0.05) -> int:
@@ -125,14 +161,28 @@ def archive_dead_memories(db_path: Path, min_stability: float = 0.05) -> int:
     For now, just delete them (could move to archive table).
     """
     conn = sqlite3.connect(str(db_path))
+
+    # H7: vec-era/new-schema DBs have no `stability` column on `memories` —
+    # this feature is legacy-only, so no-op gracefully.
+    try:
+        cols = {col[1] for col in conn.execute("PRAGMA table_info(memories)").fetchall()}
+    except sqlite3.OperationalError:
+        cols = set()
+    if "stability" not in cols:
+        conn.close()
+        return 0
+
     cur = conn.execute("SELECT memory_id FROM memories WHERE stability < ?", (min_stability,))
     dead = [r[0] for r in cur.fetchall()]
-    
+
+    # C5: only touch memory_embeddings if it actually exists on this schema.
+    has_me_tbl = _has_memory_embeddings_table(conn)
     for mid in dead:
-        conn.execute("DELETE FROM memory_embeddings WHERE memory_id = ?", (mid,))
+        if has_me_tbl:
+            conn.execute("DELETE FROM memory_embeddings WHERE memory_id = ?", (mid,))
         conn.execute("DELETE FROM memories WHERE memory_id = ?", (mid,))
         conn.execute("DELETE FROM memory_links WHERE source_id = ? OR target_id = ?", (mid, mid))
-    
+
     conn.commit()
     conn.close()
     return len(dead)

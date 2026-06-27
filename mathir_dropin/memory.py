@@ -310,8 +310,9 @@ class _EpisodicMemory(nn.Module):
             for idx in indices:
                 if 0 <= idx < self.capacity:
                     self.recall_count[idx] += 1
-                    # Stability grows with each recall: S_{n+1} = S_n * (1 + α)
-                    self.stability[idx] *= 1.5
+                    # Stability grows with each recall, capped at 1.0 to avoid
+                    # unbounded float blow-up over long-lived processes.
+                    self.stability[idx] = min(self.stability[idx] * 1.5, 1.0)
 
     def forget(self, threshold: float) -> List[int]:
         """Prune memories with low average intra-set similarity.
@@ -1387,15 +1388,19 @@ class MATHIRMemory(nn.Module):
         if self._store is None:
             return
         # Flush everything that was buffered while auto_save was off.
+        # Hold _op_lock for the *entire* swap + flush so a concurrent
+        # save() cannot race the failed-row re-queue, and a concurrent
+        # store() cannot append to _pending_writes mid-flush. Releasing
+        # the lock between the swap and the loop previously let another
+        # save() observe (and double-insert) the same pending rows.
         with self._op_lock:
             pending = self._pending_writes
             self._pending_writes = []
-        for row in pending:
-            try:
-                self._store.insert(**row)
-            except StorageError:
-                # Keep it pending so a future save() can retry.
-                with self._op_lock:
+            for row in pending:
+                try:
+                    self._store.insert(**row)
+                except StorageError:
+                    # Keep it pending so a future save() can retry.
                     self._pending_writes.append(row)
 
     def load(self) -> None:

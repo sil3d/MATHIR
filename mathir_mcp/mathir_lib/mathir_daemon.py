@@ -41,10 +41,11 @@ MAX_LABEL_LENGTH = 500      # Max chars for memory labels
 # traces survive even when stdout/stderr are DEVNULL'd by a watchdog)
 # ---------------------------------------------------------------------------
 from pathlib import Path as _Path
-_log_dir = _Path(os.environ.get(
-    "MATHIR_LOG_DIR",
-    str(_Path.home() / ".config" / "opencode" / "bin"),
-))
+try:
+    from .mathir_paths import LOG_DIR as _P_LOG
+except ImportError:
+    from mathir_paths import LOG_DIR as _P_LOG
+_log_dir = _Path(os.environ.get("MATHIR_LOG_DIR", str(_P_LOG)))
 try:
     _log_dir.mkdir(parents=True, exist_ok=True)
 except OSError:
@@ -356,98 +357,102 @@ def _handle_memory_hybrid_search(params):
 
     q_np = _encode_query(embedder, query_text)
 
-    # Direct SQLite connection (thread-safe with check_same_thread=False)
+    # Direct SQLite connection (thread-safe with check_same_thread=False).
+    # Wrapped in try/finally so any exception still releases the SQLite handle
+    # (prevents Windows file-lock leak when sqlite_vec errors mid-search).
     import sqlite3 as _sqlite3
     dconn = _sqlite3.connect(str(db_path), check_same_thread=False)
     dconn.row_factory = _sqlite3.Row
     try:
-        import sqlite_vec as _sqlite_vec
-        dconn.enable_load_extension(True)
-        _sqlite_vec.load(dconn)
-        dconn.enable_load_extension(False)
-        _has_vec = True
-    except Exception:
-        _has_vec = False
+        try:
+            import sqlite_vec as _sqlite_vec
+            dconn.enable_load_extension(True)
+            _sqlite_vec.load(dconn)
+            dconn.enable_load_extension(False)
+            _has_vec = True
+        except Exception:
+            _has_vec = False
 
-    # Detect schema
-    columns = {col[1] for col in dconn.execute("PRAGMA table_info(memories)").fetchall()}
-    text_col = 'content' if 'content' in columns else 'modality_text'
+        # Detect schema
+        columns = {col[1] for col in dconn.execute("PRAGMA table_info(memories)").fetchall()}
+        text_col = 'content' if 'content' in columns else 'modality_text'
 
-    # --- Vector search via sqlite-vec ---
-    vector_results = []
-    if _has_vec:
-        from mathir_vec import _serialize_embedding
-        q_blob = _serialize_embedding(q_np)
-        sql = """
-            SELECT m.memory_id, v.distance
-            FROM vec_memories v
-            JOIN memories m ON v.memory_id = m.memory_id
-            WHERE v.embedding MATCH ? AND k = ?
-        """
-        params_list = [q_blob, k * 3]
-        if agent_filter:
-            sql += " AND m.agent = ?" if 'agent' in columns else " AND json_extract(m.metadata, '$.agent') = ?"
-            params_list.append(agent_filter)
-        for row in dconn.execute(sql, params_list).fetchall():
-            vector_results.append((row['memory_id'], 1.0 - row['distance']))
+        # --- Vector search via sqlite-vec ---
+        vector_results = []
+        if _has_vec:
+            from mathir_vec import _serialize_embedding
+            q_blob = _serialize_embedding(q_np)
+            sql = """
+                SELECT m.memory_id, v.distance
+                FROM vec_memories v
+                JOIN memories m ON v.memory_id = m.memory_id
+                WHERE v.embedding MATCH ? AND k = ?
+            """
+            params_list = [q_blob, k * 3]
+            if agent_filter:
+                sql += " AND m.agent = ?" if 'agent' in columns else " AND json_extract(m.metadata, '$.agent') = ?"
+                params_list.append(agent_filter)
+            for row in dconn.execute(sql, params_list).fetchall():
+                vector_results.append((row['memory_id'], 1.0 - row['distance']))
 
-    # --- BM25 lexical search ---
-    bm25_results = []
-    try:
-        rows = dconn.execute(f"SELECT memory_id, {text_col} FROM memories").fetchall()
-    except Exception:
-        rows = []
-    if rows:
-        from mathir_search import _tokenize
-        from rank_bm25 import BM25Okapi
-        corpus_ids = [r['memory_id'] for r in rows]
-        corpus_texts = [r[1] or '' for r in rows]
-        tokenized = [_tokenize(t) for t in corpus_texts]
-        if tokenized:
-            bm25 = BM25Okapi(tokenized)
-            scores = bm25.get_scores(_tokenize(query_text))
-            for mid, sc in sorted(zip(corpus_ids, scores), key=lambda x: x[1], reverse=True):
-                if sc > 0:
-                    bm25_results.append((mid, float(sc)))
-                if len(bm25_results) >= k * 3:
-                    break
+        # --- BM25 lexical search ---
+        bm25_results = []
+        try:
+            rows = dconn.execute(f"SELECT memory_id, {text_col} FROM memories").fetchall()
+        except Exception:
+            rows = []
+        if rows:
+            from mathir_search import _tokenize
+            from rank_bm25 import BM25Okapi
+            corpus_ids = [r['memory_id'] for r in rows]
+            corpus_texts = [r[1] or '' for r in rows]
+            tokenized = [_tokenize(t) for t in corpus_texts]
+            if tokenized:
+                bm25 = BM25Okapi(tokenized)
+                scores = bm25.get_scores(_tokenize(query_text))
+                for mid, sc in sorted(zip(corpus_ids, scores), key=lambda x: x[1], reverse=True):
+                    if sc > 0:
+                        bm25_results.append((mid, float(sc)))
+                    if len(bm25_results) >= k * 3:
+                        break
 
-    # --- RRF fusion ---
-    from mathir_search import rrf_fusion
-    fused = rrf_fusion(vector_results, bm25_results, vector_weight=vector_weight, bm25_weight=bm25_weight)
+        # --- RRF fusion ---
+        from mathir_search import rrf_fusion
+        fused = rrf_fusion(vector_results, bm25_results, vector_weight=vector_weight, bm25_weight=bm25_weight)
 
-    # --- Build final results ---
-    results = []
-    for mid, rrf_score in fused[:k]:
-        meta = dconn.execute(
-            f"SELECT {text_col}, tier, timestamp FROM memories WHERE memory_id = ?", [mid]
-        ).fetchone()
-        if not meta:
-            continue
-        agent_val = ''
-        if 'agent' in columns:
-            agent_val = dconn.execute(
-                "SELECT agent FROM memories WHERE memory_id = ?", [mid]
-            ).fetchone()[0] or ''
-        else:
-            try:
-                meta_row = dconn.execute(
-                    "SELECT metadata FROM memories WHERE memory_id = ?", [mid]
-                ).fetchone()
-                if meta_row and meta_row[0]:
-                    agent_val = json.loads(meta_row[0]).get('agent', '')
-            except Exception:
-                pass
-        results.append({
-            'memory_id': mid,
-            'rrf_score': rrf_score,
-            'content': meta[0] or '',
-            'agent': agent_val,
-            'score': rrf_score,
-            'created_at': meta[2] or '',
-            'tier': meta[1] or 'episodic',
-        })
-    dconn.close()
+        # --- Build final results ---
+        results = []
+        for mid, rrf_score in fused[:k]:
+            meta = dconn.execute(
+                f"SELECT {text_col}, tier, timestamp FROM memories WHERE memory_id = ?", [mid]
+            ).fetchone()
+            if not meta:
+                continue
+            agent_val = ''
+            if 'agent' in columns:
+                agent_val = dconn.execute(
+                    "SELECT agent FROM memories WHERE memory_id = ?", [mid]
+                ).fetchone()[0] or ''
+            else:
+                try:
+                    meta_row = dconn.execute(
+                        "SELECT metadata FROM memories WHERE memory_id = ?", [mid]
+                    ).fetchone()
+                    if meta_row and meta_row[0]:
+                        agent_val = json.loads(meta_row[0]).get('agent', '')
+                except Exception:
+                    pass
+            results.append({
+                'memory_id': mid,
+                'rrf_score': rrf_score,
+                'content': meta[0] or '',
+                'agent': agent_val,
+                'score': rrf_score,
+                'created_at': meta[2] or '',
+                'tier': meta[1] or 'episodic',
+            })
+    finally:
+        dconn.close()
     return {
         'results': results, 'query': query_text, 'total': len(results),
         'project': get_project_name(), 'mode': 'hybrid',
@@ -703,10 +708,19 @@ def handle_client(conn, addr):
 
             elapsed = (time.perf_counter() - start) * 1000
             log.info(f"{method} in {elapsed:.1f}ms")
-            result['elapsed_ms'] = elapsed
+            if isinstance(result, dict):
+                result['elapsed_ms'] = elapsed
 
             try:
-                conn.sendall(json.dumps(result).encode('utf-8'))
+                payload = json.dumps(result).encode('utf-8')
+            except (TypeError, ValueError) as je:
+                payload = json.dumps({
+                    'error': f'result serialization failed: {type(je).__name__}',
+                    'method': method,
+                    'elapsed_ms': elapsed,
+                }).encode('utf-8')
+            try:
+                conn.sendall(payload)
             except (BrokenPipeError, ConnectionResetError, OSError):
                 break
     except Exception as e:
@@ -813,9 +827,24 @@ def main():
         except OSError:
             pass
         _close_vec_cache(name)
+        # Flush everything that buffers: stdout/stderr first, then the logging
+        # handlers (rotating file + stderr StreamHandler) so crash traces survive.
+        try:
+            for _h in _root.handlers + [log]:
+                try:
+                    _h.flush()
+                except Exception:
+                    pass
+        except Exception:
+            pass
         sys.stdout.flush()
         sys.stderr.flush()
-        os._exit(0)
+        # Prefer sys.exit so atexit + finally blocks run; fall back to os._exit
+        # if SystemExit cannot be raised (e.g. signal arrives at a bad bytecode).
+        try:
+            sys.exit(0)
+        except BaseException:
+            os._exit(0)
     for sig_name in ("SIGINT", "SIGTERM", "SIGBREAK", "SIGHUP"):
         sig = getattr(signal, sig_name, None)
         if sig is not None:

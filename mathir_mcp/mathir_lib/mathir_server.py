@@ -39,10 +39,16 @@ sys.path.insert(0, str(_HERE))
 # Logging — stderr + rotating file (independent of launcher pipe redirection
 # so crash traces survive even when stdout/stderr are DEVNULL'd by a watchdog)
 # ---------------------------------------------------------------------------
-_LOG_DIR = Path(os.environ.get(
-    "MATHIR_LOG_DIR",
-    str(Path.home() / ".config" / "opencode" / "bin"),
-))
+try:
+    from .mathir_paths import LOG_DIR as _P_LOG, PROJECTS_DIR as _P_PROJECTS
+    from .mathir_paths import LEGACY_DB_PATH as _P_DB, CONFIG_PATH as _P_CONFIG
+    from .mathir_paths import REGISTRY_PATH as _P_REGISTRY
+except ImportError:
+    from mathir_paths import LOG_DIR as _P_LOG, PROJECTS_DIR as _P_PROJECTS
+    from mathir_paths import LEGACY_DB_PATH as _P_DB, CONFIG_PATH as _P_CONFIG
+    from mathir_paths import REGISTRY_PATH as _P_REGISTRY
+
+_LOG_DIR = Path(os.environ.get("MATHIR_LOG_DIR", str(_P_LOG)))
 try:
     _LOG_DIR.mkdir(parents=True, exist_ok=True)
 except OSError:
@@ -104,6 +110,16 @@ _vec_cache = {}
 _vec_cache_lock = threading.Lock()
 
 _start_time = time.time()
+
+# ---------------------------------------------------------------------------
+# Auth gate — non-loopback binds REQUIRE MATHIR_AUTH_TOKEN (opt-in, non-breaking)
+# ---------------------------------------------------------------------------
+_AUTH_TOKEN = os.environ.get('MATHIR_AUTH_TOKEN', '') or ''
+
+
+def _is_loopback(host: str) -> bool:
+    """Return True for loopback / localhost binds that need no auth."""
+    return host in ('', '127.0.0.1', '::1', 'localhost')
 
 
 def _get_vec_mem(db_path, dim):
@@ -186,22 +202,10 @@ app = Flask(__name__)
 # ---------------------------------------------------------------------------
 
 _HTML_PATH = _HERE / "mathir_dashboard.html"
-_PROJECTS_DIR = Path(os.environ.get(
-    "MATHIR_PROJECTS_DIR",
-    os.path.expanduser("~/.config/opencode/data/projects")
-))
-_LEGACY_DB = Path(os.environ.get(
-    "MATHIR_DB",
-    os.path.expanduser("~/.config/opencode/data/mathir.db")
-))
-_CONFIG_PATH = Path(os.environ.get(
-    "MATHIR_CONFIG",
-    os.path.expanduser("~/.config/opencode/config/mathir.json")
-))
-_REGISTRY_PATH = Path(os.environ.get(
-    "MATHIR_REGISTRY",
-    os.path.expanduser("~/.config/opencode/data/mathir_registry.json")
-))
+_PROJECTS_DIR = Path(os.environ.get("MATHIR_PROJECTS_DIR", str(_P_PROJECTS)))
+_LEGACY_DB = Path(os.environ.get("MATHIR_DB", str(_P_DB)))
+_CONFIG_PATH = Path(os.environ.get("MATHIR_CONFIG", str(_P_CONFIG)))
+_REGISTRY_PATH = Path(os.environ.get("MATHIR_REGISTRY", str(_P_REGISTRY)))
 
 
 def _get_project_db(project_name=None):
@@ -341,6 +345,18 @@ def api_memories():
     return jsonify({"memories": memories, "total": len(memories), "project": project})
 
 
+def _sanitize_for_prompt(text: str) -> str:
+    """Make memory text safe to embed in an LLM system prompt: strip
+    block-delim / template tokens and CR/LF so a stored memory can't break out
+    of the injection region or pose as new instructions."""
+    if not text:
+        return ""
+    s = str(text).replace("\r", " ").replace("\n", " ")
+    for tok in ("</mathir-", "{{MATHIR_CONTEXT}}", "<|", "### "):
+        s = s.replace(tok, tok.strip())
+    return s
+
+
 @app.route("/api/context", methods=["GET", "POST"])
 def api_context():
     """Auto-injection endpoint for OpenCode plugins.
@@ -399,12 +415,16 @@ def api_context():
             "agent": r.get("agent", ""),
             "score": r.get("score", 0.0),
         })
-    # Format as injection text
-    lines = [f"## MATHIR Auto-Context — {len(normalized)} memories for: {task[:100]}"]
+    # Format as injection text (sanitize every field so a stored memory cannot
+    # break out of the block or smuggle prompt-instruction tokens).
+    lines = [f"## MATHIR Auto-Context — {len(normalized)} memories for: {_sanitize_for_prompt(task)[:100]}"]
     for tier, items in tiers.items():
-        lines.append(f"\n### {tier.upper()} ({len(items)})")
+        lines.append(f"\n### {_sanitize_for_prompt(tier).upper()} ({len(items)})")
         for item in items:
-            lines.append(f"- [{item['agent']}] {item['label']}: {item['content'][:200]}")
+            ag = _sanitize_for_prompt(item.get('agent', ''))
+            lb = _sanitize_for_prompt(item.get('label', ''))
+            ct = _sanitize_for_prompt(item.get('content', ''))[:200]
+            lines.append(f"> [{ag}] {lb}: {ct}")
     return jsonify({
         "context": "\n".join(lines),
         "tiers": {t: len(v) for t, v in tiers.items()},
@@ -485,7 +505,7 @@ def memory_save():
 
         emb_np = _encode_query(embedder, content)
         import uuid
-        memory_id = f"mem_{uuid.uuid4().hex[:8]}"
+        memory_id = f"mem_{uuid.uuid4().hex}"
         metadata = {
             'agent': params.get('agent', 'unknown'),
             'block_type': params.get('block_type', 'episodic'),
@@ -1054,6 +1074,23 @@ def main():
 
     log.info(f"MATHIR server starting on {args.host}:{args.port} "
              f"(PID {os.getpid()}, log {_LOG_PATH})")
+
+    # --- Auth gate: non-loopback requires MATHIR_AUTH_TOKEN ---
+    if not _is_loopback(args.host):
+        if not _AUTH_TOKEN:
+            print(
+                f"Refusing to bind non-loopback (host={args.host}) without "
+                f"MATHIR_AUTH_TOKEN. Set the env var or bind 127.0.0.1.",
+                file=sys.stderr,
+            )
+            sys.exit(2)
+        # Install bearer-token auth hook for /api/ paths (skip /health, /ping)
+        @app.before_request
+        def _require_bearer():
+            if request.path.startswith('/api/') and request.path not in ('/api/health', '/api/ping'):
+                auth = request.headers.get('Authorization', '')
+                if auth != f'Bearer {_AUTH_TOKEN}':
+                    return jsonify({'error': 'unauthorized'}), 401
 
     # Warm up in background
     t = threading.Thread(target=_warmup, daemon=True)

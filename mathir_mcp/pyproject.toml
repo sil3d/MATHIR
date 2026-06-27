@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mathir-mcp"
-version = "8.5.0"
-description = "MATHIR Memory MCP Server - FastMCP-based cognitive memory for LLM agents"
+version = "9.0.0"
+description = "MATHIR — universal cognitive memory MCP server for LLM agents"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -18,15 +18,16 @@ dependencies = [
 license = {text = "MIT"}
 
 [project.scripts]
-# MCP server (FastMCP, stdio, 20 tools)
-mathir-mcp = "mathir_mcp.mathir_lib.mathir_mcp_server:main"
-# CLI client (HTTP to unified server)
-mathir-client = "mathir_mcp.mathir_lib.mathir_client:main"
+mathir-mcp       = "mathir_mcp.mathir_lib.mathir_mcp_server:main"
+mathir-server    = "mathir_mcp.mathir_lib.mathir_server:main"
+mathir-client    = "mathir_mcp.mathir_lib.mathir_client:main"
+mathir-migrate   = "mathir_mcp.mathir_lib.mathir_migrate:main"
+mathir-brain     = "mathir_mcp.mathir_lib.mathir_brain:main"
+mathir-dashboard = "mathir_mcp.mathir_lib.mathir_stats_server:main"
 
 [tool.setuptools]
-packages = ["mathir_mcp", "mathir_mcp.mathir_lib", "brain"]
+packages = ["mathir_mcp", "mathir_mcp.mathir_lib"]
 
 [tool.setuptools.package-dir]
 "mathir_mcp" = "."
 "mathir_mcp.mathir_lib" = "mathir_lib"
-"brain" = "brain"
