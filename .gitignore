@@ -28,10 +28,16 @@ htmlcov/
 
 # Local databases / model artifacts
 *.db
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite3
 *.pth
 *.pt
+
+# Per-project MATHIR databases (auto-created at runtime)
+.mathir/
+**/.mathir/
 
 # Large model files (GGUF, DLL, binaries)
 *.gguf
