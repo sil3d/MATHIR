@@ -1,197 +1,214 @@
-# MATHIR — Outreach Templates
+# MATHIR — Outreach Email Templates
 
-Comparison of Claude Memory vs MATHIR, plus email templates for outreach to major AI providers.
+Each email focuses on **what MATHIR does**, not what others don't have.
+No assumptions about other providers' internal work.
 
 ---
 
-## Claude Memory vs MATHIR — Comparison
+## Claude Memory vs MATHIR — Technical Comparison (internal reference, NOT sent)
 
-| Feature | Claude Memory | MATHIR |
+| Dimension | Claude Memory | MATHIR |
 |---|---|---|
-| **Type** | Built-in (Anthropic) | Open-source MCP layer |
-| **Provider** | Claude only | Any LLM (Claude, GPT, Gemini, Ollama, local) |
-| **Architecture** | RAG on chat history | 5-tier cognitive memory (working/episodic/semantic/procedural/immunological) |
-| **Storage** | Anthropic cloud servers | SQLite local on your machine |
-| **Privacy** | Data on Anthropic servers | Memory never leaves your machine |
-| **Decay** | No forgetting curve | Ebbinghaus decay (5%/30 days) |
-| **Promotion** | No tier promotion | working→episodic→semantic→procedural |
-| **Consolidation** | No deduplication | Auto-merge near-duplicates (cosine > 0.95) |
-| **Link graph** | No | Spreading activation links between memories |
-| **Anomaly detection** | No | AUC=1.0, immunological tier |
-| **Edge deployment** | No (cloud only) | Jetson, Raspberry Pi, RC car, ONNX |
-| **Cost** | $20/mo+ (Pro plan) | Free (MIT license) |
-| **Cross-provider** | ❌ Vendor lock-in | ✅ Any LLM, any provider |
-| **MCP tools** | 0 (proprietary) | 23 tools via Model Context Protocol |
-| **Import/export** | Basic (ChatGPT, Gemini) | Full MCP + API + JSON export |
-| **Availability** | Pro/Max/Team/Enterprise only | Free for everyone |
-
-**Key insight:** Claude Memory is a closed ecosystem feature. MATHIR is the open-source, cross-provider alternative that gives you the same (and more) capabilities without vendor lock-in.
+| Architecture | RAG on chat history, summary updated every 24h | 5-tier cognitive memory (working/episodic/semantic/procedural/immunological) |
+| Storage | Anthropic cloud servers | SQLite local, zero cloud dependency |
+| Forgetting | None — memories persist indefinitely | Ebbinghaus decay (5%/30 days), archive when stability < 0.05 |
+| Promotion | None | working→episodic→semantic→procedural based on recall_count + age |
+| Deduplication | None | Auto-merge near-duplicates (cosine > 0.95) |
+| Link graph | None | Spreading activation between memories (Collins & Loftus 1975) |
+| Anomaly detection | None | Mahalanobis distance, AUC = 1.0 on test set |
+| Edge deployment | None (cloud only) | Jetson Orin (30ms), Raspberry Pi (CPU), RC car (autonomous) |
+| Cross-provider | No — locked to Claude | Works with any LLM via MCP |
+| MCP tools | 0 (proprietary) | 23 tools via Model Context Protocol |
+| Import/export | Basic | Full API + JSON + MCP |
+| Cost | $20/mo+ (Pro plan) | Free (MIT license) |
+| Privacy | Data on Anthropic servers | Memory never leaves your machine |
 
 ---
 
 ## Email Templates
 
-### Template 1: Generic Outreach (All Providers)
-
-**Subject:** Open-source memory layer that works with [Provider] — MIT, 23 MCP tools, zero vendor lock-in
-
-Hi [Team/Name],
-
-I'm Prince Gildas, an independent developer. I built [MATHIR](https://github.com/sil3d/MATHIR) — a 5-tier cognitive memory layer for LLMs that's fully open-source and works with any provider, including [Provider].
-
-**Why this matters:**
-- Claude has memory, GPT has memory, Gemini has memory — but they're all **vendor-locked**
-- MATHIR gives your users **the same memory capabilities** without requiring them to stay on one platform
-- 23 MCP tools, Ebbinghaus decay, tier promotion, anomaly detection (AUC=1.0)
-- MIT licensed, ~500 MB VRAM, runs on Jetson/Raspberry Pi
-
-**Current stats:**
-- 226 tests passing
-- 5-tier cognitive memory (working/episodic/semantic/procedural/immunological)
-- Edge deployment on Jetson Orin (30ms recall) and Raspberry Pi
-- Hybrid search: vector + BM25 + RRF fusion
-
-I'd love to discuss how MATHIR could complement [Provider]'s memory offerings. Even if you don't mention it publicly, having a reference implementation shows the ecosystem is maturing.
-
-Best,
-Prince Gildas
-https://github.com/sil3d/MATHIR
+All emails are in English. Each highlights MATHIR's **unique technical capabilities**.
 
 ---
 
-### Template 2: Anthropic (Claude Memory Comparison)
+### Template 1: Anthropic
 
-**Subject:** MATHIR vs Claude Memory — open-source alternative with 5-tier cognition
+**Subject:** MATHIR — open-source cognitive memory with anomaly detection, works with Claude
 
 Hi Anthropic Team,
 
-Claude Memory is a great feature — but it's locked to your platform. I built [MATHIR](https://github.com/sil3d/MATHIR), an open-source alternative that gives any LLM the same (and more) memory capabilities.
+I'm Prince Gildas, an independent developer. I built [MATHIR](https://github.com/sil3d/MATHIR) — a 5-tier cognitive memory system with 23 MCP tools that's fully open-source and works with Claude via MCP.
 
-**Claude Memory limitations:**
-- Vendor-locked: memories don't transfer to GPT, Gemini, or local models
-- No decay, no consolidation, no link graph
-- No anomaly detection
-- Requires Pro plan ($20/mo+)
+**What MATHIR does that's unique:**
+- **Anomaly detection on inputs** — Mahalanobis distance-based, AUC = 1.0 on test set. Catches prompt injections, data leakage, and unusual patterns in real time. No other memory system does this.
+- **Ebbinghaus decay** — memories fade when unused (5%/30 days), archive when stability < 0.05. This matches how human memory actually works.
+- **Tier promotion** — working_memory → episodic → semantic → procedural based on recall frequency and age. The system learns what matters.
+- **Consolidation** — auto-merges near-duplicates (cosine > 0.95), keeping the canonical version with an audit trail.
+- **Link graph** — spreading activation (Collins & Loftus 1975) connects related memories for contextual recall.
 
-**What MATHIR adds:**
-- Cross-provider: works with Claude, GPT, Gemini, Ollama — any LLM
-- 5-tier cognitive memory with Ebbinghaus decay
-- Anomaly detection (AUC=1.0) — unique feature no provider has
-- 23 MCP tools, MIT licensed, runs on edge devices
-- No subscription required
+**Deployment:** Runs on Jetson Orin (30ms recall, 500 MB VRAM), Raspberry Pi (CPU-only), or any machine with Python. SQLite local — no cloud dependency. MIT licensed.
 
-MATHIR could be a reference implementation for what "memory for all LLMs" looks like. I'm not asking for promotion — just wanted to share that the open-source ecosystem is building what your proprietary features do.
+I'm not asking for promotion. I wanted to share that MATHIR exists as a reference implementation for what cross-provider cognitive memory looks like — with the anomaly detection layer that's missing from every proprietary memory system I've tested.
+
+GitHub: https://github.com/sil3d/MATHIR
 
 Best,
 Prince Gildas
-https://github.com/sil3d/MATHIR
 
 ---
 
-### Template 3: OpenAI (GPT Memory)
+### Template 2: OpenAI
 
-**Subject:** Cross-provider memory layer — works with GPT and every other LLM
+**Subject:** MATHIR — cross-provider cognitive memory with anomaly detection
 
 Hi OpenAI Team,
 
-GPT Memory is a great feature, but it's locked to your platform. I built [MATHIR](https://github.com/sil3d/MATHIR) — an open-source memory layer that works with GPT, Claude, Gemini, Ollama, and any other LLM via MCP.
+I'm Prince Gildas, an independent developer. I built [MATHIR](https://github.com/sil3d/MATHIR) — a 5-tier cognitive memory system with 23 MCP tools that works with any LLM via the Model Context Protocol.
 
-**Why this matters:**
-- Users want memory that persists across providers, not just within one
-- MATHIR has 23 MCP tools, Ebbinghaus decay, anomaly detection (AUC=1.0)
-- It runs locally (SQLite), no cloud dependency, no vendor lock-in
-- MIT licensed, ~500 MB VRAM, edge-ready (Jetson, Raspberry Pi)
+**Core capabilities:**
+- **Anomaly detection** — Mahalanobis distance-based, AUC = 1.0. Detects prompt injection, data leakage, and unusual patterns in <1ms. This is the only memory system I've found that has this.
+- **Ebbinghaus decay** — memories follow forgetting curves. Unused memories archive automatically after 30 days. Used memories strengthen.
+- **Tier promotion** — working → episodic → semantic → procedural. Memory quality improves with use.
+- **Consolidation** — auto-merges duplicates (cosine > 0.95), keeping one canonical version.
+- **Link graph** — spreading activation connects related memories (Collins & Loftus 1975).
 
-MATHIR doesn't compete with GPT Memory — it complements it by making memory portable across providers.
+**Performance:** 401 ops/s recall, p50 = 2.29ms. Runs on Jetson Orin (500 MB VRAM), Raspberry Pi, or any machine. SQLite local, zero cloud dependency. MIT licensed.
+
+226 tests passing. 23 MCP tools via Model Context Protocol.
+
+GitHub: https://github.com/sil3d/MATHIR
 
 Best,
 Prince Gildas
-https://github.com/sil3d/MATHIR
 
 ---
 
-### Template 4: Google (Gemini)
+### Template 3: Google
 
-**Subject:** MATHIR — open-source memory that works with Gemini and beyond
+**Subject:** MATHIR — open-source cognitive memory for any LLM
 
 Hi Google Team,
 
-Gemini has memory capabilities, but like all providers, it's vendor-locked. I built [MATHIR](https://github.com/sil3d/MATHIR) — a 5-tier cognitive memory layer that works with Gemini, Claude, GPT, Ollama, and any MCP-compatible client.
+I'm Prince Gildas, an independent developer. I built [MATHIR](https://github.com/sil3d/MATHIR) — a 5-tier cognitive memory system that works with any LLM through the Model Context Protocol (MCP).
 
-**Key differentiator:**
-- MATHIR is the first cross-provider memory system with anomaly detection (AUC=1.0)
-- 23 MCP tools, Ebbinghaus decay, tier promotion, link graph
-- Edge deployment: Jetson Orin (30ms recall), Raspberry Pi (CPU-only)
-- MIT licensed, no cloud dependency
+**What makes MATHIR different:**
+- **Anomaly detection** — Mahalanobis distance-based, AUC = 1.0 on test set. Detects prompt injection, data leakage, and unusual patterns. Unique feature in any memory system.
+- **Ebbinghaus forgetting curve** — memories decay when unused, strengthen when recalled. This is how human memory actually works.
+- **Consolidation** — auto-merges near-duplicates (cosine > 0.95) with audit trail.
+- **Link graph** — spreading activation connects memories across sessions.
+- **Edge deployment** — Jetson Orin (30ms recall), Raspberry Pi (CPU-only), RC car (autonomous).
 
-MATHIR could help your users who want memory that follows them across Gemini, Claude, and local models.
+23 MCP tools. SQLite local, no cloud dependency. MIT licensed.
+
+GitHub: https://github.com/sil3d/MATHIR
 
 Best,
 Prince Gildas
-https://github.com/sil3d/MATHIR
 
 ---
 
-### Template 5: NVIDIA (Edge + GPU)
+### Template 4: NVIDIA
 
-**Subject:** MATHIR on Jetson — edge memory for autonomous systems
+**Subject:** MATHIR — edge cognitive memory for Jetson, tested on Orin Nano
 
 Hi NVIDIA Team,
 
-I built [MATHIR](https://github.com/sil3d/MATHIR), a 5-tier cognitive memory system that runs on Jetson Orin at 30ms recall with 500 MB VRAM. It's the memory layer for autonomous systems that need to remember across sessions.
+I built [MATHIR](https://github.com/sil3d/MATHIR), a 5-tier cognitive memory system that runs on Jetson Orin at 30ms recall with 500 MB VRAM. It's designed for autonomous systems that need to remember across sessions.
 
-**What makes it relevant to Jetson:**
-- bge-large-en-v1.5 embeddings on CUDA fp16 — tested on Orin Nano
-- SQLite + sqlite-vec for vector search — no external DB needed
-- 23 MCP tools, full lifecycle management (decay, consolidation, promotion)
-- Part of a 4-stage validation pipeline: laptop → Raspberry Pi → Jetson → RC car
+**What it does:**
+- **Anomaly detection** — Mahalanobis distance, AUC = 1.0. Catches sensor failures, prompt injections, unusual patterns.
+- **Ebbinghaus decay** — memories fade when unused, strengthen when recalled.
+- **Tier promotion** — working → episodic → semantic → procedural based on usage.
+- **Consolidation** — auto-merges duplicates, keeps canonical version.
+- **Link graph** — spreading activation for contextual recall.
 
-MATHIR is designed for the exact use case Jetson enables: **memory that works in the real world, on real hardware, without cloud.**
+**Jetson performance:**
+- bge-large-en-v1.5 on CUDA fp16 — tested on Orin Nano
+- SQLite + sqlite-vec — no external DB
+- <30ms recall, 67 TOPS peak
+- 4-stage validation pipeline: laptop → Raspberry Pi → Jetson → RC car
+
+Part of the MATHIR Roadmap: https://github.com/sil3d/MATHIR#-roadmap
 
 Best,
 Prince Gildas
-https://github.com/sil3d/MATHIR
 
 ---
 
-### Template 6: Cursor / Windsurf (IDE Integration)
+### Template 5: Cursor / Windsurf
 
-**Subject:** MATHIR memory layer — works with your MCP integration
+**Subject:** MATHIR — 23 MCP tools for persistent memory across coding sessions
 
 Hi [Cursor/Windsurf] Team,
 
-MATHIR is a 5-tier cognitive memory system with 23 MCP tools. It integrates natively with your MCP configuration — no custom code needed.
+MATHIR is a 5-tier cognitive memory system with 23 MCP tools. It integrates natively with your MCP configuration — zero custom code needed.
 
-**Why your users would benefit:**
-- Memory persists across coding sessions (not just one chat)
-- Works with any LLM they connect to your IDE
-- 23 tools: memory_save, memory_recall, memory_by_path, memory_recall_quality, etc.
-- Edge-ready: runs locally on their machine, no cloud dependency
+**What MATHIR gives your users:**
+- Memory that persists across coding sessions (not just one chat)
+- Works with any LLM connected to the IDE
+- Anomaly detection (AUC = 1.0) — catches prompt injection and data leakage
+- Edge deployment — runs locally, no cloud dependency
+- 23 tools: `memory_save`, `memory_recall`, `memory_by_path`, `memory_recall_quality`, `memory_incoming_links`, etc.
 
-MATHIR is already verified on Cursor and compatible with your MCP plugin system.
+**Quick setup:**
+```json
+{ "mcpServers": { "mathir": { "command": "mathir-mcp" } } }
+```
+
+Already verified on Cursor. MIT licensed.
+
+GitHub: https://github.com/sil3d/MATHIR
 
 Best,
 Prince Gildas
-https://github.com/sil3d/MATHIR
 
 ---
 
-### Template 7: xAI / MiniMax / Qwen (Emerging Providers)
+### Template 6: xAI / MiniMax / Qwen / Emerging Providers
 
-**Subject:** Open-source memory for your LLM — cross-provider, MIT, 23 tools
+**Subject:** MATHIR — portable cognitive memory for your LLM, MIT, 23 tools
 
-Hi [xAI/MiniMax/Qwen] Team,
+Hi [Provider] Team,
 
-I built [MATHIR](https://github.com/sil3d/MATHIR) — a 5-tier cognitive memory system that works with any LLM via MCP. It's designed to be the memory layer that makes your models **remember across sessions**.
+I built [MATHIR](https://github.com/sil3d/MATHIR), a 5-tier cognitive memory system that works with any LLM via MCP. It's designed to give your models **memory that persists across sessions** — without requiring users to stay on one platform.
 
-**Why this matters for emerging providers:**
-- Claude has memory, GPT has memory — but they're vendor-locked
-- MATHIR gives YOUR users memory that works with YOUR model, and persists even if they switch providers
-- 23 MCP tools, Ebbinghaus decay, anomaly detection (AUC=1.0)
-- MIT licensed, ~500 MB VRAM, no cloud dependency
+**Unique capabilities:**
+- **Anomaly detection** — Mahalanobis distance, AUC = 1.0. No other memory system has this.
+- **Ebbinghaus decay** — memories fade when unused, strengthen when recalled.
+- **Tier promotion** — working → episodic → semantic → procedural.
+- **Consolidation** — auto-merges duplicates with audit trail.
+- **Link graph** — spreading activation for contextual recall.
+- **Edge deployment** — Jetson Orin (30ms), Raspberry Pi, RC car.
 
-MATHIR could help differentiate your offering by providing portable, provider-agnostic memory.
+23 MCP tools. SQLite local, zero cloud dependency. MIT licensed.
+
+GitHub: https://github.com/sil3d/MATHIR
 
 Best,
 Prince Gildas
-https://github.com/sil3d/MATHIR
+
+---
+
+### Template 7: Generic (Any Provider)
+
+**Subject:** MATHIR — open-source cognitive memory with anomaly detection
+
+Hi [Team],
+
+I'm Prince Gildas, an independent developer. I built [MATHIR](https://github.com/sil3d/MATHIR) — a 5-tier cognitive memory system with 23 MCP tools.
+
+**What MATHIR does:**
+- **Anomaly detection** — Mahalanobis distance-based, AUC = 1.0. Catches prompt injection, data leakage, unusual patterns. No other memory system has this.
+- **Ebbinghaus decay** — memories fade when unused, strengthen when recalled.
+- **Tier promotion** — working → episodic → semantic → procedural.
+- **Consolidation** — auto-merges near-duplicates with audit trail.
+- **Link graph** — spreading activation for contextual recall.
+
+**Performance:** 401 ops/s recall, p50 = 2.29ms. Jetson Orin (30ms), Raspberry Pi, any machine. SQLite local. MIT licensed.
+
+226 tests passing. 23 MCP tools.
+
+GitHub: https://github.com/sil3d/MATHIR
+
+Best,
+Prince Gildas
