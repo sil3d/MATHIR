@@ -12,7 +12,7 @@ from pathlib import Path
 import numpy as np
 
 # Bootstrap imports — point at the portable mathir_mcp/mathir_lib/ instead of
-# the legacy root mathir_*.py (moved to _deprecated/legacy_root/ in v8.4.0).
+# the legacy root mathir_*.py (moved to _deprecated/legacy_root/ in v8.5.0).
 _PKG_ROOT = Path(__file__).resolve().parent.parent.parent / "mathir_mcp"
 _LIB = _PKG_ROOT / "mathir_lib"
 sys.path.insert(0, str(_PKG_ROOT))

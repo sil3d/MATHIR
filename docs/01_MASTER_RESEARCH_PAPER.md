@@ -232,7 +232,7 @@ This paper addresses the following research questions:
 
 This paper makes the following contributions:
 
-1. **A complete V1 → V8 architecture** for a memory-augmented agent system, with full source code, 173 tests (unit, integration, and daemon), 100% passing.
+1. **A complete V1 → V8 architecture** for a memory-augmented agent system, with full source code, 226 tests (unit, integration, and daemon), 100% passing.
 2. **Six formal theorems** characterising the information capacity, retention, router convergence, anomaly optimality, sparse coding, and mHC geometry of the system. Each theorem is stated in full and *proved* from first principles or by reduction to a classical result.
 3. **A doctoral-level empirical investigation** of a 12–14 percentage-point quality gap in the V7 architecture, with Johnson-Lindenstrauss-based root-cause analysis.
 4. **Four candidate solutions** (Approaches A–D) to the quality gap, each implemented, tested, and benchmarked on the same corpus.
@@ -367,15 +367,16 @@ MATHIR has **five** cognitive memory tiers (the immunological tier is a first-cl
 
 A KL-constrained router $R_t : \mathcal{X} \to \Delta_5$ (a **five-way** probability simplex over the five tiers) allocates among the tiers with a PPO-style trust region to prevent collapse.
 
-### 3.3 MCP Tool Surface (V8.4.1)
+### 3.3 MCP Tool Surface (V8.5.1)
 
-MATHIR V8.4.1 exposes 19 tools via the Model Context Protocol (MCP), enabling any LLM to interact with the memory system. The tools are organized into three groups:
+MATHIR V8.5.1 exposes 23 tools via the Model Context Protocol (MCP), enabling any LLM to interact with the memory system. The tools are organized into four groups:
 
 | Group | Tools | Purpose |
 |-------|-------|---------|
+| Auto-injection | `memory_session_start`, `memory_context` | Inject relevant memories at session start |
 | Basic CRUD | `memory_save`, `memory_recall`, `memory_smart_search`, `memory_hybrid_search`, `memory_delete`, `memory_stats` | Core read/write operations |
 | Lifecycle | `memory_promote`, `memory_auto_promote`, `memory_decay`, `memory_consolidate`, `memory_link`, `memory_get_links`, `memory_build_links` | Memory aging, promotion, consolidation, linking |
-| Other | `memory_audit`, `memory_export`, `memory_sessions`, `memory_dashboard` | Administration and monitoring |
+| Advanced | `memory_by_path`, `memory_recall_quality`, `memory_incoming_links`, `memory_audit`, `memory_export`, `memory_sessions`, `memory_dashboard`, `mathir_health` | File-level search, quality signals, reverse links, monitoring |
 
 #### Basic CRUD (6 tools)
 

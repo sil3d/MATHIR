@@ -1,5 +1,5 @@
 """
-AI-driven cognitive benchmark for the v8.4.0 living memory.
+AI-driven cognitive benchmark for the v8.5.0 living memory.
 
 Simulates a real AI agent working on a long-term project:
   Phase A — Generation:   LLM creates N "experiences" (bug fixes, decisions, notes)

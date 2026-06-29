@@ -10,7 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Pi/Jetson defaults — small model, CPU only, ~50MB memory footprint.
-# Note: in v8.4.0 the daemon always uses sentence-transformers (no ONNX
+# Note: in v8.5.0 the daemon always uses sentence-transformers (no ONNX
 # switch yet — see mathir_mcp/mathir_lib/mathir_mcp_server.py:get_embedder).
 # We pick the smallest MiniLM variant to fit Pi 4 / Jetson Nano RAM.
 export MATHIR_EMBEDDING_MODEL="${MATHIR_EMBEDDING_MODEL:-sentence-transformers/all-MiniLM-L6-v2}"
@@ -23,7 +23,7 @@ if [ -n "$1" ] && [ -f "$1" ]; then
     export MATHIR_CONFIG="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 fi
 
-echo "MATHIR — Raspberry Pi / Jetson launcher (v8.4.0)"
+echo "MATHIR — Raspberry Pi / Jetson launcher (v8.5.0)"
 echo "  Model:    $MATHIR_EMBEDDING_MODEL"
 echo "  Dim:      $MATHIR_EMBEDDING_DIM"
 echo "  Device:   $MATHIR_DEVICE"

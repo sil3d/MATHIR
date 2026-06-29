@@ -16,7 +16,7 @@ Tests MATHIR memory by:
 - Storing interactions in MATHIR memory
 - Testing recall across models
 
-v8.4.0 MIGRATION: Switched from local llama.cpp binaries to OpenRouter cloud API.
+v8.5.0 MIGRATION: Switched from local llama.cpp binaries to OpenRouter cloud API.
 All model invocations now go through the OpenRouterClient class below.
 The config.json `llama_server` section has been replaced with `openrouter`.
 """
@@ -152,7 +152,7 @@ class ModelManager:
 class OpenRouterClient:
     """OpenRouter cloud API client for vision/language models.
 
-    Replaces the old LlamaServer class (v8.4.0 migration). No more local
+    Replaces the old LlamaServer class (v8.5.0 migration). No more local
     GGUF binaries — all inference goes through https://openrouter.ai/api/v1.
 
     Models are configured in config.json under the `openrouter` section.
@@ -394,7 +394,7 @@ class VisionTester:
         print(f"  Stored memories: {stats['total_memories']}")
 
     def start_server(self):
-        """No-op in v8.4.0 (OpenRouter is cloud-based, no local server to start)."""
+        """No-op in v8.5.0 (OpenRouter is cloud-based, no local server to start)."""
         self.server = OpenRouterClient(self.model_paths)
 
     def stop_server(self):
@@ -503,7 +503,7 @@ def main():
 
     # OpenRouter connectivity quick check (cheap HEAD ping)
     print(f"\n[2] OpenRouter connectivity:")
-    print(f"  Models above will be called via cloud — no local binaries needed in v8.4.0.")
+    print(f"  Models above will be called via cloud — no local binaries needed in v8.5.0.")
 
     # Quick start
     print(f"\n[3] Usage (no hardcoded paths, all from config.json):")

@@ -6,7 +6,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-echo "MATHIR — Raspberry Pi / Jetson installer (v8.4.0)"
+echo "MATHIR — Raspberry Pi / Jetson installer (v8.5.0)"
 echo ""
 
 # System prerequisites
@@ -24,7 +24,7 @@ fi
 source "$SCRIPT_DIR/.venv/bin/activate"
 
 # Install the portable mathir_mcp package (editable, so changes apply).
-# In v8.4.0 the directory is mathir_mcp/, not mcp/ (renamed in v8).
+# In v8.5.0 the directory is mathir_mcp/, not mcp/ (renamed in v8).
 echo "[2/3] Installing mathir-mcp from ../mathir_mcp/..."
 pip install --quiet -e "$PROJECT_ROOT/mathir_mcp"
 

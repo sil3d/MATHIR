@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MATHIR Playground — Backend Server (v8.4.0)
+MATHIR Playground — Backend Server (v8.5.0)
 ============================================
 
 Adds:
@@ -1993,7 +1993,7 @@ def main():
     debug = args.debug or state["ui_config"]["server"]["debug"]
 
     print("=" * 60)
-    print("MATHIR Playground Server (v8.4.0)")
+    print("MATHIR Playground Server (v8.5.0)")
     print("=" * 60)
     print(f"URL: http://{host}:{port}")
     print(f"Active model: {state.get('active_model') or 'none'}")

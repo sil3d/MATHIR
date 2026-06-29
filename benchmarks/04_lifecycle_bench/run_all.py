@@ -1,5 +1,5 @@
 """
-Orchestrator for the v8.4.0 lifecycle benchmarks.
+Orchestrator for the v8.5.0 lifecycle benchmarks.
 
 Runs the full suite in sequence:
   1. micro_bench.py   — memory-only throughput (~5 min)

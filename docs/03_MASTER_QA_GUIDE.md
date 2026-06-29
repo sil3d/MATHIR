@@ -440,7 +440,7 @@ The system auto-downgrades: GPU → CPU → Edge based on available hardware. `H
 ## 12. LLM Integration {#12-llm}
 
 ### Q12.1: How do I integrate MATHIR with OpenAI?
-**A:** *(v8.4.1 — OpenAI is no longer a mathir_lib.providers plugin. Use the OpenAI Python SDK directly, then store embeddings via the daemon client.)*
+**A:** *(v8.5.0 — OpenAI is no longer a mathir_lib.providers plugin. Use the OpenAI Python SDK directly, then store embeddings via the daemon client.)*
 ```python
 import openai
 from mathir_lib.mathir_client import call as mathir_call
@@ -471,7 +471,7 @@ response = openai.chat.completions.create(
 ```
 
 ### Q12.2: How do I integrate with Ollama (local)?
-**A:** *(v8.4.1 — Ollama is now just another sentence-transformers-compatible embedder; the daemon auto-detects GPU/CPU and uses the configured model from `MATHIR_EMBEDDING_MODEL`.)*
+**A:** *(v8.5.0 — Ollama is now just another sentence-transformers-compatible embedder; the daemon auto-detects GPU/CPU and uses the configured model from `MATHIR_EMBEDDING_MODEL`.)*
 ```python
 # Set env vars before launching the daemon:
 #   export MATHIR_EMBEDDING_MODEL=ollama:nomic-embed-text

@@ -1,5 +1,5 @@
 """
-Multi-model comparison benchmark for MATHIR v8.4.0.
+Multi-model comparison benchmark for MATHIR v8.5.0.
 
 Tests 4 different LLMs on the same A→B→C→D pipeline to prove
 that the living memory lifecycle improves recall quality
