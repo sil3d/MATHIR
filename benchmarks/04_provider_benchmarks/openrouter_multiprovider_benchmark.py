@@ -5,8 +5,12 @@ across 4 different OpenRouter models with different architectures.
 
 Tests: context_overflow, factual_recall, adversarial_jailbreak, session_continuity
 """
-import json, time, urllib.request, urllib.error
+import json, time, urllib.request, urllib.error, os, sys
 from datetime import datetime
+
+# Auto-load centralized .env at benchmarks/ root
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import _env  # noqa: F401 — populates os.environ
 
 API_KEY = os.environ.get("OPENROUTER_API_KEY", "YOUR_OPENROUTER_API_KEY_HERE")
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
