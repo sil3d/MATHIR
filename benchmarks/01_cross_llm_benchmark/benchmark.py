@@ -67,33 +67,39 @@ class LLMProvider:
 
 
 # Available providers — add your API keys as env vars
+# Model names read from env (GOOGLE_MODEL, MINIMAX_MODEL, NVIDIA_MODEL, OPENCODE_ZEN_MODEL)
+# with sensible defaults if not set.
+def _env(key: str, default: str) -> str:
+    return os.environ.get(key, default)
+
+
 PROVIDERS = {
     "google": LLMProvider(
         name="Google AI Studio",
         api_base="https://generativelanguage.googleapis.com/v1beta/openai",
         api_key_env="GOOGLE_AI_STUDIO_KEY",
-        model="gemini-2.5-pro",
+        model=_env("GOOGLE_MODEL", "gemini-2.5-pro"),
         provider_type="openai",
     ),
     "minimax": LLMProvider(
         name="MiniMax",
         api_base="https://api.minimax.chat/v1",
         api_key_env="MINIMAX_API_KEY",
-        model="MiniMax-Text-01",
+        model=_env("MINIMAX_MODEL", "MiniMax-Text-01"),
         provider_type="openai",
     ),
     "nvidia": LLMProvider(
         name="NVIDIA NIM",
         api_base="https://integrate.api.nvidia.com/v1",
         api_key_env="NVIDIA_API_KEY",
-        model="meta/llama-4-maverick-17b-128e-instruct",
+        model=_env("NVIDIA_MODEL", "meta/llama-4-maverick-17b-128e-instruct"),
         provider_type="openai",
     ),
     "opencode_zen": LLMProvider(
         name="OpenCode Zen",
         api_base="https://api.opencode.ai/v1",
         api_key_env="OPENCODE_ZEN_KEY",
-        model="opencode/zen-mini",
+        model=_env("OPENCODE_ZEN_MODEL", "opencode/zen-mini"),
         provider_type="openai",
     ),
 }
