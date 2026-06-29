@@ -279,6 +279,8 @@ MATHIR/
 
 ## 🗺️ Roadmap
 
+### ✅ Done (V1–V8.5.1)
+
 ✅ **V1–V5** Core architecture + KL router
 ✅ **V6** LLM-agnostic plugin API
 ✅ **V7** 8 algorithms + 6 theorems + 9.3× compression
@@ -291,8 +293,44 @@ MATHIR/
 ✅ **V8.5.0** FastMCP rewrite + auto-injection (20 tools)
 ✅ **V8.5.1** New tools (23 total) + project-aware DB
 
-🔜 **V9** Edge deployment (Jetson / ONNX)
+### 🔜 Next: 4 validation stages
+
+```
+   ┌────────────────────┐     ┌────────────────────┐     ┌────────────────────┐     ┌────────────────────┐
+   │  V9.1  VISION       │     │  V9.2  RASPBERRY PI │     │  V9.3  JETSON       │     │  V9.4  RC CAR       │
+   │  Model testing      │ ──▶│  CPU edge deploy   │ ──▶│  GPU edge deploy  │ ──▶│  Physical world   │
+   │  (laptop, T+0)      │     │  (Pi 5, T+2 weeks)  │     │  (Orin, T+1 month)  │     │  (3D-printed, T+2m)│
+   └────────────────────┘     └────────────────────┘     └────────────────────┘     └────────────────────┘
+          │                            │                          │                          │
+          ▼                            ▼                          ▼                          ▼
+   • OpenRouter free LLM      • paraphrase-MiniLM        • bge-large-en-v1.5      • Real sensors:
+     26 models                 CPU+ONNX INT8               CUDA fp16 500MB            camera + LIDAR
+   • 6 web views               • <500 MB RAM               • <30 ms recall            • Real unknowns:
+   • vision_testing UI          • 4 cores                   • 67 TOPS peak               mud, glare, rain
+   • chat + camera + memory    • USB boot, no internet      • 32 GB RAM                • MATHIR remembers
+                                                                  • 10-year battery life    what worked before
+```
+
+| Stage | V9.1 Vision Model | V9.2 Raspberry Pi | V9.3 Jetson | V9.4 RC Car |
+|---|---|---|---|---|
+| **Hardware** | Laptop (any) | Raspberry Pi 5 (8GB) | Jetson Orin Nano (8GB) | 3D-printed chassis + Pi/Orin |
+| **Embedding** | OpenRouter free LLM (26 models, no local GPU) | `paraphrase-multilingual-MiniLM-L12-v2` CPU+ONNX INT8 | `BAAI/bge-large-en-v1.5` CUDA fp16 | Same as Jetson |
+| **Memory** | in-process Python | SQLite on SD card | SQLite on SSD | SQLite + persistent storage |
+| **Power** | AC | 5V USB-C 3A | 7-19V DC | 11.1V LiPo 3S |
+| **Connectivity** | WiFi | WiFi/Ethernet | WiFi/Ethernet | None (autonomous) |
+| **Test** | 6 UI views (chat, camera, memory, models, accuracy, settings) | 7-day uptime + crash recovery | 24h stress + thermal throttle test | 100h outdoor + edge cases |
+| **Goal** | Verify memory across LLMs in controlled env | Verify CPU fallback is robust | Verify GPU acceleration is reliable | Verify real-world autonomous scenario |
+
+### 📋 Future
+
 📋 **V10** Open-source release (HuggingFace · PyPI)
+
+### Why this order?
+
+1. **V9.1 Vision (now)**: Cheap, fast, validates the memory layer across many LLMs. No hardware risk.
+2. **V9.2 Raspberry Pi**: Real edge constraints (CPU only, 4GB RAM). If it works here, it works anywhere.
+3. **V9.3 Jetson**: GPU acceleration, but still bounded power. The "production edge" sweet spot.
+4. **V9.4 RC Car**: No internet, no reboot, no excuses. Real sensors, real noise, real failures. **This is the validation that can't be faked.**
 
 ---
 
