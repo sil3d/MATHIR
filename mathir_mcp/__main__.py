@@ -88,7 +88,7 @@ def _cmd_selftest():
             print(f"  [FAIL] {name}: {str(e)[:200]}")
 
     print("=" * 60)
-    print("MATHIR self-test (v8.4.0)")
+    print("MATHIR self-test (v8.5.0)")
     print("=" * 60)
     print()
 
@@ -152,9 +152,9 @@ def _cmd_selftest():
         TOOLS = mathir_mcp_server.TOOLS
         n = len(TOOLS)
         if n != 17:
-            raise RuntimeError(f"expected 17 tools, got {n}")
+            raise RuntimeError(f"expected 20 tools, got {n}")
         return f"{n} tools registered"
-    _check("All 17 tools registered", _tools)
+    _check("All 20 tools registered", _tools)
 
     def _daemon():
         import os, urllib.request, json as _json
@@ -228,7 +228,7 @@ def _cmd_list_tools():
     mathir_mcp_server = _import("mathir_mcp_server")
     TOOLS = mathir_mcp_server.TOOLS
     # Use ASCII-only output for Windows console compatibility
-    print(f"MATHIR exposes {len(TOOLS)} MCP tools (v8.4.0):")
+    print(f"MATHIR exposes {len(TOOLS)} MCP tools (v8.5.0):")
     print()
     for i, t in enumerate(TOOLS, 1):
         name = t.get("name", "?")
@@ -255,7 +255,7 @@ def _cmd_version():
                 return 0
     except Exception:
         pass
-    print("MATHIR v8.4.0")
+    print("MATHIR v8.5.0")
     return 0
 
 

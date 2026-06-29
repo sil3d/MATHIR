@@ -139,6 +139,9 @@ class VecMemory:
     def _get_conn(self) -> sqlite3.Connection:
         """Get or create SQLite connection with sqlite-vec loaded."""
         if self._conn is None:
+            # Ensure parent directory exists before sqlite3.connect (which
+            # would otherwise silently fail on Windows or write to a wrong path).
+            self.db_path.parent.mkdir(parents=True, exist_ok=True)
             self._conn = sqlite3.connect(str(self.db_path), check_same_thread=False, timeout=30)
             self._conn.row_factory = sqlite3.Row
             # Enable WAL mode for better concurrency
