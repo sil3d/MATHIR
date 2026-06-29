@@ -44,6 +44,13 @@ from typing import List, Dict, Tuple
 
 import numpy as np
 
+# Auto-load .env from benchmarks/ root via shared helper
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+try:
+    import _env  # noqa: F401 — populates os.environ
+except ImportError:
+    pass
+
 # Bootstrap
 _PKG_ROOT = Path(__file__).resolve().parent.parent.parent / "mathir_mcp"
 _LIB = _PKG_ROOT / "mathir_lib"

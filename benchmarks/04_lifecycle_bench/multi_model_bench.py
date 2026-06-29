@@ -33,20 +33,9 @@ import urllib.error
 from pathlib import Path
 from html import escape as h
 
-# Load .env from bench dir
-_BENCH_DIR = Path(__file__).resolve().parent
-for _p in [_BENCH_DIR / ".env", _BENCH_DIR.parent.parent / ".env"]:
-    if _p.is_file():
-        with open(_p, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith("#") or "=" not in line:
-                    continue
-                k, _, v = line.partition("=")
-                k, v = k.strip(), v.strip().strip('"').strip("'")
-                if k and k not in os.environ:
-                    os.environ[k] = v
-        break
+# Auto-load centralized .env at benchmarks/ root via shared helper
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+import _env  # noqa: F401 — populates os.environ
 
 API_KEY = os.environ.get("MATHIR_API_KEY", "")
 if not API_KEY or not API_KEY.startswith("sk-or-"):

@@ -34,39 +34,13 @@ import urllib.error
 from typing import Optional, List, Dict
 
 
-def _load_dotenv(path: str) -> bool:
-    """Minimal .env loader (no external dep). Returns True if file existed."""
-    if not os.path.isfile(path):
-        return False
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line or line.startswith("#") or "=" not in line:
-                    continue
-                k, _, v = line.partition("=")
-                k = k.strip()
-                v = v.strip()
-                # Strip optional quotes
-                if (v.startswith('"') and v.endswith('"')) or (v.startswith("'") and v.endswith("'")):
-                    v = v[1:-1]
-                # Only set if not already in real env (real env wins)
-                if k and k not in os.environ:
-                    os.environ[k] = v
-        return True
-    except Exception:
-        return False
-
-
-# Auto-load .env from a few likely locations (first hit wins, real env takes priority)
-_BENCH_DIR = os.path.dirname(os.path.abspath(__file__))
-_REPO_ROOT = os.path.dirname(os.path.dirname(_BENCH_DIR))
-for _candidate in [
-    os.path.join(_BENCH_DIR, ".env"),
-    os.path.join(_REPO_ROOT, ".env"),
-    os.path.join(os.getcwd(), ".env"),
-]:
-    _load_dotenv(_candidate)
+# Auto-load .env from benchmarks/ root via shared helper
+import sys as _sys
+_sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+try:
+    import _env as _env_loader  # noqa: F401
+except ImportError:
+    pass  # _env.py missing — fall back to no .env loading
 
 
 class LLMUnavailable(RuntimeError):

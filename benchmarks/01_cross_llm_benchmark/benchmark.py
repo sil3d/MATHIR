@@ -32,6 +32,13 @@ from dataclasses import dataclass, field, asdict
 from typing import Optional
 from pathlib import Path
 
+# Auto-load .env from benchmarks/ root via shared helper
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+try:
+    import _env  # noqa: F401 — populates os.environ
+except ImportError:
+    pass
+
 # Add MATHIR bin and risks to path
 MATHIR_BIN = Path(__file__).parent.parent / "bin"
 MATHIR_RISKS = Path(__file__).parent.parent / "02_memory_risks"
