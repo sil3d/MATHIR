@@ -83,10 +83,12 @@ from vision_test import VisionTester, ModelManager, OpenRouterClient, VirtualRoo
 
 # Local llama.cpp backend (optional, requires llama-cpp-python)
 try:
-    from local_llama_cpp import LlamaCppBackend, get_llama_cpp_available
+    from local_llama_cpp import LlamaCppBackend, OllamaClient, get_llama_cpp_available, get_ollama_available
     LLAMA_CPP_AVAILABLE = get_llama_cpp_available()
+    OLLAMA_AVAILABLE = get_ollama_available()
 except ImportError:
     LLAMA_CPP_AVAILABLE = False
+    OLLAMA_AVAILABLE = False
 
 # Accuracy test framework (optional - server boots even if import fails
 # because accuracy is a feature, not a hard dependency for the rest of
@@ -394,10 +396,11 @@ def get_system_context_endpoint():
 
 @app.route("/api/models", methods=["GET"])
 def list_models():
-    """List all configured models."""
+    """List all configured models (OpenRouter, Zen, Ollama, local GGUF)."""
     models = state["models"].list_models(enabled_only=False)
     result = []
     for name, m in models.items():
+        provider = m.get("provider", "openrouter")
         paths = state["models"].get_model_paths(name)
         modalities: List[str] = ["text"]
         if m.get("supports_vision"):
@@ -411,6 +414,7 @@ def list_models():
             "display_name": m.get("display_name", name),
             "description": m.get("description", ""),
             "type": m.get("type"),
+            "provider": provider,
             "enabled": m.get("enabled", True),
             "active": name == state.get("active_model"),
             "supports_vision": m.get("supports_vision", False),
@@ -423,7 +427,24 @@ def list_models():
             "context_length": m.get("context_length", 4096),
             "huggingface_url": m.get("huggingface_url"),
         })
-    return jsonify({"models": result, "active": state.get("active_model")})
+
+    # Provider availability summary
+    providers = {
+        "openrouter": {"available": bool(state["config"].get("openrouter", {}).get("api_key")),
+                       "models": sum(1 for m in result if m["provider"] == "openrouter")},
+        "opencode_zen": {"available": bool(state["config"].get("opencode_zen", {}).get("api_key")),
+                          "models": sum(1 for m in result if m["provider"] == "opencode_zen")},
+        "ollama": {"available": OLLAMA_AVAILABLE,
+                    "models": sum(1 for m in result if m["provider"] == "ollama")},
+        "llama_local": {"available": LLAMA_CPP_AVAILABLE,
+                         "models": sum(1 for m in result if m["provider"] == "llama_local")},
+    }
+
+    return jsonify({
+        "models": result,
+        "active": state.get("active_model"),
+        "providers": providers,
+    })
 
 
 @app.route("/api/models/switch", methods=["POST"])
@@ -461,8 +482,27 @@ def validate_models():
 
 @app.route("/api/local/status", methods=["GET"])
 def local_status():
-    """Check if local llama.cpp backend is available."""
-    return jsonify({"available": LLAMA_CPP_AVAILABLE})
+    """Check if local backends are available."""
+    ollama_status = OLLAMA_AVAILABLE
+    llama_status = LLAMA_CPP_AVAILABLE
+    # Try to get Ollama model list if available
+    ollama_models = []
+    if ollama_status:
+        try:
+            import urllib.request
+            cfg = state["config"].get("ollama", {})
+            url = cfg.get("api_base", "http://localhost:11434")
+            req = urllib.request.Request(f"{url}/api/tags", headers={"User-Agent": "MATHIR-UI"})
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                data = json.loads(resp.read())
+                ollama_models = [m.get("name", "") for m in data.get("models", [])]
+        except Exception:
+            pass
+    return jsonify({
+        "ollama_available": ollama_status,
+        "llama_cpp_available": llama_status,
+        "ollama_models": ollama_models,
+    })
 
 
 @app.route("/api/local/chat", methods=["POST"])

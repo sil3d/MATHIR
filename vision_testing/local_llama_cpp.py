@@ -40,6 +40,7 @@ Configuration in config.json:
     }
   }
 """
+import json
 import base64
 import time
 from pathlib import Path
@@ -169,10 +170,111 @@ class LlamaCppBackend:
         }
 
 
+class OllamaClient:
+    """Ollama local inference client.
+
+    Talks to a running Ollama server (default http://localhost:11434).
+    Supports text and multimodal models pulled locally via `ollama pull`.
+    No API key needed — all inference is local.
+    """
+
+    def __init__(self, model_paths: dict, ollama_url: str = "http://localhost:11434"):
+        self.model_id = model_paths.get("id", model_paths.get("name", ""))
+        self.display_name = model_paths.get("display_name", self.model_id)
+        self.ollama_url = ollama_url.rstrip("/")
+        self.model_name = self.model_id  # Ollama model name is the id
+        self.timeout = int(model_paths.get("timeout_seconds", 120))
+        self.supports_vision = bool(model_paths.get("supports_vision", False))
+        self.context_length = int(model_paths.get("context_length", 4096))
+
+        # Lazy — first call checks connectivity
+        self._server_ok = None
+
+    def _check_server(self) -> bool:
+        """Ping Ollama to verify it's reachable."""
+        if self._server_ok is not None:
+            return self._server_ok
+        import urllib.request, urllib.error
+        try:
+            req = urllib.request.Request(f"{self.ollama_url}/api/tags", headers={"User-Agent": "MATHIR-UI"})
+            with urllib.request.urlopen(req, timeout=3) as resp:
+                self._server_ok = resp.status == 200
+        except Exception:
+            self._server_ok = False
+        return self._server_ok
+
+    def chat(self, messages, max_tokens=512, temperature=0.7) -> str:
+        """Send chat messages via Ollama /api/chat endpoint."""
+        import urllib.request, urllib.error
+        if not self._check_server():
+            return f"ERROR: Ollama server not reachable at {self.ollama_url} (start with `ollama serve`)"
+        # Build Ollama-compatible payload
+        ollama_msgs = []
+        for m in messages:
+            role = m.get("role", "user")
+            content = m.get("content", "")
+            if isinstance(content, list):
+                # Multimodal — extract text, pass images separately
+                texts, imgs = [], []
+                for part in content:
+                    if isinstance(part, dict):
+                        if part.get("type") == "text":
+                            texts.append(part.get("text", ""))
+                        elif part.get("type") == "image_url":
+                            imgs.append(part.get("image_url", {}).get("url", ""))
+                content = " ".join(texts) if texts else ""
+                # Images handled via /api/chat (Ollama auto-detects base64 images in messages)
+            ollama_msgs.append({"role": role, "content": content})
+
+        payload = json.dumps({
+            "model": self.model_name,
+            "messages": ollama_msgs,
+            "stream": False,
+            "options": {"num_predict": max_tokens, "temperature": temperature},
+        }).encode()
+        req = urllib.request.Request(
+            f"{self.ollama_url}/api/chat",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        t0 = time.time()
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+                data = json.loads(resp.read())
+                return data.get("message", {}).get("content", "") or ""
+        except Exception as exc:
+            return f"ERROR (Ollama): {exc}"
+        finally:
+            self._last_latency = time.time() - t0
+
+    def stats(self) -> Dict[str, Any]:
+        return {
+            "model_id": self.model_id,
+            "display_name": self.display_name,
+            "ollama_url": self.ollama_url,
+            "server_reachable": self._check_server(),
+            "supports_vision": self.supports_vision,
+            "context_length": self.context_length,
+        }
+
+
 def get_llama_cpp_available() -> bool:
     """True if llama-cpp-python is importable in this environment."""
     try:
         import llama_cpp  # noqa: F401
         return True
     except ImportError:
+        return False
+
+
+def get_ollama_available() -> bool:
+    """True if Ollama server is reachable (default: http://localhost:11434)."""
+    import urllib.request, os
+    url = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+    try:
+        req = urllib.request.Request(f"{url}/api/tags", headers={"User-Agent": "MATHIR-UI"})
+        with urllib.request.urlopen(req, timeout=2) as resp:
+            return resp.status == 200
+    except Exception:
         return False

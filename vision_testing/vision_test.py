@@ -394,8 +394,28 @@ class VisionTester:
         print(f"  Stored memories: {stats['total_memories']}")
 
     def start_server(self):
-        """No-op in v8.5.1 (OpenRouter is cloud-based, no local server to start)."""
-        self.server = OpenRouterClient(self.model_paths)
+        """Start the appropriate backend for the active model's provider."""
+        provider = self.model_paths.get("provider", "openrouter").lower()
+        if provider == "ollama":
+            try:
+                from local_llama_cpp import OllamaClient
+                ollama_cfg = self.config.get("ollama", {})
+                url = ollama_cfg.get("api_base", "http://localhost:11434")
+                self.server = OllamaClient(self.model_paths, ollama_url=url)
+                print(f"  [PROVIDER] Ollama → {url} (model: {self.model_name})")
+            except ImportError:
+                print("  [WARN] Ollama backend not available, falling back to OpenRouter")
+                self.server = OpenRouterClient(self.model_paths)
+        elif provider == "llama_local":
+            try:
+                from local_llama_cpp import LlamaCppBackend
+                self.server = LlamaCppBackend(self.model_paths)
+                print(f"  [PROVIDER] llama.cpp → {self.model_paths.get('path', '?')}")
+            except (ImportError, FileNotFoundError, ValueError) as e:
+                print(f"  [WARN] Local GGUF not available ({e}), falling back to OpenRouter")
+                self.server = OpenRouterClient(self.model_paths)
+        else:
+            self.server = OpenRouterClient(self.model_paths)
 
     def stop_server(self):
         # No-op: cloud API has no local process to stop
