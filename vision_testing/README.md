@@ -105,13 +105,13 @@ Two paths to memory:
 
 ---
 
-## 📡 API Routes (17)
+## 📡 API Routes (19)
 
 | Route | Method | Description |
 |---|---|---|
 | `/api/system/context` | GET | System context + models |
 | `/api/system/info` | GET | System info (platform, paths) |
-| `/api/models` | GET | List models |
+| `/api/models` | GET | List all models + provider status |
 | `/api/models/switch` | POST | Switch active model |
 | `/api/models/toggle` | POST | Enable/disable model |
 | `/api/models/add-from-or` | POST | Add model from OpenRouter ID |
@@ -126,31 +126,43 @@ Two paths to memory:
 | `/api/accuracy/tests` | GET | List accuracy tests |
 | `/api/accuracy/results` | GET | Get accuracy results |
 | `/api/accuracy/test` | POST | Run accuracy battery |
+| `/api/local/status` | GET | Check local backends (llama.cpp + Ollama) |
+| `/api/local/chat` | POST | Chat via local llama.cpp (no network) |
 
 ---
 
 ## ⚙️ Configuration
 
-### `config.json` — OpenRouter + models
+### Providers (4 backends)
+
+| Provider | Backend | Key required | Privacy | Use case |
+|---|---|---|---|---|
+| **OpenRouter** | Cloud API | Yes (`OPENROUTER_API_KEY`) | Data sent to cloud | Best free models (26+) |
+| **OpenCode Zen** | Cloud API | Yes (`OPENCODE_ZEN_API_KEY`) | Data sent to cloud | Curated free models |
+| **Ollama** | Local server | No | Fully local | Self-hosted models |
+| **llama.cpp** | Local GGUF | No | Fully local | Offline / edge / privacy |
+
+### `config.json` — All providers + models
 
 ```json
 {
-  "openrouter": {
-    "api_key": "",          // or set OPENROUTER_API_KEY env var
-    "api_base": "https://openrouter.ai/api/v1",
-    "timeout_seconds": 120,
-    "max_retries": 2
-  },
+  "openrouter": { "api_key": "", "api_base": "https://openrouter.ai/api/v1" },
+  "opencode_zen": { "api_key": "", "api_base": "https://opencode.ai/zen/v1" },
+  "ollama": { "api_base": "http://localhost:11434" },
+  "llama_local": { "models": {} },
   "models": {
-    "google/gemini-2.0-flash-exp:free": {
-      "enabled": true,
-      "type": "vision-language",
-      "display_name": "Gemini 2.0 Flash (free)",
-      "supports_vision": true
-    }
+    "gemma4-free": { "provider": "openrouter", "enabled": true, "supports_vision": true },
+    "gemma2-9b-ollama": { "provider": "ollama", "enabled": false },
+    "my-gguf": { "provider": "llama_local", "path": "models/my.gguf", "enabled": false }
   }
 }
 ```
+
+### Adding local models
+
+**Ollama** (recommended for local): `ollama pull gemma2:9b`, then add to `config.json:models` with `"provider": "ollama"`.
+
+**GGUF (llama.cpp)**: Set `path` to your `.gguf` file, optional `mmproj` for vision. Enable with `"provider": "llama_local"`.
 
 ### `ui_config.json` — UI settings
 
@@ -161,10 +173,6 @@ Two paths to memory:
   "audio": { "push_to_talk_key": "Space", "max_record_seconds": 30 }
 }
 ```
-
-### `system_context.json` — Model behavior
-
-Compact system prompt (~126 tokens) defining identity and behavior rules.
 
 ### `.env` — API keys (auto-loaded)
 
@@ -178,14 +186,17 @@ OPENROUTER_API_KEY=sk-or-v1-PUT-YOUR-KEY-HERE
 
 - **Via UI**: Models → Add from OpenRouter → paste model ID (e.g., `openai/gpt-4o-mini`)
 - **Via config.json**: Edit directly. Find IDs at https://openrouter.ai/models
+- **Ollama**: `ollama pull <model>`, then add entry with `"provider": "ollama"`
+- **GGUF**: Set `path` to `.gguf` file, optional `mmproj` for vision models
 - **Free models filter**: https://openrouter.ai/models?max_price=0
 
 ---
 
 ## 🖥️ Hardware Requirements
 
-- **No local GPU** — all inference via OpenRouter cloud
-- Internet connection required
+- **Cloud (OpenRouter/Zen)**: No GPU, internet required
+- **Ollama**: 4-8GB RAM per model, CPU or GPU
+- **llama.cpp GGUF**: Varies by quantization — 4GB for Q4, 8GB+ for Q8
 - Webcam + microphone for Camera view (optional)
 
 ---
