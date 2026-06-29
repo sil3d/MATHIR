@@ -53,41 +53,95 @@ Full install: [mathir_mcp/README.md](mathir_mcp/README.md) · Cold-boot auto-sta
 
 23 MCP tools (was 20 in v8.5.0). 5 critical bugs fixed.
 
-**New tools:**
-- `memory_by_path` — find memories referencing a file path
-- `memory_recall_quality` — get top-1 score + quality signal (high/medium/low)
-- `memory_incoming_links` — reverse link graph
+**New tools:** `memory_by_path` · `memory_recall_quality` · `memory_incoming_links`
+**Bug fixes:** `get_project_db_path` CWD-first · `VecMemory._get_conn` mkdir parent · FastMCP `k: str | int` coercion · daemon port 7338
+**Auto-classify:** `block_type="auto"` routes by heuristic
 
-**Bug fixes:**
-- `get_project_db_path` now matches CWD first (was returning wrong DB)
-- `VecMemory._get_conn` now `mkdir(parents=True)` before connecting
-- FastMCP prompt `k: str | int` + coercion (was failing on shell `$2` interpolation)
-- Daemon port 7338 (was misconfigured to 7339)
+Full diff: [CHANGELOG.md](CHANGELOG.md)
 
-**Auto-classify:** `block_type="auto"` routes by heuristic (how-to→procedural, TODO→working_memory, facts→semantic).
+---
 
-Full diff: [CHANGELOG.md](CHANGELOG.md).
+## 🧭 Project Origin — 2 years, 1 question
+
+This is the story behind MATHIR. It's also my end-of-study project.
+
+> **Can modern cars navigate an *unknown* environment?**
+>
+> Not a highway with lane markings. Not a pre-mapped city. A place they've never seen, where the rules change every meter.
+
+A car following pre-programmed rules in a perfect simulation isn't intelligent — it's scripted. True autonomy requires the ability to **learn**, **remember**, and **adapt** across situations it's never seen before.
+
+That's where MATHIR started. An AI can't be intelligent if it can't **remember** — every session starts from zero, that's amnesia, not intelligence.
+
+**Next step:** MATHIR has been validated in software (23 MCP tools, 5-tier architecture, plug-and-play MCP). The next step is to **build a 3D-printed RC car** and test MATHIR as its actual memory layer in a real autonomous-driving scenario.
+
+---
+
+## 🔥 5 real-world problems MATHIR solves
+
+| | Problem | MATHIR solution |
+|---|---|---|
+| 1 | **Medical AI** — "We've never seen this disease before" | Rare case stored as episodic memory → next patient gets instant recall. The model *learns* from experience. |
+| 2 | **Chat sessions** — "Sorry, who are you?" | Context persists across sessions, tools, time. Switch Claude → Gemini → Llama — memory stays. |
+| 3 | **Autonomous driving** — "The sensor just died" | Car doesn't just see — it *remembers*. "Last time I was here, speed bump at this GPS." Memory fills sensor gaps. |
+| 4 | **Fine-tuning** — "My data is a mess" | MATHIR auto-classifies, dedupes, links. Data ready for fine-tuning *as you add it*. |
+| 5 | **Knowledge drift** — "Is this still accurate?" | Memories decay when unused. Old memory fades when API changes. Self-maintaining. |
 
 ---
 
 ## 🧠 What is MATHIR?
 
 A plug-and-play **5-tier cognitive memory** layer for any LLM:
-- 🩷 **Working** — scratchpad for the current session
-- 🩵 **Episodic** — events: bugs fixed, decisions, sessions
-- 🟩 **Semantic** — stable facts, not tied to one event
-- 🟨 **Procedural** — recipes, runbooks, how-to guides
-- 🟥 **Immunological** — anomaly detection, prompt injection
+
+| Tier | Role | Example |
+|---|---|---|
+| 🩷 **Working** | Scratchpad (current session) | "Right now" |
+| 🩵 **Episodic** | Events | "Last time you asked, the API was at /v2" |
+| 🟩 **Semantic** | Stable facts | "Water boils at 100°C" |
+| 🟨 **Procedural** | How-to / recipes | "How to deploy: pytest → docker build → aws ecs" |
+| 🟥 **Immunological** | Anomaly detection | "Prompt injection detected" |
 
 Memories **decay** when unused (Ebbinghaus), **promote** when recalled, **consolidate** with duplicates, **link** to related concepts. **Same memory** works across Claude / GPT / Gemini / Ollama / any LLM.
 
-Why? See the **[Why MATHIR](docs/01_MASTER_RESEARCH_PAPER.md)** paper and the **[vs Alternatives](docs/07_MATHIR_VS_VECTORDB_USE_CASES.md)** doc.
+![MATHIR Brain Architecture](docs/assets/memory_that_think.png)
+
+Why? See the **[doctoral research paper](docs/01_MASTER_RESEARCH_PAPER.md)** (6 theorems) and the **[vs Alternatives](docs/07_MATHIR_VS_VECTORDB_USE_CASES.md)** doc.
+
+---
+
+## The story that hurts
+
+![MATHIR Story](docs/assets/mathir_story.png)
+
+> Monday morning. You open Claude. You tell it: *"My name is Thomas, I'm building a RAG with Python, FastAPI + Postgres."* Claude says: *"Got it, I'll remember that."*
+>
+> 3 months later. You switch to Cursor + Llama 3.1. **Llama: "Hi! Who are you?"**
+> Everything Claude "remembered"? Gone. Vendor-locked.
+>
+> 6 months of memory. **Wiped in 3 seconds.** Because your memory doesn't belong to you.
+
+And the autonomous vehicle:
+
+> 2:32 PM. The Tesla learns that a yellow pedestrian marker at a crosswalk = slow down. Pattern stored.
+> 2:33 PM. OTA restart. Memory is wiped. **Next time, it won't slow down.**
+> 2:35 PM. 80 km/h. Zero detection. Zero alerts. Zero memory.
+>
+> **A car that doesn't remember = a car that doesn't understand.**
+
+What MATHIR changes:
+
+![MATHIR Story 2 — The Solution](docs/assets/mathir_story2.png)
+
+✅ Memory that follows you everywhere — SQLite local, MIT, zero vendor lock-in.
+✅ Memory that improves — +37.8% online learning, not static facts.
+✅ Anomaly detected in <1ms — immunological tier, AUC = 1.0.
+✅ Runs on edge — 240 MB VRAM, Jetson Orin ✅, Raspberry Pi ⚠️, zero cloud.
 
 ---
 
 ## 🔌 MCP Plug & Play
 
-Add MATHIR to your AI agent (OpenCode, Claude Code, Cursor, etc.):
+Add MATHIR to your AI agent (OpenCode, Claude Code, Cursor, MiMo, etc.):
 
 ```jsonc
 {
@@ -99,9 +153,22 @@ Add MATHIR to your AI agent (OpenCode, Claude Code, Cursor, etc.):
 }
 ```
 
-That's it. `memory_save`, `memory_recall`, `memory_by_path`, `memory_recall_quality` — 23 tools, all your agents.
+**That's it.** 23 tools (`memory_save`, `memory_recall`, `memory_by_path`, `memory_recall_quality`, `memory_incoming_links`, etc.) — all your agents.
 
-Full MCP config: [mathir_mcp/docs/AGENT.md](mathir_mcp/docs/AGENT.md)
+Full MCP config: [mathir_mcp/docs/AGENT.md](mathir_mcp/docs/AGENT.md) (50+ agents).
+
+### Console Scripts (universal, IDE-agnostic)
+
+| Command | What it does |
+|---|---|
+| `mathir-mcp` | MCP stdio server (23 tools, 2 prompts) |
+| `mathir-server` | HTTP unified server (port 7338) |
+| `mathir-client` | CLI client: `mathir-client recall "my query"` |
+| `mathir-dashboard` | Stats dashboard (port 7420) |
+| `mathir-migrate` | One-shot legacy→new schema migration |
+| `mathir-brain` | Orchestrator (server + watchdog + proxy) |
+
+Install: `pip install -e ./mathir_mcp`
 
 ---
 
@@ -151,7 +218,7 @@ Full comparison: [docs/07_MATHIR_VS_VECTORDB_USE_CASES.md](docs/07_MATHIR_VS_VEC
 
 ## 📊 Tests & Benchmarks
 
-**226/226 tests pass** (mathir_mcp + mathir_dropin). Run yourself:
+**226/226 tests pass**. Run yourself:
 
 ```bash
 pytest mathir_mcp/tests/ -v
@@ -231,7 +298,7 @@ MATHIR/
 
 ## 🤝 Contributing
 
-We welcome PRs and security reports. See [CONTRIBUTING](CONTRIBUTING.md) (if exists) or open an issue.
+We welcome PRs and security reports. Open an issue or pull request.
 
 ---
 
