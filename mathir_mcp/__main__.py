@@ -6,7 +6,7 @@ This is a convenience entrypoint so that after installing the package with
 
 Special flags:
   --selftest      Run a 9-step validation (Python, deps, embedder, DB, tools, daemon, e2e)
-  --list-tools    List all 17 MCP tools exposed by the server
+  --list-tools    List all 23 MCP tools exposed by the server
   --version       Print version and exit
 """
 import sys
@@ -151,10 +151,10 @@ def _cmd_selftest():
         mathir_mcp_server = _import("mathir_mcp_server")
         TOOLS = mathir_mcp_server.TOOLS
         n = len(TOOLS)
-        if n != 17:
-            raise RuntimeError(f"expected 20 tools, got {n}")
+        if n != 23:
+            raise RuntimeError(f"expected 23 tools, got {n}")
         return f"{n} tools registered"
-    _check("All 20 tools registered", _tools)
+    _check("All 23 tools registered", _tools)
 
     def _daemon():
         import os, urllib.request, json as _json
