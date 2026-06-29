@@ -8,12 +8,36 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [8.5.1] — 2026-06-29 — NEW TOOLS + PROJECT-AWARE DB + BUG FIXES
+
+**Bug fixes + 3 new MCP tools.** Project-aware DB routing, VecMemory mkdir fix, FastMCP k-coerce, incoming_links daemon endpoint.
+
+### New features
+- **`memory_by_path`** — Search memories referencing a specific file path (metadata.file_path OR content substring match)
+- **`memory_recall_quality`** — Recall with explicit quality signal (high/medium/low/none) + suggestion text
+- **`memory_incoming_links`** — Reverse link graph: memories pointing TO a given memory_id
+- **`block_type="auto"`** in `memory_save` — Heuristic auto-classification (how-to/cmd→procedural, TODO/WIP→working_memory, facts→semantic, default→episodic)
+
+### Bug fixes
+- `get_project_db_path()` — Was returning first existing DB in registry instead of matching CWD. Fix: cwd-first, ancestor-match with longest prefix, fallback to most-recently-used
+- `VecMemory._get_conn()` — Missing `mkdir(parents=True)` before `sqlite3.connect`. Fix: create `.mathir/` directory before first connect
+- FastMCP `mathir_recall` prompt — `k: int` parameter caused `ValidationError` when clients passed shell-interpolated strings like `'$2'`. Fix: `k: str | int` with coercion
+- MiMoCode config — `MATHIR_PORT` was set to 7339 instead of 7338
+
+### Changed
+- README.md shortened (~220 → ~90 lines) with documentation index table
+- Docs v8.4.1/8.4.2 → v8.5.0 (AGENT.md, DAEMON.md, DIMENSIONS.md)
+- `__main__.py` v8.4.0 → v8.5.0, tool count 17 → 23
+- `mathir_dashboard.html` v8.4.2 → v8.5.0
+
+---
+
 ## [8.5.0] — 2026-06-25 — ⚡ FASTMCP REWRITE + AUTO-INJECTION
 
 **Major rewrite.** v8.5.0 replaces the hand-rolled JSON-RPC MCP server with FastMCP 3.4.2, adds auto-injection of memories into agent system prompts, and unifies the daemon/stats server into a single Flask+Waitress process.
 
 ### Key changes
-- MCP server rewritten using FastMCP 3.4.2 (19 tools, stdio transport)
+- MCP server rewritten using FastMCP 3.4.2 (20 tools, stdio transport)
 - Auto-injection plugin: memories injected into system prompt at session start + during session
 - `memory_session_start` + `memory_context` tools for explicit session context
 - `/api/context` HTTP endpoint for plugin auto-injection

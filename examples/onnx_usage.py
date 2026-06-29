@@ -1,10 +1,10 @@
 """
-MATHIR ONNX Embedder Usage Examples (v8.4.0)
+MATHIR ONNX Embedder Usage Examples (v8.5.0)
 ============================================
 
 Demonstrates the Octen-Embedding-0.6B-ONNX-INT8 embedder used by the
 MATHIR MCP server. The old v7 ``mathir_lib.providers.get_provider``
-factory was removed in v8.4.0 — use ``OctenEmbedder`` directly.
+factory was removed in v8.5.0 — use ``OctenEmbedder`` directly.
 
 Run:
     python examples/onnx_usage.py
@@ -92,14 +92,14 @@ for i, j, label in pairs:
 
 
 # ---------------------------------------------------------------------------
-# Example 3 — MCP Server integration (paths updated for v8.4.0)
+# Example 3 — MCP Server integration (paths updated for v8.5.0)
 # ---------------------------------------------------------------------------
 print("\n" + "=" * 60)
 print("Example 3: MCP Server Integration")
 print("=" * 60)
 
 print("""
-To use MATHIR as an MCP server (v8.4.0 layout):
+To use MATHIR as an MCP server (v8.5.0 layout):
 
 1. Add to your MCP config (e.g., ~/.config/opencode/opencode.json):
 

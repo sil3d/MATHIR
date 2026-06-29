@@ -51,7 +51,7 @@ if __name__ == "__main__":
     load_env_file()
 
     print("=" * 60)
-    print("MATHIR Playground  (v8.4.0)")
+    print("MATHIR Playground  (v8.5.0)")
     print("=" * 60)
     print("Configuration sources:")
     print("  - .env (gitignored, your secrets)")

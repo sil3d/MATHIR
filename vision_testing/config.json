@@ -1,7 +1,7 @@
 {
   "_comment": "MATHIR Playground — user-editable config. All paths are RELATIVE to this config file (or absolute if needed). Edit this file to add/remove models and change settings. NO hardcoded paths in code.",
 
-  "_v8.4.0": "Supports 2 providers: OpenRouter (cloud LLM gateway, 26 free models) and OpenCode Zen (curated free models via opencode.ai/zen/v1). Both use OpenAI-compatible /chat/completions API.",
+  "_v8.5.0": "Supports 2 providers: OpenRouter (cloud LLM gateway, 26 free models) and OpenCode Zen (curated free models via opencode.ai/zen/v1). Both use OpenAI-compatible /chat/completions API.",
 
   "memory_db": "memory/vision_memory.db",
 
@@ -26,7 +26,7 @@
 
     "google/gemma-4-26b-a4b-it:free": {
       "provider": "openrouter",
-      "_comment": "Google Gemma 4 26B A4B IT (free) — vision+video+text, 262K context. v8.4.0 verified working.",
+      "_comment": "Google Gemma 4 26B A4B IT (free) — vision+video+text, 262K context. v8.5.0 verified working.",
       "enabled": true,
       "type": "vision-language",
       "id": "google/gemma-4-26b-a4b-it:free",
@@ -86,7 +86,7 @@
     },
     "mimo-v2.5-free": {
       "provider": "opencode_zen",
-      "_comment": "OpenCode Zen — MiMo V2.5 (free, Xiaomi). v8.4.0 verified working. NOTE: model ID has NO 'opencode/' prefix for Zen — that's a display name only.",
+      "_comment": "OpenCode Zen — MiMo V2.5 (free, Xiaomi). v8.5.0 verified working. NOTE: model ID has NO 'opencode/' prefix for Zen — that's a display name only.",
       "enabled": true,
       "type": "text-only",
       "id": "mimo-v2.5-free",

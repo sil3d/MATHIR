@@ -7,7 +7,7 @@ Usage:
   python setup_sources.py /path/to/secret_project/Mycerise_V2_Taur
   SECRET_PROJECT=/path/to/secret/project python setup_sources.py
 
-v8.4.0 MIGRATION: Removed LlamaSetupModal.jsx + wizardModels_llamacpp.json
+v8.5.0 MIGRATION: Removed LlamaSetupModal.jsx + wizardModels_llamacpp.json
 + convert_lfm2_to_gguf.py entries (llama.cpp is gone, replaced by OpenRouter).
 """
 import os
@@ -33,13 +33,13 @@ SOURCE_FILES = [
         "source_rel": "src/components/OpenRouterSetupModal.jsx",
         "dest_dir": "interface",
         "dest_name": "OpenRouterSetupModal_reference.jsx",
-        "description": "Tauri UI for OpenRouter setup (replaces LlamaSetupModal in v8.4.0)",
+        "description": "Tauri UI for OpenRouter setup (replaces LlamaSetupModal in v8.5.0)",
     },
     {
         "source_rel": "src/config/wizardModels_openrouter.json",
         "dest_dir": "interface",
         "dest_name": "wizardModels_openrouter_reference.json",
-        "description": "Model definitions JSON (replaces wizardModels_llamacpp.json in v8.4.0)",
+        "description": "Model definitions JSON (replaces wizardModels_llamacpp.json in v8.5.0)",
     },
 ]
 

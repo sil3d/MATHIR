@@ -107,4 +107,4 @@ After deploying, check:
 
 ---
 
-*Last updated: 2026-06-23 — MATHIR v8.4.1*
+*Last updated: 2026-06-29 — MATHIR v8.5.1*

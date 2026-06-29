@@ -10,7 +10,7 @@
 > - 🔒 **No penetration testing** has been performed on the daemon, MCP server, or HTTP endpoints
 > - 🛡️ The **immunological tier** is a research prototype, not a certified security layer
 > - 🐛 There may be **undiscovered vulnerabilities** in memory persistence, IPC, or daemon networking
-> - ⚡ The codebase has **173 tests** but they cover functionality, not adversarial security
+> - ⚡ The codebase has **226 tests** but they cover functionality, not adversarial security
 >
 > **Why open source?**
 > - 🌍 Built for the community, by one person
@@ -45,23 +45,23 @@
 
 <br/>
 
-> **🆕 v8.5.0 — FastMCP rewrite + auto-injection.** MCP server rewritten using FastMCP 3.4.2 (19 tools). Memories auto-injected into agent system prompts via plugin. Unified Flask+Waitress server (single process, single port). Direct DB access, no daemon bridge.
+> **🆕 v8.5.1 — New tools + project-aware DB.** 23 MCP tools (was 20). `memory_by_path` for file-level search, `memory_recall_quality` for score signals, `memory_incoming_links` for reverse link graph. Auto-classify: `block_type="auto"` routes via heuristic. Project-aware DB routing with ancestor-match. FastMCP k-coerce fix for prompt arguments. Unified Flask+Waitress daemon on port 7338.
 >
-> **v8.4.2 — Immunological is now a real 5th tier.** The architecture (working, episodic, semantic, procedural) is extended with a first-class `immunological` tier for prompt-injection detection and input anomaly scoring. All 17 MCP tools gain tier-aware routing. 173/173 tests pass.
+> **v8.5.0 — FastMCP rewrite + auto-injection.** MCP server rewritten using FastMCP 3.4.2 (20 tools). Memories auto-injected into agent system prompts via plugin. Unified server replacing TCP daemon.
 >
-> **v8.4.0 — Living memory, not a write-only disk.** MATHIR now ships a full **Ebbinghaus forgetting curve**, **tier promotion** (working → episodic → semantic → procedural), **semantic consolidation** (auto-merge near-duplicates), and a **link graph** (spreading activation à la Collins & Loftus 1975). Memories that get recalled grow stronger; memories that don't, decay and archive. **7 new MCP tools. 173/173 tests pass.**
+> **v8.4.0 — Living memory.** Ebbinghaus forgetting curve, tier promotion, semantic consolidation, link graph. Spreading activation Collins & Loftus 1975.
 
 <br/>
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-9.0.0-6366f1?style=for-the-badge)](CHANGELOG.md)
-[![Tests](https://img.shields.io/badge/Tests-173%20passed-22c55e?style=for-the-badge)](#-tests--benchmarks)
+[![Version](https://img.shields.io/badge/Version-8.5.1-6366f1?style=for-the-badge)](CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/Tests-226%20passed-22c55e?style=for-the-badge)](#-tests--benchmarks)
 
 <br/>
 
-[**🧭 Project Origin**](#-project-origin--2-years-1-question) · [**🔥 5 Problems Solved**](#-5-real-world-problems-mathir-solves) · [**🆕 What's new in 8.4**](#-whats-new-in-v840--living-memory) · [**🔌 MCP Plug & Play**](#-mcp-plug--play--2-lines) · [**📖 The Story**](#-the-story-that-hurts) · [**⚡ Quick Start**](#-quick-start-30-seconds) · [**🏗️ Architecture**](#-architecture) · [**🆚 vs Alternatives**](#-vs-alternatives-honest-2026-comparison)
+[**🧭 Project Origin**](#-project-origin--2-years-1-question) · [**🔥 5 Problems Solved**](#-5-real-world-problems-mathir-solves) · [**🆕 What's new**](#-whats-new--living-memory-since-v84) · [**🔌 MCP Plug & Play**](#-mcp-plug--play--2-lines) · [**📖 The Story**](#-the-story-that-hurts) · [**⚡ Quick Start**](#-quick-start-30-seconds) · [**🏗️ Architecture**](#-architecture) · [**🆚 vs Alternatives**](#-vs-alternatives-honest-2026-comparison)
 
 </div>
 
@@ -109,7 +109,7 @@ But the deeper question stayed:
 
 ### The next step: a real 3D RC car
 
-MATHIR has been validated in software (173/173 tests, 5-tier architecture, plug-and-play MCP). The next step is to **build a 3D-printed RC car** and test MATHIR as its actual memory layer in a real autonomous-driving scenario — physical sensors, real noise, real unknowns.
+MATHIR has been validated in software (23 MCP tools, 5-tier architecture, plug-and-play MCP). The next step is to **build a 3D-printed RC car** and test MATHIR as its actual memory layer in a real autonomous-driving scenario — physical sensors, real noise, real unknowns.
 
 That's the validation I can't fake with a Pygame simulation. **Stay tuned.**
 
@@ -179,9 +179,9 @@ MATHIR v8.5.0 is a major rewrite. The hand-rolled JSON-RPC MCP server is replace
 
 ---
 
-## 🆕 What's new in v8.4.0 — Living memory
+## 🆕 What's new — Living memory (since v8.4)
 
-MATHIR v8.4.0 closes the gap between "memory that stores" and "memory that *thinks*". Every other memory layer for LLMs is a write-only disk: you save, you recall, and that's it. **MATHIR is the first that actually manages its own memory lifecycle.**
+MATHIR v8.5.0 closes the gap between "memory that stores" and "memory that *thinks*". Every other memory layer for LLMs is a write-only disk: you save, you recall, and that's it. **MATHIR is the first that actually manages its own memory lifecycle.**
 
 ### Your brain doesn't keep everything — and neither does MATHIR
 
@@ -216,13 +216,13 @@ Memories you never recall slowly lose stability, following Ebbinghaus's forgetti
 ### Before vs after
 
 ```python
-# BEFORE v8.4.0 — passive storage
+# BEFORE — passive storage
 memory_save("the API uses /v2/chat/completions")
 memory_save("the API uses /v2/chat/completions")  # duplicate
 memory_save("the API uses /v2/chat/completions")  # duplicate
 # → 3 memories, all the same, no ranking, no decay, no links
 
-# AFTER v8.4.0 — living memory
+# AFTER — living memory
 memory_save(...)
 memory_recall(query)                # auto-touches: stability↑, recall_count↑
 memory_auto_promote()               # working → episodic if mature enough
@@ -242,7 +242,7 @@ build_links: 246 links created from 29 memories (threshold=0.5)
 consolidate: 3 candidates at threshold 0.9 (dry_run)
 ```
 
-**7 new MCP tools, 7 new daemon RPC methods, 26 new pytest tests (173/173 total).**
+**23 MCP tools, unified HTTP daemon, 226 tests passing.**
 
 ---
 
@@ -302,7 +302,7 @@ You want to detect prompt injection. "That's not what we do."
 
 ## 🔌 MCP Plug & Play — 2 lines
 
-**One server, 19 tools, same memory.** Connect any LLM in 2 steps:
+**One server, 23 tools, same memory.** Connect any LLM in 2 steps:
 
 ```bash
 # 1. Start the daemon (once)
@@ -328,7 +328,7 @@ mathir-server
 
 | Command | What it does |
 |---------|-------------|
-| `mathir-mcp` | MCP stdio server (19 tools, 2 prompts) — for any MCP client |
+| `mathir-mcp` | MCP stdio server (23 tools, 2 prompts) — for any MCP client |
 | `mathir-server` | HTTP unified server (port 7338, optional auth on LAN) |
 | `mathir-client` | CLI client: `mathir-client recall "my query"` |
 | `mathir-dashboard` | Stats dashboard (port 7420) |
@@ -373,16 +373,16 @@ Install: `pip install -e ./mathir_mcp`
 
 **Same MATHIR memory across all LLMs.** Switch the backend, the memory stays.
 
-### ✅ Cold-boot auto-start (v8.4.2 — verified 2026-06-24)
+### ✅ Cold-boot auto-start (v8.5.0+)
 
-**As of v8.4.2, true cold-boot auto-start is implemented on all platforms** via:
+**As of v8.5.0, cold-boot auto-start is implemented on all platforms** via:
 - **Windows:** VBS launcher in `shell:startup` (no admin needed)
 - **macOS:** `~/Library/LaunchAgents/com.mathir.daemon.plist`
 - **Linux:** `~/.config/systemd/user/mathir-daemon.service` with lingering
 
 Run once: `python install_smart.py --autostart-only` — daemon will then start silently on every login/reboot before any agent even boots. See the [⚠️ After PC Reboot](#%E2%9A%A0%EF%B8%8F-after-pc-reboot--auto-start-v842) section for full details.
 
-| Scenario | v8.4.1 (before) | v8.4.2 (after) |
+| Scenario | v8.4.1 (before) | v8.5.0 (after) |
 |---|---|---|
 | Daemon running, recall called | ✅ Works | ✅ Works |
 | Daemon crashed, recall called | ✅ Auto-restart | ✅ Auto-restart |
@@ -447,7 +447,7 @@ Once installed, run `python install_smart.py --autostart-only` to enable cold-bo
 
 ---
 
-## 🔧 Dynamic Injection & Sync (v8.4.1)
+## 🔧 Dynamic Injection & Sync
 
 Two new dev-loop tools in `~/.config/opencode/bin/` (or `mathir_mcp/mathir_lib/` in the source repo) automate the MATHIR injection block across all your AI config files.
 
@@ -554,10 +554,10 @@ MATHIR v8.x+ ships with **6 embedding providers**. The default is now **paraphra
 | Ollama | `llama3.2:3b` | 2048 | 30–80 ms | 2 GB | 🟢 High | ✅ | Free |
 | OpenAI | `text-embedding-3-small` | 1536 | 80–200 ms | Cloud | 🟢 High | ❌ | $0.02/1M |
 
-### ONNX Provider (v8.4.0)
+### ONNX Provider
 
 ```python
-# In v8.4.0 the v7 `mathir_lib.providers.get_provider` was replaced by a
+# The v7 `mathir_lib.providers.get_provider` was replaced by a
 # dedicated OctenEmbedder class in mathir_mcp/mathir_lib/mathir_onnx_embedder.py
 from mathir_lib.mathir_onnx_embedder import OctenEmbedder, get_onnx_embedder
 
@@ -714,9 +714,9 @@ print(output["episodic_context"])    # retrieved past experiences
 
 ---
 
-## ⚠️ After PC Reboot — Auto-Start (v8.4.2+)
+## ⚠️ After PC Reboot — Auto-Start (v8.5.0+)
 
-**As of v8.4.2, cold-boot auto-start is supported on all three platforms** (Windows, macOS, Linux). Without configuration, the daemon does NOT auto-start on boot and MCP tools will silently fail until you start it manually.
+**As of v8.5.0, cold-boot auto-start is supported on all three platforms** (Windows, macOS, Linux). Without configuration, the daemon does NOT auto-start on boot and MCP tools will silently fail until you start it manually.
 
 ### One-time setup (per platform)
 
@@ -750,7 +750,7 @@ curl http://localhost:7338/health
 
 If you get "connection refused", the daemon is down — start it with Option 1 or 2 above.
 
-### What is automatic (v8.4.2)
+### What is automatic (v8.5.0)
 
 - ✅ **Cold-boot auto-start** (after one-time setup above)
 - ✅ Daemon auto-restarts on **crash** (within session, via watchdog)
@@ -1177,7 +1177,7 @@ The router **learns** its allocation strategy over time (no hard-coded rules):
 
 All results reproducible. Scripts in [`benchmarks/`](benchmarks/), full HTML report in [`benchmarks/06_results/current/MATHIR_FINAL_REPORT.html`](benchmarks/06_results/current/MATHIR_FINAL_REPORT.html).
 
-### 🆕 Lifecycle Benchmarks (v8.4.0)
+### 🆕 Lifecycle Benchmarks
 
 Two complementary benchmarks that prove the living memory actually improves recall quality:
 
