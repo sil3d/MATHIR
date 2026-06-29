@@ -156,19 +156,19 @@ That API endpoint you documented 6 months ago? It changed. But your old notes st
 
 ---
 
-## 🆕 What's new in v8.5.0 — FastMCP + Auto-Injection
+## 🆕 What's new in v8.5.1 — New Tools + Project-Aware DB
 
 MATHIR v8.5.0 is a major rewrite. The hand-rolled JSON-RPC MCP server is replaced by **FastMCP 3.4.2** (used by 70% of MCP servers in the wild). Memories are now **auto-injected** into agent system prompts — no manual recall needed.
 
 ### Key changes
-- **FastMCP 3.4.2** — 19 MCP tools, stdio transport, battle-tested
+- **FastMCP 3.4.2** — 23 MCP tools, stdio transport, battle-tested
 - **Auto-injection plugin** — memories injected at session start + during session
 - **Unified server** — single process, single port (7338), Flask + Waitress
 - **Direct DB access** — no HTTP daemon bridge for core operations
 - **Embedder pre-warmed** — 25-30s first load, then cached in memory
 - **Portable config** — no OpenCode hardcodes in templates
 
-### 19 MCP tools
+### 23 MCP tools
 
 | Category | Tools |
 |---|---|
@@ -324,7 +324,7 @@ mathir-server
 
 **That's it.** `memory_save`, `memory_recall`, `memory_smart_search`, `memory_hybrid_search` — available in all your tools.
 
-### v9.0 Console Scripts (universal, IDE-agnostic)
+### v8.5.1 Console Scripts (universal, IDE-agnostic)
 
 | Command | What it does |
 |---------|-------------|
