@@ -295,31 +295,32 @@ MATHIR/
 
 ### 🔜 Next: 4 validation stages
 
-```
-   ┌────────────────────┐     ┌────────────────────┐     ┌────────────────────┐     ┌────────────────────┐
-   │  V9.1  VISION       │     │  V9.2  RASPBERRY PI │     │  V9.3  JETSON       │     │  V9.4  RC CAR       │
-   │  Model testing      │ ──▶│  CPU edge deploy   │ ──▶│  GPU edge deploy  │ ──▶│  Physical world   │
-   │  (laptop, T+0)      │     │  (Pi 5, T+2 weeks)  │     │  (Orin, T+1 month)  │     │  (3D-printed, T+2m)│
-   └────────────────────┘     └────────────────────┘     └────────────────────┘     └────────────────────┘
-          │                            │                          │                          │
-          ▼                            ▼                          ▼                          ▼
-   • OpenRouter free LLM      • paraphrase-MiniLM        • bge-large-en-v1.5      • Real sensors:
-     26 models                 CPU+ONNX INT8               CUDA fp16 500MB            camera + LIDAR
-   • 6 web views               • <500 MB RAM               • <30 ms recall            • Real unknowns:
-   • vision_testing UI          • 4 cores                   • 67 TOPS peak               mud, glare, rain
-   • chat + camera + memory    • USB boot, no internet      • 32 GB RAM                • MATHIR remembers
-                                                                  • 10-year battery life    what worked before
+```mermaid
+graph LR
+    V91["V9.1<br/>VISION<br/>Model testing<br/>(laptop, T+0)"] --> V92["V9.2<br/>RASPBERRY PI<br/>CPU edge deploy<br/>(Pi 5, T+2 weeks)"]
+    V92 --> V93["V9.3<br/>JETSON<br/>GPU edge deploy<br/>(Orin, T+1 month)"]
+    V93 --> V94["V9.4<br/>RC CAR<br/>Physical world<br/>(3D-printed, T+2m)"]
+
+    V91 --- |"OpenRouter<br/>26 free models<br/>Vision + audio"| A1
+    V92 --- |"MiniLM-L12<br/>CPU + ONNX INT8<br/>&lt;500 MB RAM"| A2
+    V93 --- |"bge-large-en-v1.5<br/>CUDA fp16 500MB<br/>&lt;30 ms recall"| A3
+    V94 --- |"Real sensors<br/>camera + LIDAR<br/>no internet"| A4
+
+    classDef done fill:#22c55e,color:#fff
+    classDef next fill:#3b82f6,color:#fff
+    classDef pending fill:#6b7280,color:#fff
+    class V91 next
+    class V92 pending
+    class V93 pending
+    class V94 pending
 ```
 
-| Stage | V9.1 Vision Model | V9.2 Raspberry Pi | V9.3 Jetson | V9.4 RC Car |
-|---|---|---|---|---|
-| **Hardware** | Laptop (any) | Raspberry Pi 5 (8GB) | Jetson Orin Nano (8GB) | 3D-printed chassis + Pi/Orin |
-| **Embedding** | OpenRouter free LLM (26 models, no local GPU) | `paraphrase-multilingual-MiniLM-L12-v2` CPU+ONNX INT8 | `BAAI/bge-large-en-v1.5` CUDA fp16 | Same as Jetson |
-| **Memory** | in-process Python | SQLite on SD card | SQLite on SSD | SQLite + persistent storage |
-| **Power** | AC | 5V USB-C 3A | 7-19V DC | 11.1V LiPo 3S |
-| **Connectivity** | WiFi | WiFi/Ethernet | WiFi/Ethernet | None (autonomous) |
-| **Test** | 6 UI views (chat, camera, memory, models, accuracy, settings) | 7-day uptime + crash recovery | 24h stress + thermal throttle test | 100h outdoor + edge cases |
-| **Goal** | Verify memory across LLMs in controlled env | Verify CPU fallback is robust | Verify GPU acceleration is reliable | Verify real-world autonomous scenario |
+| Stage | Hardware | Embedding | Goal |
+|---|---|---|---|
+| **V9.1 Vision** (now) | Laptop | OpenRouter free LLM | Verify across LLMs |
+| **V9.2 Raspberry Pi** | Pi 5 (8GB) | MiniLM CPU + ONNX INT8 | CPU edge robustness |
+| **V9.3 Jetson** | Orin Nano (8GB) | bge-large CUDA fp16 | GPU edge acceleration |
+| **V9.4 RC Car** | 3D-printed + Pi/Orin | Same as Jetson | Real-world autonomous |
 
 ### 📋 Future
 
