@@ -81,6 +81,13 @@ def resolve_path(p, base=HERE):
 sys.path.insert(0, str(HERE))
 from vision_test import VisionTester, ModelManager, OpenRouterClient, VirtualRoom, load_config as vt_load_config
 
+# Local llama.cpp backend (optional, requires llama-cpp-python)
+try:
+    from local_llama_cpp import LlamaCppBackend, get_llama_cpp_available
+    LLAMA_CPP_AVAILABLE = get_llama_cpp_available()
+except ImportError:
+    LLAMA_CPP_AVAILABLE = False
+
 # Accuracy test framework (optional - server boots even if import fails
 # because accuracy is a feature, not a hard dependency for the rest of
 # the UI). We log the import failure so the operator knows.
@@ -450,6 +457,41 @@ def validate_models():
         v = state["models"].validate_model(name)
         result[name] = v
     return jsonify(result)
+
+
+@app.route("/api/local/status", methods=["GET"])
+def local_status():
+    """Check if local llama.cpp backend is available."""
+    return jsonify({"available": LLAMA_CPP_AVAILABLE})
+
+
+@app.route("/api/local/chat", methods=["POST"])
+def local_chat():
+    """Send a chat to a local GGUF model (no network, no API key)."""
+    if not LLAMA_CPP_AVAILABLE:
+        return jsonify({"error": "llama-cpp-python not installed"}), 503
+
+    data = request.json
+    model_name = data.get("model")
+    messages = data.get("messages", [])
+    max_tokens = int(data.get("max_tokens", 512))
+    temperature = float(data.get("temperature", 0.7))
+
+    if not model_name or not messages:
+        return jsonify({"error": "model and messages required"}), 400
+
+    models_cfg = state["config"].get("models", {})
+    model_info = models_cfg.get(model_name)
+    if not model_info:
+        return jsonify({"error": f"Model '{model_name}' not found in config.json"}), 404
+
+    try:
+        model_paths = state["models"].get_model_paths(model_name)
+        backend = LlamaCppBackend(model_paths)
+        result = backend.chat(messages, max_tokens=max_tokens, temperature=temperature)
+        return jsonify({"response": result, "model": model_name, "backend": "llama-cpp"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/api/models/add-from-hf", methods=["POST"])
@@ -2002,6 +2044,7 @@ def main():
     print(f"Camera: {state['ui_config']['camera']['enabled']}")
     print(f"System context: {(HERE / 'system_context.json').exists()}")
     print(f"Test results: {(HERE / 'test_results.json').exists()}")
+    print(f"Local llama.cpp: {'YES (llama-cpp-python installed)' if LLAMA_CPP_AVAILABLE else 'NO (optional: pip install llama-cpp-python)'}")
     print()
 
     try:
