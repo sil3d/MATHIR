@@ -836,6 +836,32 @@ def memory_get_links():
         return jsonify({'error': _sanitize_error(e, 'memory_get_links')}), 500
 
 
+@app.route("/api/memory/incoming_links", methods=["POST"])
+def memory_incoming_links():
+    """Return all links whose target_id == memory_id (reverse direction)."""
+    params = _get_params()
+    try:
+        vec_mem, _, _ = _resolve_db()
+        memory_id = params.get('memory_id', '')
+        if not memory_id:
+            return jsonify({'error': 'memory_id is required'}), 400
+        with vec_mem._db_lock:
+            conn = vec_mem._get_conn()
+            rows = conn.execute(
+                """
+                SELECT source_id, target_id, weight, created_at
+                FROM memory_links
+                WHERE target_id = ?
+                ORDER BY weight DESC
+                """,
+                (memory_id,),
+            ).fetchall()
+            result = [dict(row) for row in rows]
+        return jsonify({'memory_id': memory_id, 'incoming': result, 'count': len(result)})
+    except Exception as e:
+        return jsonify({'error': _sanitize_error(e, 'memory_incoming_links')}), 500
+
+
 @app.route("/api/memory/build_links", methods=["POST"])
 def memory_build_links():
     params = _get_params()

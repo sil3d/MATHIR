@@ -206,6 +206,7 @@ def _call_daemon_raw(method: str, params: dict = None) -> dict:
         "memory_link": "/api/memory/link",
         "memory_get_links": "/api/memory/get_links",
         "memory_build_links": "/api/memory/build_links",
+        "memory_incoming_links": "/api/memory/incoming_links",
         "memory_context": "/api/context",
         "memory_session_start": "/api/context",
     }
@@ -818,35 +819,8 @@ def memory_incoming_links(memory_id: str, depth: int = 1) -> str:
     - "what memories reference this fact?"
     - "is this memory a leaf or a hub in the link graph?"
     """
-    try:
-        # Read all edges from daemon, filter reverse direction
-        # The daemon's get_links is forward; we re-derive via get_links on each known memory.
-        # For efficiency, query all recent memories and build reverse index.
-        recent = _call_daemon("memory_sessions", {"limit": 1000})
-        # Fallback path: list memories, check links via get_links per neighbor
-        # is O(N*E). For v1 we keep it simple: just compute reverse directly via SQL.
-        # Direct daemon call to a small helper endpoint would be ideal but we don't have one,
-        # so use a recall to find candidates then filter.
-        # Pragmatic v1: just return forward + we read memory_audit (not enough).
-        # Simpler approach: call the dae's get_links for ALL known memory_ids in this
-        # project. That's too expensive. Use memory_recall with memory_id as query
-        # — unlikely to work because IDs are opaque. Best path: just call forward and
-        # document that reverse needs a new daemon endpoint.
-
-        # For now: return forward links with note that reverse is not yet implemented
-        # in a daemon endpoint. Mark for follow-up.
-        forward = _call_daemon("memory_get_links", {"memory_id": memory_id, "depth": depth})
-        return json.dumps({
-            "memory_id": memory_id,
-            "note": (
-                "Reverse link index requires a daemon endpoint not yet exposed. "
-                "Returning forward links as a partial fallback. "
-                "Track at mathir_daemon.py: TODO add /api/memory/incoming_links."
-            ),
-            "forward_links": forward,
-        })
-    except Exception as e:
-        return json.dumps({"error": _sanitize_error(e, "memory_incoming_links")})
+    result = _call_daemon("memory_incoming_links", {"memory_id": memory_id, "depth": depth})
+    return json.dumps(result) if isinstance(result, dict) else str(result)
 
 
 # ---------------------------------------------------------------------------
