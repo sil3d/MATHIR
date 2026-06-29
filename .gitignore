@@ -87,3 +87,6 @@ Thumbs.db
 *.env.local
 *.env.production
 *.env.development
+
+# Private files — outreach templates (not for public repo)
+docs/OUTREACH.md
