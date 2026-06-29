@@ -22,6 +22,13 @@ sentence-transformers>=2.2
 torch>=2.0
 numpy>=1.24
 
+# Local LLM inference (optional, for offline / privacy scenarios)
+# Requires llama-cpp-python for local GGUF models (text + multimodal via mmproj)
+# Install: pip install llama-cpp-python
+# On Windows with CUDA: pip install llama-cpp-python --force-reinstall --no-cache-dir
+# On macOS Apple Silicon: pip install llama-cpp-python --force-reinstall --no-cache-dir
+# llama-cpp-python>=0.3.0  # uncomment if using local GGUF models
+
 # Existing MATHIR dependencies (in parent project)
 # sqlite3 (built-in)
 # transformers (already in MATHIR)

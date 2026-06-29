@@ -2,6 +2,7 @@
   "_comment": "MATHIR Playground — user-editable config. All paths are RELATIVE to this config file (or absolute if needed). Edit this file to add/remove models and change settings. NO hardcoded paths in code.",
 
   "_v8.5.0": "Supports 2 providers: OpenRouter (cloud LLM gateway, 26 free models) and OpenCode Zen (curated free models via opencode.ai/zen/v1). Both use OpenAI-compatible /chat/completions API.",
+  "_v8.5.1": "Added local llama.cpp support via `local_llama_cpp.py`. Use GGUF models locally with optional mmproj for multimodal (vision). Falls back to OpenRouter/Zen if llama-cpp-python is not installed.",
 
   "memory_db": "memory/vision_memory.db",
 
