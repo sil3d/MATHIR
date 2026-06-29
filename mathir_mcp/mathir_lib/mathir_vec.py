@@ -124,12 +124,13 @@ class VecMemory:
             raise KeyError(f"Unknown field {field!r}")
         return table[field]
 
-    def __init__(self, db_path: Path, embedding_dim: int = 384):
+    def __init__(self, db_path, embedding_dim: int = 384):
         if not isinstance(embedding_dim, int) or embedding_dim not in self.VALID_DIMS:
             raise ValueError(
                 f"embedding_dim must be one of {sorted(self.VALID_DIMS)}, got {embedding_dim!r}"
             )
-        self.db_path = db_path
+        # Accept str or Path; coerce to Path so _get_conn can call .parent.mkdir
+        self.db_path = Path(db_path) if not isinstance(db_path, Path) else db_path
         self.embedding_dim = embedding_dim
         self._conn = None
         # H1: serialize concurrent DB ops; RLock allows re-entry from nested helpers.
@@ -209,10 +210,11 @@ class VecMemory:
                         project TEXT,
                         created_at TEXT,
                         last_recalled_at REAL DEFAULT 0,
+                        stability REAL DEFAULT 1.0,
                         metadata JSON
                     )
                 """)
-                log.info("Created new memories table")
+                log.info("Created new memories table (with stability column v8.5.1)")
             else:
                 # Use existing schema - we'll adapt our queries.
                 # Idempotent migration: add last_recalled_at column if missing (v8.3+).
@@ -222,6 +224,15 @@ class VecMemory:
                         log.info("Migrated memories table: added last_recalled_at column")
                     except sqlite3.OperationalError as exc:
                         # Column already exists (race / re-run) — safe to ignore.
+                        if "duplicate column name" not in str(exc):
+                            raise
+                # Idempotent migration v8.5.1: add stability column if missing.
+                # Ebbinghaus decay/boost requires a REAL column to survive restarts.
+                if "stability" not in columns:
+                    try:
+                        conn.execute("ALTER TABLE memories ADD COLUMN stability REAL DEFAULT 1.0")
+                        log.info("Migrated memories table: added stability column (v8.5.1)")
+                    except sqlite3.OperationalError as exc:
                         if "duplicate column name" not in str(exc):
                             raise
                 log.info(f"Using existing memories table with columns: {list(columns.keys())}")
@@ -1133,9 +1144,8 @@ class VecMemory:
             Empty list when the schema has no stability column (no-op).
         """
         kind = self._schema_kind()
-        if kind != "legacy":
-            log.debug("get_decay_candidates: skipped (no stability column)")
-            return []
+        # Both schemas have stability column since v8.5.1 migration.
+        # Use _field_sql for recall_count to handle both DB layouts.
 
         if threshold_days < 0:
             raise ValueError("threshold_days must be >= 0")
@@ -1145,19 +1155,21 @@ class VecMemory:
             now = datetime.now().timestamp()
             cutoff = now - (threshold_days * 86400.0)
 
+            # Use created_at_raw which maps to "timestamp" (legacy) or "created_at" (new)
+            ts_col = self._field_sql("created_at_unix", kind)
             rows = conn.execute(
-                """
+                f"""
                 SELECT memory_id,
                        stability,
-                       recall_count,
+                       {self._field_sql("recall_count", kind)} AS recall_count,
                        tier,
-                       timestamp,
-                       COALESCE(NULLIF(last_recalled_at, 0), timestamp, 0)
+                       {ts_col} AS ts,
+                       COALESCE(NULLIF(last_recalled_at, 0), {ts_col}, 0)
                            AS effective_recall_ts
                 FROM memories
                 WHERE tier != 'archived'
-                  AND COALESCE(NULLIF(last_recalled_at, 0), timestamp, 0) > 0
-                  AND COALESCE(NULLIF(last_recalled_at, 0), timestamp, 0) < ?
+                  AND COALESCE(NULLIF(last_recalled_at, 0), {ts_col}, 0) > 0
+                  AND COALESCE(NULLIF(last_recalled_at, 0), {ts_col}, 0) < ?
                 ORDER BY effective_recall_ts ASC
                 """,
                 [cutoff],
@@ -1176,7 +1188,7 @@ class VecMemory:
                             int(r["recall_count"]) if r["recall_count"] is not None else 0
                         ),
                         "tier": r["tier"],
-                        "timestamp": r["timestamp"],
+                        "timestamp": r["ts"] if "ts" in r.keys() else None,
                         "effective_recall_ts": eff,
                         "days_since_recall": (now - eff) / 86400.0,
                     }
@@ -1220,16 +1232,9 @@ class VecMemory:
             ``skipped=True``.
         """
         kind = self._schema_kind()
-        if kind != "legacy":
-            log.warning("decay_all: no stability column in schema — skipping")
-            return {
-                "decayed": 0,
-                "archived": 0,
-                "by_tier": {},
-                "skipped": True,
-                "reason": "no_stability_column",
-                "schema": kind,
-            }
+        # Both 'new' (v8.5.1+) and 'legacy' schemas have the stability column
+        # thanks to the idempotent migration in _ensure_db. The early-return
+        # for "no stability column" was removed — fall through to the SQL.
 
         if threshold_days < 0:
             raise ValueError("threshold_days must be >= 0")
