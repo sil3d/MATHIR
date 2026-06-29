@@ -7,9 +7,16 @@ import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 import warnings; warnings.filterwarnings('ignore')
 
+# Auto-load .env from benchmarks/ root via shared helper
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+try:
+    import _env  # noqa: F401
+except ImportError:
+    pass
+
 import torch
 
-OLLAMA = "http://localhost:11434"
+OLLAMA = os.environ.get("MATHIR_OLLAMA_URL", "http://localhost:11434")
 
 
 def ollama_generate(model, prompt, timeout=60):

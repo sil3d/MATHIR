@@ -20,6 +20,13 @@ import subprocess
 from pathlib import Path
 from datetime import datetime
 
+# Auto-load .env from benchmarks/ root via shared helper
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+try:
+    import _env  # noqa: F401
+except ImportError:
+    pass
+
 
 BENCH_DIR = Path(__file__).resolve().parent
 
