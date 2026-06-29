@@ -1,24 +1,32 @@
-# MATHIR — Outreach Email Templates v4
+# MATHIR — Outreach Email Templates v5
 
-Problem-first, story-driven, human tone.
+The "wow" factor: a developer's story.
 
 ---
 
 ## Email 1: Anthropic
 
-**Subject:** Your users are losing 3 months of context when they switch tools
+**Subject:** I spent a year in my room asking: can AI actually be intelligent?
 
 Hi,
 
-A developer on Reddit described this yesterday: "I spent 3 months building context in Claude — my coding patterns, my project architecture, my preferences. Then I tried Cursor for a week. Day 1: Claude doesn't remember anything I taught it."
+I'm Prince Gildas. A year ago, I sat down in my room and asked myself a question that wouldn't leave me alone: is AI actually intelligent? Or just better at looking intelligent?
 
-That's not a Claude problem. That's a memory problem. Every provider locks context to their platform. When a user switches tools, they start from zero.
+I started with a 2D car simulator in Pygame. The car followed rules perfectly — but it wasn't intelligent. It was scripted. True intelligence, I thought, requires the ability to learn, remember, and adapt. So I started building memory.
 
-I'm building something that fixes this. It's called MATHIR — a local memory system that works with any LLM via MCP. The memory lives on the user's machine (SQLite), not in your cloud. When they switch from Claude to GPT to Ollama, their context follows.
+Every memory system I tried was a write-only disk. You save, you recall, and that's it. No decay, no consolidation, no growth. But the human brain doesn't work like that. You forget things you don't use. You connect new knowledge to what you already know. Your memories evolve.
 
-It also does something I haven't seen anywhere else: anomaly detection on inputs. Mahalanobis distance, AUC=1.0 on test set. Catches prompt injection before it reaches the model. That's a 1ms check that most systems skip entirely.
+So I built MATHIR — memory that thinks, like the human brain.
 
-I'm not asking for integration or promotion. I just think the cross-provider memory problem is real, and it would be valuable for Anthropic to know that open-source tools are starting to solve it.
+Working memory: what you're holding in your mind right now.
+Episodic: your autobiography — what happened yesterday.
+Semantic: your knowledge — what you know for certain.
+Procedural: your muscle memory — how you do things without thinking.
+Immunological: your immune system — what's dangerous.
+
+It runs locally, works with any LLM via MCP, and does anomaly detection on inputs. I built it alone in my room over a year. It's open-source, MIT licensed.
+
+I thought Anthropic would find this interesting — you're building the future of AI memory, and here's someone who spent a year trying to solve the same problem from first principles.
 
 https://github.com/sil3d/MATHIR
 
@@ -28,17 +36,23 @@ Prince Gildas
 
 ## Email 2: OpenAI
 
-**Subject:** Your users' memory disappears the moment they leave ChatGPT
+**Subject:** One developer, one year, one question: can AI remember?
 
 Hi,
 
-I keep hearing the same story from developers: "I built 3 months of context in ChatGPT. Tried a local Llama model for privacy. Lost everything."
+A year ago, I was sitting in my room, fascinated by how the human brain works. Not the neuroscience textbooks — the actual experience of remembering. You don't remember every breakfast. You forget what you don't use. You connect new things to old things. Your memory is alive.
 
-That's the core problem with provider-locked memory. Users invest time building context, then lose it all when they try a different tool. MATHIR solves this — it's a local memory that works with any LLM, including yours.
+Every AI memory system I tested was dead. Save a fact, recall it later. No decay. No growth. No connections. It's like giving someone a notebook but no brain.
 
-The other gap: there's no anomaly layer. When someone sends a prompt injection through ChatGPT, nothing flags it. MATHIR catches it in 1ms — Mahalanobis distance, AUC=1.0.
+So I built one that thinks.
 
-I built this as open-source (MIT, https://github.com/sil3d/MATHIR). It's not competing with GPT Memory — it's solving a problem that vendor lock-in creates.
+MATHIR is a memory system that mimics how your brain actually works. Five tiers: working memory (what you're thinking about now), episodic (what happened), semantic (what you know), procedural (how you do things), immunological (what's dangerous). It forgets, consolidates, links, and promotes memories based on how useful they are.
+
+I built it alone, over a year, from my room. No funding, no team. Just a question: can AI actually be intelligent?
+
+It works with any LLM via MCP, runs locally (no cloud), and catches prompt injection in 1ms. Open-source, MIT licensed.
+
+https://github.com/sil3d/MATHIR
 
 Prince Gildas
 
@@ -46,17 +60,19 @@ Prince Gildas
 
 ## Email 3: Google
 
-**Subject:** Users are losing context across Gemini, Claude, and local models
+**Subject:** I built a brain for AI. It lives in SQLite, not the cloud.
 
 Hi,
 
-The scenario that keeps coming up: a user builds context in Gemini for weeks. They need to test something in a local model for latency. Switch to Llama. Context gone. Switch back to Gemini. Start over.
+I'm not a researcher. I'm not at a company. I'm a developer who spent a year in his room asking: what would it take for AI to actually remember?
 
-That's the memory portability problem. MATHIR is a local memory system that solves it — same memory across Gemini, Claude, GPT, Ollama, any MCP client.
+Not the kind of memory where you save a fact and recall it later. Real memory. The kind where you forget things you don't use. Where new knowledge connects to old knowledge. Where memories grow stronger with use and fade when ignored.
 
-The technical angle that might interest you: anomaly detection on inputs. Mahalanobis distance, AUC=1.0. Most memory systems don't have this. When someone tries prompt injection through Gemini, MATHIR catches it in 1ms.
+I modeled it after the human brain. Five tiers: working memory, episodic, semantic, procedural, immunological. Each tier does what its biological counterpart does. Ebbinghaus decay curves. Spreading activation links. Anomaly detection via Mahalanobis distance.
 
-Built as open-source (MIT). Edge-deployable on Jetson (30ms recall, 500 MB VRAM). Not asking for anything — just sharing that this problem is being solved.
+I called it MATHIR. It runs on SQLite, works with any LLM via MCP, and fits on a Jetson Orin. I built it alone, from my room, over a year.
+
+I thought Google would find this interesting — you're building the future of AI, and here's what one person thinks memory should look like.
 
 https://github.com/sil3d/MATHIR
 
@@ -66,19 +82,19 @@ Prince Gildas
 
 ## Email 4: NVIDIA
 
-**Subject:** Cognitive memory that actually runs on Jetson — not just benchmarks
+**Subject:** From Pygame to Jetson: a year of building AI memory
 
 Hi,
 
-Everyone talks about edge AI. But try running a memory system on a Jetson that forgets nothing — it's brutal. Most memory solutions assume cloud, assume unlimited storage, assume a GPU farm.
+A year ago, I was running a 2D car simulator in Pygame, asking myself: is this car actually intelligent? The answer was no — it was scripted.
 
-MATHIR is different. It runs on Jetson Orin at 30ms recall with 500 MB VRAM. SQLite + sqlite-vec, no external DB, no cloud. The memory stays on the device.
+So I started building memory. Real memory. The kind that forgets what it doesn't use, connects new knowledge to old knowledge, and grows stronger with experience.
 
-What it actually does: 5-tier cognitive memory (working/episodic/semantic/procedural/immunological), anomaly detection via Mahalanobis distance (AUC=1.0), Ebbinghaus decay, consolidation, link graph. All of it local.
+I called it MATHIR. It's a 5-tier cognitive memory that runs on Jetson Orin at 30ms recall with 500 MB VRAM. SQLite + sqlite-vec. No cloud, no external DB. It does anomaly detection on inputs — catches prompt injection before it reaches the model.
 
-I'm testing this on a 3D-printed RC car — real sensors, real noise, real failures. The Jetson stage is where it gets interesting.
+I'm testing it on a 3D-printed RC car now. Real sensors, real noise, real failures. The Jetson stage is where it gets interesting — when you have 32GB of RAM and a GPU, you can actually do things that matter.
 
-Happy to share benchmarks or architecture details.
+I built this alone, from my room, over a year. It's open-source, MIT licensed.
 
 https://github.com/sil3d/MATHIR
 
@@ -88,20 +104,25 @@ Prince Gildas
 
 ## Email 5: Cursor / Windsurf
 
-**Subject:** Your users' context vanishes between sessions — here's a fix
+**Subject:** One developer, one year, one memory system that works everywhere
 
 Hi,
 
-Quick one: developers using Cursor/Windsurf keep losing context between coding sessions. They explain their project to the AI, close the app, come back tomorrow — and the AI remembers nothing.
+I spent a year in my room building something: a memory system for AI that doesn't forget.
 
-MATHIR (https://github.com/sil3d/MATHIR) fixes this. It's a memory layer with 23 MCP tools that persists across sessions. It connects to any LLM your users connect to — Claude, GPT, local Llama, whatever.
+Not the kind of memory where you save a fact and recall it later. Real memory. The kind where you forget things you don't use, connect new knowledge to old knowledge, and grow stronger with experience.
 
-One line in the MCP config:
+I called it MATHIR. It has 23 MCP tools, works with any LLM, and runs locally. Your users can connect it to Cursor/Windsurf with one line:
+
 ```json
 { "mcpServers": { "mathir": { "command": "mathir-mcp" } } }
 ```
 
-Runs locally, no cloud dependency. MIT licensed.
+Their context persists across sessions. Switch from Claude to GPT to local Llama — the memory follows.
+
+I built it alone, from my room, over a year. It's open-source, MIT licensed.
+
+https://github.com/sil3d/MATHIR
 
 Prince Gildas
 
@@ -109,17 +130,19 @@ Prince Gildas
 
 ## Email 6: xAI / MiniMax / Qwen / Emerging Providers
 
-**Subject:** Your users need memory that follows them, not your platform
+**Subject:** What if your LLM could remember like a human?
 
 Hi,
 
-When someone switches from one LLM to another, they lose everything. That's not a bug — it's how provider-locked memory works.
+I spent a year in my room asking: what would it take for AI to actually remember? Not save-a-fact-and-recall-it-later memory. Real memory. The kind where you forget what you don't use, where new knowledge connects to old knowledge, where memories grow stronger with experience.
 
-MATHIR (https://github.com/sil3d/MATHIR) is an open-source memory that lives on the user's machine. It connects to any LLM via MCP — including yours. When users switch from your model to Claude or GPT, their context stays.
+I modeled it after the human brain. Five tiers: working memory (what you're thinking about now), episodic (what happened), semantic (what you know), procedural (how you do things), immunological (what's dangerous). It forgets, consolidates, links, and promotes.
 
-The technical novelty: anomaly detection on inputs. Mahalanobis distance, AUC=1.0. No other memory system does this. When someone tries prompt injection, MATHIR catches it in 1ms.
+I called it MATHIR. It's open-source, MIT licensed, works with any LLM via MCP. For emerging providers, it means your users get memory that follows them — even if they switch to another model later.
 
-For emerging providers, portable memory is a differentiator. Users who build context in MATHIR can try your model without losing everything.
+I built it alone, from my room, over a year. No funding, no team.
+
+https://github.com/sil3d/MATHIR
 
 Prince Gildas
 
@@ -127,15 +150,17 @@ Prince Gildas
 
 ## Email 7: Generic
 
-**Subject:** Memory that follows the user, not the provider
+**Subject:** I built a brain for AI. It lives in SQLite, not the cloud.
 
 Hi,
 
-When a user switches from one LLM to another, they lose everything. That's the fundamental problem with provider-locked memory.
+A year ago, I was sitting in my room, fascinated by how the human brain works. Not the neuroscience textbooks — the actual experience of remembering. You don't remember every breakfast. You forget what you don't use. You connect new things to old things. Your memory is alive.
 
-MATHIR (https://github.com/sil3d/MATHIR) is a local memory system that works with any LLM via MCP. The memory lives on the user's machine, not in any cloud. It also does anomaly detection on inputs — catches prompt injection in 1ms, something no other memory system does.
+Every AI memory system I tested was dead. Save a fact, recall it later. No decay. No growth. No connections.
 
-23 MCP tools, SQLite, edge-ready (Jetson, Raspberry Pi). MIT licensed.
+So I built one that thinks. Five tiers, modeled after the human brain: working memory, episodic, semantic, procedural, immunological. It forgets, consolidates, links, and promotes. Anomaly detection on inputs — catches prompt injection in 1ms.
+
+I built it alone, from my room, over a year. It's called MATHIR. Open-source, MIT licensed, works with any LLM via MCP.
 
 https://github.com/sil3d/MATHIR
 
