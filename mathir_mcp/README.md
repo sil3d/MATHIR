@@ -2,7 +2,7 @@
 
 **5-tier cognitive memory for 50 AI coding agents. Install once, use everywhere.**
 
-> **v8.5.0** — FastMCP 3.4.2, 20 MCP tools, auto-injection plugin, unified server.
+> **v8.5.1** — FastMCP 3.4.2, 23 MCP tools, auto-injection plugin, unified server.
 
 ---
 
@@ -62,15 +62,16 @@ See **[docs/AGENT.md § Supported Agents](docs/AGENT.md)** for the full list (Op
 
 ---
 
-## MCP Tools (20)
+## MCP Tools (23)
 
 | Category | Tools |
 |---|---|
 | **Auto-injection** | `memory_session_start`, `memory_context` |
 | **Basic** | `memory_save`, `memory_recall`, `memory_smart_search`, `memory_hybrid_search`, `memory_delete`, `memory_stats`, `memory_audit`, `memory_export`, `memory_sessions`, `memory_dashboard` |
 | **Lifecycle** | `memory_promote`, `memory_auto_promote`, `memory_decay`, `memory_consolidate`, `memory_link`, `memory_get_links`, `memory_build_links` |
+| **Advanced** | `memory_by_path`, `memory_recall_quality`, `memory_incoming_links` |
 
-Full signatures: see **[`mathir_lib/mathir_mcp_server.py`](mathir_lib/mathir_mcp_server.py)** — 20 `@mcp.tool()` decorators.
+Full signatures: see **[`mathir_lib/mathir_mcp_server.py`](mathir_lib/mathir_mcp_server.py)** — 23 `@mcp.tool()` decorators.
 
 ---
 

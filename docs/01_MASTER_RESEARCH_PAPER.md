@@ -340,7 +340,7 @@ MATHIR evolved through eight major versions (V1–V8.4.1), each addressing a spe
 | V8.1 | Multimodal support | Multimodal support (text, image, audio, video) | ✓ |
 | V8.2 | Daemon + per-project DBs | Daemon push API + per-project databases | ✓ |
 | V8.3 | Thread safety | HybridSearch thread safety + bug fixes | ✓ |
-| v8.5.0 | Living memory | Living memory — Ebbinghaus lifecycle, 5 tiers, link graph, 19 MCP tools | ✓ (this paper) |
+| v8.5.0 | Living memory | Living memory — Ebbinghaus lifecycle, 5 tiers, link graph, 20 MCP tools | ✓ (this paper) |
 | V8.4.1 | Dynamic injection | Dynamic injection + sync tools | ✓ (this paper) |
 
 ![MATHIR Architecture](assets/Mathir_architecture.png)
