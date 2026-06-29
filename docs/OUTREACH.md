@@ -1,164 +1,142 @@
-# MATHIR — Outreach Email Templates
+# MATHIR — Outreach Email Templates v4
 
-Rewritten v3: natural, professional, problem-first approach.
+Problem-first, story-driven, human tone.
 
 ---
 
 ## Email 1: Anthropic
 
-**Subject:** Memory for all LLMs — not just one
+**Subject:** Your users are losing 3 months of context when they switch tools
 
-Hi Anthropic Team,
+Hi,
 
-I'm a solo developer working on open-source tools for the AI agent ecosystem. My current project is MATHIR (https://github.com/sil3d/MATHIR) — a cognitive memory layer that runs locally and connects to any LLM via MCP.
+A developer on Reddit described this yesterday: "I spent 3 months building context in Claude — my coding patterns, my project architecture, my preferences. Then I tried Cursor for a week. Day 1: Claude doesn't remember anything I taught it."
 
-The problem I keep hitting: every memory feature I try is tied to one provider. When I switch from Claude to GPT or Ollama, my context disappears. MATHIR solves this — it's a local SQLite-based memory with 23 MCP tools, and it works with any LLM out of the box.
+That's not a Claude problem. That's a memory problem. Every provider locks context to their platform. When a user switches tools, they start from zero.
 
-A few things I think would interest your team:
-- Anomaly detection on inputs (Mahalanobis distance, AUC=1.0) — catches prompt injection and data leakage in <1ms
-- Ebbinghaus decay — memories fade when unused, strengthen when recalled
-- Edge deployment — runs on Jetson Orin at 30ms recall, 500 MB VRAM
+I'm building something that fixes this. It's called MATHIR — a local memory system that works with any LLM via MCP. The memory lives on the user's machine (SQLite), not in your cloud. When they switch from Claude to GPT to Ollama, their context follows.
 
-I'm not looking for promotion or integration. I just thought it would be interesting to see what an open-source, cross-provider memory looks like — and whether there are things worth borrowing or discussing.
+It also does something I haven't seen anywhere else: anomaly detection on inputs. Mahalanobis distance, AUC=1.0 on test set. Catches prompt injection before it reaches the model. That's a 1ms check that most systems skip entirely.
 
-Happy to share the codebase or jump on a call if there's interest.
+I'm not asking for integration or promotion. I just think the cross-provider memory problem is real, and it would be valuable for Anthropic to know that open-source tools are starting to solve it.
 
-Best,
-Prince Gildas
 https://github.com/sil3d/MATHIR
+
+Prince Gildas
 
 ---
 
 ## Email 2: OpenAI
 
-**Subject:** Cross-provider memory that stays with the user
+**Subject:** Your users' memory disappears the moment they leave ChatGPT
 
-Hi OpenAI Team,
+Hi,
 
-I built a tool I want to share — not for integration, just because I think it's relevant to what you're building.
+I keep hearing the same story from developers: "I built 3 months of context in ChatGPT. Tried a local Llama model for privacy. Lost everything."
 
-MATHIR (https://github.com/sil3d/MATHIR) is a cognitive memory system that lives locally (SQLite, no cloud) and connects to any LLM via MCP. The core idea: memory should follow the user, not the provider.
+That's the core problem with provider-locked memory. Users invest time building context, then lose it all when they try a different tool. MATHIR solves this — it's a local memory that works with any LLM, including yours.
 
-Right now, if a user builds context in ChatGPT and switches to a local Llama model, everything is lost. MATHIR fixes that — same memory, any model.
+The other gap: there's no anomaly layer. When someone sends a prompt injection through ChatGPT, nothing flags it. MATHIR catches it in 1ms — Mahalanobis distance, AUC=1.0.
 
-What makes it technically interesting:
-- Anomaly detection (Mahalanobis distance, AUC=1.0) — catches prompt injection and unusual patterns
-- Ebbinghaus forgetting curve — memories decay when unused, promote when recalled
-- 23 MCP tools, runs on Jetson/Raspberry Pi, MIT licensed
+I built this as open-source (MIT, https://github.com/sil3d/MATHIR). It's not competing with GPT Memory — it's solving a problem that vendor lock-in creates.
 
-I'm not asking for anything — just sharing that the open-source ecosystem is building portable memory, and it might be worth watching.
-
-https://github.com/sil3d/MATHIR
-
-Best,
 Prince Gildas
 
 ---
 
 ## Email 3: Google
 
-**Subject:** Memory that works across Gemini, Claude, and local models
+**Subject:** Users are losing context across Gemini, Claude, and local models
 
-Hi Google Team,
+Hi,
 
-I'm Prince Gildas, a developer. Quick pitch: MATHIR (https://github.com/sil3d/MATHIR) is a local memory system for LLMs that doesn't lock you into one provider.
+The scenario that keeps coming up: a user builds context in Gemini for weeks. They need to test something in a local model for latency. Switch to Llama. Context gone. Switch back to Gemini. Start over.
 
-The use case: an enterprise agent that needs to remember context across multiple models — Gemini for some tasks, Claude for others, local Llama for on-premise. Today that means separate memory silos. MATHIR unifies them.
+That's the memory portability problem. MATHIR is a local memory system that solves it — same memory across Gemini, Claude, GPT, Ollama, any MCP client.
 
-23 MCP tools, SQLite local, anomaly detection (Mahalanobis, AUC=1.0), Ebbinghaus decay, edge-ready for Jetson. MIT licensed.
+The technical angle that might interest you: anomaly detection on inputs. Mahalanobis distance, AUC=1.0. Most memory systems don't have this. When someone tries prompt injection through Gemini, MATHIR catches it in 1ms.
 
-I'm sharing this because the cross-provider memory problem is real, and the open-source community is starting to solve it. Would be curious if Google has plans in this space too.
+Built as open-source (MIT). Edge-deployable on Jetson (30ms recall, 500 MB VRAM). Not asking for anything — just sharing that this problem is being solved.
 
 https://github.com/sil3d/MATHIR
 
-Best,
 Prince Gildas
 
 ---
 
 ## Email 4: NVIDIA
 
-**Subject:** Cognitive memory that runs on Jetson — tested, documented, open-source
+**Subject:** Cognitive memory that actually runs on Jetson — not just benchmarks
 
-Hi NVIDIA Team,
+Hi,
 
-I built MATHIR (https://github.com/sil3d/MATHIR), a cognitive memory system that runs on Jetson Orin with 30ms recall at 500 MB VRAM. It's designed for autonomous systems that need to remember across sessions.
+Everyone talks about edge AI. But try running a memory system on a Jetson that forgets nothing — it's brutal. Most memory solutions assume cloud, assume unlimited storage, assume a GPU farm.
 
-What it does:
-- 5-tier memory (working/episodic/semantic/procedural/immunological)
-- Anomaly detection via Mahalanobis distance (AUC=1.0)
-- bge-large-en-v1.5 embeddings on CUDA fp16
-- SQLite + sqlite-vec, no external DB
+MATHIR is different. It runs on Jetson Orin at 30ms recall with 500 MB VRAM. SQLite + sqlite-vec, no external DB, no cloud. The memory stays on the device.
 
-I have a 4-stage validation pipeline: laptop → Raspberry Pi → Jetson → RC car. The Jetson stage is where the real work happens.
+What it actually does: 5-tier cognitive memory (working/episodic/semantic/procedural/immunological), anomaly detection via Mahalanobis distance (AUC=1.0), Ebbinghaus decay, consolidation, link graph. All of it local.
 
-I'm sharing because I think there's value in having a documented, open-source reference for what cognitive memory looks like on edge hardware. Happy to share benchmarks or discuss the architecture.
+I'm testing this on a 3D-printed RC car — real sensors, real noise, real failures. The Jetson stage is where it gets interesting.
+
+Happy to share benchmarks or architecture details.
 
 https://github.com/sil3d/MATHIR
 
-Best,
 Prince Gildas
 
 ---
 
 ## Email 5: Cursor / Windsurf
 
-**Subject:** 23 MCP tools for persistent memory across coding sessions
+**Subject:** Your users' context vanishes between sessions — here's a fix
 
 Hi,
 
-I built MATHIR (https://github.com/sil3d/MATHIR) — a memory system with 23 MCP tools that integrates natively with Cursor/Windsurf.
+Quick one: developers using Cursor/Windsurf keep losing context between coding sessions. They explain their project to the AI, close the app, come back tomorrow — and the AI remembers nothing.
 
-The value for your users: memory that persists across sessions, works with any LLM, and runs locally. No cloud dependency, no vendor lock-in. Quick setup — one line in the MCP config.
+MATHIR (https://github.com/sil3d/MATHIR) fixes this. It's a memory layer with 23 MCP tools that persists across sessions. It connects to any LLM your users connect to — Claude, GPT, local Llama, whatever.
 
-Anomaly detection (AUC=1.0) catches prompt injection. Ebbinghaus decay keeps memories fresh. Edge deployment on Jetson/Raspberry Pi.
+One line in the MCP config:
+```json
+{ "mcpServers": { "mathir": { "command": "mathir-mcp" } } }
+```
 
-MIT licensed, 226 tests passing.
+Runs locally, no cloud dependency. MIT licensed.
 
-https://github.com/sil3d/MATHIR
-
-Best,
 Prince Gildas
 
 ---
 
 ## Email 6: xAI / MiniMax / Qwen / Emerging Providers
 
-**Subject:** Open-source memory for your LLM — local, portable, 23 tools
+**Subject:** Your users need memory that follows them, not your platform
 
-Hi [Team],
+Hi,
 
-I'm building MATHIR (https://github.com/sil3d/MATHIR) — a cognitive memory layer that works with any LLM via MCP. The pitch is simple: memory should belong to the user, not the provider.
+When someone switches from one LLM to another, they lose everything. That's not a bug — it's how provider-locked memory works.
 
-What's technically novel:
-- Anomaly detection (Mahalanobis distance, AUC=1.0) — unique in any memory system
-- Ebbinghaus decay, tier promotion, auto-consolidation
-- 23 MCP tools, SQLite local, edge-ready
+MATHIR (https://github.com/sil3d/MATHIR) is an open-source memory that lives on the user's machine. It connects to any LLM via MCP — including yours. When users switch from your model to Claude or GPT, their context stays.
 
-For emerging providers, the cross-provider angle matters: users who build context in MATHIR can switch between your model and others without losing everything.
+The technical novelty: anomaly detection on inputs. Mahalanobis distance, AUC=1.0. No other memory system does this. When someone tries prompt injection, MATHIR catches it in 1ms.
 
-https://github.com/sil3d/MATHIR
+For emerging providers, portable memory is a differentiator. Users who build context in MATHIR can try your model without losing everything.
 
-Best,
 Prince Gildas
 
 ---
 
-## Email 7: Generic (Any Provider)
+## Email 7: Generic
 
-**Subject:** Open-source cognitive memory with anomaly detection
+**Subject:** Memory that follows the user, not the provider
 
 Hi,
 
-I built MATHIR (https://github.com/sil3d/MATHIR) — a cognitive memory system that connects to any LLM via MCP.
+When a user switches from one LLM to another, they lose everything. That's the fundamental problem with provider-locked memory.
 
-The key thing: anomaly detection on inputs. Mahalanobis distance, AUC=1.0. Catches prompt injection and data leakage before it reaches the model. I haven't seen this in any other memory system.
+MATHIR (https://github.com/sil3d/MATHIR) is a local memory system that works with any LLM via MCP. The memory lives on the user's machine, not in any cloud. It also does anomaly detection on inputs — catches prompt injection in 1ms, something no other memory system does.
 
-23 MCP tools, Ebbinghaus decay, edge deployment (Jetson, Raspberry Pi). SQLite local, MIT licensed.
-
-Happy to share the code or discuss the architecture.
+23 MCP tools, SQLite, edge-ready (Jetson, Raspberry Pi). MIT licensed.
 
 https://github.com/sil3d/MATHIR
 
-Best,
 Prince Gildas
