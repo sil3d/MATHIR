@@ -103,7 +103,7 @@ memory_stats()
 memory_dashboard(action: str = "status")
 ```
 
-### Lifecycle (v8.4.0 — living memory)
+### Lifecycle (v8.5.0 — living memory)
 
 ```
 memory_promote(memory_id: str = None, force: bool = False)
@@ -169,7 +169,7 @@ You don't ask permission. You just do it.
 
 ---
 
-## 🚀 Cross-Platform Auto-Start (v8.4.2+)
+## 🚀 Cross-Platform Auto-Start (v8.5.0+)
 
 The MATHIR daemon runs on port 7338 and must be started after every PC reboot. Three cross-platform helpers are shipped:
 

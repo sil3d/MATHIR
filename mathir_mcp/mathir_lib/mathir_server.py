@@ -197,6 +197,28 @@ from flask import Flask, request, jsonify, send_file, Response
 
 app = Flask(__name__)
 
+
+# ---------------------------------------------------------------------------
+# CORS — allow browsers (Tauri webview, Vite dev :3000) to call MATHIR directly
+# ---------------------------------------------------------------------------
+@app.after_request
+def _add_cors_headers(resp):
+    origin = request.headers.get("Origin", "*")
+    # Restrict to localhost variants — MATHIR is a local-only service
+    allowed = ("http://localhost", "http://127.0.0.1", "tauri://", "https://tauri.localhost")
+    if origin == "*" or any(origin.startswith(a) for a in allowed):
+        resp.headers["Access-Control-Allow-Origin"] = origin if origin != "*" else "*"
+        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
+        resp.headers["Access-Control-Max-Age"] = "3600"
+    return resp
+
+
+@app.route("/<path:any_path>", methods=["OPTIONS"])
+def _cors_preflight(any_path):
+    """Handle CORS preflight for all routes."""
+    return ("", 204)
+
 # ---------------------------------------------------------------------------
 # Dashboard routes (from mathir_stats_server.py)
 # ---------------------------------------------------------------------------

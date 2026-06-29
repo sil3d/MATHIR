@@ -25,7 +25,7 @@
     "device": "auto",
     "prefer_octen": false
   },
-  "mcpServers": {
+  "mcp": {
     "mathir": {
       "type": "local",
       "command": ["python", "mathir_mcp_server.py"],

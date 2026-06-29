@@ -1,8 +1,8 @@
-# MATHIR — Agent Deployment Guide (v8.4.1)
+# MATHIR — Agent Deployment Guide (v8.5.0)
 
 **Universal install: one folder, 50+ agents, zero config.**
 
-**v8.4.1 highlights**: Living memory — 5 tiers, full Ebbinghaus lifecycle, link graph, recall@5 +52% measured on 15×10 AI benchmark. See [CHANGELOG.md](../../CHANGELOG.md) for details.
+**v8.5.0 highlights**: FastMCP 3.4.2 server, **20 MCP tools** (was 19 in v8.4.1), auto-injection plugin, unified HTTP daemon. See [CHANGELOG.md](../../CHANGELOG.md) for details.
 
 ---
 
@@ -253,11 +253,11 @@ Vector + BM25 + RRF fusion (k=60). ~60ms per search.
 | `memory_smart_search` | Hybrid (vector + text, best quality) |
 | `memory_hybrid_search` | Explicit vector+BM25 fusion with tunable weights |
 
-Note: `memory_search` was removed in v8.3 — functionality folded into `memory_smart_search` (auto-tuned weights, default k=10). v8.4.1 has **19 tools total** (10 basic + 7 lifecycle).
+Note: `memory_search` was removed in v8.3 — functionality folded into `memory_smart_search` (auto-tuned weights, default k=10). v8.5.0 has **20 tools total** (2 auto-injection + 10 basic + 7 lifecycle + 1 health check).
 
 ---
 
-## MCP Tools (17 in v8.4.1)
+## MCP Tools (20 in v8.5.0)
 
 ### Basic (every day)
 | Tool | Description |
@@ -273,7 +273,7 @@ Note: `memory_search` was removed in v8.3 — functionality folded into `memory_
 | `memory_stats` | Get statistics by tier/agent/project |
 | `memory_dashboard` | Launch / check Neural Memory Dashboard |
 
-### Lifecycle (v8.4.1 NEW — living memory)
+### Lifecycle (v8.5.0 NEW — living memory)
 | Tool | Description |
 |------|-------------|
 | `memory_promote` | Move a memory to the next tier (Ebbinghaus rules) |
@@ -297,7 +297,7 @@ Canonical list — matches `mathir_lib/mathir_mcp_server.py` TOOLS array.
 
 ---
 
-## Brain Architecture (5 Phases, v8.4.1)
+## Brain Architecture (5 Phases, v8.5.0)
 
 | Phase | Script | Purpose |
 |---|---|---|
@@ -307,7 +307,7 @@ Canonical list — matches `mathir_lib/mathir_mcp_server.py` TOOLS array.
 | 4 | `mathir_consolidate.py` | Nightly: merge duplicates, decay unused, archive dead |
 | 5 | `mathir_prime.py` | Pre-cognitive: senses cwd/git before user query |
 
-### How memory works in v8.4.1
+### How memory works in v8.5.0
 
 **Two paths, both supported:**
 
@@ -327,7 +327,7 @@ For agents that can't call MCP tools directly:
 
 > **Note:** OpenCode doesn't support `baseUrl` configuration, so Path A (direct MCP tools) is the only working path. Other agents (Claude Code, Cursor, MiMo) can use either path.
 
-**In both paths, the agent has 19 tools (10 basic + 7 lifecycle) at its disposal — no manual `memory_recall` is strictly required if instructions are properly loaded.**
+**In both paths, the agent has 20 tools (2 auto-injection + 10 basic + 7 lifecycle + 1 health check) at its disposal — no manual `memory_recall` is strictly required if instructions are properly loaded.**
 
 ---
 
@@ -405,17 +405,31 @@ Config: `~/.config/opencode/opencode.json`
 ### MiMo
 
 Config: `~/.config/mimocode/mimocode.json`
+
+**MiMo Code v0.1.3+ is a fork of OpenCode** → uses the same `"mcp"` key and the same
+JSON schema as OpenCode (https://opencode.ai/config.json). The older `"mcpServers"`
+key is rejected by the current MiMo CLI with `Unrecognized key: "mcpServers"`.
+
 ```json
 {
-  "mcpServers": {
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
     "mathir": {
-      "command": "python",
-      "args": ["-m", "mathir_mcp"],
-      "env": { "MATHIR_EMBEDDING_DIM": "384" }
+      "type": "local",
+      "command": ["python", "C:\\Users\\<YOU>\\.config\\mimocode\\tools\\mathir_mcp\\mathir_lib\\mathir_mcp_server.py"],
+      "environment": {
+        "MATHIR_EMBEDDING_DIM": "384",
+        "MATHIR_PORT": "7339",
+        "PYTHONPATH": "C:\\Users\\<YOU>\\.config\\mimocode\\tools\\mathir_mcp\\mathir_lib"
+      },
+      "enabled": true
     }
   }
 }
 ```
+
+> Gotchas: `command` must be an **array** (not a single string), env field is
+> **`environment`** (not `env`), and `type: "local"` is required.
 
 ### Kilo Code
 
@@ -477,7 +491,7 @@ pip install nvidia-cublas-cu12 nvidia-cudnn-cu12
 | "Slow first request" | Cold model load | Normal, subsequent requests are fast |
 | "No database found" | `.mathir/` doesn't exist | Created automatically on first save |
 | "No project database found" | CWD is home, no registry | Set `MATHIR_PROJECT` env var or cd into a project dir |
-| MCP not showing | Wrong config key | Check agent docs (key varies: `mcp`, `mcpServers`) |
+| MCP not showing | Wrong config key | **OpenCode & MiMo Code v0.1.3+** use `"mcp"`; **Claude Code, Cursor, Cline, Windsurf, Gemini, Zcode** use `"mcpServers"` |
 | Installer writes wrong path | Old cached script | Delete `__pycache__` in `~/.config/MATHIR/` |
 
 ### Multilingual Help (EN/FR/ES/ZH)
@@ -541,13 +555,21 @@ python install_smart.py
 
 **Config:** ~/.config/mimocode/mimocode.json
 
+> MiMo Code v0.1.3+ is a fork of OpenCode → use `"mcp"` key (NOT `"mcpServers"`).
+
 ``json
 {
-  "mcpServers": {
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
     "mathir": {
-      "command": "python",
-      "args": ["-m", "mathir_mcp"],
-      "env": { "MATHIR_EMBEDDING_DIM": "384" }
+      "type": "local",
+      "command": ["python", "C:\\Users\\<YOU>\\.config\\mimocode\\tools\\mathir_mcp\\mathir_lib\\mathir_mcp_server.py"],
+      "environment": {
+        "MATHIR_EMBEDDING_DIM": "384",
+        "MATHIR_PORT": "7339",
+        "PYTHONPATH": "C:\\Users\\<YOU>\\.config\\mimocode\\tools\\mathir_mcp\\mathir_lib"
+      },
+      "enabled": true
     }
   }
 }
@@ -713,10 +735,11 @@ If your agent isn't listed:
 
 1. Find its MCP config file
 2. Add the appropriate JSON block:
-   - "mcpServers" key: Claude Code, Cursor, Cline, Windsurf, Gemini, Zcode, etc.
-   - "mcp" key: OpenCode, Kilo Code CLI
-3. Use command: ["python", "-m", "mathir_mcp"]
-4. Add "env": {"MATHIR_EMBEDDING_DIM": "384"}
+   - `"mcp"` key (OpenCode schema): **OpenCode, MiMo Code v0.1.3+, Kilo Code CLI**
+     → use `"type": "local"`, `"command": [array]`, `"environment": {}`, `"enabled": true`
+   - `"mcpServers"` key (Claude Desktop schema): Claude Code, Cursor, Cline, Windsurf, Gemini, Zcode, etc.
+3. Use command: `["python", "-m", "mathir_mcp"]` (or full path to `mathir_mcp_server.py`)
+4. Add `"environment": {"MATHIR_EMBEDDING_DIM": "384"}` (or `"env"` for the mcpServers schema)
 5. Copy GLOBAL_INSTRUCTIONS.md into your agent's instructions
 
 **If you have no agent, install OpenCode:** https://opencode.ai/
@@ -727,7 +750,8 @@ If your agent isn't listed:
 
 | Problem | Fix |
 |---------|-----|
-| MCP server not showing | Check config key: some agents use mcp, others mcpServers |
+| MCP server not showing | Check config key: **OpenCode & MiMo Code use `"mcp"`**, others use `"mcpServers"` |
+| `Unrecognized key: "mcpServers"` in mimocode.json | MiMo Code is a fork of OpenCode — rename the key to `"mcp"` and restructure the entry (see MiMo example above) |
 | "python not found" | Use full path: ["C:\Python312\python.exe", "..."] |
 | Wrong script path | Use `-m mathir_mcp` (after `pip install -e ./mathir_mcp`) or `~/.config/MATHIR/mathir_mcp/mathir_lib/mathir_mcp_server.py` (legacy install) |
 | Agent ignores memory | Ensure GLOBAL_INSTRUCTIONS.md is in instructions |

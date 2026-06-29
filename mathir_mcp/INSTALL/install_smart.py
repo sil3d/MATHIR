@@ -83,12 +83,25 @@ AGENTS = [
             "linux": str(_home() / ".config" / "mimocode" / "mimocode.json"),
             "darwin": str(_home() / ".config" / "mimocode" / "mimocode.json"),
         },
-        "config_key": "mcpServers",
+        # MiMo Code v0.1.3+ is a fork of OpenCode → uses "mcp" key, NOT "mcpServers".
+        # Schema reference: https://opencode.ai/config.json
+        "config_key": "mcp",
         "supports_instructions": True,
+        # MiMo does NOT read ~/.config/mimocode/GLOBAL_INSTRUCTIONS.md (verified in
+        # binary: it only loads AGENTS.md / CONTEXT.md / ~/.claude/CLAUDE.md). The
+        # latter is auto-imported for Claude Code migration. We write instructions
+        # there so mimo actually picks them up.
         "instructions_path": {
-            "windows": str(_home() / ".config" / "mimocode" / "GLOBAL_INSTRUCTIONS.md"),
-            "linux": str(_home() / ".config" / "mimocode" / "GLOBAL_INSTRUCTIONS.md"),
-            "darwin": str(_home() / ".config" / "mimocode" / "GLOBAL_INSTRUCTIONS.md"),
+            "windows": str(_home() / ".claude" / "CLAUDE.md"),
+            "linux": str(_home() / ".claude" / "CLAUDE.md"),
+            "darwin": str(_home() / ".claude" / "CLAUDE.md"),
+        },
+        # Also write to ~/AGENTS.md (mimo finds it via findUp from any CWD) so we
+        # don't pollute ~/.claude/ if the user doesn't have Claude Code installed.
+        "extra_instructions_paths": {
+            "windows": [str(_home() / "AGENTS.md")],
+            "linux": [str(_home() / "AGENTS.md")],
+            "darwin": [str(_home() / "AGENTS.md")],
         },
         # Plugin system: fork of opencode, uses @mimo-ai/plugin import.
         "plugins_subdir": "plugins",
@@ -819,11 +832,19 @@ def detect_agents() -> List[Dict]:
         if agent.get("supports_instructions"):
             instr_raw = agent.get("instructions_path", {})
             instr_path = instr_raw.get(platform_name) if isinstance(instr_raw, dict) else instr_raw
+        # Resolve extra instructions paths (list)
+        extra_instr_paths: List[str] = []
+        if agent.get("supports_instructions") and agent.get("extra_instructions_paths"):
+            extra_raw = agent["extra_instructions_paths"]
+            extra_list = extra_raw.get(platform_name) if isinstance(extra_raw, dict) else extra_raw
+            if extra_list:
+                extra_instr_paths = list(extra_list)
         detected.append({
             **agent,
             "config_path": config_path,
             "config_path_str": config_path_str,
             "instructions_path_resolved": instr_path,
+            "extra_instructions_paths_resolved": extra_instr_paths,
             "installed": found,
         })
     return detected
@@ -914,25 +935,16 @@ def inject_mcp_config(agent: Dict) -> Tuple[bool, str]:
     return True, f"Injected into {config_path}"
 
 
-def inject_instructions(agent: Dict) -> Tuple[bool, str]:
-    if not agent.get("supports_instructions"):
-        return False, "No instructions support"
-    instructions_path_str = agent.get("instructions_path_resolved")
-    if not instructions_path_str:
-        return False, "No instructions path defined"
-    instructions_path = Path(instructions_path_str)
-    mathir_dir = Path(__file__).parent
-    mathir_instructions = mathir_dir / "GLOBAL_INSTRUCTIONS.md"
-    if not mathir_instructions.exists():
-        return False, f"MATHIR GLOBAL_INSTRUCTIONS.md not found"
-    with open(mathir_instructions, "r", encoding="utf-8") as f:
-        content = f.read()
-    # Check if already injected (look for stable MATHIR signature, not version)
+def _inject_to_path(instructions_path: Path, content: str) -> str:
+    """Inject MATHIR content into a single instructions file. Returns status string."""
+    # Check if already injected. Use a version-independent stable signature
+    # (the "ABSOLUTE RULE" line exists in all MATHIR GLOBAL_INSTRUCTIONS.md
+    # versions since v8.x).
     if instructions_path.exists():
         with open(instructions_path, "r", encoding="utf-8") as f:
             existing = f.read()
-        if "MATHIR Memory-Augmented Tensor Hybrid" in existing:
-            return True, f"Already injected"
+        if "ABSOLUTE RULE" in existing and "memory_session_start" in existing:
+            return f"Already in {instructions_path}"
     instructions_path.parent.mkdir(parents=True, exist_ok=True)
     if instructions_path.exists():
         with open(instructions_path, "r", encoding="utf-8") as f:
@@ -942,7 +954,30 @@ def inject_instructions(agent: Dict) -> Tuple[bool, str]:
     else:
         with open(instructions_path, "w", encoding="utf-8") as f:
             f.write(content)
-    return True, f"Injected into {instructions_path}"
+    return f"Injected into {instructions_path}"
+
+
+def inject_instructions(agent: Dict) -> Tuple[bool, str]:
+    if not agent.get("supports_instructions"):
+        return False, "No instructions support"
+    instructions_path_str = agent.get("instructions_path_resolved")
+    if not instructions_path_str:
+        return False, "No instructions path defined"
+    mathir_dir = Path(__file__).parent
+    # Look for GLOBAL_INSTRUCTIONS.md in mathir_dir first, then in parent dir.
+    # It lives at mathir_mcp/GLOBAL_INSTRUCTIONS.md (sibling of INSTALL/).
+    mathir_instructions = mathir_dir / "GLOBAL_INSTRUCTIONS.md"
+    if not mathir_instructions.exists():
+        mathir_instructions = mathir_dir.parent / "GLOBAL_INSTRUCTIONS.md"
+    if not mathir_instructions.exists():
+        return False, f"MATHIR GLOBAL_INSTRUCTIONS.md not found (looked in {mathir_dir} and {mathir_dir.parent})"
+    with open(mathir_instructions, "r", encoding="utf-8") as f:
+        content = f.read()
+    results = [_inject_to_path(Path(instructions_path_str), content)]
+    # Also write to extra paths (e.g. ~/AGENTS.md for MiMo findUp fallback)
+    for extra in agent.get("extra_instructions_paths_resolved") or []:
+        results.append(_inject_to_path(Path(extra), content))
+    return True, "; ".join(results)
 
 
 def show_menu(detected: List[Dict]) -> List[Dict]:

@@ -2,219 +2,94 @@
 
 **5-tier cognitive memory for 50 AI coding agents. Install once, use everywhere.**
 
-> **v8.5.0** — FastMCP 3.4.2, 19 MCP tools, auto-injection plugin, unified server.
+> **v8.5.0** — FastMCP 3.4.2, 20 MCP tools, auto-injection plugin, unified server.
 
 ---
 
 ## Quick Start (3 Steps)
 
-### 1. Install globally (one time)
-
 ```bash
-# Clone
-git clone https://github.com/sil3d/MATHIR.git /tmp/MATHIR
-cp -r /tmp/MATHIR/mcp ~/.config/MATHIR
+# 1. Copy the repo to a stable location (one time)
+git clone https://github.com/sil3d/MATHIR.git
+cp -r MATHIR/mathir_mcp ~/.config/MATHIR
 
-# Install deps
+# 2. Install deps + run smart installer
 pip install -r ~/.config/MATHIR/mathir_lib/requirements.txt
-```
-
-### 2. Run smart installer
-
-```bash
-# Windows (double-click)
-~/.config/MATHIR/install.bat
-
-# Mac/Linux
-chmod +x ~/.config/MATHIR/install.sh
-~/.config/MATHIR/install.sh
-
-# Or directly
 python ~/.config/MATHIR/install_smart.py
+
+# 3. Restart your agent. MATHIR is ready.
 ```
 
-The installer:
-- Auto-detects 50 coding agents
-- Injects MCP config into each
-- Copies instructions where supported
+### Windows launcher
+```bat
+%~dp0\install.bat
+```
 
-### 3. Done
+### macOS / Linux launcher
+```bash
+~/.config/MATHIR/install.sh
+```
 
-Restart your agent. MATHIR is ready.
+The installer auto-detects 50 coding agents and injects MCP config + instructions.
+
+---
+
+## Documentation Index
+
+| Doc | Purpose |
+|---|---|
+| **[INSTALL/INSTALL_WINDOWS.md](INSTALL/INSTALL_WINDOWS.md)** | Windows install (daemon, auto-start, MCP wiring) |
+| **[INSTALL/INSTALL_LINUX.md](INSTALL/INSTALL_LINUX.md)** | Linux install (systemd user service) |
+| **[INSTALL/INSTALL_MACOS.md](INSTALL/INSTALL_MACOS.md)** | macOS install (launchd plist) |
+| **[docs/AGENT.md](docs/AGENT.md)** | Per-agent config & troubleshooting |
+| **[docs/DAEMON.md](docs/DAEMON.md)** | Daemon protocol, JSON-RPC methods |
+| **[docs/DASHBOARD_GUIDE.md](docs/DASHBOARD_GUIDE.md)** | Neural dashboard setup |
+| **[docs/GPU_SETUP.md](docs/GPU_SETUP.md)** | GPU/ONNX acceleration |
+| **[docs/DIMENSIONS.md](docs/DIMENSIONS.md)** | Embedding model selection |
+| **[CHANGELOG.md](CHANGELOG.md)** | Version history |
 
 ---
 
 ## ⚠️ Moving the Folder After Install
 
-The installer writes an **absolute path** to your agent's config. If you move `mathir_mcp/` to another location, **re-run `install.bat` or `install.sh`** from the new location to update the configs.
-
-```
-# Example: moved from Downloads to Documents
-cd ~/Documents/mathir_mcp
-install.bat          # Windows
-./install.sh         # Linux/Mac
-```
-
-You'll see a warning in the MCP server logs if the path is stale.
+The installer writes an **absolute path**. Re-run `install.bat` / `install.sh` after moving the folder.
 
 ---
 
 ## Supported Agents (50)
 
-| Category | Agents |
-|----------|--------|
-| **Dev Platforms** | OpenCode, MiMo, Claude Code, Claude Desktop, Cursor, Cline, Roo Code, Continue.dev, Hermes Agent, pi, OpenHands, Agent Zero, Slate Agent, Kilo Code, Windsurf, Gemini CLI, Zcode, OpenClaw, Kiro, Qwen Code, Crush, Warp, Trae, Factory, Goose, Amp, Zed, Augment Code, Antigravity |
-| **Cloud/AI** | GitHub Copilot, Aider, Codex (OpenAI), Codebuff, Letaido, CodeAF, JONI, Minara, V12X, Anakot Agent, PostQode, starchild, Flo Agent, camelAI, Kern Agent, AGNT, Verdent, Ante, GitLawb, Favur, OpenSquilla |
-
-**No agent? Install OpenCode** (free models): https://opencode.ai/
-
----
-
-## Multi-Agent Configuration
-
-MATHIR works with 50+ agents. The defaults target OpenCode (`~/.config/opencode/`), but **all paths are configurable via env vars**:
-
-```bash
-# For Claude Code
-export MATHIR_CONFIG=~/.config/claude-code/config/mathir.json
-export MATHIR_PROJECTS_DIR=~/.config/claude-code/data/projects
-export MATHIR_DB=~/.config/claude-code/data/mathir.db
-export MATHIR_REGISTRY=~/.config/claude-code/data/mathir_registry.json
-
-# For Cursor
-export MATHIR_CONFIG=~/.config/cursor/config/mathir.json
-export MATHIR_PROJECTS_DIR=~/.config/cursor/data/projects
-
-# For any agent
-export MATHIR_CONFIG=/my/custom/path/mathir.json
-export MATHIR_PROJECTS_DIR=/my/custom/path/projects
-```
-
-| Env Var | Default | Purpose |
-|---------|---------|---------|
-| `MATHIR_CONFIG` | `~/.config/opencode/config/mathir.json` | Config file |
-| `MATHIR_PROJECTS_DIR` | `~/.config/opencode/data/projects` | Projects directory |
-| `MATHIR_DB` | `~/.config/opencode/data/mathir.db` | Legacy DB path |
-| `MATHIR_REGISTRY` | `~/.config/opencode/data/mathir_registry.json` | Registry file |
-
-The `install_smart.py` script auto-detects installed agents and injects the correct paths. For agents not yet supported, set the env vars above.
-
----
-
-## If Installer Fails
-
-Give the entire `~/.config/MATHIR/` folder to your coding agent.
-It will read `docs/AGENT.md` and configure MATHIR automatically.
-
----
-
-## What's Inside
-
-```
-~/.config/MATHIR/
-├── mathir_lib/                      ← Core library
-│   ├── mathir_mcp_server.py         ← MCP server (FastMCP, 20 tools)
-│   ├── mathir_server.py             ← Unified Flask server (port 7338)
-│   ├── mathir_client.py             ← CLI client
-│   ├── mathir_vec.py                ← VecMemory (sqlite-vec)
-│   ├── mathir_search.py             ← HybridSearch
-│   └── requirements.txt
-├── brain/                           ← Brain architecture (5 phases)
-├── config/                          ← Config files
-├── dashboard/                       ← Neural dashboard
-├── docs/                            ← Documentation
-├── install_smart.py                 ← Smart installer
-├── install.bat                      ← Windows launcher
-├── install.sh                       ← Mac/Linux launcher
-└── GLOBAL_INSTRUCTIONS.md           ← Universal AI instructions
-```
+See **[docs/AGENT.md § Supported Agents](docs/AGENT.md)** for the full list (OpenCode, Claude Code, Cursor, Cline, MiMo, Windsurf, Gemini CLI, etc.).
 
 ---
 
 ## MCP Tools (20)
 
-### Auto-injection (call these FIRST)
-| Tool | Description |
-|------|-------------|
-| `memory_session_start` | Start session with relevant context — call at session start |
-| `memory_context` | Get memories for current task — call before each major task |
+| Category | Tools |
+|---|---|
+| **Auto-injection** | `memory_session_start`, `memory_context` |
+| **Basic** | `memory_save`, `memory_recall`, `memory_smart_search`, `memory_hybrid_search`, `memory_delete`, `memory_stats`, `memory_audit`, `memory_export`, `memory_sessions`, `memory_dashboard` |
+| **Lifecycle** | `memory_promote`, `memory_auto_promote`, `memory_decay`, `memory_consolidate`, `memory_link`, `memory_get_links`, `memory_build_links` |
 
-### Basic (every day)
-| Tool | Description |
-|------|-------------|
-| `memory_save` | Save a memory (5 tiers: working_memory, episodic, semantic, procedural, immunological) |
-| `memory_recall` | Semantic search (auto-touches: boosts stability) |
-| `memory_smart_search` | Hybrid semantic + keyword search with cross-lingual support |
-| `memory_hybrid_search` | Vector + BM25 + RRF fusion |
-| `memory_delete` | Soft-delete (sets tier to archived) |
-| `memory_stats` | Totals by tier/agent/project + DB size |
-| `memory_audit` | Audit log of recent operations |
-| `memory_export` | Export all memories as JSON |
-| `memory_sessions` | List recent memory sessions |
-| `memory_dashboard` | Dashboard info / status |
-
-### Lifecycle (proactively)
-| Tool | Description |
-|------|-------------|
-| `memory_promote` | Move memory to next tier (working→episodic→semantic→procedural) |
-| `memory_auto_promote` | Scan + auto-promote all eligible memories |
-| `memory_decay` | Ebbinghaus decay: 5%/30d for unused memories |
-| `memory_consolidate` | Merge near-duplicate memories (cosine > threshold) |
-| `memory_link` | Add edge to spreading-activation graph |
-| `memory_get_links` | BFS traversal of link graph |
-| `memory_build_links` | Auto-build graph from cosine similarities |
-
-Canonical list — matches `mathir_lib/mathir_mcp_server.py` (20 `@mcp.tool()` decorators).
+Full signatures: see **[`mathir_lib/mathir_mcp_server.py`](mathir_lib/mathir_mcp_server.py)** — 20 `@mcp.tool()` decorators.
 
 ---
 
-## Embedding Model
+## If Installer Fails
 
-**paraphrase-multilingual-MiniLM-L12-v2** — 384 dimensions, 239MB VRAM, 50+ languages
-
----
-
-## Documentation
-
-| File | Description |
-|------|-------------|
-| `docs/AGENT.md` | Agent deployment guide |
-| `docs/INTEGRATION.md` | Platform integration |
-| `docs/BRAIN_ARCHITECTURE.md` | Brain stack details |
-| `docs/DAEMON.md` | Daemon protocol |
-| `docs/DIMENSIONS.md` | Embedding dimensions |
-| `docs/GPU_SETUP.md` | GPU acceleration |
-| `docs/DASHBOARD_GUIDE.md` | Dashboard setup |
-| `docs/MODEL_COMPARISON.md` | Model benchmarks |
-
----
-
-## Multilingual Help
-
-**EN:** If installer fails, give `~/.config/MATHIR/` to your coding agent. It reads `docs/AGENT.md`.
-
-**FR:** Si l'installeur echoue, donnez `~/.config/MATHIR/` a votre agent. Il lit `docs/AGENT.md`.
+Give the entire `~/.config/MATHIR/` folder to your coding agent. It reads `docs/AGENT.md` and configures MATHIR automatically.
 
 ---
 
 ## Security & Input Limits
 
-The MCP server enforces strict per-field length caps to prevent DoS via unbounded payloads:
+The MCP server enforces strict per-field length caps (DoS protection). Full table: **[docs/DAEMON.md § Security](docs/DAEMON.md)**.
 
-| Field | Default cap | Env var |
-|-------|-------------|---------|
-| `content` | 100 KB | `MCP_INPUT_MAX` (multiplier, e.g. `2.0` doubles all caps) |
-| `query` | 5 KB | `MCP_INPUT_MAX` |
-| `label` | 200 B | `MCP_INPUT_MAX` |
-| `agent` | 100 B | `MCP_INPUT_MAX` |
+---
 
-Set `MCP_INPUT_MAX=2.0` to relax for batch jobs. Out-of-range values fall back to default. Rejected payloads return `{"error": "<field> exceeds <cap> chars"}`.
+## Multilingual Help
 
-Additionally:
-- `api_import_db` rejects any `project_name` outside `^[a-zA-Z0-9_-]{1,64}$`.
-- `handle_memory_export` whitelists SQL tables; arbitrary table names are blocked.
-- New DB files are created with `0o600` permissions where the OS supports it.
+If installer fails, give `~/.config/MATHIR/` to your agent. It will read `docs/AGENT.md`.
 
-**ES:** Si el instalador falla, dea `~/.config/MATHIR/` a su agente. Leera `docs/AGENT.md`.
-
-**ZH:** Ruguio anzhuan shibai, ba `~/.config/MATHIR/` gei nide agent. Hui du `docs/AGENT.md`.
+- **FR** : Si l'installeur échoue, donnez `~/.config/MATHIR/` à votre agent.
+- **ES** : Si el instalador falla, dea `~/.config/MATHIR/` a su agente.
+- **ZH** : 如果安装失败,把 `~/.config/MATHIR/` 给你的 agent。

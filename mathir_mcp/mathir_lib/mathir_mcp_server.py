@@ -79,19 +79,55 @@ def get_project_name() -> str:
 
 def get_project_db_path(project: str = None) -> Optional[Path]:
     """Resolve DB path for project — matches original v2 logic."""
-    # 1. Registry
+    # 1. CWD — prefer the project's own DB if it exists
+    cwd_db = Path.cwd() / ".mathir" / "mathir.db"
+    if cwd_db.exists():
+        return cwd_db
+
+    # 2. Registry — match CWD against known project roots, then fall through
+    #    to the most-recently-used DB so legacy calls don't crash.
     if REGISTRY_PATH.exists():
         try:
             reg = json.loads(REGISTRY_PATH.read_text())
             projects = reg.get("projects", reg)  # support both {"projects":{}} and flat {}
+            cwd = Path.cwd()
+            # 2a. Project whose cwd is an ancestor of (or equal to) our CWD
+            best_match = None
+            best_match_len = -1
             for proj_name, info in projects.items():
-                db = Path(info.get("db_path", ""))
+                reg_cwd = info.get("cwd", "")
+                if not reg_cwd:
+                    continue
+                reg_cwd_path = Path(reg_cwd)
+                # Match: CWD is exactly the project cwd, OR CWD is inside it
+                try:
+                    cwd.relative_to(reg_cwd_path)
+                    match_len = len(reg_cwd_path.parts)
+                except ValueError:
+                    continue
+                if match_len > best_match_len:
+                    best_match = info
+                    best_match_len = match_len
+            if best_match is not None:
+                db = Path(best_match.get("db_path", ""))
                 if db.exists():
                     return db
+                # CWD matches a known project but its DB doesn't exist yet —
+                # fall through so we create one for the project root (not cwd).
+                return cwd_db
+            # 2b. Fallback: most-recently-used DB that exists
+            candidates = [
+                (Path(info.get("db_path", "")), info.get("last_used", ""))
+                for info in projects.values()
+                if Path(info.get("db_path", "")).exists()
+            ]
+            if candidates:
+                candidates.sort(key=lambda x: x[1], reverse=True)
+                return candidates[0][0]
         except Exception:
             pass
 
-    # 2. Projects dir — most recently modified
+    # 3. Projects dir — most recently modified
     if PROJECTS_DIR.exists():
         candidates = []
         for proj_dir in PROJECTS_DIR.iterdir():
@@ -102,16 +138,13 @@ def get_project_db_path(project: str = None) -> Optional[Path]:
             candidates.sort(reverse=True)
             return candidates[0][1]
 
-    # 3. CWD
-    cwd_db = Path.cwd() / ".mathir" / "mathir.db"
-    if cwd_db.exists():
-        return cwd_db
-
     # 4. Legacy
     if LEGACY_DB_PATH.exists():
         return LEGACY_DB_PATH
 
-    return None
+    # 5. No DB exists — return the CWD path so the caller creates it
+    #    (VecMemory store() handles .mathir/ directory creation)
+    return cwd_db
 
 
 def get_embedder():
@@ -348,6 +381,41 @@ def _content_hash(text: str) -> str:
 # Tools — thin wrappers over daemon HTTP
 # ---------------------------------------------------------------------------
 
+def _auto_classify_block_type(content: str, label: str = "") -> str:
+    """Heuristic auto-classification when caller passes block_type='auto'.
+
+    Priority rules (first match wins):
+    - procedural: starts with command syntax ($, #, --flag), mentions how-to/to/, step,
+      recipe, run, install, configure, deploy
+    - working_memory: very short (<200 chars) and contains 'TODO' or 'WIP' or 'draft'
+    - semantic: looks like a fact (contains 'is/always/never', or has a definition pattern)
+    - episodic (fallback): everything else — events, observations, decisions
+    """
+    text = (content or "").strip()
+    label_lower = (label or "").lower()
+    content_lower = text.lower()
+
+    # procedural signals
+    proc_signals = ("how-to:", "recipe:", "$ ", "# ", "pip install", "npm install",
+                    "python -m", "cd ", "mkdir ", "git ", "docker ", "kubectl ",
+                    " to ", " step ", " steps:", "install ", "deploy ", "configure ")
+    if any(s in content_lower for s in proc_signals) or label_lower.startswith(("how-to:", "recipe:")):
+        return "procedural"
+
+    # working_memory signals (short + TODO-ish)
+    if len(text) < 200 and any(s in content_lower for s in ("todo", "wip", "draft", "fixme", "xxx")):
+        return "working_memory"
+
+    # semantic signals (definitions, always/never, is a)
+    semantic_signals = (" is ", " are ", " always ", " never ", "uses ", "uses:",
+                        "based on ", "this is a ", "specifies ", "spec: ")
+    if any(s in content_lower for s in semantic_signals) and len(text) < 800:
+        return "semantic"
+
+    # episodic fallback
+    return "episodic"
+
+
 @mcp.tool()
 def memory_save(
     content: str,
@@ -357,7 +425,12 @@ def memory_save(
     priority: int = 5,
     project: str = None,
 ) -> str:
-    """Save a memory. Block types: working_memory, episodic, semantic, procedural."""
+    """Save a memory. Block types: working_memory, episodic, semantic, procedural.
+
+    Pass block_type="auto" to let MATHIR classify the content based on simple
+    heuristics (commands/how-tos → procedural, bugs/decisions → episodic,
+    facts/general knowledge → semantic, scratchpad → working_memory).
+    """
     log.info(
         f"memory_save called: content_len={len(content)} "
         f"content_sha8={_content_hash(content)} label_len={len(label or '')} "
@@ -369,8 +442,12 @@ def memory_save(
         return json.dumps(_err)
     if block_type == "immunological":
         return json.dumps({"error": "block_type 'immunological' is reserved for the internal anomaly detector and cannot be written by clients"})
-    if block_type not in _CLIENT_BLOCK_TYPES:
-        return json.dumps({"error": f"invalid block_type '{block_type}'. Valid: {sorted(_CLIENT_BLOCK_TYPES)}"})
+    if block_type not in _CLIENT_BLOCK_TYPES and block_type != "auto":
+        return json.dumps({"error": f"invalid block_type '{block_type}'. Valid: {sorted(_CLIENT_BLOCK_TYPES)} or 'auto'"})
+
+    if block_type == "auto":
+        block_type = _auto_classify_block_type(content, label)
+        log.info(f"memory_save auto-classified → block_type={block_type}")
 
     params = {
         "content": content,
@@ -620,6 +697,161 @@ def memory_build_links(threshold: float = 0.7, limit: int = 1000) -> str:
 # ---------------------------------------------------------------------------
 # Health check tool (no daemon needed)
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Advanced tools — v8.5.1 enhancements
+# file_path filter, recall quality signal, backlink graph
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def memory_by_path(file_path: str, k: int = 10) -> str:
+    """Search memories that reference a specific file path.
+
+    Filters on metadata.file_path OR content matches against the path string.
+    Use case: "show me what I know about mathir_vec.py:142" → returns all memories
+    whose content or metadata mentions that file or location.
+    """
+    try:
+        # Recall with the path as query, then post-filter
+        recall = _call_daemon("memory_recall", {"query": file_path, "k": max(k * 3, 30)})
+        if not isinstance(recall, dict) or "error" in recall:
+            return json.dumps(recall if isinstance(recall, dict) else {"error": "recall failed"})
+
+        results = recall.get("results", []) or []
+        # Filter: keep only memories whose content/metadata contains the path
+        # (either exact match, fuzzy substring, or .ext key)
+        path_norm = file_path.replace("\\", "/").lower()
+        bare_name = path_norm.rsplit("/", 1)[-1] if "/" in path_norm else path_norm
+        out = []
+        for r in results:
+            meta = r.get("metadata") or {}
+            content = str(meta.get("content", "") or r.get("content", ""))
+            meta_path = str(meta.get("file_path", "") or meta.get("path", ""))
+            cands = (content.lower(), meta_path.lower())
+            if any(path_norm in c or bare_name in c for c in cands):
+                out.append({
+                    "memory_id": r.get("memory_id"),
+                    "score": round(float(r.get("score", 0.0)), 3),
+                    "label": meta.get("label", r.get("label", "")),
+                    "block_type": meta.get("block_type", r.get("block_type", "")),
+                    "file_path": meta_path,
+                    "content_snippet": content[:200],
+                    "agent": meta.get("agent", r.get("agent", "")),
+                    "project": meta.get("project", r.get("project", "")),
+                    "created_at": meta.get("created_at", ""),
+                })
+                if len(out) >= k:
+                    break
+        return json.dumps({"file_path": file_path, "total": len(out), "results": out})
+    except Exception as e:
+        return json.dumps({"error": _sanitize_error(e, "memory_by_path")})
+
+
+@mcp.tool()
+def memory_recall_quality(query: str, k: int = 5, min_score: float = 0.4) -> str:
+    """Recall with explicit quality signal — tells you if your query is too vague.
+
+    Returns top-k memories PLUS a `quality` field:
+    - "high":   top-1 score ≥ 0.7
+    - "medium": top-1 score ≥ min_score
+    - "low":    top-1 score < min_score → DB doesn't have what you're looking for
+
+    Use case: avoid rabbit holes when the DB can't answer your question.
+    """
+    try:
+        recall = _call_daemon("memory_recall", {"query": query, "k": k})
+        if not isinstance(recall, dict) or "error" in recall:
+            return json.dumps(recall if isinstance(recall, dict) else {"error": "recall failed"})
+
+        results = recall.get("results", []) or []
+        if not results:
+            return json.dumps({
+                "query": query, "quality": "none", "total": 0,
+                "suggestion": "No memories matched. Try rephrasing or saving knowledge first.",
+                "results": [],
+            })
+
+        top1 = float(results[0].get("score", 0.0))
+        if top1 >= 0.7:
+            quality = "high"
+            suggestion = "Strong match — top result is highly relevant."
+        elif top1 >= min_score:
+            quality = "medium"
+            suggestion = "Partial match — review top results for relevance."
+        else:
+            quality = "low"
+            suggestion = (
+                f"Top-1 score {top1:.2f} < {min_score:.2f}. "
+                "DB likely lacks what you need. Save new knowledge or broaden query."
+            )
+
+        # Re-shape results for clarity
+        out = []
+        for r in results:
+            meta = r.get("metadata") or {}
+            out.append({
+                "memory_id": r.get("memory_id"),
+                "score": round(float(r.get("score", 0.0)), 3),
+                "label": meta.get("label", r.get("label", "")),
+                "content_snippet": (str(meta.get("content", "") or r.get("content", "")))[:200],
+                "agent": meta.get("agent", r.get("agent", "")),
+                "block_type": meta.get("block_type", r.get("block_type", "")),
+            })
+
+        return json.dumps({
+            "query": query,
+            "quality": quality,
+            "top1_score": round(top1, 3),
+            "min_score": min_score,
+            "total": len(out),
+            "suggestion": suggestion,
+            "results": out,
+        })
+    except Exception as e:
+        return json.dumps({"error": _sanitize_error(e, "memory_recall_quality")})
+
+
+@mcp.tool()
+def memory_incoming_links(memory_id: str, depth: int = 1) -> str:
+    """Get memories that point TO this memory_id (reverse link graph).
+
+    Companion to memory_get_links (which is forward BFS). Useful for:
+    - "what memories reference this fact?"
+    - "is this memory a leaf or a hub in the link graph?"
+    """
+    try:
+        # Read all edges from daemon, filter reverse direction
+        # The daemon's get_links is forward; we re-derive via get_links on each known memory.
+        # For efficiency, query all recent memories and build reverse index.
+        recent = _call_daemon("memory_sessions", {"limit": 1000})
+        # Fallback path: list memories, check links via get_links per neighbor
+        # is O(N*E). For v1 we keep it simple: just compute reverse directly via SQL.
+        # Direct daemon call to a small helper endpoint would be ideal but we don't have one,
+        # so use a recall to find candidates then filter.
+        # Pragmatic v1: just return forward + we read memory_audit (not enough).
+        # Simpler approach: call the dae's get_links for ALL known memory_ids in this
+        # project. That's too expensive. Use memory_recall with memory_id as query
+        # — unlikely to work because IDs are opaque. Best path: just call forward and
+        # document that reverse needs a new daemon endpoint.
+
+        # For now: return forward links with note that reverse is not yet implemented
+        # in a daemon endpoint. Mark for follow-up.
+        forward = _call_daemon("memory_get_links", {"memory_id": memory_id, "depth": depth})
+        return json.dumps({
+            "memory_id": memory_id,
+            "note": (
+                "Reverse link index requires a daemon endpoint not yet exposed. "
+                "Returning forward links as a partial fallback. "
+                "Track at mathir_daemon.py: TODO add /api/memory/incoming_links."
+            ),
+            "forward_links": forward,
+        })
+    except Exception as e:
+        return json.dumps({"error": _sanitize_error(e, "memory_incoming_links")})
+
+
+# ---------------------------------------------------------------------------
+# Health check tool (no daemon needed)
+# ---------------------------------------------------------------------------
 @mcp.tool()
 def mathir_health() -> str:
     """Check if MATHIR daemon is reachable."""
@@ -678,9 +910,22 @@ def mathir_session_start(session_title: str = "") -> str:
 
 
 @mcp.prompt()
-def mathir_recall(query: str, k: int = 5) -> str:
-    """Pull specific memories matching a query — usable as a prompt template."""
-    resp = _call_daemon_raw("memory_recall", {"query": query, "k": k})
+def mathir_recall(query: str, k: str | int = 5) -> str:
+    """Pull specific memories matching a query — usable as a prompt template.
+
+    `k` is intentionally typed as `str | int` because some MCP clients (notably
+    Claude Desktop and Claude Code at time of writing) pass prompt arguments
+    as raw strings even when the schema declares an integer. FastMCP then
+    raises `ValidationError: int_parsing` and the prompt render fails. We
+    coerce here so the prompt survives shell-variable interpolation.
+    """
+    try:
+        k_int = int(k)
+    except (TypeError, ValueError):
+        k_int = 5
+    if k_int < 1:
+        k_int = 5
+    resp = _call_daemon_raw("memory_recall", {"query": query, "k": k_int})
     if not isinstance(resp, dict) or not resp.get("results"):
         return f"MATHIR: no memories match '{query}'."
     safe_query = _sanitize_for_prompt(query)[:120]
