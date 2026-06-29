@@ -1,0 +1,66 @@
+{
+  "config": {
+    "count": 100,
+    "dim": 384,
+    "seed": 42,
+    "duplicate_ratio": 0.2
+  },
+  "seed_wall_s": 0.312,
+  "db_size_mb": 1.59,
+  "touch_recall": {
+    "ops": 357,
+    "wall_s": 0.8,
+    "ops_per_sec": 446.5,
+    "latency_ms": {
+      "p50": 2.131,
+      "p95": 2.6,
+      "p99": 3.314
+    }
+  },
+  "promote": {
+    "scanned": 119,
+    "promoted": 0,
+    "wall_s": 0.003,
+    "ms_per_mem": 0.028
+  },
+  "decay": {
+    "scanned": 119,
+    "decayed": 119,
+    "archived": 0,
+    "by_tier": {
+      "episodic": 119
+    },
+    "wall_s": 0.003,
+    "ms_per_mem": 0.026
+  },
+  "consolidate": {
+    "merged": 19,
+    "candidates": 19,
+    "by_tier": {
+      "archived": 19,
+      "episodic": 100
+    },
+    "wall_s": 0.154
+  },
+  "link_graph": {
+    "build": {
+      "links_created": 0,
+      "memories_scanned": 100,
+      "wall_s": 0.002,
+      "links_per_sec": 0.0
+    },
+    "bfs_get_links": {
+      "samples": 50,
+      "avg_links_per_node": 0,
+      "latency_ms": {
+        "p50": 0.007,
+        "p95": 0.01
+      }
+    },
+    "find_related": {
+      "total_related": 450,
+      "wall_s": 0.066,
+      "avg_per_query": 9.0
+    }
+  }
+}

@@ -111,7 +111,7 @@ def _bench_promote(memory: VecMemory, ids: List[str]) -> dict:
     }
 
 
-def _bench_decay(memory: VecMemory, ids: List[str], threshold_days: int = 30) -> dict:
+def _bench_decay(memory: VecMemory, ids: List[str], threshold_days: int = 0) -> dict:
     # First boost a few to have non-zero stability
     for mid in ids[: max(1, len(ids) // 4)]:
         try:
