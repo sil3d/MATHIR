@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-MATHIR Playground — Backend Server (v8.5.0)
+MATHIR Playground — Backend Server (v8.5.1)
 ============================================
 
 Adds:
@@ -1040,7 +1040,9 @@ def memory_delete():
 # ============================================================
 # MATHIR Daemon Bridge — proxy to the running mathir_mcp daemon
 # (separate from the local SimpleMemory above; the daemon has the
-# full 17-tool MCP surface including promote/decay/consolidate/link)
+# full 23-tool MCP surface including promote/decay/consolidate/link,
+# plus the v8.5.1 advanced tools: memory_by_path, memory_recall_quality,
+# memory_incoming_links, block_type='auto' auto-classify)
 # ============================================================
 try:
     import mathir_daemon_client as daemon_client
@@ -1993,7 +1995,7 @@ def main():
     debug = args.debug or state["ui_config"]["server"]["debug"]
 
     print("=" * 60)
-    print("MATHIR Playground Server (v8.5.0)")
+    print("MATHIR Playground Server (v8.5.1)")
     print("=" * 60)
     print(f"URL: http://{host}:{port}")
     print(f"Active model: {state.get('active_model') or 'none'}")

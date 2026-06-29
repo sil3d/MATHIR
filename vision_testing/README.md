@@ -1,12 +1,12 @@
 # MATHIR Playground
 
-A web playground to chat with vision/audio LLMs (via OpenRouter) and exercise the
-MATHIR memory backend (via the running daemon). **NO HARDCODED PATHS** — everything
-is configurable via JSON files.
+A web playground to chat with vision/audio LLMs (via OpenRouter) and exercise the MATHIR memory backend (via the running daemon). **NO HARDCODED PATHS** — everything is configurable via JSON files.
 
-**v8.5.0**: Migrated from local `llama.cpp` binaries (~1GB) to **OpenRouter** cloud API. No more `bin/` or `models/` directories — all inference goes through `https://openrouter.ai/api/v1`.
+**v8.5.1** (2026-06-29) — Current version. Uses OpenRouter cloud API for inference and the new MCP daemon (23 tools) for memory.
 
-## Quick Start
+---
+
+## ⚡ Quick Start
 
 ```bash
 cd vision_testing
@@ -20,93 +20,116 @@ python start_ui.py
 # Opens at http://127.0.0.1:5000
 ```
 
-## Architecture
+Or use the `.env` file (auto-loaded by `env_config.py`):
+
+```bash
+cp .env.example .env
+# Edit .env, add your OPENROUTER_API_KEY
+python start_ui.py
+```
+
+---
+
+## 📁 File Structure
 
 ```
 vision_testing/
-├── config.json                # OpenRouter config + models (id-based, no paths)
-├── ui_config.json             # UI settings (port, camera, audio)
-├── system_context.json        # System prompt for the model
+├── config.json              # OpenRouter + models config
+├── ui_config.json           # UI settings (port, camera, audio)
+├── system_context.json      # System prompt for the model
+├── .env / .env.example      # API keys (auto-loaded)
 │
-├── ui/                        # Web UI (SVG icons, dark theme)
-│   ├── index.html             # Single-page app (6 views)
+├── ui/                      # Web UI (dark theme, 8px grid, SVG icons)
+│   ├── index.html           # Single-page app (6 views)
+│   ├── memory_dashboard.html
+│   ├── playground.html
 │   └── static/
-│       ├── style.css          # Dark theme, 8px grid
-│       └── app.js             # Chat, Camera, Models, Memory, Accuracy, Settings
+│       ├── style.css
+│       └── app.js
 │
-├── ui_server.py               # Flask backend (17 API routes)
-├── start_ui.py                # Launcher (installs deps, runs server)
-├── vision_test.py             # Core: VisionTester, OpenRouterClient, ModelManager
-├── mathir_dropin.py           # MATHIR memory (SQLite FTS5)
+├── ui_server.py             # Flask backend (17 API routes)
+├── start_ui.py              # Launcher (installs deps, runs server)
+├── vision_test.py           # Core: VisionTester, OpenRouterClient, ModelManager
+├── mathir_daemon_client.py  # MATHIR MCP daemon bridge (23 tools)
 │
-└── memory/                    # SQLite memory database
+├── env_config.py            # .env loader
+├── model_manager.py         # Model list/select/enable
+├── accuracy_tests.py        # Accuracy test battery
+├── synthetic_images.py      # Test image generator
+├── setup_sources.py         # Tauri UI setup sources
+│
+└── memory/                  # SQLite memory database (auto-created)
+    └── vision_test.db
 ```
 
-No `bin/`, no `models/` — all inference is cloud-based.
+---
 
-## MATHIR Memory System
+## 🖥️ UI Features (6 views)
 
-MATHIR provides persistent memory across sessions using SQLite FTS5:
+| # | View | What it does |
+|---|---|---|
+| 1 | **Chat** | Real-time chat, push-to-talk audio, image attachments, history in localStorage |
+| 2 | **Camera** | Live webcam (OpenCV backend), describe/ask/snapshot, hold-to-talk |
+| 3 | **Models** | List/switch active model, enable/disable, free models highlighted |
+| 4 | **Memory** | Query MATHIR memory (FTS5), view interactions, stats |
+| 5 | **Accuracy** | Run test batteries, compare models side-by-side, nDCG@10/MRR/latency |
+| 6 | **Settings** | Camera/audio/theme, system info, keyboard shortcuts |
 
-- **Store**: Every chat interaction is stored with metadata (model, timestamp, query type)
-- **Recall**: Before each response, relevant memories are retrieved via FTS5 full-text search
-- **Get Last**: The last 3 memories are always included for context
-- **Cross-model**: All models share the same `memory/vision_test.db`
+### Keyboard Shortcuts
 
-### How it works
+| Key | Action |
+|---|---|
+| `1`–`6` | Switch view (Chat, Camera, Models, Memory, Accuracy, Settings) |
+| `Enter` | Send chat |
+| `Shift+Enter` | Newline |
+| `Space` (hold) | Record audio |
+| `Ctrl+K` | Focus chat input |
+| `Esc` | Close modal / clear focus |
 
-1. User sends message → `universal_recall()` finds relevant memories
-2. Last 3 memories are appended for recent context
-3. Memories are injected into the system prompt
-4. Model responds with awareness of past observations
-5. Response is stored in memory for future recall
+---
 
-### Files
+## 🔌 MATHIR Memory Integration
 
-- `mathir_dropin.py` — MATHIRMemory class (FTS5, no external deps)
-- `memory/vision_test.db` — SQLite database (auto-created)
+Two paths to memory:
 
-## UI Features (6 views)
+### A) Local SimpleMemory (always works)
+- `mathir_daemon_client.py` wraps the SQLite FTS5 memory in `memory/`
+- Every chat message stored with metadata (model, timestamp, query type)
+- Before each response, relevant memories retrieved via FTS5 search
+- Last 3 memories always appended for context
 
-### 1. Chat
-- Real-time chat with active model
-- **Talk button** (push-to-talk) for voice input
-- Attach images for vision models
-- Chat history persisted in localStorage
-- Camera preview strip (when camera is active)
+### B) MATHIR MCP Daemon (recommended)
+- Connects to running daemon at `http://127.0.0.1:7338` (default)
+- Full 23-tool MCP surface: `memory_save`, `memory_recall`, `memory_by_path`, etc.
+- If daemon is down, falls back to local SimpleMemory gracefully
 
-### 2. Camera
-- Live webcam feed via backend OpenCV
-- **Describe** — model describes what it sees
-- **Ask** — type a question about the scene
-- **Talk** — voice input while camera is active
-- **Snapshot** — save current frame
+---
 
-### 3. Models
-- List all configured OpenRouter models
-- Switch active model at runtime
-- Enable/disable models
-- Free models highlighted
+## 📡 API Routes (17)
 
-### 4. Memory
-- Query MATHIR memory (FTS5 search)
-- View stored interactions
-- Memory stats
+| Route | Method | Description |
+|---|---|---|
+| `/api/system/context` | GET | System context + models |
+| `/api/system/info` | GET | System info (platform, paths) |
+| `/api/models` | GET | List models |
+| `/api/models/switch` | POST | Switch active model |
+| `/api/models/toggle` | POST | Enable/disable model |
+| `/api/models/add-from-or` | POST | Add model from OpenRouter ID |
+| `/api/chat` | POST | Chat (with optional image/audio) |
+| `/api/camera/start` | POST | Start camera |
+| `/api/camera/stop` | POST | Stop camera |
+| `/api/camera/frame` | GET | Current frame (JPEG) |
+| `/api/camera/stream` | GET | MJPEG stream |
+| `/api/camera/ask` | POST | Ask about scene |
+| `/api/memory/recall` | POST | Search memory |
+| `/api/memory/stats` | GET | Memory stats |
+| `/api/accuracy/tests` | GET | List accuracy tests |
+| `/api/accuracy/results` | GET | Get accuracy results |
+| `/api/accuracy/test` | POST | Run accuracy battery |
 
-### 5. Accuracy
-- Run accuracy test battery
-- Compare models side-by-side
-- Per-model detail view
-- Test catalog
+---
 
-### 6. Settings
-- Camera device, resolution, FPS
-- Audio settings (max record, push-to-talk key)
-- UI theme
-- System info
-- Keyboard shortcuts
-
-## Configuration
+## ⚙️ Configuration
 
 ### `config.json` — OpenRouter + models
 
@@ -122,7 +145,6 @@ MATHIR provides persistent memory across sessions using SQLite FTS5:
     "google/gemini-2.0-flash-exp:free": {
       "enabled": true,
       "type": "vision-language",
-      "id": "google/gemini-2.0-flash-exp:free",
       "display_name": "Gemini 2.0 Flash (free)",
       "supports_vision": true
     }
@@ -142,62 +164,39 @@ MATHIR provides persistent memory across sessions using SQLite FTS5:
 
 ### `system_context.json` — Model behavior
 
-Compact system prompt (~126 tokens). Defines identity, behavior rules, and context template.
+Compact system prompt (~126 tokens) defining identity and behavior rules.
 
-## API Routes (17)
+### `.env` — API keys (auto-loaded)
 
-| Route | Method | Description |
-|-------|--------|-------------|
-| `/api/system/context` | GET | System context + available models |
-| `/api/system/info` | GET | System info (platform, paths) |
-| `/api/models` | GET | List all models |
-| `/api/models/switch` | POST | Switch active model |
-| `/api/models/toggle` | POST | Enable/disable model |
-| `/api/models/add-from-or` | POST | Add model from OpenRouter ID |
-| `/api/chat` | POST | Send chat message (with optional image/audio) |
-| `/api/camera/start` | POST | Start backend camera |
-| `/api/camera/stop` | POST | Stop backend camera |
-| `/api/camera/frame` | GET | Get current frame (JPEG) |
-| `/api/camera/stream` | GET | MJPEG stream |
-| `/api/camera/ask` | POST | Ask about camera scene |
-| `/api/memory/recall` | POST | Search MATHIR memory |
-| `/api/memory/stats` | GET | Memory statistics |
-| `/api/accuracy/tests` | GET | List accuracy tests |
-| `/api/accuracy/results` | GET | Get accuracy results |
-| `/api/accuracy/test` | POST | Run accuracy battery |
+```
+OPENROUTER_API_KEY=sk-or-v1-PUT-YOUR-KEY-HERE
+```
 
-## Adding Models
+---
 
-**Via UI**: Models → Add from OpenRouter → paste model ID (e.g., `openai/gpt-4o-mini`)
+## 🛠️ Adding Models
 
-**Via config.json**: Edit directly (see above). Find model IDs at https://openrouter.ai/models
+- **Via UI**: Models → Add from OpenRouter → paste model ID (e.g., `openai/gpt-4o-mini`)
+- **Via config.json**: Edit directly. Find IDs at https://openrouter.ai/models
+- **Free models filter**: https://openrouter.ai/models?max_price=0
 
-**Free models filter**: https://openrouter.ai/models?max_price=0
+---
 
-## Keyboard Shortcuts
+## 🖥️ Hardware Requirements
 
-| Key | Action |
-|-----|--------|
-| `1`–`6` | Switch view (Chat, Camera, Models, Memory, Accuracy, Settings) |
-| `Enter` | Send chat message |
-| `Shift+Enter` | Newline in chat |
-| `Space` | Hold to record audio |
-| `Ctrl+K` | Focus chat input |
-| `Esc` | Close modal / clear focus |
+- **No local GPU** — all inference via OpenRouter cloud
+- Internet connection required
+- Webcam + microphone for Camera view (optional)
 
-## Hardware
+---
 
-- **No local GPU required** — all inference is cloud-based via OpenRouter
-- Internet connection required for chat/describe/ask endpoints
-- Webcam + microphone required for Camera view
-
-## What was removed in v8.5.0
+## 🗑️ What was removed in v8.5.0 (kept for historical reference)
 
 | Removed | Replacement |
 |---|---|
 | `bin/` (~1GB llama.cpp + CUDA DLLs) | OpenRouter cloud API |
 | `models/` (5 GGUF model dirs) | OpenRouter model IDs in `config.json` |
-| `convert_lfm2_to_gguf.py` | n/a (no GGUF conversion needed) |
+| `convert_lfm2_to_gguf.py` | n/a (no GGUF conversion) |
 | `download_models.py` | n/a (no local downloads) |
 | `download_q4.py` | n/a (no local quantisation) |
 | `setup_binaries.py` | n/a (no binaries to setup) |
@@ -206,6 +205,8 @@ Compact system prompt (~126 tokens). Defines identity, behavior rules, and conte
 | `LlamaServer` class in `vision_test.py` | `OpenRouterClient` class |
 | `config.json:llama_server` section | `config.json:openrouter` section |
 
-## License
+---
+
+## 📜 License
 
 MATHIR: MIT | OpenRouter: see https://openrouter.ai | OpenCV: Apache 2.0 | Flask: BSD-3
