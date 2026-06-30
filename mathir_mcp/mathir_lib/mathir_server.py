@@ -515,6 +515,26 @@ def health():
         "version": version,
         "embedding_dim": embedding_dim,
     }
+
+    # Check for newer version on GitHub Releases (cached, never blocks /health)
+    try:
+        from .mathir_update_check import check_for_update
+        update = check_for_update(version)
+        resp["latest_version"] = update.get("latest_version", version)
+        resp["update_available"] = update.get("update_available", False)
+        if update.get("update_available"):
+            resp["update_command"] = "python -m mathir_mcp update"
+            if update.get("release_url"):
+                resp["release_url"] = update["release_url"]
+        if update.get("source"):
+            resp["update_source"] = update["source"]
+        if update.get("error"):
+            resp["update_check_error"] = update["error"]
+    except Exception as e:
+        # Graceful: never break /health on update-check failure
+        log.debug(f"update check failed: {e}")
+        resp["update_check_error"] = "update checker not loaded"
+
     # Surface the legacy-schema warning on /health so the agent plugin sees it
     # immediately at session start (the plugin polls /health on session.started).
     # Uses cached schema kind from warmup — no re-init of embedder.
