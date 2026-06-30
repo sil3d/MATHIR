@@ -55,7 +55,7 @@ class TestMathirServerAuth:
         mock_conn = MagicMock()
         mock_conn.execute.return_value.fetchall.return_value = []
         mock_vec._get_conn.return_value = mock_conn
-        monkeypatch.setattr(mathir_server, "_resolve_db", lambda: (mock_vec, None, None))
+        monkeypatch.setattr(mathir_server, "_resolve_db", lambda project=None, cwd=None: (mock_vec, None, None))
 
         client = mathir_server.app.test_client()
         resp = client.get("/api/memory/export")
@@ -103,7 +103,7 @@ class TestMathirServerAuth:
         mock_conn = MagicMock()
         mock_conn.execute.return_value.fetchall.return_value = []
         mock_vec._get_conn.return_value = mock_conn
-        monkeypatch.setattr(mathir_server, "_resolve_db", lambda: (mock_vec, None, None))
+        monkeypatch.setattr(mathir_server, "_resolve_db", lambda project=None, cwd=None: (mock_vec, None, None))
 
         try:
             client = mathir_server.app.test_client()
@@ -145,7 +145,7 @@ class TestMathirServerAuth:
         mock_conn = MagicMock()
         mock_conn.execute.return_value.fetchall.return_value = []
         mock_vec._get_conn.return_value = mock_conn
-        monkeypatch.setattr(mathir_server, "_resolve_db", lambda: (mock_vec, None, None))
+        monkeypatch.setattr(mathir_server, "_resolve_db", lambda project=None, cwd=None: (mock_vec, None, None))
 
         try:
             client = mathir_server.app.test_client()
