@@ -10,7 +10,7 @@ If you are a human setting up MATHIR by hand, start here:
 - **macOS:** see `INSTALL_MACOS.md`
 
 If you (or your AI agent) want the **automatic** setup that detects all your
-agents and injects MATHIR config into them, run `../INSTALL_FOR_AGENT/install_smart.py`
+agents and injects MATHIR config into them, run `../INSTALL_FOR_DEV/install_smart.py`
 (or `install.bat` / `install.sh` on the corresponding platform) instead.
 
 ```bash
@@ -75,7 +75,7 @@ Auto-detects your agents and configures everything.
 ### Path 2 — Manual (read the INSTALL_*.md)
 ```bash
 # Read the right guide
-cat INSTALL_FOR_DEV/INSTALL_LINUX.md
+cat INSTALL_FOR_AGENT/INSTALL_LINUX.md
 # Follow step-by-step
 ```
 

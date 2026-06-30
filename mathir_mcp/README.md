@@ -20,9 +20,9 @@ mathir-server &   # listens on 127.0.0.1:7338
 # 3. Add to your agent's MCP config — done. 23 tools available.
 ```
 
-For cold-boot auto-start: `python mathir_mcp/INSTALL_FOR_AGENT/install_smart.py --autostart-only`
+For cold-boot auto-start: `python mathir_mcp/INSTALL_FOR_DEV/install_smart.py --autostart-only`
 
-Platform-specific guides: [INSTALL_FOR_DEV/INSTALL_WINDOWS.md](INSTALL_FOR_DEV/INSTALL_WINDOWS.md) · [INSTALL_FOR_DEV/INSTALL_LINUX.md](INSTALL_FOR_DEV/INSTALL_LINUX.md) · [INSTALL_FOR_DEV/INSTALL_MACOS.md](INSTALL_FOR_DEV/INSTALL_MACOS.md)
+Platform-specific guides: [INSTALL_FOR_AGENT/INSTALL_WINDOWS.md](INSTALL_FOR_AGENT/INSTALL_WINDOWS.md) · [INSTALL_FOR_AGENT/INSTALL_LINUX.md](INSTALL_FOR_AGENT/INSTALL_LINUX.md) · [INSTALL_FOR_AGENT/INSTALL_MACOS.md](INSTALL_FOR_AGENT/INSTALL_MACOS.md)
 
 ---
 

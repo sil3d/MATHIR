@@ -1019,8 +1019,8 @@ def show_menu(detected: List[Dict]) -> List[Dict]:
 def _mathir_bin_dir() -> Path:
     """Resolve the MATHIR bin/ directory from this script's location.
 
-    Works for both source layout (mathir_mcp/INSTALL_FOR_AGENT/install_smart.py -> ../../mathir_mcp/bin)
-    and deployed layout (~/.config/opencode/bin/INSTALL_FOR_AGENT/install_smart.py -> ../bin).
+    Works for both source layout (mathir_mcp/INSTALL_FOR_DEV/install_smart.py -> ../../mathir_mcp/bin)
+    and deployed layout (~/.config/opencode/bin/INSTALL_FOR_DEV/install_smart.py -> ../bin).
     """
     return Path(__file__).resolve().parent.parent / "bin"
 

@@ -181,7 +181,7 @@ The MATHIR daemon runs on port 7338 and must be started after every PC reboot. T
 
 **Source repo:** `mathir_mcp/bin/` (in the MATHIR GitHub repo)
 **Deployed:** `~/.config/opencode/bin/`
-**Full install guides:** `mathir_mcp/INSTALL_FOR_DEV/INSTALL_{WINDOWS,LINUX,MACOS}.md`
+**Full install guides:** `mathir_mcp/INSTALL_FOR_AGENT/INSTALL_{WINDOWS,LINUX,MACOS}.md`
 
 If the user asks to install, set up, or troubleshoot auto-start — point them to the matching `INSTALL_*.md`.
 
