@@ -188,6 +188,29 @@ log.info("Pre-loading embedder...")
 get_embedder()
 log.info("Embedder ready")
 
+# Auto-rebuild vec_memories if empty but memories exist (post-migration)
+try:
+    from mathir_mcp_server import get_project_db_path
+    _startup_db = get_project_db_path()
+    if _startup_db and _startup_db.exists():
+        from mathir_vec import VecMemory, HAS_VEC
+        _startup_dim = get_embedder_dim()
+        _startup_vm = VecMemory(_startup_db, _startup_dim)
+        _startup_conn = _startup_vm._get_conn()
+        _startup_total = _startup_conn.execute("SELECT COUNT(*) FROM memories").fetchone()[0]
+        if _startup_total > 0:
+            if HAS_VEC:
+                _startup_vec_count = _startup_conn.execute("SELECT COUNT(*) FROM vec_memories").fetchone()[0]
+            else:
+                _startup_vec_count = _startup_conn.execute("SELECT COUNT(*) FROM embeddings_brute").fetchone()[0]
+            if _startup_vec_count == 0:
+                log.info(f"vec_memories empty but {_startup_total} memories exist — rebuilding embeddings...")
+                _startup_result = _startup_vm.rebuild_vec_index(embedder=get_embedder())
+                log.info(f"Vec rebuild: {_startup_result}")
+        _startup_vm.close()
+except Exception as e:
+    log.debug(f"Startup vec rebuild check skipped: {e}")
+
 
 # ---------------------------------------------------------------------------
 # Handler helpers
@@ -421,10 +444,11 @@ def _handle_memory_hybrid_search(params):
         fused = rrf_fusion(vector_results, bm25_results, vector_weight=vector_weight, bm25_weight=bm25_weight)
 
         # --- Build final results ---
+        ts_col = 'created_at' if 'created_at' in columns else 'timestamp'
         results = []
         for mid, rrf_score in fused[:k]:
             meta = dconn.execute(
-                f"SELECT {text_col}, tier, timestamp FROM memories WHERE memory_id = ?", [mid]
+                f"SELECT {text_col}, tier, {ts_col} FROM memories WHERE memory_id = ?", [mid]
             ).fetchone()
             if not meta:
                 continue
@@ -599,7 +623,7 @@ def _handle_memory_context(params):
 def _handle_memory_session_start(params):
     """Start a memory session with relevant context."""
     vec_mem, _db_path, embedder = _resolve_db()
-    session_title = params.get('task', 'session start')
+    session_title = params.get('session_title') or params.get('task', 'session start')
 
     # Search for relevant memories
     q_np = _encode_query(embedder, session_title)

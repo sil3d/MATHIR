@@ -2101,6 +2101,96 @@ class VecMemory:
             self._conn.close()
             self._conn = None
 
+    def rebuild_vec_index(self, embedder=None, batch_size: int = 64) -> Dict[str, Any]:
+        """Rebuild vec_memories (or embeddings_brute) from memories table.
+
+        Called after direct SQL migration where vec_memories was not populated.
+        If embedder is None, skips embedding generation and returns a count of
+        memories needing embedding.
+
+        Args:
+            embedder: A sentence-transformers model with .encode() method.
+                      If None, returns {skipped: True, pending: N}.
+            batch_size: Number of memories to encode per batch.
+
+        Returns:
+            {rebuilt: N, skipped: bool, pending: N, errors: M}
+        """
+        with self._db_lock:
+            conn = self._get_conn()
+            # Count memories without embeddings
+            if HAS_VEC:
+                rows = conn.execute(
+                    "SELECT m.memory_id FROM memories m "
+                    "LEFT JOIN vec_memories v ON m.memory_id = v.memory_id "
+                    "WHERE v.memory_id IS NULL"
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT m.memory_id FROM memories m "
+                    "LEFT JOIN embeddings_brute e ON m.memory_id = e.memory_id "
+                    "WHERE e.memory_id IS NULL"
+                ).fetchall()
+
+            pending = len(rows)
+            if pending == 0:
+                return {"rebuilt": 0, "skipped": False, "pending": 0, "errors": 0}
+
+            if embedder is None:
+                return {"rebuilt": 0, "skipped": True, "pending": pending, "errors": 0}
+
+            # Import numpy lazily
+            import numpy as np
+
+            rebuilt = 0
+            errors = 0
+            ids_to_embed = [r["memory_id"] for r in rows]
+
+            for i in range(0, len(ids_to_embed), batch_size):
+                batch_ids = ids_to_embed[i:i + batch_size]
+                # Fetch content for encoding
+                placeholders = ",".join("?" for _ in batch_ids)
+                content_rows = conn.execute(
+                    f"SELECT memory_id, content FROM memories WHERE memory_id IN ({placeholders})",
+                    batch_ids
+                ).fetchall()
+                if not content_rows:
+                    continue
+
+                texts = [r["content"] or "" for r in content_rows]
+                ids = [r["memory_id"] for r in content_rows]
+
+                try:
+                    embeddings = embedder.encode(texts, show_progress_bar=False, batch_size=batch_size)
+                    for mid, emb in zip(ids, embeddings):
+                        try:
+                            vec = np.asarray(emb, dtype=np.float32).reshape(-1)
+                            if len(vec) != self.embedding_dim:
+                                errors += 1
+                                continue
+                            if HAS_VEC:
+                                conn.execute("DELETE FROM vec_memories WHERE memory_id = ?", [mid])
+                                conn.execute(
+                                    "INSERT INTO vec_memories(memory_id, embedding) VALUES (?, ?)",
+                                    [mid, _serialize_embedding(vec)]
+                                )
+                            else:
+                                blob = struct.pack("<i", vec.size) + vec.tobytes()
+                                conn.execute(
+                                    "INSERT OR REPLACE INTO embeddings_brute(memory_id, embedding) VALUES (?, ?)",
+                                    [mid, blob]
+                                )
+                            rebuilt += 1
+                        except Exception:
+                            errors += 1
+                except Exception as e:
+                    log.warning(f"rebuild_vec_index batch {i}: {e}")
+                    errors += len(batch_ids)
+
+            conn.commit()
+            log.info(f"rebuild_vec_index: rebuilt={rebuilt}, pending={pending}, errors={errors}")
+            return {"rebuilt": rebuilt, "skipped": False, "pending": pending, "errors": errors}
+
 
 # Global cache
 _vec_memory_cache: Dict[str, VecMemory] = {}
