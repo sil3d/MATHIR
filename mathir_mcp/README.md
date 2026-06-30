@@ -22,7 +22,7 @@ mathir-server &   # listens on 127.0.0.1:7338
 
 For cold-boot auto-start: `python mathir_mcp/bin/install_smart.py --autostart-only`
 
-Platform-specific guides: [INSTALL/INSTALL_WINDOWS.md](INSTALL/INSTALL_WINDOWS.md) · [INSTALL_LINUX.md](INSTALL/INSTALL_LINUX.md) · [INSTALL_MACOS.md](INSTALL/INSTALL_MACOS.md)
+Platform-specific guides: [INSTALL_FOR_DEV/INSTALL_WINDOWS.md](INSTALL_FOR_DEV/INSTALL_WINDOWS.md) · [INSTALL_LINUX.md](INSTALL_FOR_DEV/INSTALL_LINUX.md) · [INSTALL_MACOS.md](INSTALL_FOR_DEV/INSTALL_MACOS.md)
 
 ---
 

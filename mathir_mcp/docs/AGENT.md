@@ -10,8 +10,8 @@
 
 ```
 You need 3 things:
-1. Install MATHIR: ~/.config/MATHIR/ (global, once)
-2. Run installer:  python ~/.config/MATHIR/install_smart.py
+1. Install MATHIR: ~/.config/MATHIR/ (global, once) — see Step 1 for the EXACT layout
+2. Run installer:  python ~/.config/MATHIR/INSTALL_FOR_AGENT/install_smart.py
 3. That's it.
 
 The installer auto-detects your coding agents and configures them.
@@ -26,8 +26,8 @@ Each project gets its own database at .mathir/mathir.db.
 
 ```
 You need 3 things:
-1. Install MATHIR: ~/.config/MATHIR/ (global, once)
-2. Run installer:  python ~/.config/MATHIR/install_smart.py
+1. Install MATHIR: ~/.config/MATHIR/ (global, once) — must end with the layout in §"Global Install Structure"
+2. Run installer:  python ~/.config/MATHIR/INSTALL_FOR_AGENT/install_smart.py
 3. That's it.
 
 The installer auto-detects your coding agents and configures them.
@@ -44,31 +44,71 @@ Each project gets its own database at .mathir/mathir.db.
 # Clone or copy
 git clone https://github.com/sil3d/MATHIR.git /tmp/MATHIR
 cp -r /tmp/MATHIR/mathir_mcp ~/.config/MATHIR
+# IMPORTANT (Linux/BSD `cp -r`): copies CONTENTS of mathir_mcp/ into ~/.config/MATHIR/
+# After this, ~/.config/MATHIR/ must contain "mathir_mcp/" as a SUBDIRECTORY.
 
 # Or download release
 curl -L https://github.com/sil3d/MATHIR/archive/main.zip -o mathir.zip
 unzip mathir.zip -d ~/.config/MATHIR
 ```
 
+**⚠️ Windows (`Copy-Item`) behaves differently from Linux `cp -r`:**
+`Copy-Item .\mathir_mcp\* ~/.config/MATHIR\` copies CONTENTS into the destination as well, which produces the correct layout. But if you use `Copy-Item .\mathir_mcp ~/.config\MATHIR\` (without the `\*`), you get `~/.config/MATHIR/mathir_mcp/` as a single subdir, which is what `install_smart.py` ALSO accepts (and is actually clearer). **Either layout works, AS LONG AS `install_smart.py` can find `mathir_mcp/` from where it sits**:
+
+- Layout A: `~/.config/MATHIR/mathir_lib/`, `~/.config/MATHIR/__init__.py`, `~/.config/MATHIR/pyproject.toml` — **install_smart.py will look for `~/.config/MATHIR/mathir_mcp/` here and FAIL**.
+- Layout B: `~/.config/MATHIR/mathir_mcp/mathir_lib/`, `~/.config/MATHIR/mathir_mcp/__init__.py`, `~/.config/MATHIR/mathir_mcp/pyproject.toml` — ✅ **this is the one that works**.
+
+If you have layout A, restructure first (see §"Restructuring After Clone" below).
+
 ### Step 2: Run smart installer
 
 ```bash
 # Windows (double-click)
-~/.config/MATHIR/install.bat
+~/.config/MATHIR/INSTALL_FOR_AGENT/install.bat
 
 # Mac/Linux (terminal)
-chmod +x ~/.config/MATHIR/install.sh
-~/.config/MATHIR/install.sh
+chmod +x ~/.config/MATHIR/INSTALL_FOR_AGENT/install.sh
+~/.config/MATHIR/INSTALL_FOR_AGENT/install.sh
 
-# Or directly
-python ~/.config/MATHIR/install_smart.py
+# Or directly (note: installer lives under INSTALL_FOR_AGENT/, not at the MATHIR root)
+python ~/.config/MATHIR/INSTALL_FOR_AGENT/install_smart.py
 ```
+
+The installer is interactive: type `A` to configure all detected agents, or pick specific numbers (comma-separated).
 
 ### Step 3: Done
 
 - Installer detects your agents (50 supported)
 - Injects MCP config + instructions automatically
 - Restart your agent to use MATHIR
+
+### Restructuring After Clone
+
+If your source repo was cloned and the package files ended up at `~/.config/MATHIR/` (Layout A — wrong), move them into a `mathir_mcp/` subdir:
+
+```bash
+# Linux/Mac
+mkdir -p ~/.config/MATHIR/mathir_mcp
+mv ~/.config/MATHIR/mathir_lib ~/.config/MATHIR/mathir_mcp/
+mv ~/.config/MATHIR/__init__.py ~/.config/MATHIR/mathir_mcp/
+mv ~/.config/MATHIR/__main__.py ~/.config/MATHIR/mathir_mcp/
+mv ~/.config/MATHIR/pyproject.toml ~/.config/MATHIR/mathir_mcp/
+
+# Windows (PowerShell)
+New-Item -ItemType Directory -Path "$env:USERPROFILE\.config\MATHIR\mathir_mcp" -Force
+Move-Item "$env:USERPROFILE\.config\MATHIR\mathir_lib" "$env:USERPROFILE\.config\MATHIR\mathir_mcp\" -Force
+Move-Item "$env:USERPROFILE\.config\MATHIR\__init__.py" "$env:USERPROFILE\.config\MATHIR\mathir_mcp\" -Force
+Move-Item "$env:USERPROFILE\.config\MATHIR\__main__.py" "$env:USERPROFILE\.config\MATHIR\mathir_mcp\" -Force
+Move-Item "$env:USERPROFILE\.config\MATHIR\pyproject.toml" "$env:USERPROFILE\.config\MATHIR\mathir_mcp\" -Force
+
+# Then re-register the package
+pip install -e ~/.config/MATHIR/mathir_mcp
+```
+
+Files that should STAY at `~/.config/MATHIR/` root (not moved):
+`INSTALL_FOR_AGENT/`, `INSTALL_FOR_DEV/`, `docs/`, `config_template.json`, `GLOBAL_INSTRUCTIONS.md`,
+`mathir_dashboard.bat/sh`, `mcp_architecture.md`, `opencode_templates/`,
+`mimocode_templates/`, `README.md`, `CHANGELOG.md`.
 
 ---
 
@@ -94,33 +134,65 @@ It will read `docs/AGENT.md` and configure MATHIR automatically.
 
 ```
 ~/.config/MATHIR/                    ← Global install (once)
-├── mathir_lib/                      ← Core library
-│   ├── mathir_mcp_server.py         ← MCP server entry point
-│   ├── mathir_server.py             ← Persistent daemon
-│   ├── mathir_client.py             ← CLI client
-│   ├── mathir_vec.py                ← VecMemory (sqlite-vec)
-│   ├── mathir_search.py             ← HybridSearch (vector + BM25 + RRF)
-│   ├── memory_risks.py              ← Risk mitigation
-│   └── requirements.txt             ← Dependencies
-├── brain/                           ← Brain architecture
-│   ├── mathir_brain.py              ← Master controller
-│   ├── mathir_inject_proxy.py       ← Auto-injection proxy
-│   ├── mathir_watchdog.py           ← Daemon watchdog
-│   ├── mathir_spread.py             ← Spreading activation
-│   ├── mathir_consolidate.py        ← Nightly consolidation
-│   └── mathir_prime.py              ← Pre-cognitive priming
-├── config/
-│   └── mathir.json                  ← MATHIR config
-├── dashboard/                       ← Neural dashboard
-├── docs/                            ← Documentation
+├── mathir_mcp/                      ← Python package (for `pip install -e`)
+│   ├── __init__.py                  ← Package marker (so `import mathir_mcp` works)
+│   ├── __main__.py                  ← `python -m mathir_mcp` entry (launches daemon by default, or `--mcp` for MCP stdio server)
+│   ├── pyproject.toml               ← Build metadata (`pip install -e .`)
+│   ├── mathir_lib/                  ← Core library (imported as `mathir_mcp.mathir_lib`)
+│   │   ├── mathir_mcp_server.py     ← MCP stdio server entry point (line `from mathir_mcp.mathir_lib import mathir_mcp_server`)
+│   │   ├── mathir_server.py         ← Persistent HTTP daemon (Flask + Waitress)
+│   │   ├── mathir_daemon.py         ← Legacy raw-socket daemon (superseded by mathir_server.py)
+│   │   ├── mathir_client.py         ← CLI client
+│   │   ├── mathir_vec.py            ← VecMemory (sqlite-vec)
+│   │   ├── mathir_search.py         ← HybridSearch (vector + BM25 + RRF)
+│   │   ├── memory_risks.py          ← Risk mitigation
+│   │   └── requirements.txt         ← Dependencies
+│   ├── brain/                       ← Brain architecture
+│   │   ├── mathir_brain.py          ← Master controller
+│   │   ├── mathir_inject_proxy.py   ← Auto-injection proxy (port 8182)
+│   │   ├── mathir_watchdog.py       ← Daemon watchdog
+│   │   ├── mathir_spread.py         ← Spreading activation
+│   │   ├── mathir_consolidate.py    ← Nightly consolidation
+│   │   └── mathir_prime.py          ← Pre-cognitive priming
+│   ├── config/
+│   │   └── mathir.json              ← MATHIR config
+│   ├── dashboard/                   ← Neural dashboard (legacy)
+│   ├── dev/                         ← Migration/dev scripts
+│   ├── tests/                       ← pytest suite
+│   └── ... (other package internals)
+├── INSTALL_FOR_AGENT/               ← Auto-installer for AI coding agents (smart installer scripts)
+│   ├── install_smart.py             ← The installer — 40+ agents auto-detected
+│   ├── install.bat                  ← Windows launcher
+│   └── install.sh                   ← Mac/Linux launcher
+├── INSTALL_FOR_DEV/                 ← Step-by-step guides for HUMAN developers
+│   ├── INSTALL_WINDOWS.md           ← Windows 10/11 walkthrough
+│   ├── INSTALL_LINUX.md             ← Linux walkthrough
+│   ├── INSTALL_MACOS.md             ← macOS walkthrough
+│   └── README.md
+│   ├── install_smart.py             ← Smart installer (50 agents)
+│   ├── install.bat                  ← Windows launcher
+│   ├── install.sh                   ← Mac/Linux launcher
+│   ├── INSTALL_WINDOWS.md           ← Windows install walkthrough
+│   ├── INSTALL_LINUX.md             ← Linux walkthrough
+│   └── INSTALL_MACOS.md             ← macOS walkthrough
+├── docs/                            ← Documentation (top-level — what users read first)
 │   ├── AGENT.md                     ← This file
 │   ├── GLOBAL_INSTRUCTIONS.md       ← Universal AI instructions
 │   ├── BRAIN_ARCHITECTURE.md        ← Brain stack details
 │   └── ... (8 more docs)
-├── install_smart.py                 ← Smart installer (50 agents)
-├── install.bat                      ← Windows launcher
-├── install.sh                       ← Mac/Linux launcher
-└── config_template.json             ← Config template
+├── opencode_templates/              ← Per-agent template files (NOT installed by default)
+├── mimocode_templates/              ← MiMo-code-specific templates
+├── mathir_dropin/                   ← Standalone module for ad-hoc `from mathir_dropin import MATHIRMemory`
+├── config_template.json             ← Config template
+├── GLOBAL_INSTRUCTIONS.md           ← Distributed to each agent's instructions
+├── README.md
+└── CHANGELOG.md
+
+NOTE: The `~/.config/MATHIR/INSTALL_FOR_AGENT/install_smart.py` script reads its source
+location via `Path(__file__).resolve().parent.parent` then appends `mathir_mcp`
+to find the package to copy into each agent's tools dir. So the layout above
+(with `mathir_mcp/` as a subdirectory of `~/.config/MATHIR/`) is the **only
+layout that works out of the box**.
 ```
 
 ---
@@ -389,7 +461,7 @@ Config: `~/.config/opencode/opencode.json`
   "mcp": {
     "mathir": {
       "type": "local",
-      "command": ["python", "-m", "mathir_mcp"],
+      "command": ["python", "-m", "mathir_mcp.mathir_lib.mathir_mcp_server"],
       "environment": {
         "MATHIR_EMBEDDING_DIM": "384",
         "MATHIR_PORT": "7338"
@@ -400,7 +472,7 @@ Config: `~/.config/opencode/opencode.json`
 }
 ```
 
-> v8.4.1: entry point is `python -m mathir_mcp`. The legacy top-level module path was removed when `mathir_lib/` was nested inside `mathir_mcp/`.
+> v8.4.1: entry point was `python -m mathir_mcp` (no longer valid in v8.5.0+ — this command now launches the HTTP daemon, not the MCP stdio server). Use `python -m mathir_mcp.mathir_lib.mathir_mcp_server` for the MCP server, or just use the global `mathir-mcp` script entry installed by `pip install -e`.
 
 ### MiMo
 
@@ -444,7 +516,7 @@ Config: `~/.claude.json`
   "mcpServers": {
     "mathir": {
       "command": "python",
-      "args": ["-m", "mathir_mcp"],
+      "args": ["-m", "mathir_mcp.mathir_lib.mathir_mcp_server"],
       "env": { "MATHIR_EMBEDDING_DIM": "384" }
     }
   }
@@ -459,7 +531,7 @@ Config: `~/.cursor/mcp.json`
   "mcpServers": {
     "mathir": {
       "command": "python",
-      "args": ["-m", "mathir_mcp"],
+      "args": ["-m", "mathir_mcp.mathir_lib.mathir_mcp_server"],
       "env": { "MATHIR_EMBEDDING_DIM": "384" }
     }
   }
@@ -539,7 +611,7 @@ python install_smart.py
   "mcp": {
     "mathir": {
       "type": "local",
-      "command": ["python", "-m", "mathir_mcp"],
+      "command": ["python", "-m", "mathir_mcp.mathir_lib.mathir_mcp_server"],
       "environment": { "MATHIR_EMBEDDING_DIM": "384" },
       "enabled": true
     }
@@ -588,7 +660,7 @@ python install_smart.py
   "mcpServers": {
     "mathir": {
       "command": "python",
-      "args": ["-m", "mathir_mcp"],
+      "args": ["-m", "mathir_mcp.mathir_lib.mathir_mcp_server"],
       "env": { "MATHIR_EMBEDDING_DIM": "384" }
     }
   }
@@ -609,7 +681,7 @@ or %APPDATA%\Claude\claude_desktop_config.json (Windows)
   "mcpServers": {
     "mathir": {
       "command": "python",
-      "args": ["-m", "mathir_mcp"],
+      "args": ["-m", "mathir_mcp.mathir_lib.mathir_mcp_server"],
       "env": { "MATHIR_EMBEDDING_DIM": "384" }
     }
   }
@@ -627,7 +699,7 @@ or %APPDATA%\Claude\claude_desktop_config.json (Windows)
   "mcpServers": {
     "mathir": {
       "command": "python",
-      "args": ["-m", "mathir_mcp"],
+      "args": ["-m", "mathir_mcp.mathir_lib.mathir_mcp_server"],
       "env": { "MATHIR_EMBEDDING_DIM": "384" }
     }
   }
@@ -648,7 +720,7 @@ or %APPDATA%\Claude\claude_desktop_config.json (Windows)
   "mcpServers": {
     "mathir": {
       "command": "python",
-      "args": ["-m", "mathir_mcp"],
+      "args": ["-m", "mathir_mcp.mathir_lib.mathir_mcp_server"],
       "env": { "MATHIR_EMBEDDING_DIM": "384" }
     }
   }
@@ -666,7 +738,7 @@ or %APPDATA%\Claude\claude_desktop_config.json (Windows)
   "mcpServers": {
     "mathir": {
       "command": "python",
-      "args": ["-m", "mathir_mcp"],
+      "args": ["-m", "mathir_mcp.mathir_lib.mathir_mcp_server"],
       "env": { "MATHIR_EMBEDDING_DIM": "384" }
     }
   }
@@ -684,7 +756,7 @@ or %APPDATA%\Claude\claude_desktop_config.json (Windows)
   "mcpServers": {
     "mathir": {
       "command": "python",
-      "args": ["-m", "mathir_mcp"],
+      "args": ["-m", "mathir_mcp.mathir_lib.mathir_mcp_server"],
       "env": { "MATHIR_EMBEDDING_DIM": "384" }
     }
   }
@@ -702,7 +774,7 @@ or %APPDATA%\Claude\claude_desktop_config.json (Windows)
   "mcpServers": {
     "mathir": {
       "command": "python",
-      "args": ["-m", "mathir_mcp"],
+      "args": ["-m", "mathir_mcp.mathir_lib.mathir_mcp_server"],
       "env": { "MATHIR_EMBEDDING_DIM": "384" }
     }
   }
@@ -720,7 +792,7 @@ or %APPDATA%\Claude\claude_desktop_config.json (Windows)
   "mcpServers": {
     "mathir": {
       "command": "python",
-      "args": ["-m", "mathir_mcp"],
+      "args": ["-m", "mathir_mcp.mathir_lib.mathir_mcp_server"],
       "env": { "MATHIR_EMBEDDING_DIM": "384" }
     }
   }
@@ -738,9 +810,12 @@ If your agent isn't listed:
    - `"mcp"` key (OpenCode schema): **OpenCode, MiMo Code v0.1.3+, Kilo Code CLI**
      → use `"type": "local"`, `"command": [array]`, `"environment": {}`, `"enabled": true`
    - `"mcpServers"` key (Claude Desktop schema): Claude Code, Cursor, Cline, Windsurf, Gemini, Zcode, etc.
-3. Use command: `["python", "-m", "mathir_mcp"]` (or full path to `mathir_mcp_server.py`)
+3. Use one of these commands (in priority order):
+   - `["python", "<absolute_path>/.config/opencode/tools/mathir_mcp/mathir_lib/mathir_mcp_server.py"]` — what `install_smart.py` injects; always works (no `pip install` required)
+   - `["python", "-m", "mathir_mcp.mathir_lib.mathir_mcp_server"]` — requires `pip install -e ~/.config/MATHIR/mathir_mcp` to have been run
+   - **`["python", "-m", "mathir_mcp"]` does NOT work as an MCP command** — it launches the HTTP daemon, not the MCP stdio server.
 4. Add `"environment": {"MATHIR_EMBEDDING_DIM": "384"}` (or `"env"` for the mcpServers schema)
-5. Copy GLOBAL_INSTRUCTIONS.md into your agent's instructions
+5. Copy `~/.config/MATHIR/GLOBAL_INSTRUCTIONS.md` into your agent's instructions
 
 **If you have no agent, install OpenCode:** https://opencode.ai/
 
@@ -752,8 +827,12 @@ If your agent isn't listed:
 |---------|-----|
 | MCP server not showing | Check config key: **OpenCode & MiMo Code use `"mcp"`**, others use `"mcpServers"` |
 | `Unrecognized key: "mcpServers"` in mimocode.json | MiMo Code is a fork of OpenCode — rename the key to `"mcp"` and restructure the entry (see MiMo example above) |
-| "python not found" | Use full path: ["C:\Python312\python.exe", "..."] |
-| Wrong script path | Use `-m mathir_mcp` (after `pip install -e ./mathir_mcp`) or `~/.config/MATHIR/mathir_mcp/mathir_lib/mathir_mcp_server.py` (legacy install) |
+| "python not found" | Use full path: `["C:\\Python312\\python.exe", "..."]` |
+| Wrong script path | Use one of the 3 commands in §Manual Integration, step 3. The first one (absolute path to `mathir_mcp_server.py`) is what the smart installer injects — that one always works. |
+| MCP starts then crashes immediately | Port 7338 already in use by another daemon — kill it (`Stop-Process -Id <pid>`) or set `MATHIR_PORT=7339` in `environment` |
+| `ModuleNotFoundError: mathir_mcp` | You ran `pip install -e` from `~/.config/MATHIR/` instead of `~/.config/MATHIR/mathir_mcp/`; reinstall from the inner dir |
+| Mathir installs but agent shows no tools | Restart the agent entirely — many agents cache the MCP server list at startup |
+| Smart installer reports `Failed to copy MATHIR: [WinError 3]` | Your `~/.config/MATHIR/` is missing a `mathir_mcp/` subdir — see §Restructuring After Clone |
 | Agent ignores memory | Ensure GLOBAL_INSTRUCTIONS.md is in instructions |
 
 ---
