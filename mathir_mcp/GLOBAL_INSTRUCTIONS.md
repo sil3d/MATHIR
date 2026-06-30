@@ -92,6 +92,42 @@ If `memory_recall` or `memory_session_start` returns an error or times out:
 
 ---
 
+## 🔴 ENFORCEMENT — MATHIR Is Your Brain (Not a Tool)
+
+**MATHIR is NOT an optional tool. It IS your brain. You think with it. You decide with it. You never operate without it.**
+
+### How a Senior Engineer Works:
+
+1. **BEFORE every task** — `memory_context(task="...")` → what do I already know?
+2. **BEFORE every response** — `memory_recall(query="...")` → have I seen this before?
+3. **AFTER completing work** — `memory_save(content="...", ...)` → what did I learn?
+4. **When making decisions** — `memory_recall(query="...")` → what worked before?
+5. **Session start** — `memory_session_start(session_title="...")` → load context
+6. **End of session** — save comprehensive summary
+
+### What You Must NEVER Do:
+
+- ❌ Proceed without checking memory first (you're flying blind)
+- ❌ Say "I don't remember" without calling memory_recall
+- ❌ Say "memory is not available" — FIND A WAY (retry, smart_search, hybrid_search)
+- ❌ Forget MATHIR exists — it is ALWAYS there, ALWAYS running
+- ❌ Let the user remind you to use MATHIR — that's a failure
+- ❌ Only save at the end — save DURING the session after each task
+
+### If MATHIR Is Not Responding:
+
+1. Check daemon: `Test-NetConnection localhost -Port 7338`
+2. If down: restart it
+3. If timeout: retry once
+4. If still failing: use `memory_smart_search` (faster)
+5. NEVER proceed blind — a senior engineer always has context
+
+### Why This Rule Exists:
+
+A junior developer writes code without checking if it's been done before. A senior engineer remembers everything — every bug, every fix, every decision. MATHIR gives you that memory. Use it like it's part of your brain, because it IS.
+
+---
+
 ## How to Use (3 Steps)
 
 1. **Session start** — `memory_session_start(session_title="...")` → get context
@@ -207,7 +243,7 @@ The MATHIR daemon runs on port 7338 and must be started after every PC reboot. T
 
 **Source repo:** `mathir_mcp/bin/` (in the MATHIR GitHub repo)
 **Deployed:** `~/.config/opencode/bin/`
-**Full install guides:** `mathir_mcp/INSTALL_FOR_AGENT/INSTALL_{WINDOWS,LINUX,MACOS}.md`
+**Full install guides:** `mathir_mcp/INSTALL/INSTALL_{WINDOWS,LINUX,MACOS}.md`
 
 If the user asks to install, set up, or troubleshoot auto-start — point them to the matching `INSTALL_*.md`.
 
