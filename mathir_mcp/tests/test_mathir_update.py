@@ -240,9 +240,12 @@ class TestUpdaterCheckOnly:
         assert report["target"] == "8.5.2"
         assert any("DRY-RUN" in s for s in report["steps"])
 
-    def test_no_op_when_already_current(self, monkeypatch):
+    def test_no_op_when_already_current(self, monkeypatch, tmp_path):
         from mathir_mcp.mathir_lib import mathir_updater
         # Same version -> target <= current -> return early
+        monkeypatch.setattr(mathir_updater, "_mcp_dir", lambda: tmp_path)
+        monkeypatch.setattr(mathir_updater, "_read_pyproject_version", lambda *a, **kw: "8.5.1")
+        monkeypatch.setattr(mathir_updater, "_is_git_install", lambda *a, **kw: False)
         monkeypatch.setattr(mathir_updater, "check_for_update", lambda *a, **kw: {
             "latest_version": "8.5.1", "update_available": False,
             "release_url": None, "error": None, "source": "live",
