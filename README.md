@@ -155,7 +155,7 @@ Add MATHIR to your AI agent (OpenCode, Claude Code, Cursor, MiMo, etc.):
 
 **That's it.** 23 tools (`memory_save`, `memory_recall`, `memory_by_path`, `memory_recall_quality`, `memory_incoming_links`, etc.) — all your agents.
 
-Full MCP config: [mathir_mcp/docs/AGENT.md](mathir_mcp/docs/AGENT.md) (50+ agents).
+Full MCP config: [mathir_mcp/INSTALL_FOR_AGENT/AGENT.md](mathir_mcp/INSTALL_FOR_AGENT/AGENT.md) (50+ agents).
 
 ### Console Scripts (universal, IDE-agnostic)
 
@@ -177,7 +177,7 @@ Install: `pip install -e ./mathir_mcp`
 | Doc | Purpose |
 |---|---|
 | **[mathir_mcp/README.md](mathir_mcp/README.md)** | Install, MCP setup, all 23 tools |
-| **[mathir_mcp/docs/AGENT.md](mathir_mcp/docs/AGENT.md)** | Per-agent MCP config (50+ agents) |
+| **[mathir_mcp/INSTALL_FOR_AGENT/AGENT.md](mathir_mcp/INSTALL_FOR_AGENT/AGENT.md)** | Per-agent MCP config (50+ agents) |
 | **[mathir_mcp/docs/DAEMON.md](mathir_mcp/docs/DAEMON.md)** | Daemon HTTP API + JSON-RPC protocol |
 | **[mathir_mcp/docs/DIMENSIONS.md](mathir_mcp/docs/DIMENSIONS.md)** | Embedding model selection |
 | **[mathir_mcp/docs/DASHBOARD_GUIDE.md](mathir_mcp/docs/DASHBOARD_GUIDE.md)** | Stats dashboard setup |

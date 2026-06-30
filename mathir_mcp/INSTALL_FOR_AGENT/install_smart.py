@@ -1398,16 +1398,16 @@ def main():
 {C.BOLD}── Troubleshooting ──{C.RESET}
 
   EN: If installer fails, give the entire ~/.config/MATHIR/ folder to your coding agent.
-      It will read docs/AGENT.md and configure MATHIR automatically.
+      It will read INSTALL_FOR_AGENT/AGENT.md and configure MATHIR automatically.
 
   FR: Si l'installeur echoue, donnez tout le dossier ~/.config/MATHIR/ a votre agent de code.
-      Il lira docs/AGENT.md et configurera MATHIR automatiquement.
+      Il lira INSTALL_FOR_AGENT/AGENT.md et configurera MATHIR automatiquement.
 
   ES: Si el instalador falla, dea toda la carpeta ~/.config/MATHIR/ a su agente de codigo.
-      Leera docs/AGENT.md y configurara MATHIR automaticamente.
+      Leera INSTALL_FOR_AGENT/AGENT.md y configurara MATHIR automaticamente.
 
   ZH: Ruguio anzhuan shibai, ba ~/.config/MATHIR/ zhengge danglu gei nide coding agent.
-      Hui du docs/AGENT.md zidong peizhi MATHIR.
+      Hui du INSTALL_FOR_AGENT/AGENT.md zidong peizhi MATHIR.
 """)
         # Even with no agent, autostart is still useful
         if not args.no_autostart:
@@ -1471,7 +1471,7 @@ def main():
         print(f"{C.YELLOW}── ACTION REQUIRED for: {', '.join(needs_manual_instructions)} ──{C.RESET}")
         print(f"{C.DIM}  These agents don't auto-load instructions.")
         print(f"  You MUST manually add ~/.config/MATHIR/GLOBAL_INSTRUCTIONS.md")
-        print(f"  to your agent's instructions file. See docs/AGENT.md for details.{C.RESET}\n")
+        print(f"  to your agent's instructions file. See INSTALL_FOR_AGENT/AGENT.md for details.{C.RESET}\n")
     print(f"{C.BOLD}── No Agent? Install OpenCode (free models) ──{C.RESET}")
     print(f"{C.DIM}  EN: Install OpenCode from https://opencode.ai/ — many free models available.")
     print(f"      Give this MATHIR folder to OpenCode and it configures itself.")
@@ -1482,10 +1482,10 @@ def main():
     print(f"  ZH: Install OpenCode https://opencode.ai/ — henduo mofei moxing.")
     print(f"      GEI OpenCode zhege MATHIR danglu jiu hui zidong peizhi.{C.RESET}\n")
     print(f"{C.BOLD}── Troubleshooting ──{C.RESET}")
-    print(f"{C.DIM}  EN: If problems occur, give ~/.config/MATHIR/ to your agent. It reads docs/AGENT.md.")
-    print(f"  FR: Si problemes, donnez ~/.config/MATHIR/ a votre agent. Il lit docs/AGENT.md.")
-    print(f"  ES: Si hay problemas, dea toda la carpeta ~/.config/MATHIR/ a su agente. Lee docs/AGENT.md.")
-    print(f"  ZH: Ruguio wenti, ba ~/.config/MATHIR/ gei nide agent. Hui du docs/AGENT.md.{C.RESET}\n")
+    print(f"{C.DIM}  EN: If problems occur, give ~/.config/MATHIR/ to your agent. It reads INSTALL_FOR_AGENT/AGENT.md.")
+    print(f"  FR: Si problemes, donnez ~/.config/MATHIR/ a votre agent. Il lit INSTALL_FOR_AGENT/AGENT.md.")
+    print(f"  ES: Si hay problemas, dea toda la carpeta ~/.config/MATHIR/ a su agente. Lee INSTALL_FOR_AGENT/AGENT.md.")
+    print(f"  ZH: Ruguio wenti, ba ~/.config/MATHIR/ gei nide agent. Hui du INSTALL_FOR_AGENT/AGENT.md.{C.RESET}\n")
 
 
 def installed_only(detected: List[Dict]) -> List[Dict]:

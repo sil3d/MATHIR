@@ -126,7 +126,7 @@ Files that should STAY at `~/.config/MATHIR/` root (not moved):
 ## If Installer Fails
 
 Give the entire `~/.config/MATHIR/` folder to your coding agent.
-It will read `docs/AGENT.md` and configure MATHIR automatically.
+It will read `INSTALL_FOR_AGENT/AGENT.md` and configure MATHIR automatically.
 
 ---
 
@@ -568,13 +568,13 @@ pip install nvidia-cublas-cu12 nvidia-cudnn-cu12
 
 ### Multilingual Help (EN/FR/ES/ZH)
 
-**EN:** If installer fails, give the entire `~/.config/MATHIR/` folder to your coding agent. It will read `docs/AGENT.md` and configure MATHIR automatically. If you have no coding agents, install OpenCode from https://opencode.ai/ — many free models available.
+**EN:** If installer fails, give the entire `~/.config/MATHIR/` folder to your coding agent. It will read `INSTALL_FOR_AGENT/AGENT.md` and configure MATHIR automatically. If you have no coding agents, install OpenCode from https://opencode.ai/ — many free models available.
 
-**FR:** Si l'installeur echoue, donnez tout le dossier `~/.config/MATHIR/` a votre agent de code. Il lira `docs/AGENT.md` et configurera MATHIR automatiquement. Si vous n'avez pas d'agent, installez OpenCode depuis https://opencode.ai/ — beaucoup de modeles gratuits.
+**FR:** Si l'installeur echoue, donnez tout le dossier `~/.config/MATHIR/` a votre agent de code. Il lira `INSTALL_FOR_AGENT/AGENT.md` et configurera MATHIR automatiquement. Si vous n'avez pas d'agent, installez OpenCode depuis https://opencode.ai/ — beaucoup de modeles gratuits.
 
-**ES:** Si el instalador falla, dea toda la carpeta `~/.config/MATHIR/` a su agente de codigo. Leera `docs/AGENT.md` y configurara MATHIR automaticamente. Si no tiene agente, instale OpenCode desde https://opencode.ai/ — hay muchos modelos gratuitos.
+**ES:** Si el instalador falla, dea toda la carpeta `~/.config/MATHIR/` a su agente de codigo. Leera `INSTALL_FOR_AGENT/AGENT.md` y configurara MATHIR automaticamente. Si no tiene agente, instale OpenCode desde https://opencode.ai/ — hay muchos modelos gratuitos.
 
-**ZH:** Ruguio anzhuan shibai, ba `~/.config/MATHIR/` zhengge danglu gei nide coding agent. Hui du `docs/AGENT.md` zidong peizhi MATHIR. Ruguio meiyou agent, install OpenCode https://opencode.ai/ — henduo mofei moxing.
+**ZH:** Ruguio anzhuan shibai, ba `~/.config/MATHIR/` zhengge danglu gei nide coding agent. Hui du `INSTALL_FOR_AGENT/AGENT.md` zidong peizhi MATHIR. Ruguio meiyou agent, install OpenCode https://opencode.ai/ — henduo mofei moxing.
 
 ---
 
@@ -839,10 +839,10 @@ If your agent isn't listed:
 
 ### Multilingual Help (EN/FR/ES/ZH)
 
-**EN:** Give ~/.config/MATHIR/ to your coding agent. It reads docs/AGENT.md and configures automatically.
+**EN:** Give ~/.config/MATHIR/ to your coding agent. It reads INSTALL_FOR_AGENT/AGENT.md and configures automatically.
 
-**FR:** Donnez ~/.config/MATHIR/ a votre agent de code. Il lit docs/AGENT.md et se configure automatiquement.
+**FR:** Donnez ~/.config/MATHIR/ a votre agent de code. Il lit INSTALL_FOR_AGENT/AGENT.md et se configure automatiquement.
 
-**ES:** Dea ~/.config/MATHIR/ a su agente de codigo. Leera docs/AGENT.md y se configurara solo.
+**ES:** Dea ~/.config/MATHIR/ a su agente de codigo. Leera INSTALL_FOR_AGENT/AGENT.md y se configurara solo.
 
-**ZH:** GEI nide agent ~/.config/MATHIR/, hui du docs/AGENT.md zidong peizhi.
+**ZH:** GEI nide agent ~/.config/MATHIR/, hui du INSTALL_FOR_AGENT/AGENT.md zidong peizhi.

@@ -41,7 +41,7 @@ install.bat
    - Cursor, Windsurf, Kilo Code, Cline
    - MiMo Code, Zcode
    - GitHub Copilot, Continue.dev, Cody
-   - And ~30 more (see `mathir_mcp/docs/AGENT.md` for the full list)
+   - And ~30 more (see `mathir_mcp/INSTALL_FOR_AGENT/AGENT.md` for the full list)
 3. **Injects** the MATHIR MCP server config into each agent's config
 4. **Injects** the `GLOBAL_INSTRUCTIONS.md` into the agent's system prompt
 5. **Installs** the daemon auto-start (Task Scheduler on Win, launchd on Mac, systemd on Linux)
