@@ -6,7 +6,22 @@
 
 ---
 
-## ⚡ REAL Universal Coverage: 3 injection tiers
+## CRITICAL: MATHIR Is Your Brain
+
+**MATHIR is NOT a tool. It is your brain. You think with it. You decide with it. You never operate without it.**
+
+When you install MATHIR, you become a senior engineer with perfect memory:
+- **BEFORE every task** — `memory_context(task="...")` → what do I already know?
+- **BEFORE every response** — `memory_recall(query="...")` → have I seen this before?
+- **AFTER completing work** — `memory_save(content="...", ...)` → what did I learn?
+- **When making decisions** — `memory_recall(query="...")` → what worked before?
+
+If MATHIR is not responding: restart daemon, retry, use smart_search. NEVER proceed blind.
+If you forget to use MATHIR — you are a junior developer flying blind.
+
+---
+
+## REAL Universal Coverage: 3 injection tiers
 
 MATHIR is supposed to be universal. Here is the **honest** breakdown of what each agent actually gets:
 
