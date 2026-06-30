@@ -340,7 +340,7 @@ MATHIR evolved through eight major versions (V1–V8.4.1), each addressing a spe
 | V8.1 | Multimodal support | Multimodal support (text, image, audio, video) | ✓ |
 | V8.2 | Daemon + per-project DBs | Daemon push API + per-project databases | ✓ |
 | V8.3 | Thread safety | HybridSearch thread safety + bug fixes | ✓ |
-| v8.5.0 | Living memory | Living memory — Ebbinghaus lifecycle, 5 tiers, link graph, 20 MCP tools | ✓ (this paper) |
+| v8.5.0 | Living memory | Living memory — Ebbinghaus lifecycle, 5 tiers, link graph, 20 MCP tools (later bumped to 23 in v8.5.1) | ✓ (this paper) |
 | V8.4.1 | Dynamic injection | Dynamic injection + sync tools | ✓ (this paper) |
 
 ![MATHIR Architecture](assets/Mathir_architecture.png)
@@ -1538,7 +1538,7 @@ All code, tests, and benchmark scripts are available at the project repository:
 - **Test scripts:** `tests/test_hybrid.py`, `tests/test_raw_embedding.py`, `tests/test_ensemble.py`, `tests/test_faiss_memory.py`
 - **Benchmark scripts:** `benchmarks/compare_all_approaches.py`, `benchmarks/approach_d_vs_faiss.py`
 - **Results:** `compare_all_approaches_results.json`, `approach_d_vs_faiss_results.json`, `v6_vs_v7_results.json`
-- **Daemon:** `mathir_mcp/mathir_lib/mathir_server.py` (TCP socket server, port 7338)
+- **Daemon:** `mathir_mcp/mathir_lib/mathir_server.py` (Flask + Waitress HTTP server, port 7338; replaced raw TCP socket in v8.5.0)
 - **Hybrid search:** `mathir_search.py` (HybridSearch with BM25 + RRF fusion)
 
 To reproduce the results:
@@ -2103,7 +2103,7 @@ This appendix provides the test configurations and the test results for each of 
 | memory_hybrid_search | 10/10 | ✅ PASS | 47–65ms |
 | **Total daemon** | **50/50** | **✅ PASS** | **~60ms avg** |
 
-The daemon stress tests verify that the TCP socket server handles concurrent requests without thread-safety issues. V8.3 fixed two critical bugs:
+The daemon stress tests verify that the HTTP server (Flask + Waitress since v8.5.0; raw TCP socket before) handles concurrent requests without thread-safety issues. V8.3 fixed two critical bugs:
 1. **3rd-request hang**: Local imports shadowed global `get_embedder_dim`, causing `UnboundLocalError` in the `ping` handler → daemon thread crashed silently.
 2. **Hybrid search timeout**: `VecMemory` created in main thread was used in handler threads → `ProgrammingError: SQLite objects created in a thread can only be used in that same thread`. Fixed with `check_same_thread=False` and per-request SQLite connections for hybrid search.
 
