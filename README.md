@@ -45,7 +45,7 @@ mathir-server &
 # Add mathir to your MCP config — 23 tools available.
 ```
 
-Full install: [mathir_mcp/README.md](mathir_mcp/README.md) · Cold-boot auto-start: [mathir_mcp/bin/](mathir_mcp/bin/)
+Full install: [mathir_mcp/README.md](mathir_mcp/README.md) · Cold-boot auto-start: [mathir_mcp/INSTALL_FOR_AGENT/](mathir_mcp/INSTALL_FOR_AGENT/)
 
 ---
 
@@ -192,9 +192,9 @@ Install: `pip install -e ./mathir_mcp`
 
 ## 🛠️ Install Scripts
 
-Cross-platform: `python mathir_mcp/bin/install_smart.py --autostart-only` (Windows / macOS / Linux).
+Cross-platform: `python mathir_mcp/INSTALL_FOR_AGENT/install_smart.py --autostart-only` (Windows / macOS / Linux).
 
-Manual: see [INSTALL/INSTALL_WINDOWS.md](mathir_mcp/INSTALL/INSTALL_WINDOWS.md) · [INSTALL_LINUX.md](mathir_mcp/INSTALL/INSTALL_LINUX.md) · [INSTALL_MACOS.md](mathir_mcp/INSTALL/INSTALL_MACOS.md).
+Manual: see [INSTALL_FOR_DEV/INSTALL_WINDOWS.md](mathir_mcp/INSTALL_FOR_DEV/INSTALL_WINDOWS.md) · [INSTALL_FOR_DEV/INSTALL_LINUX.md](mathir_mcp/INSTALL_FOR_DEV/INSTALL_LINUX.md) · [INSTALL_FOR_DEV/INSTALL_MACOS.md](mathir_mcp/INSTALL_FOR_DEV/INSTALL_MACOS.md).
 
 ---
 
