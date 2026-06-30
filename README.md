@@ -45,7 +45,7 @@ mathir-server &
 # Add mathir to your MCP config — 23 tools available.
 ```
 
-Full install: [mathir_mcp/README.md](mathir_mcp/README.md) · Cold-boot auto-start: [mathir_mcp/INSTALL_FOR_AGENT/](mathir_mcp/INSTALL_FOR_AGENT/)
+Full install: [mathir_mcp/README.md](mathir_mcp/README.md) · Cross-platform installer: `python mathir_mcp/INSTALL_FOR_DEV/install_smart.py` (see [🛠️ Install Scripts](#-install-scripts) below)
 
 ---
 
@@ -58,6 +58,68 @@ Full install: [mathir_mcp/README.md](mathir_mcp/README.md) · Cold-boot auto-sta
 **Auto-classify:** `block_type="auto"` routes by heuristic
 
 Full diff: [CHANGELOG.md](CHANGELOG.md)
+
+---
+
+## 🏗️ Universal Architecture — How MATHIR runs everywhere
+
+MATHIR has **2 long-running processes** + **1 cross-tool instruction file**:
+
+```
+┌─────────────────────────────────────────────┐
+│ DAEMON (port 7338) — mathir-server          │
+│ Flask + Waitress · sqlite-vec · embedder    │
+│ Holds the model in RAM/VRAM, exposes HTTP   │
+└─────────────────────────────────────────────┘
+                    ▲ HTTP
+                    │
+   ┌────────────────┼────────────────┐
+   │                │                │
+┌─────────────────┐ ┌──────────────────┐ ┌──────────────────┐
+│ MCP BRIDGE      │ │ MCP BRIDGE        │ │ MCP BRIDGE        │
+│ opencode        │ │ mimocode          │ │ any OpenAI-comp.  │
+│ (stdio → HTTP)  │ │ (stdio → HTTP)    │ │ Claude / Cline /  │
+└─────────────────┘ └──────────────────┘ │ Cursor / etc.     │
+                                          └──────────────────┘
+                                                    ▲
+                                                    │ baseUrl
+                                          ┌──────────────────┐
+                                          │ PROXY (port 7339) │
+                                          │ mathir-proxy      │
+                                          │ Universal OpenAI- │
+                                          │ compatible injec- │
+                                          │ tion (works for   │
+                                          │ ANY agent that    │
+                                          │ redirects baseUrl)│
+                                          └──────────────────┘
+```
+
+**3 coverage tiers** (honest disclosure):
+
+| Tier | Mechanism | Agents | Coverage |
+|---|---|---|---|
+| **A — Plugin auto-inject** | `mathir-auto-inject.ts` hooks `session.started` + `experimental.chat.system.transform` — no agent cooperation needed | opencode, mimocode | TRUE auto-inject |
+| **B — Instructions + MCP** | MCP server registered + `GLOBAL_INSTRUCTIONS.md` injected. Agent must follow the advisory instruction to call `memory_session_start` | claude-code, cursor, cline, zcode, codex, etc. (14 agents) | SOFT — agent must comply |
+| **C — MCP only** | MCP server registered, no behavioral prompt | windsurf, gemini-cli, kilo, qwen, kiro-ide, warp, trae, crush, etc. (34 agents) | NONE — set `OPENAI_BASE_URL=http://127.0.0.1:7339/v1` |
+
+**Universal escape hatches** (escape from tier C → true auto-inject):
+
+1. **`mathir-proxy` on port 7339** — OpenAI-compatible LLM proxy. Intercepts every `/v1/chat/completions`, queries daemon `/api/context`, prepends `<mathir-auto-injection>` block to system prompt. **Works for ANY agent that redirects its baseUrl**.
+   ```bash
+   export OPENAI_BASE_URL=http://127.0.0.1:7339/v1
+   ```
+
+2. **`AGENTS.md` at repo root** — read automatically by 26+ agents (Aider, Amp, Claude Code, Codex, Cursor, Devin, Factory, Goose, JetBrains Junie, Jules, OpenCode, VS Code Copilot, Warp, Zed, etc. — see [agents.md](https://agents.md)). Instructs the agent to call `memory_session_start` on first turn + `memory_context` before each task.
+   ```bash
+   cp mathir_mcp/opencode_templates/AGENTS.md /path/to/your/project/AGENTS.md
+   ```
+
+**Per-project DB routing** — each project gets its own `.mathir/mathir.db`:
+- Mycerise_V2_Taur → `Mycerise_V2_Taur/.mathir/mathir.db`
+- mathir_mcp (installer) → `~/.config/MATHIR/mathir_mcp/.mathir/mathir.db`
+- Future projects → `<project>/.mathir/mathir.db` (auto-created on first save)
+
+Routing is fixed in v8.5.1: `mathir_mcp_server.py` injects `project` + `cwd` into every request; `mathir_server.py` uses them to pick the right DB.
 
 ---
 
