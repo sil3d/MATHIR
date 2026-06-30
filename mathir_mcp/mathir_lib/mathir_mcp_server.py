@@ -186,6 +186,13 @@ def _call_daemon_raw(method: str, params: dict = None) -> dict:
     """Forward call to daemon HTTP API (no augmentation)."""
     # Remove None values and send as flat JSON
     clean = {k: v for k, v in (params or {}).items() if v is not None}
+    # Always inject the calling project's context so the daemon can route
+    # writes/reads to the right per-project DB instead of falling back to its
+    # own CWD. Critical: the daemon was launched from somewhere (Startup
+    # folder or shell) — its CWD is NOT the agent's project CWD.
+    if "project" not in clean or not clean.get("project"):
+        clean["project"] = get_project_name()
+    clean["cwd"] = str(Path.cwd())
     payload = json.dumps(clean).encode()
 
     # Map method names to daemon HTTP endpoints
