@@ -25,7 +25,7 @@
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org)
 [![MIT](https://img.shields.io/badge/License-MIT-22c55e)](LICENSE)
 [![v8.5.1](https://img.shields.io/badge/Version-8.5.1-6366f1)](CHANGELOG.md)
-[![226 tests](https://img.shields.io/badge/Tests-226%20passed-22c55e)](#-tests--benchmarks)
+[![189 tests](https://img.shields.io/badge/Tests-189%20passed-22c55e)](#-tests--benchmarks)
 
 </div>
 
@@ -280,7 +280,7 @@ Full comparison: [docs/07_MATHIR_VS_VECTORDB_USE_CASES.md](docs/07_MATHIR_VS_VEC
 
 ## 📊 Tests & Benchmarks
 
-**226/226 tests pass**. Run yourself:
+**189/189 tests pass**. Run yourself:
 
 ```bash
 pytest mathir_mcp/tests/ -v

@@ -1,8 +1,8 @@
-# MATHIR — Agent Deployment Guide (v8.5.0)
+# MATHIR — Agent Deployment Guide (v8.5.1)
 
 **Universal install: one folder, 50+ agents, zero config.**
 
-**v8.5.0 highlights**: FastMCP 3.4.2 server, **20 MCP tools** (was 19 in v8.4.1), auto-injection plugin, unified HTTP daemon, **and an OpenAI-compatible proxy (port 7339) that injects memory into EVERY system prompt — works for any agent that redirects its baseUrl**. See [CHANGELOG.md](../../CHANGELOG.md) for details.
+**v8.5.1 highlights**: FastMCP 3.4.2 server, **23 MCP tools** (was 20 in v8.5.0), auto-injection plugin, unified HTTP daemon, **and an OpenAI-compatible proxy (port 7339) that injects memory into EVERY system prompt — works for any agent that redirects its baseUrl**. See [CHANGELOG.md](../../CHANGELOG.md) for details.
 
 ---
 
@@ -364,11 +364,11 @@ Vector + BM25 + RRF fusion (k=60). ~60ms per search.
 | `memory_smart_search` | Hybrid (vector + text, best quality) |
 | `memory_hybrid_search` | Explicit vector+BM25 fusion with tunable weights |
 
-Note: `memory_search` was removed in v8.3 — functionality folded into `memory_smart_search` (auto-tuned weights, default k=10). v8.5.0 has **20 tools total** (2 auto-injection + 10 basic + 7 lifecycle + 1 health check).
+Note: `memory_search` was removed in v8.3 — functionality folded into `memory_smart_search` (auto-tuned weights, default k=10). v8.5.1 has **23 tools total** (2 auto-injection + 10 basic + 7 lifecycle + 3 advanced + 1 health check).
 
 ---
 
-## MCP Tools (20 in v8.5.0)
+## MCP Tools (23 in v8.5.1)
 
 ### Basic (every day)
 | Tool | Description |
@@ -384,7 +384,7 @@ Note: `memory_search` was removed in v8.3 — functionality folded into `memory_
 | `memory_stats` | Get statistics by tier/agent/project |
 | `memory_dashboard` | Launch / check Neural Memory Dashboard |
 
-### Lifecycle (v8.5.0 NEW — living memory)
+### Lifecycle (living memory)
 | Tool | Description |
 |------|-------------|
 | `memory_promote` | Move a memory to the next tier (Ebbinghaus rules) |
@@ -408,7 +408,7 @@ Canonical list — matches `mathir_lib/mathir_mcp_server.py` TOOLS array.
 
 ---
 
-## Brain Architecture (5 Phases, v8.5.0)
+## Brain Architecture (5 Phases)
 
 | Phase | Script | Purpose |
 |---|---|---|
@@ -418,7 +418,7 @@ Canonical list — matches `mathir_lib/mathir_mcp_server.py` TOOLS array.
 | 4 | `mathir_consolidate.py` | Nightly: merge duplicates, decay unused, archive dead |
 | 5 | `mathir_prime.py` | Pre-cognitive: senses cwd/git before user query |
 
-### How memory works in v8.5.0
+### How memory works
 
 **Two paths, both supported:**
 
