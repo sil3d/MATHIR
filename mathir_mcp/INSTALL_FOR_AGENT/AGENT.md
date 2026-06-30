@@ -605,6 +605,87 @@ pip install nvidia-cublas-cu12 nvidia-cudnn-cu12
 | MCP not showing | Wrong config key | **OpenCode & MiMo Code v0.1.3+** use `"mcp"`; **Claude Code, Cursor, Cline, Windsurf, Gemini, Zcode** use `"mcpServers"` |
 | Installer writes wrong path | Old cached script | Delete `__pycache__` in `~/.config/MATHIR/` |
 
+---
+
+## Updating MATHIR (v8.5.1+)
+
+MATHIR self-updates via GitHub Releases. Three things happen automatically:
+
+1. **GitHub Action** (`.github/workflows/release.yml`) builds a `mathir-bundle-<version>.zip` on every push to `main` (dev prerelease) and every `v*.*.*` tag (stable).
+2. **Daemon `/health`** polls GitHub every hour (cached) and exposes `update_available`, `latest_version`, `update_command`. The opencode/mimocode auto-inject plugin surfaces this to the agent at session start.
+3. **`python -m mathir_mcp update`** is the user-facing command — atomic state machine with backup + migration + rollback.
+
+### Check for updates
+
+```bash
+python -m mathir_mcp check              # quick status
+python -m mathir_mcp check --force     # bypass cache, hit GitHub now
+python -m mathir_mcp check --include-prerelease  # also see -rc/-dev releases
+```
+
+Output:
+```
+MATHIR Update Check
+  current:      v8.5.1
+  latest:       v8.5.2
+  install mode: git
+  install path: /home/user/.config/MATHIR/mathir_mcp
+  [!] UPDATE AVAILABLE
+  release:      https://github.com/sil3d/MATHIR/releases/tag/v8.5.2
+  run:          python -m mathir_mcp update
+```
+
+### Apply an update
+
+```bash
+# To the latest stable release:
+python -m mathir_mcp update
+
+# To a specific version:
+python -m mathir_mcp update --to v8.5.2
+
+# From a local bundle zip (offline / air-gapped):
+python -m mathir_mcp update --from-bundle ./mathir-bundle-8.5.2.zip
+
+# Preview the plan without changing anything:
+python -m mathir_mcp update --dry-run
+
+# Auto-apply schema migrations without prompting:
+python -m mathir_mcp update --force-apply
+```
+
+The state machine does: **DETECT → DISCOVER → BACKUP → DOWNLOAD → APPLY → MIGRATE → RESTART → REPORT**.
+
+If any step fails, it auto-restores from the backup. Backups live in `~/.config/MATHIR/.backups/<old-version>-<timestamp>/` (kept last 10).
+
+### Rollback
+
+If an update breaks something subtle hours/days later:
+
+```bash
+python -m mathir_mcp rollback
+```
+
+This restores from the most recent backup and re-verifies daemon health.
+
+### How auto-detection works
+
+| Install layout | Mode | Update mechanism |
+|---|---|---|
+| `~/.config/MATHIR/mathir_mcp/.git` exists | **git** | `git fetch + git checkout v<target>` (refuses if local mods) |
+| `~/.config/MATHIR/mathir_mcp/` only (pip install -e) | **bundle** | Downloads `mathir-bundle-<version>.zip` from GitHub Releases |
+
+Set `MATHIR_DAEMON_RESTART` env var to override the daemon-restart mechanism (otherwise Windows uses `mathir_daemon_startup.bat` from Startup folder).
+
+### Agent-copy sync
+
+After every successful update, the CLI also syncs:
+- `mathir_mcp_server.py` → `~/.config/opencode/tools/mathir_mcp/mathir_lib/` and `~/.config/mimocode/tools/mathir_mcp/mathir_lib/`
+- `mathir-auto-inject.ts` → `~/.config/opencode/plugins/` and `~/.config/mimocode/plugins/`
+- `GLOBAL_INSTRUCTIONS.md` → agent config roots
+
+So all agents (opencode + mimocode + any tier-C via proxy 7339) pick up the new code automatically without manual file copying.
+
 ### Multilingual Help (EN/FR/ES/ZH)
 
 **EN:** If installer fails, give the entire `~/.config/MATHIR/` folder to your coding agent. It will read `INSTALL_FOR_AGENT/AGENT.md` and configure MATHIR automatically. If you have no coding agents, install OpenCode from https://opencode.ai/ — many free models available.
