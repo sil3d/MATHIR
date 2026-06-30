@@ -185,16 +185,41 @@ def discover_dbs() -> list[Path]:
     """Return all candidate ``mathir.db`` paths to inspect."""
     paths: list[Path] = []
 
-    # 1. Global legacy DB
+    # 1. Global legacy DB (canonical)
     if LEGACY_DB_PATH.exists():
         paths.append(LEGACY_DB_PATH)
 
-    # 2. Per-project DBs
+    # 2. Per-project DBs (canonical)
     if PROJECTS_DIR.exists():
         for project_dir in PROJECTS_DIR.iterdir():
             db = project_dir / "mathir.db"
             if db.exists():
                 paths.append(db)
+
+    # 3. Deployed daemon's own .mathir/ (MATHIR_HOME/mathir_mcp/.mathir/)
+    #    Auto-detected for users who installed via pip install -e (editable).
+    deployed = Path.home() / ".config" / "MATHIR" / "mathir_mcp" / ".mathir" / "mathir.db"
+    if deployed.exists() and deployed not in paths:
+        paths.append(deployed)
+
+    # 4. Wildcard: any *.mathir/mathir.db under common dev areas (best-effort).
+    import os as _os
+    for root in (Path.home() / "Documents", Path.home() / "Desktop"):
+        if not root.exists():
+            continue
+        # bounded walk (3 levels deep) to avoid huge home-dir scans
+        try:
+            for dirpath, dirnames, _ in _os.walk(root):
+                depth = Path(dirpath).relative_to(root).parts
+                if len(depth) > 3:
+                    dirnames.clear()
+                    continue
+                if ".mathir" in dirnames:
+                    candidate = Path(dirpath) / ".mathir" / "mathir.db"
+                    if candidate.exists() and candidate not in paths:
+                        paths.append(candidate)
+        except (PermissionError, OSError):
+            continue
 
     return paths
 
