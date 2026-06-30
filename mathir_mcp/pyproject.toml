@@ -29,6 +29,9 @@ dependencies = [
 ]
 license = {text = "MIT"}
 
+[project.optional-dependencies]
+dev = ["pytest"]
+
 [project.scripts]
 mathir-mcp       = "mathir_mcp.mathir_lib.mathir_mcp_server:main"
 mathir-server    = "mathir_mcp.mathir_lib.mathir_server:main"
