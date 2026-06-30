@@ -681,6 +681,89 @@ memories = plugin.recall(query, k=5)
 
 ---
 
+## 17. Universal Architecture (v8.5.0 / v8.5.1) {#17-universal}
+
+### Q17.1: Is MATHIR actually universal across all 50 agents, or is that marketing?
+
+**A:** It's **partial**, and v8.5.1 documents the truth honestly:
+
+**3 coverage tiers:**
+
+| Tier | Mechanism | Agents | Guarantee |
+|---|---|---|---|
+| **A — Plugin auto-inject** | `mathir-auto-inject.ts` hooks `session.started` + `experimental.chat.system.transform` | opencode, mimocode | TRUE auto-injection — agent doesn't need to remember to recall |
+| **B — Instructions + MCP** | MCP server + `GLOBAL_INSTRUCTIONS.md` injected into the agent's instructions path | claude-code, cursor, cline, zcode, codex, etc. (14 agents) | SOFT — agent must comply with the instruction to call `memory_session_start` |
+| **C — MCP only** | MCP server registered, no behavioral prompt | windsurf, gemini-cli, kilo-code, qwen-code, kiro-ide, warp, trae, crush, etc. (34 agents) | NONE — no behavioral prompt to trigger recall |
+
+**Out of 50 agents: 2 have true auto-injection, 14 have soft injection, 34 have MCP tools only.**
+
+### Q17.2: How can a tier-C agent (Windsurf, Gemini CLI, etc.) get true auto-injection?
+
+**A:** Two escape hatches (both shipped in v8.5.0/v8.5.1):
+
+**Escape hatch 1 — MATHIR proxy on port 7339 (`mathir_proxy.py`):**
+```bash
+export OPENAI_BASE_URL=http://127.0.0.1:7339/v1
+```
+The proxy is OpenAI-compatible. It intercepts every `/v1/chat/completions`, queries the daemon at `/api/context`, and prepends `<mathir-auto-injection>` to the system prompt on every call. Works for any agent that redirects its baseUrl (Claude Code via `OPENAI_BASE_URL`, Cursor, Cline, Continue, Codex, Gemini via `OPENAI_BASE_URL`, etc.).
+
+**Escape hatch 2 — `AGENTS.md` at repo root:**
+26+ agents (Aider, Amp, Claude Code, Codex, Cursor, Devin, Factory, Goose, JetBrains Junie, Jules, OpenCode, VS Code Copilot, Warp, Zed, etc. — see [agents.md](https://agents.md)) auto-read `AGENTS.md` at the project root. MATHIR ships a template at `mathir_mcp/opencode_templates/AGENTS.md` that instructs the agent to call `memory_session_start` on first turn + `memory_context` before each task. Copy it to your project:
+```bash
+cp mathir_mcp/opencode_templates/AGENTS.md /path/to/your/project/AGENTS.md
+```
+
+### Q17.3: What's the difference between the daemon (port 7338) and the proxy (port 7339)?
+
+**A:** Two distinct processes:
+
+| Process | Port | Role | Started by |
+|---|---|---|---|
+| **Daemon** | 7338 | HTTP API for memory ops (save/recall/search/migrate). Holds the embedder model in RAM/VRAM. | `python -m mathir_mcp` or `mathir-server` CLI |
+| **Proxy** | 7339 | OpenAI-compatible LLM proxy that injects memory into system prompt on every LLM call | `python mathir_mcp/mathir_lib/mathir_proxy.py --port 7339` |
+
+The daemon is **shared** across all agents (opencode + mimocode + any other MCP client connect to it via HTTP). The proxy is **optional** and only needed for tier-C agents that don't have a plugin or instructions path.
+
+Both are auto-started together by `mathir_daemon_startup.bat` in the Windows Startup folder.
+
+### Q17.4: How does MATHIR know which project's memory to read/write?
+
+**A:** Per-project DB routing (fixed in v8.5.1). Each project gets its own `.mathir/mathir.db`:
+
+| Project | DB path |
+|---|---|
+| `Mycerise_V2_Taur/` | `Mycerise_V2_Taur/.mathir/mathir.db` |
+| `mathir_mcp/` (installer) | `~/.config/MATHIR/mathir_mcp/.mathir/mathir.db` |
+| Future project | `<project>/.mathir/mathir.db` (auto-created) |
+
+**Routing flow:**
+1. `mathir_mcp_server.py` (MCP bridge) always injects `project` (CWD basename) + `cwd` (Path.cwd()) into every daemon HTTP request.
+2. `mathir_server.py` `memory_save` endpoint calls `_resolve_db(project=params.get('project'), cwd=params.get('cwd'))`.
+3. `_resolve_db` returns `<cwd>/.mathir/mathir.db` if it exists, else the canonical `<MATHIR_HOME>/data/projects/<project>/mathir.db`.
+
+Before the v8.5.1 fix, the daemon ignored the agent's CWD and always wrote to its own `.mathir/` directory. This made every non-mathir_mcp project effectively "memory-dead" — recalls returned global data instead of project-specific context.
+
+### Q17.5: How does the daemon know when MATHIR needs a schema migration?
+
+**A:** Auto-detection on warmup (v8.5.1). `vec_mem._schema_kind()` returns `"legacy"` or `"new"` based on whether the `memories` table has a `content` column (new v8.5+) or `modality`/`modality_text` (legacy v8.4-). If legacy:
+- Logs a clear `WARNING` with the exact migration command
+- `/health` endpoint returns `{schema: "legacy", migration_hint: "Run: python -m mathir_mcp.mathir_lib.mathir_migrate --apply (auto-creates .legacy.bak)"}`
+- Every `memory_save` / `memory_delete` response includes a `legacy_schema_warning` field
+
+So the agent sees the warning on every interaction without having to read daemon logs. The user can then run `python -m mathir_mcp.mathir_lib.mathir_migrate --dry-run` to preview, then `--apply` to migrate (auto-backup to `.legacy.bak`).
+
+**Additive migrations** (new columns like `stability`, `last_recalled_at`) are auto-applied by `mathir_vec.py` at startup — no action needed.
+
+### Q17.6: Does MATHIR's "20 tools" claim still hold?
+
+**A:** The doc says "20 MCP tools" but the actual count is **23** in v8.5.1. The 3 new tools are: `memory_by_path`, `memory_recall_quality`, `memory_incoming_links`. The "20" number in some places of the docs is stale — the source code (`mathir_mcp_server.py:152`) lists 23 tools. This is a documentation-only discrepancy, not a functional one.
+
+### Q17.7: How is MATHIR's HTTP daemon different from raw TCP?
+
+**A:** v8.5.0 replaced the legacy `mathir_daemon.py` (raw TCP socket, fragile pipe buffer handling) with `mathir_server.py` (Flask + Waitress, battle-tested HTTP). The MCP clients speak HTTP now. The legacy raw-socket daemon was kept in the codebase (`mathir_daemon.py`) for backward compat but is not used.
+
+---
+
 ## 📋 Quick Reference
 
 | Question | Answer |
