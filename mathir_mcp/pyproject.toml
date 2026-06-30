@@ -9,11 +9,23 @@ description = "MATHIR — universal cognitive memory MCP server for LLM agents"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    # Embedding + vector store
     "sentence-transformers>=2.2.0",
     "sqlite-vec>=0.1.0",
     "numpy>=1.24",
-    "fastmcp>=3.4.0",
     "torch>=2.0",
+    # HTTP server (daemon + dashboard) + production WSGI
+    "flask>=3.0",
+    "waitress>=3.0",
+    # MCP server runtime
+    "fastmcp>=3.4.0",
+    # Universal LLM proxy (mathir_proxy.py)
+    "aiohttp>=3.9",
+    "requests>=2.31",
+    # BM25 hybrid search (mathir_search.py)
+    "rank-bm25>=0.2",
+    # Process utilities (stale PID lock check in updater)
+    "psutil>=5.9",
 ]
 license = {text = "MIT"}
 
