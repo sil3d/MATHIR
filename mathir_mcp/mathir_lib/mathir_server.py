@@ -132,11 +132,30 @@ def _get_vec_mem(db_path, dim):
         return _vec_cache[key]
 
 
-def _resolve_db():
+def _resolve_db(project: str = None, cwd: str = None):
+    """Resolve VecMemory + embedder. Returns (vec_mem, db_path, embedder) or raises.
+
+    Routing priority (v8.5.1 fix):
+      1. Explicit project + cwd from MCP request -> use cwd/.mathir/mathir.db
+      2. Just project -> ~/.config/MATHIR/data/projects/<project>/mathir.db
+      3. No project/cwd -> fall back to get_project_db_path() (CWD-based)
+    """
     dim = get_embedder_dim()
-    db_path = get_project_db_path()
+    db_path = None
+    if cwd and project:
+        cwd_path = Path(cwd)
+        candidate = cwd_path / ".mathir" / "mathir.db"
+        if candidate.parent.exists():
+            db_path = candidate
+        else:
+            # Create .mathir/ alongside the project (use project name for DB)
+            db_path = Path(os.environ.get("MATHIR_HOME", str(Path.home() / ".config" / "mathir"))) / "data" / "projects" / project / "mathir.db"
+    elif project:
+        db_path = Path(os.environ.get("MATHIR_HOME", str(Path.home() / ".config" / "mathir"))) / "data" / "projects" / project / "mathir.db"
     if db_path is None:
-        raise ValueError("No project database found. Set MATHIR_PROJECT env var.")
+        db_path = get_project_db_path(project=project)
+    if db_path is None:
+        raise ValueError("No project database found. Set MATHIR_PROJECT env var or pass project + cwd.")
     vec_mem = _get_vec_mem(db_path, dim)
     embedder = get_embedder()
     return vec_mem, db_path, embedder
@@ -398,7 +417,7 @@ def api_context():
     if not task:
         return jsonify({"error": "task parameter required"}), 400
     try:
-        vec_mem, db_path, embedder = _resolve_db()
+        vec_mem, db_path, embedder = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         query_vec = _encode_query(embedder, task)
         results = vec_mem.search(query_vec, k=k)
         # Normalize results to dicts with metadata
@@ -505,7 +524,7 @@ def memory_save():
     if err:
         return err
     try:
-        vec_mem, _db_path, embedder = _resolve_db()
+        vec_mem, _db_path, embedder = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         content = params['content']
 
         # Risk mitigation
@@ -534,7 +553,7 @@ def memory_save():
             'label': params.get('label', ''),
             'priority': params.get('priority', 5),
             'content': content,
-            'project': get_project_name(),
+            'project': params.get('project') or get_project_name(),
             'risk_warnings': risk_warnings if risk_warnings else None,
         }
         vec_mem.store(memory_id, emb_np, metadata)
@@ -550,7 +569,7 @@ def memory_recall():
     if err:
         return err
     try:
-        vec_mem, _db_path, embedder = _resolve_db()
+        vec_mem, _db_path, embedder = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         query = params.get('query', '')
         k = min(params.get('k', 5), 1000)
         q_np = _encode_query(embedder, query)
@@ -576,7 +595,7 @@ def memory_recall():
 @app.route("/api/memory/stats", methods=["POST", "GET"])
 def memory_stats():
     try:
-        vec_mem, _db_path, _embedder = _resolve_db()
+        vec_mem, _db_path, _embedder = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         return jsonify(vec_mem.stats())
     except Exception as e:
         return jsonify({'error': _sanitize_error(e, 'memory_stats')}), 500
@@ -586,7 +605,7 @@ def memory_stats():
 def memory_delete():
     params = _get_params()
     try:
-        vec_mem, _db_path, _embedder = _resolve_db()
+        vec_mem, _db_path, _embedder = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         memory_id = params.get('memory_id')
         if not memory_id:
             return jsonify({'error': 'memory_id required'}), 400
@@ -603,7 +622,7 @@ def memory_smart_search():
     if err:
         return err
     try:
-        vec_mem, _db_path, embedder = _resolve_db()
+        vec_mem, _db_path, embedder = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         query = params.get('query', '')
         k = min(params.get('k', 10), 1000)
         q_np = _encode_query(embedder, query)
@@ -628,7 +647,7 @@ def memory_push():
         if cached is not None:
             return jsonify({'memories': cached, 'total': len(cached), 'cached': True})
         queries = _push_analyzer.extract_queries(context_text, max_queries=5)
-        vec_mem, _db_path, embedder = _resolve_db()
+        vec_mem, _db_path, embedder = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         all_memories = []
         for q in queries:
             q_np = _encode_query(embedder, q)
@@ -651,7 +670,7 @@ def memory_hybrid_search():
     if err:
         return err
     try:
-        _vec_mem, db_path, embedder = _resolve_db()
+        _vec_mem, db_path, embedder = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         query_text = params.get('query', '')
         k = min(params.get('k', 5), 100)
         vector_weight = params.get('vector_weight', 1.0)
@@ -765,7 +784,7 @@ def memory_risk_check():
 def memory_promote():
     params = _get_params()
     try:
-        vec_mem, _, _ = _resolve_db()
+        vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         return jsonify(vec_mem.promote(params.get('memory_id', ''), force=params.get('force', False)))
     except Exception as e:
         return jsonify({'error': _sanitize_error(e, 'memory_promote')}), 500
@@ -774,7 +793,7 @@ def memory_promote():
 @app.route("/api/memory/auto_promote", methods=["POST"])
 def memory_auto_promote():
     try:
-        vec_mem, _, _ = _resolve_db()
+        vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         promoted = vec_mem.auto_promote_all()
         return jsonify({'promoted': promoted, 'count': len(promoted)})
     except Exception as e:
@@ -785,7 +804,7 @@ def memory_auto_promote():
 def memory_decay():
     params = _get_params()
     try:
-        vec_mem, _, _ = _resolve_db()
+        vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         return jsonify(vec_mem.decay_all(
             threshold_days=params.get('threshold_days', 30),
             archive_floor=params.get('archive_floor', 0.05),
@@ -798,7 +817,7 @@ def memory_decay():
 def memory_consolidate():
     params = _get_params()
     try:
-        vec_mem, _, _ = _resolve_db()
+        vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         return jsonify(vec_mem.consolidate_all(
             threshold=params.get('threshold', 0.95),
             limit=params.get('limit', 100),
@@ -812,7 +831,7 @@ def memory_consolidate():
 def memory_link():
     params = _get_params()
     try:
-        vec_mem, _, _ = _resolve_db()
+        vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         return jsonify(vec_mem.add_link(
             source_id=params.get('source_id', ''),
             target_id=params.get('target_id', ''),
@@ -826,7 +845,7 @@ def memory_link():
 def memory_get_links():
     params = _get_params()
     try:
-        vec_mem, _, _ = _resolve_db()
+        vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         return jsonify({'result': vec_mem.get_links(
             params.get('memory_id', ''),
             depth=params.get('depth', 1),
@@ -841,7 +860,7 @@ def memory_incoming_links():
     """Return all links whose target_id == memory_id (reverse direction)."""
     params = _get_params()
     try:
-        vec_mem, _, _ = _resolve_db()
+        vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         memory_id = params.get('memory_id', '')
         if not memory_id:
             return jsonify({'error': 'memory_id is required'}), 400
@@ -866,7 +885,7 @@ def memory_incoming_links():
 def memory_build_links():
     params = _get_params()
     try:
-        vec_mem, _, _ = _resolve_db()
+        vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         return jsonify(vec_mem.build_links_all(
             threshold=params.get('threshold', 0.7),
             limit=params.get('limit', 1000),
@@ -880,7 +899,7 @@ def memory_audit():
     """Audit log of recent operations."""
     params = _get_params()
     try:
-        vec_mem, _, _ = _resolve_db()
+        vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         agent = params.get("agent")
         limit = params.get("limit", 50)
         conn = vec_mem._get_conn()
@@ -909,7 +928,7 @@ def memory_export():
     """Export all memories as JSON."""
     params = _get_params()
     try:
-        vec_mem, _, _ = _resolve_db()
+        vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         conn = vec_mem._get_conn()
         rows = conn.execute("SELECT memory_id, tier, stability, recall_count, timestamp FROM memories ORDER BY rowid").fetchall()
         memories = [dict(r) for r in rows] if rows else []
@@ -923,7 +942,7 @@ def memory_sessions():
     """List recent memory sessions."""
     params = _get_params()
     try:
-        vec_mem, _, _ = _resolve_db()
+        vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         limit = params.get("limit", 10)
         conn = vec_mem._get_conn()
         # Sessions are derived from metadata JSON field
@@ -964,7 +983,7 @@ def _warmup():
     get_embedder()
     log.info("Embedder ready")
     try:
-        _resolve_db()
+        _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         log.info("DB resolved")
     except Exception as e:
         log.warning(f"DB warmup failed: {e}")
