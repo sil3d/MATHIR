@@ -43,7 +43,7 @@ Full signatures: see [`mathir_lib/mathir_mcp_server.py`](mathir_lib/mathir_mcp_s
 
 | Doc | Purpose |
 |---|---|
-| **[docs/AGENT.md](docs/AGENT.md)** | Per-agent config (50+ agents) & troubleshooting |
+| **[INSTALL_FOR_AGENT/AGENT.md](INSTALL_FOR_AGENT/AGENT.md)** | Per-agent config (50+ agents) & troubleshooting |
 | **[docs/DAEMON.md](docs/DAEMON.md)** | Daemon HTTP/JSON-RPC protocol + security |
 | **[docs/DASHBOARD_GUIDE.md](docs/DASHBOARD_GUIDE.md)** | Stats dashboard setup |
 | **[docs/GPU_SETUP.md](docs/GPU_SETUP.md)** | GPU/ONNX acceleration |
@@ -54,7 +54,7 @@ Full signatures: see [`mathir_lib/mathir_mcp_server.py`](mathir_lib/mathir_mcp_s
 
 ## 🆘 If Installer Fails
 
-Give the `~/.config/MATHIR/` folder to your coding agent. It reads `docs/AGENT.md` and configures MATHIR automatically.
+Give the `~/.config/MATHIR/` folder to your coding agent. It reads `INSTALL_FOR_AGENT/AGENT.md` and configures MATHIR automatically.
 
 ---
 

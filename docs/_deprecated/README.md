@@ -23,7 +23,7 @@ the 5-tier taxonomy with `immunological`).
 
 For v8.4.0, read these instead:
 
-- `docs/AGENT.md` (updated in v8.4.0) — agent integration guide
+- `INSTALL_FOR_AGENT/AGENT.md` (updated in v8.4.0) — agent integration guide
 - `docs/DAEMON.md` — daemon architecture
 - `docs/DASHBOARD_GUIDE.md` (updated in v8.4.0) — dashboard usage
 - `docs/DIMENSIONS.md` — embedding model dimensions
