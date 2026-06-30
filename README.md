@@ -192,9 +192,9 @@ Install: `pip install -e ./mathir_mcp`
 
 ## 🛠️ Install Scripts
 
-Cross-platform: `python mathir_mcp/INSTALL_FOR_AGENT/install_smart.py --autostart-only` (Windows / macOS / Linux).
+Cross-platform: `python mathir_mcp/INSTALL_FOR_DEV/install_smart.py --autostart-only` (Windows / macOS / Linux).
 
-Manual: see [INSTALL_FOR_DEV/INSTALL_WINDOWS.md](mathir_mcp/INSTALL_FOR_DEV/INSTALL_WINDOWS.md) · [INSTALL_FOR_DEV/INSTALL_LINUX.md](mathir_mcp/INSTALL_FOR_DEV/INSTALL_LINUX.md) · [INSTALL_FOR_DEV/INSTALL_MACOS.md](mathir_mcp/INSTALL_FOR_DEV/INSTALL_MACOS.md).
+Manual: see [INSTALL_FOR_AGENT/INSTALL_WINDOWS.md](mathir_mcp/INSTALL_FOR_AGENT/INSTALL_WINDOWS.md) · [INSTALL_FOR_AGENT/INSTALL_LINUX.md](mathir_mcp/INSTALL_FOR_AGENT/INSTALL_LINUX.md) · [INSTALL_FOR_AGENT/INSTALL_MACOS.md](mathir_mcp/INSTALL_FOR_AGENT/INSTALL_MACOS.md).
 
 ---
 

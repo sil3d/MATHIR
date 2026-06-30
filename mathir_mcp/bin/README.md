@@ -84,7 +84,7 @@ MATHIR on a fresh machine.
 
 ## See also
 
-- `../INSTALL_FOR_DEV/INSTALL_WINDOWS.md` — full Windows install
-- `../INSTALL_FOR_DEV/INSTALL_LINUX.md` — full Linux install
-- `../INSTALL_FOR_DEV/INSTALL_MACOS.md` — full macOS install
+- `../INSTALL_FOR_AGENT/INSTALL_WINDOWS.md` — full Windows install
+- `../INSTALL_FOR_AGENT/INSTALL_LINUX.md` — full Linux install
+- `../INSTALL_FOR_AGENT/INSTALL_MACOS.md` — full macOS install
 - `../opencode/README.md` — template injection system docs

@@ -158,7 +158,7 @@ When you need to reference MATHIR files, use these paths:
 | Auto-start (Unix) | `~/.config/opencode/bin/auto_start.sh` |
 | Service (Linux) | `bin/mathir-daemon.service` (in source repo) |
 | Plist (macOS) | `bin/com.mathir.daemon.plist` (in source repo) |
-| Install guides | `mathir_mcp/INSTALL_FOR_DEV/INSTALL_{WINDOWS,LINUX,MACOS}.md` |
+| Install guides | `mathir_mcp/INSTALL_FOR_AGENT/INSTALL_{WINDOWS,LINUX,MACOS}.md` |
 | Templates | `mathir_mcp/opencode/{agents,commands,skills,docs}/` |
 | Dashboard | `~/.config/opencode/bin/mathir_dashboard.html` |
 | Logs | `~/.config/opencode/bin/mathir_daemon.log` |

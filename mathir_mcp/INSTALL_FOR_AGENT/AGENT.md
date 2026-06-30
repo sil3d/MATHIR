@@ -11,7 +11,7 @@
 ```
 You need 3 things:
 1. Install MATHIR: ~/.config/MATHIR/ (global, once) — see Step 1 for the EXACT layout
-2. Run installer:  python ~/.config/MATHIR/INSTALL_FOR_AGENT/install_smart.py
+2. Run installer:  python ~/.config/MATHIR/INSTALL_FOR_DEV/install_smart.py
 3. That's it.
 
 The installer auto-detects your coding agents and configures them.
@@ -27,7 +27,7 @@ Each project gets its own database at .mathir/mathir.db.
 ```
 You need 3 things:
 1. Install MATHIR: ~/.config/MATHIR/ (global, once) — must end with the layout in §"Global Install Structure"
-2. Run installer:  python ~/.config/MATHIR/INSTALL_FOR_AGENT/install_smart.py
+2. Run installer:  python ~/.config/MATHIR/INSTALL_FOR_DEV/install_smart.py
 3. That's it.
 
 The installer auto-detects your coding agents and configures them.
@@ -64,14 +64,14 @@ If you have layout A, restructure first (see §"Restructuring After Clone" below
 
 ```bash
 # Windows (double-click)
-~/.config/MATHIR/INSTALL_FOR_AGENT/install.bat
+~/.config/MATHIR/INSTALL_FOR_DEV/install.bat
 
 # Mac/Linux (terminal)
-chmod +x ~/.config/MATHIR/INSTALL_FOR_AGENT/install.sh
-~/.config/MATHIR/INSTALL_FOR_AGENT/install.sh
+chmod +x ~/.config/MATHIR/INSTALL_FOR_DEV/install.sh
+~/.config/MATHIR/INSTALL_FOR_DEV/install.sh
 
 # Or directly (note: installer lives under INSTALL_FOR_AGENT/, not at the MATHIR root)
-python ~/.config/MATHIR/INSTALL_FOR_AGENT/install_smart.py
+python ~/.config/MATHIR/INSTALL_FOR_DEV/install_smart.py
 ```
 
 The installer is interactive: type `A` to configure all detected agents, or pick specific numbers (comma-separated).
@@ -188,7 +188,7 @@ It will read `INSTALL_FOR_AGENT/AGENT.md` and configure MATHIR automatically.
 ├── README.md
 └── CHANGELOG.md
 
-NOTE: The `~/.config/MATHIR/INSTALL_FOR_AGENT/install_smart.py` script reads its source
+NOTE: The `~/.config/MATHIR/INSTALL_FOR_DEV/install_smart.py` script reads its source
 location via `Path(__file__).resolve().parent.parent` then appends `mathir_mcp`
 to find the package to copy into each agent's tools dir. So the layout above
 (with `mathir_mcp/` as a subdirectory of `~/.config/MATHIR/`) is the **only
