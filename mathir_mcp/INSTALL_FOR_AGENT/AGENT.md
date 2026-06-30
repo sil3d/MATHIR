@@ -2,7 +2,46 @@
 
 **Universal install: one folder, 50+ agents, zero config.**
 
-**v8.5.0 highlights**: FastMCP 3.4.2 server, **20 MCP tools** (was 19 in v8.4.1), auto-injection plugin, unified HTTP daemon. See [CHANGELOG.md](../../CHANGELOG.md) for details.
+**v8.5.0 highlights**: FastMCP 3.4.2 server, **20 MCP tools** (was 19 in v8.4.1), auto-injection plugin, unified HTTP daemon, **and an OpenAI-compatible proxy (port 7339) that injects memory into EVERY system prompt — works for any agent that redirects its baseUrl**. See [CHANGELOG.md](../../CHANGELOG.md) for details.
+
+---
+
+## ⚡ REAL Universal Coverage: 3 injection tiers
+
+MATHIR is supposed to be universal. Here is the **honest** breakdown of what each agent actually gets:
+
+| Tier | Mechanism | Agents |
+|---|---|---|
+| **A — Plugin auto-inject** | `mathir-auto-inject.ts` hooks `session.started` + `experimental.chat.system.transform`. **True auto-injection** — does not rely on the agent remembering to call `memory_recall`. | opencode, mimocode |
+| **B — Instructions + MCP** | MCP server registered + `GLOBAL_INSTRUCTIONS.md` injected into the agent's instruction path. **Soft guarantee** — the agent must follow the instruction to call `memory_session_start` / `memory_context`. | claude-code, cursor, cline, zcode, codex, etc. (14 agents) |
+| **C — MCP only** | MCP server registered only. **No behavioral prompt** — agent has no reason to recall memory. | windsurf, gemini-cli, kilo-code, qwen-code, kiro-ide, warp, trae, crush, etc. (34 agents) |
+
+### The escape hatch for Tier C: **MATHIR proxy on port 7339**
+
+Any OpenAI-compatible agent (which includes ~all of them: Claude Code via `OPENAI_BASE_URL`, Cursor, Cline, Continue, Codex) can point its baseUrl at `http://127.0.0.1:7339/v1`. The proxy intercepts every LLM call, queries the MATHIR daemon for relevant memories, and **prepends them to the system prompt** as a `<mathir-auto-injection>` block — silently, on every call, regardless of whether the agent cooperates.
+
+This is the **true universal coverage**. It is shipped with MATHIR (script at `~/.config/MATHIR/mathir_mcp/mathir_lib/mathir_proxy.py`) and auto-started alongside the daemon on Windows login (see `mathir_daemon_startup.bat` in the Startup folder).
+
+```bash
+# Start the proxy (daemon must already be running on 7338)
+python -m mathir_mcp.mathir_lib.mathir_proxy     # port 7339
+# OR:
+python ~/.config/MATHIR/mathir_mcp/mathir_lib/mathir_proxy.py --port 7339
+
+# Then in your agent:
+export OPENAI_BASE_URL=http://127.0.0.1:7339/v1
+# Done. Every LLM call now has memory auto-injected.
+```
+
+### The other escape hatch: **`AGENTS.md` at repo root**
+
+26+ agents (Aider, Amp, Claude Code, Codex, Cursor, Devin, Factory, Goose, JetBrains Junie, Jules, OpenCode, VS Code Copilot, Warp, Zed, etc. — see https://agents.md) auto-read `AGENTS.md` at the project root. MATHIR ships a template at `mathir_mcp/opencode_templates/AGENTS.md` that you can copy to any project:
+
+```bash
+cp ~/.config/MATHIR/mathir_mcp/opencode_templates/AGENTS.md /path/to/your/project/AGENTS.md
+```
+
+The template instructs the agent to call `memory_session_start` on first turn + `memory_context` before each task. **Combined with the proxy, this gives 100% coverage for the agents that follow agents.md + 100% for OpenAI-compatible ones.**
 
 ---
 
