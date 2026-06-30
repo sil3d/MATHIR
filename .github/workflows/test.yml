@@ -1,0 +1,59 @@
+name: test
+
+# Runs on every push and PR. Validates the package imports, schema
+# detection, and HTTP /health endpoint. Cheap (~2 min) — kept
+# separate from release.yml so PRs don't trigger release artifacts.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  smoke:
+    name: smoke test (python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ./mathir_mcp
+
+      - name: Import check
+        run: |
+          python -c "import mathir_mcp; import mathir_mcp.mathir_lib.mathir_server; \
+                     import mathir_mcp.mathir_lib.mathir_mcp_server; \
+                     import mathir_mcp.mathir_lib.mathir_update_check; \
+                     print('All imports OK')"
+
+      - name: Unit tests
+        run: python -m pytest mathir_mcp/tests/ -q --tb=short
+
+      - name: Daemon health smoke test
+        run: |
+          # Start daemon in background
+          python -m mathir_mcp &
+          DAEMON_PID=$!
+          # Embedder load is slow on first run (~15s)
+          sleep 25
+          # Hit /health
+          HEALTH=$(curl -s http://127.0.0.1:7338/health)
+          echo "Response: $HEALTH"
+          echo "$HEALTH" | python -c "import json,sys; d=json.load(sys.stdin); assert d.get('status')=='ok', d; print('health OK')"
+          # Hit /api/ping
+          PING=$(curl -s http://127.0.0.1:7338/api/ping)
+          echo "Ping: $PING"
+          echo "$PING" | python -c "import json,sys; d=json.load(sys.stdin); assert d.get('pong') is True, d; print('ping OK')"
+          # Clean up
+          kill $DAEMON_PID || true

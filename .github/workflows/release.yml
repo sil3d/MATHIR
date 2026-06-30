@@ -1,0 +1,132 @@
+name: release
+
+# Triggers:
+#  - Push of a tag v*.*.*       -> stable release (latest)
+#  - Push to main with conventional-commit 'release:' prefix -> dev prerelease
+#  - Manual workflow_dispatch    -> on-demand build of current main
+#
+# What it does:
+#  1. Run tests on Python 3.10, 3.11, 3.12
+#  2. Resolve the release version (from tag name OR pyproject + sha)
+#  3. Build a standalone bundle (zip) excluding .git, tests, dev, node_modules
+#  4. Generate changelog from conventional commits since last tag
+#  5. Create the GitHub Release with the bundle attached
+#
+# Output: GitHub Release named e.g. '8.5.2' (stable) or '8.5.2-dev.abc1234' (dev)
+#         Bundle: mathir-bundle-<version>.zip (~2 MB)
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+  workflow_dispatch:
+
+permissions:
+  contents: write   # needed to create releases + upload assets
+
+jobs:
+  test:
+    name: test (${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ./mathir_mcp
+      - name: Run unit tests
+        run: python -m pytest mathir_mcp/tests/ -q --tb=short
+
+  release:
+    name: build + publish release
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history for changelog generation
+
+      - name: Resolve version
+        id: ver
+        run: |
+          set -e
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            # Tag push: v8.5.1 -> 8.5.1
+            VERSION="${GITHUB_REF_NAME#v}"
+            PRERELEASE="false"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # Manual: use current pyproject version
+            VERSION=$(grep '^version' mathir_mcp/pyproject.toml | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+            PRERELEASE="true"
+          else
+            # Push to main: <current>-dev.<sha7>
+            BASE=$(grep '^version' mathir_mcp/pyproject.toml | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+            SHA="${GITHUB_SHA::7}"
+            VERSION="${BASE}-dev.${SHA}"
+            PRERELEASE="true"
+          fi
+          echo "VERSION=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "PRERELEASE=${PRERELEASE}" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: ${VERSION} (prerelease=${PRERELEASE})"
+
+      - name: Build standalone bundle
+        run: |
+          set -e
+          BUNDLE="mathir-bundle-${VERSION}.zip"
+          # Exclude: .git, tests, dev, node_modules, pycache
+          zip -r "${BUNDLE}" mathir_mcp/ \
+            -x 'mathir_mcp/.git/*' \
+              'mathir_mcp/.pytest_cache/*' \
+              'mathir_mcp/dev/*' \
+              'mathir_mcp/tests/*' \
+              'mathir_mcp/**/*.egg-info/*' \
+              'mathir_mcp/**/__pycache__/*' \
+              'mathir_mcp/**/node_modules/*' \
+              'mathir_mcp/**/.mypy_cache/*' \
+              'mathir_mcp/**/.ruff_cache/*'
+          echo "Built $(ls -lh ${BUNDLE} | awk '{print $5}') bundle"
+
+      - name: Generate changelog from conventional commits
+        if: env.READY_FOR_RELEASE == 'true'
+        run: |
+          set -e
+          # Find the previous tag (skip if none)
+          PREV=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || true)
+          if [[ -z "$PREV" ]]; then
+            echo "No previous tag found, showing last 20 commits"
+            git log --pretty=format:"- %s (%h)" -n 20 > CHANGELOG_FRAGMENT.md
+          else
+            echo "Changes since $PREV:"
+            git log "${PREV}..HEAD" --pretty=format:"- %s (%h)" > CHANGELOG_FRAGMENT.md
+          fi
+          # Prepend version banner
+          { echo "## MATHIR ${VERSION}"; echo ""; cat CHANGELOG_FRAGMENT.md; } > CHANGELOG_TEMP.md
+          mv CHANGELOG_TEMP.md CHANGELOG_FRAGMENT.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name == format('refs/tags/{0}', github.event.release.tag_name) && github.event.release.tag_name || steps.ver.outputs.VERSION }}
+          name: ${{ steps.ver.outputs.VERSION }}
+          body_path: CHANGELOG_FRAGMENT.md
+          files: mathir-bundle-${{ steps.ver.outputs.VERSION }}.zip
+          prerelease: ${{ steps.ver.outputs.PRERELEASE == 'true' }}
+          fail_on_unmatched_files: true
+          draft: false
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Release ${{ steps.ver.outputs.VERSION }}"
+          echo "- Prerelease: ${{ steps.ver.outputs.PRERELEASE }}"
+          echo "- Bundle: mathir-bundle-${{ steps.ver.outputs.VERSION }}.zip"
+          echo "- Trigger: ${{ github.event_name }} (${{ github.ref }})"
