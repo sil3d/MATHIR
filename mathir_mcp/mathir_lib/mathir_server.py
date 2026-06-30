@@ -316,6 +316,14 @@ def api_stats():
         rows = conn.execute("SELECT metadata FROM memories WHERE metadata IS NOT NULL").fetchall()
     except Exception:
         rows = []
+    # Also get block_type from top-level column if available
+    try:
+        columns = {col[1] for col in conn.execute("PRAGMA table_info(memories)").fetchall()}
+        has_block_type_col = "block_type" in columns
+        has_agent_col = "agent" in columns
+    except Exception:
+        has_block_type_col = False
+        has_agent_col = False
     tiers = {"working": 0, "episodic": 0, "semantic": 0, "procedural": 0, "immunological": 0, "unknown": 0}
     agents = {}
     total = 0
@@ -333,6 +341,26 @@ def api_stats():
         except Exception:
             tiers["unknown"] += 1
             total += 1
+    # If metadata-based counts are 0 but memories exist, count from columns directly
+    if total == 0:
+        try:
+            count_row = conn.execute("SELECT COUNT(*) as cnt FROM memories").fetchone()
+            if count_row and count_row["cnt"] > 0:
+                total = count_row["cnt"]
+                if has_block_type_col:
+                    bt_rows = conn.execute("SELECT block_type, COUNT(*) as cnt FROM memories GROUP BY block_type").fetchall()
+                    for r in bt_rows:
+                        bt = r["block_type"] or "unknown"
+                        tier = "working" if bt == "working_memory" else bt
+                        if tier not in tiers:
+                            tier = "unknown"
+                        tiers[tier] = r["cnt"]
+                if has_agent_col:
+                    ag_rows = conn.execute("SELECT agent, COUNT(*) as cnt FROM memories GROUP BY agent").fetchall()
+                    for r in ag_rows:
+                        agents[r["agent"] or "unknown"] = r["cnt"]
+        except Exception:
+            pass
     db_path = _get_project_db(project)
     db_size = 0
     if project:
@@ -360,13 +388,24 @@ def api_memories():
     conn = _get_project_db(project)
     if conn is None:
         return jsonify({"error": "No database found"})
-    query = "SELECT memory_id, modality_text, metadata, tier, timestamp FROM memories WHERE 1=1"
+    # Detect schema: new (content) vs legacy (modality_text)
+    columns = {col[1] for col in conn.execute("PRAGMA table_info(memories)").fetchall()}
+    text_col = "content" if "content" in columns else "modality_text"
+    ts_col = "created_at" if "created_at" in columns else "timestamp"
+    agent_col = "agent" if "agent" in columns else None
+    query = f"SELECT memory_id, {text_col}, metadata, tier, {ts_col} FROM memories WHERE 1=1"
     params = []
     if agent_filter:
-        query += " AND json_extract(metadata, '$.agent') = ?"
+        if agent_col:
+            query += f" AND {agent_col} = ?"
+        else:
+            query += " AND json_extract(metadata, '$.agent') = ?"
         params.append(agent_filter)
     if tier_filter:
-        query += " AND json_extract(metadata, '$.block_type') = ?"
+        if "block_type" in columns:
+            query += " AND block_type = ?"
+        else:
+            query += " AND json_extract(metadata, '$.block_type') = ?"
         params.append(tier_filter)
     query += " ORDER BY rowid DESC LIMIT ? OFFSET ?"
     params.extend([limit, offset])
@@ -814,9 +853,13 @@ def memory_hybrid_search():
         from mathir_search import rrf_fusion
         fused = rrf_fusion(vector_results, bm25_results, vector_weight=vector_weight, bm25_weight=bm25_weight)
 
+        # Detect schema for hybrid search result building
+        columns = {col[1] for col in dconn.execute("PRAGMA table_info(memories)").fetchall()}
+        text_col = 'content' if 'content' in columns else 'modality_text'
+        ts_col = 'created_at' if 'created_at' in columns else 'timestamp'
         results = []
         for mid, rrf_score in fused[:k]:
-            meta = dconn.execute(f"SELECT {text_col}, tier, timestamp FROM memories WHERE memory_id = ?", [mid]).fetchone()
+            meta = dconn.execute(f"SELECT {text_col}, tier, {ts_col} FROM memories WHERE memory_id = ?", [mid]).fetchone()
             if not meta:
                 continue
             agent_val = ''
@@ -873,6 +916,7 @@ def memory_promote():
 
 @app.route("/api/memory/auto_promote", methods=["POST"])
 def memory_auto_promote():
+    params = _get_params()
     try:
         vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         promoted = vec_mem.auto_promote_all()
@@ -1011,7 +1055,22 @@ def memory_export():
     try:
         vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         conn = vec_mem._get_conn()
-        rows = conn.execute("SELECT memory_id, tier, stability, recall_count, timestamp FROM memories ORDER BY rowid").fetchall()
+        # Schema-aware export: new schema uses created_at + metadata JSON, legacy uses timestamp/stability/recall_count
+        columns = {col[1] for col in conn.execute("PRAGMA table_info(memories)").fetchall()}
+        if "content" in columns:
+            # New schema
+            rows = conn.execute(
+                "SELECT memory_id, tier, created_at, "
+                "json_extract(metadata, '$.recall_count') as recall_count, "
+                "json_extract(metadata, '$.stability') as stability "
+                "FROM memories ORDER BY rowid"
+            ).fetchall()
+        else:
+            # Legacy schema
+            rows = conn.execute(
+                "SELECT memory_id, tier, timestamp, recall_count, stability "
+                "FROM memories ORDER BY rowid"
+            ).fetchall()
         memories = [dict(r) for r in rows] if rows else []
         return jsonify({"memories": memories, "total": len(memories)})
     except Exception as e:
@@ -1026,9 +1085,11 @@ def memory_sessions():
         vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         limit = params.get("limit", 10)
         conn = vec_mem._get_conn()
-        # Sessions are derived from metadata JSON field
+        # Schema-aware: new schema uses created_at, legacy uses timestamp
+        columns = {col[1] for col in conn.execute("PRAGMA table_info(memories)").fetchall()}
+        ts_col = "created_at" if "created_at" in columns else "timestamp"
         rows = conn.execute(
-            "SELECT * FROM memories ORDER BY timestamp DESC LIMIT ?",
+            f"SELECT * FROM memories ORDER BY {ts_col} DESC LIMIT ?",
             (limit,)
         ).fetchall()
         sessions = []
@@ -1039,7 +1100,7 @@ def memory_sessions():
                     "memory_id": r["memory_id"],
                     "agent": meta.get("agent", "unknown"),
                     "label": meta.get("label", ""),
-                    "timestamp": r["timestamp"],
+                    "timestamp": r[ts_col] if ts_col in r.keys() else "",
                 })
             except:
                 pass
@@ -1094,7 +1155,7 @@ def _warmup():
     get_embedder()
     log.info("Embedder ready")
     try:
-        vec_mem, db_path, _embedder = _resolve_db()
+        vec_mem, db_path, embedder = _resolve_db()
         log.info("DB resolved")
         # Detect schema kind ONCE at warmup, cache globally so /health and
         # other request handlers don't re-init the embedder.
@@ -1114,6 +1175,22 @@ def _warmup():
                 _DB_LEGACY_WARNING[str(db_path)] = msg
         except Exception as e:
             log.debug(f"schema kind detection skipped: {e}")
+        # Auto-rebuild vec_memories if empty but memories exist (post-migration)
+        try:
+            pending = vec_mem.count()
+            if pending > 0:
+                from mathir_vec import HAS_VEC
+                conn = vec_mem._get_conn()
+                if HAS_VEC:
+                    vec_count = conn.execute("SELECT COUNT(*) FROM vec_memories").fetchone()[0]
+                else:
+                    vec_count = conn.execute("SELECT COUNT(*) FROM embeddings_brute").fetchone()[0]
+                if vec_count == 0 and pending > 0:
+                    log.info(f"vec_memories empty but {pending} memories exist — rebuilding embeddings...")
+                    result = vec_mem.rebuild_vec_index(embedder=embedder)
+                    log.info(f"Vec rebuild: {result}")
+        except Exception as e:
+            log.warning(f"vec index rebuild check failed: {e}")
     except Exception as e:
         log.warning(f"DB warmup failed: {e}")
 

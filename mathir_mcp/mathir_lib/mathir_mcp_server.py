@@ -837,7 +837,7 @@ def memory_incoming_links(memory_id: str, depth: int = 1) -> str:
 def mathir_health() -> str:
     """Check if MATHIR daemon is reachable."""
     try:
-        req = urllib.request.Request(f"{DAEMON_URL}/ping")
+        req = urllib.request.Request(f"{DAEMON_URL}/api/ping")
         resp = urllib.request.urlopen(req, timeout=5)
         data = json.loads(resp.read())
         return json.dumps({"status": "ok", "daemon": data})
