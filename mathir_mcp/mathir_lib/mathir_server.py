@@ -417,7 +417,7 @@ def api_context():
     if not task:
         return jsonify({"error": "task parameter required"}), 400
     try:
-        vec_mem, db_path, embedder = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
+        vec_mem, db_path, embedder = _resolve_db(project=project, cwd=request.args.get("cwd") if request.method == "GET" else (request.get_json(silent=True) or {}).get("cwd"))
         query_vec = _encode_query(embedder, task)
         results = vec_mem.search(query_vec, k=k)
         # Normalize results to dicts with metadata
@@ -484,13 +484,26 @@ def api_projects():
 # ---------------------------------------------------------------------------
 @app.route("/health")
 def health():
-    return jsonify({
+    resp = {
         "status": "ok",
         "uptime": round(time.time() - _start_time, 1),
         "model": "paraphrase-multilingual-MiniLM-L12-v2",
-        "dim": get_embedder_dim(),
         "version": "8.5.0",
-    })
+    }
+    # Surface the legacy-schema warning on /health so the agent plugin sees it
+    # immediately at session start (the plugin polls /health on session.started).
+    # Uses cached schema kind from warmup — no re-init of embedder.
+    try:
+        if _DB_LEGACY_WARNING:
+            # Report the most recent legacy warning (any DB path)
+            any_warning = next(iter(_DB_LEGACY_WARNING.values()))
+            resp["schema"] = "legacy"
+            resp["migration_hint"] = any_warning
+        elif _DB_SCHEMA_KIND:
+            resp["schema"] = next(iter(_DB_SCHEMA_KIND.values()))
+    except Exception:
+        pass
+    return jsonify(resp)
 
 
 @app.route("/api/ping")
@@ -557,7 +570,9 @@ def memory_save():
             'risk_warnings': risk_warnings if risk_warnings else None,
         }
         vec_mem.store(memory_id, emb_np, metadata)
-        return jsonify({'memory_id': memory_id, 'saved': True, 'metadata': metadata})
+        resp = {'memory_id': memory_id, 'saved': True, 'metadata': metadata}
+        _attach_legacy_warning(vec_mem, resp)
+        return jsonify(resp)
     except Exception as e:
         return jsonify({'error': _sanitize_error(e, 'memory_save')}), 500
 
@@ -595,6 +610,7 @@ def memory_recall():
 @app.route("/api/memory/stats", methods=["POST", "GET"])
 def memory_stats():
     try:
+        params = _get_params() if request.method == "POST" else {}
         vec_mem, _db_path, _embedder = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         return jsonify(vec_mem.stats())
     except Exception as e:
@@ -610,7 +626,9 @@ def memory_delete():
         if not memory_id:
             return jsonify({'error': 'memory_id required'}), 400
         deleted = vec_mem.delete(memory_id)
-        return jsonify({'memory_id': memory_id, 'deleted': deleted})
+        resp = {'memory_id': memory_id, 'deleted': deleted}
+        _attach_legacy_warning(vec_mem, resp)
+        return jsonify(resp)
     except Exception as e:
         return jsonify({'error': _sanitize_error(e, 'memory_delete')}), 500
 
@@ -977,14 +995,62 @@ def push_cache_stats():
 # Startup
 # ---------------------------------------------------------------------------
 
+# Schema of the resolved DB at last warmup — cached so /health and other
+# request handlers don't re-init the embedder just to check the schema.
+_DB_SCHEMA_KIND: dict = {}      # str(db_path) -> "new" | "legacy"
+_DB_LEGACY_WARNING: dict = {}   # str(db_path) -> warning text
+
+
+def _attach_legacy_warning(vec_mem, response: dict) -> None:
+    """If the resolved DB is on legacy schema, surface a migration hint.
+
+    The agent / MCP client will see this in every tool response so the
+    user knows about the migration step without having to read daemon logs.
+    """
+    db_path = str(getattr(vec_mem, "db_path", "") or "")
+    warning = _DB_LEGACY_WARNING.get(db_path)
+    if not warning:
+        # Fallback: re-check if the warmup dict wasn't populated
+        try:
+            kind = vec_mem._schema_kind()
+            if kind == "legacy":
+                warning = (
+                    f"LEGACY SCHEMA detected at {db_path}. "
+                    "Run: python -m mathir_mcp.mathir_lib.mathir_migrate --apply "
+                    "(auto-creates .legacy.bak)"
+                )
+        except Exception:
+            pass
+    if warning:
+        response["legacy_schema_warning"] = warning
+
+
 def _warmup():
     """Pre-load embedder + DB in background thread."""
     log.info("Pre-loading embedder...")
     get_embedder()
     log.info("Embedder ready")
     try:
-        _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
+        vec_mem, db_path, _embedder = _resolve_db()
         log.info("DB resolved")
+        # Detect schema kind ONCE at warmup, cache globally so /health and
+        # other request handlers don't re-init the embedder.
+        global _DB_SCHEMA_KIND, _DB_LEGACY_WARNING
+        try:
+            kind = vec_mem._schema_kind()
+            _DB_SCHEMA_KIND[str(db_path)] = kind
+            if kind == "legacy":
+                msg = (
+                    f"LEGACY SCHEMA detected at {db_path}. "
+                    "Run: python -m mathir_mcp.mathir_lib.mathir_migrate --dry-run "
+                    "to preview, then --apply (auto-creates .legacy.bak). "
+                    "Without migration, recall/save still work via fallback but "
+                    "old columns (modality/modality_text) are read-only."
+                )
+                log.warning(msg)
+                _DB_LEGACY_WARNING[str(db_path)] = msg
+        except Exception as e:
+            log.debug(f"schema kind detection skipped: {e}")
     except Exception as e:
         log.warning(f"DB warmup failed: {e}")
 
