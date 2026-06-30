@@ -1,8 +1,17 @@
-# MATHIR `install/` — File Reference
+# MATHIR `INSTALL_FOR_DEV/` — File Reference
 
-This folder contains all the smart installer scripts and platform-specific
-installation guides. After a fresh `git clone`, you can install MATHIR with
-**one command** from the repo root:
+This folder contains platform-specific install guides for **HUMAN DEVELOPERS**.
+The auto-installer for AI coding agents lives in the sibling `INSTALL_FOR_AGENT/`
+directory — that's what agents like OpenCode should be pointed at.
+
+If you are a human setting up MATHIR by hand, start here:
+- **Windows:** see `INSTALL_WINDOWS.md`
+- **Linux:** see `INSTALL_LINUX.md`
+- **macOS:** see `INSTALL_MACOS.md`
+
+If you (or your AI agent) want the **automatic** setup that detects all your
+agents and injects MATHIR config into them, run `../INSTALL_FOR_AGENT/install_smart.py`
+(or `install.bat` / `install.sh` on the corresponding platform) instead.
 
 ```bash
 # Linux / macOS
@@ -66,7 +75,7 @@ Auto-detects your agents and configures everything.
 ### Path 2 — Manual (read the INSTALL_*.md)
 ```bash
 # Read the right guide
-cat INSTALL/INSTALL_LINUX.md
+cat INSTALL_FOR_DEV/INSTALL_LINUX.md
 # Follow step-by-step
 ```
 
@@ -133,5 +142,5 @@ the daemon + DB alone (run `mathir_server.py --uninstall` for those).
 ## See also
 
 - `../bin/README.md` — runtime scripts reference
-- `../INSTALL/INSTALL_*.md` — full platform guides
+- `./*.md` (INSTALL_WINDOWS/LINUX/MACOS) — full platform guides
 - `../opencode/README.md` — template injection system

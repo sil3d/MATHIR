@@ -47,7 +47,7 @@ After reboot, the daemon must be restarted. Use the platform helper:
 - **Linux:** `./auto_start.sh` or `systemctl --user enable mathir-daemon`
 - **macOS:** `./auto_start.sh` or `launchctl load -w ~/Library/LaunchAgents/com.mathir.daemon.plist`
 
-**Install guides:** `mathir_mcp/INSTALL/INSTALL_{WINDOWS,LINUX,MACOS}.md`
+**Install guides:** `mathir_mcp/INSTALL_FOR_DEV/INSTALL_{WINDOWS,LINUX,MACOS}.md`
 
 ---
 

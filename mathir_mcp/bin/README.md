@@ -9,9 +9,9 @@ MATHIR on a fresh machine.
 | File | What it does |
 |---|---|
 | **`mathir_server.py`** | The persistent background process. Loads the embedding model into RAM/VRAM once, then answers JSON-RPC requests over TCP port 7338. **Without this, nothing works.** |
-| (MCP server) | See `../INSTALL/` for the smart installer which sets up the MCP server |
-| (Stats server) | See `../INSTALL/` |
+| (MCP server) | See `../INSTALL_FOR_AGENT/` for the smart installer which sets up the MCP server |
 
+| (Stats server) | See `../INSTALL_FOR_DEV/` |
 ## Client tools (for humans and scripts)
 
 | File | What it does | When to use |
@@ -42,7 +42,7 @@ MATHIR on a fresh machine.
 
 ## Smart installer
 
-> Moved to `../INSTALL/` to keep this folder lean. The installer scripts
+> Moved to `../INSTALL_FOR_AGENT/` and `../INSTALL_FOR_DEV/` to keep this folder lean. The installer scripts
 > (`install.bat`, `install.sh`, `install_smart.py`) and platform guides
 > live there.
 
@@ -84,7 +84,7 @@ MATHIR on a fresh machine.
 
 ## See also
 
-- `../INSTALL/INSTALL_WINDOWS.md` — full Windows install
-- `../INSTALL/INSTALL_LINUX.md` — full Linux install
-- `../INSTALL/INSTALL_MACOS.md` — full macOS install
+- `../INSTALL_FOR_DEV/INSTALL_WINDOWS.md` — full Windows install
+- `../INSTALL_FOR_DEV/INSTALL_LINUX.md` — full Linux install
+- `../INSTALL_FOR_DEV/INSTALL_MACOS.md` — full macOS install
 - `../opencode/README.md` — template injection system docs

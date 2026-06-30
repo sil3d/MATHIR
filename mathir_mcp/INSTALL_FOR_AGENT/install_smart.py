@@ -965,7 +965,7 @@ def inject_instructions(agent: Dict) -> Tuple[bool, str]:
         return False, "No instructions path defined"
     mathir_dir = Path(__file__).parent
     # Look for GLOBAL_INSTRUCTIONS.md in mathir_dir first, then in parent dir.
-    # It lives at mathir_mcp/GLOBAL_INSTRUCTIONS.md (sibling of INSTALL/).
+    # It lives at mathir_mcp/GLOBAL_INSTRUCTIONS.md (sibling of INSTALL_FOR_AGENT/).
     mathir_instructions = mathir_dir / "GLOBAL_INSTRUCTIONS.md"
     if not mathir_instructions.exists():
         mathir_instructions = mathir_dir.parent / "GLOBAL_INSTRUCTIONS.md"
@@ -1019,8 +1019,8 @@ def show_menu(detected: List[Dict]) -> List[Dict]:
 def _mathir_bin_dir() -> Path:
     """Resolve the MATHIR bin/ directory from this script's location.
 
-    Works for both source layout (mathir_mcp/INSTALL/install_smart.py -> ../bin)
-    and deployed layout (~/.config/opencode/bin/INSTALL/install_smart.py -> ../bin).
+    Works for both source layout (mathir_mcp/INSTALL_FOR_AGENT/install_smart.py -> ../../mathir_mcp/bin)
+    and deployed layout (~/.config/opencode/bin/INSTALL_FOR_AGENT/install_smart.py -> ../bin).
     """
     return Path(__file__).resolve().parent.parent / "bin"
 

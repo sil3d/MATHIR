@@ -248,13 +248,13 @@ This repo is platform-agnostic. The `bin/` folder ships one autostart unit per O
 
 | File | Targets | Used by |
 |---|---|---|
-| `bin/mathir-daemon.service` | systemd user unit (Linux) | `INSTALL/INSTALL_LINUX.md` |
-| `bin/com.mathir.daemon.plist` | launchd LaunchAgent (macOS) | `INSTALL/INSTALL_MACOS.md` |
-| (no file) | Windows uses Task Scheduler — see guide | `INSTALL/INSTALL_WINDOWS.md` |
+| `bin/mathir-daemon.service` | systemd user unit (Linux) | `INSTALL_FOR_DEV/INSTALL_LINUX.md` |
+| `bin/com.mathir.daemon.plist` | launchd LaunchAgent (macOS) | `INSTALL_FOR_DEV/INSTALL_MACOS.md` |
+| (no file) | Windows uses Task Scheduler — see guide | `INSTALL_FOR_DEV/INSTALL_WINDOWS.md` |
 
 The MCP server registration in `~/.config/opencode/opencode.json` is **identical** on all three platforms — it uses `~`-relative paths that OpenCode expands at runtime.
 
-See `../INSTALL/INSTALL_{WINDOWS,LINUX,MACOS}.md` for full step-by-step instructions.
+See `../INSTALL_FOR_DEV/INSTALL_{WINDOWS,LINUX,MACOS}.md` for full step-by-step instructions.
 
 ---
 
