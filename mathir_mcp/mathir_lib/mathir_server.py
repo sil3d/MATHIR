@@ -484,11 +484,36 @@ def api_projects():
 # ---------------------------------------------------------------------------
 @app.route("/health")
 def health():
+    # Read runtime config so /health reflects the actual installed model
+    # + version (user can change them in mathir.json — see AGENT.md §Changing
+    # Models). Fall back to pyproject.toml version if config is missing.
+    cfg = {}
+    try:
+        cfg = load_config()
+    except Exception:
+        pass
+    model_name = (
+        cfg.get("embedding", {}).get("model")
+        or os.environ.get("MATHIR_EMBEDDING_MODEL")
+        or "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    )
+    version = (
+        cfg.get("version")
+        or _detect_version_from_pyproject()
+        or "unknown"
+    )
+    embedding_dim = (
+        cfg.get("memory", {}).get("embedding_dim")
+        or int(os.environ.get("MATHIR_EMBEDDING_DIM", "384"))
+    )
+
     resp = {
         "status": "ok",
         "uptime": round(time.time() - _start_time, 1),
-        "model": "paraphrase-multilingual-MiniLM-L12-v2",
-        "version": "8.5.0",
+        "model": model_name.split("/")[-1],  # short name
+        "model_full": model_name,
+        "version": version,
+        "embedding_dim": embedding_dim,
     }
     # Surface the legacy-schema warning on /health so the agent plugin sees it
     # immediately at session start (the plugin polls /health on session.started).
@@ -504,6 +529,24 @@ def health():
     except Exception:
         pass
     return jsonify(resp)
+
+
+def _detect_version_from_pyproject() -> str:
+    """Fallback: read version from mathir_lib/pyproject.toml."""
+    try:
+        import re as _re
+        # pyproject.toml lives in the mathir_mcp package root
+        for candidate in [
+            Path(__file__).resolve().parent.parent / "pyproject.toml",
+            Path(__file__).resolve().parent / "pyproject.toml",
+        ]:
+            if candidate.is_file():
+                m = _re.search(r'version\s*=\s*"([^"]+)"', candidate.read_text())
+                if m:
+                    return m.group(1)
+    except Exception:
+        pass
+    return "unknown"
 
 
 @app.route("/api/ping")
