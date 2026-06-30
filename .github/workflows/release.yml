@@ -105,18 +105,21 @@ jobs:
           echo "Built $(ls -lh ${BUNDLE} | awk '{print $5}') bundle"
 
       - name: Generate changelog from conventional commits
-        if: env.READY_FOR_RELEASE == 'true'
+        env:
+          VERSION: ${{ steps.ver.outputs.VERSION }}
         run: |
           set -e
           # Find the previous tag (skip if none)
           PREV=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || true)
           if [[ -z "$PREV" ]]; then
             echo "No previous tag found, showing last 20 commits"
-            git log --pretty=format:"- %s (%h)" -n 20 > CHANGELOG_FRAGMENT.md
+            git log --pretty=format:"- %s (%h)" -n 20 > CHANGELOG_FRAGMENT.md || true
           else
             echo "Changes since $PREV:"
-            git log "${PREV}..HEAD" --pretty=format:"- %s (%h)" > CHANGELOG_FRAGMENT.md
+            git log "${PREV}..HEAD" --pretty=format:"- %s (%h)" > CHANGELOG_FRAGMENT.md || true
           fi
+          # Ensure file exists (empty if no commits found)
+          touch CHANGELOG_FRAGMENT.md
           # Prepend version banner
           { echo "## MATHIR ${VERSION}"; echo ""; cat CHANGELOG_FRAGMENT.md; } > CHANGELOG_TEMP.md
           mv CHANGELOG_TEMP.md CHANGELOG_FRAGMENT.md
