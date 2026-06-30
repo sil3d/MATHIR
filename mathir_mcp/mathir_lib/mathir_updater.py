@@ -349,6 +349,8 @@ def update(
         # DETECT
         is_git = _is_git_install(_mcp_dir())
         mode = "git" if is_git else "bundle"
+        report["install_mode"] = mode
+        report["installed_path"] = str(_mcp_dir())
         report["steps"].append(f"DETECT: install mode = {mode}")
         log.info(f"install mode = {mode}")
 
@@ -488,13 +490,22 @@ def rollback() -> dict:
 # ---------------------------------------------------------------------------
 
 def _format_check_only(result: dict) -> str:
+    """Format check-style report. Tolerates either a check_only result dict
+    or an update --dry-run result dict (which has 'target' instead of
+    'latest_version')."""
     lines = []
     lines.append(f"MATHIR Update Check")
-    lines.append(f"  current:      v{result['current']}")
-    lines.append(f"  latest:       v{result.get('latest_version', result['current'])}")
-    lines.append(f"  install mode: {result['install_mode']}")
-    lines.append(f"  install path: {result['installed_path']}")
-    if result.get("update_available"):
+    current = result.get("current", "?")
+    latest = result.get("latest_version") or result.get("target") or current
+    lines.append(f"  current:      v{current}")
+    lines.append(f"  latest:       v{latest}")
+    lines.append(f"  install mode: {result.get('install_mode', '?')}")
+    lines.append(f"  install path: {result.get('installed_path', '?')}")
+    update_available = result.get("update_available")
+    if update_available is None:
+        # update --dry-run: compare versions ourselves
+        update_available = parse_version(latest) > parse_version(current)
+    if update_available:
         lines.append(f"  [!] UPDATE AVAILABLE")
         lines.append(f"  release:      {result.get('release_url', '(no url)')}")
         lines.append(f"  run:          python -m mathir_mcp update")

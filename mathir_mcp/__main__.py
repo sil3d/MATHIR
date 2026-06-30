@@ -276,8 +276,15 @@ def main():
             # Start the MCP server (stdio JSON-RPC) — used by OpenCode agent
             mathir_mcp_server = _import("mathir_mcp_server")
             return mathir_mcp_server.main()
+        elif arg == "update" or arg == "check" or arg == "rollback":
+            # Self-updater subcommands. Delegated to mathir_updater.main()
+            # which has its own argparse with subcommands.
+            updater = _import("mathir_updater")
+            # Re-prepend the subcommand name since mathir_updater.main expects
+            # it as its first positional arg.
+            return updater.main([arg] + sys.argv[2:])
 
-    # No special flag → start the unified HTTP server on MATHIR_PORT.
+    # No special flag -> start the unified HTTP server on MATHIR_PORT.
     # As of v8.5.0 the TCP daemon (mathir_daemon.py) is retired in favour of
     # mathir_server.py (Flask + Waitress). All MCP clients speak HTTP.
     mathir_server = _import("mathir_server")
