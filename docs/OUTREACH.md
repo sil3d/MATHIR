@@ -20,7 +20,7 @@ That's not a Claude problem. That's a memory problem. Every provider locks conte
 
 I'm building something that fixes this. It's called MATHIR — a local memory system that works with any LLM via MCP. The memory lives on the user's machine (SQLite), not in your cloud. When they switch from Claude to GPT to Ollama, their context follows.
 
-It also does something I haven't seen anywhere else: anomaly detection on inputs. Mahalanobis distance, AUC=1.0 on test set. Catches prompt injection before it reaches the model. That's a 1ms check that most systems skip entirely.
+The companion embeddable library (`mathir_dropin`, for apps that don't use MCP) also does something I haven't seen anywhere else: anomaly detection on inputs. Mahalanobis distance, AUC=1.0 on a small internal test set. Catches prompt injection before it reaches the model — a 1ms check most systems skip. (Note: this isn't wired into the MCP server yet, so it doesn't apply to the MCP integration described above.)
 
 I'm not asking for integration or promotion. I just think the cross-provider memory problem is real, and it would be valuable for Anthropic to know that open-source tools are starting to solve it.
 
@@ -125,7 +125,7 @@ Someone on Hacker News asked this: "Why is memory locked to one provider? I buil
 
 That's the cross-provider memory problem. MATHIR solves it — a local memory system that works with any LLM via MCP. When users switch between your model and others, their context stays.
 
-It also does anomaly detection — Mahalanobis distance, AUC=1.0. Catches prompt injection before it reaches the model.
+The companion `mathir_dropin` library (not yet wired into the MCP path above) also does anomaly detection — Mahalanobis distance, AUC=1.0 on a small internal test set. Catches prompt injection before it reaches the model.
 
 I built it alone, from my room, over a year. It's open-source, MIT licensed. For emerging providers, portable memory is a differentiator.
 

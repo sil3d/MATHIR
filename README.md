@@ -264,7 +264,7 @@ Manual: see [INSTALL_FOR_AGENT/INSTALL_WINDOWS.md](mathir_mcp/INSTALL_FOR_AGENT/
 
 | Product | OSS? | LLM-agnostic? | Edge? | Anomaly detection | Cost |
 |---|:---:|:---:|:---:|:---:|---|
-| **🧠 MATHIR** | ✅ MIT | ✅ Any | ✅ ~500MB GPU | ✅ AUC=1.0 | **Free** |
+| **🧠 MATHIR** | ✅ MIT | ✅ Any | ✅ ~500MB GPU | ⚠️ MCP server: no — `mathir_dropin` lib: AUC=1.0 | **Free** |
 | Mem0 | ⚠️ SDK | ✅ | ❌ | ❌ | Free → $249/mo |
 | Letta | ✅ Apache 2.0 | ✅ | ⚠️ Heavy | ❌ | Free |
 | Zep | ⚠️ | ✅ | ❌ | ❌ | $1,250/yr |
@@ -274,13 +274,19 @@ Manual: see [INSTALL_FOR_AGENT/INSTALL_WINDOWS.md](mathir_mcp/INSTALL_FOR_AGENT/
 | ChatGPT Memory | ❌ | ❌ OpenAI | ❌ | ❌ | $20/mo+ |
 | Claude Projects | ❌ | ❌ Anthropic | ❌ | ❌ | $20/mo+ |
 
+> **Anomaly detection status:** MATHIR ships **two separate products**. The MCP server/daemon (`mathir_lib/`, what coding agents connect to) defines an `immunological` tier in its schema/dashboard but does **not** yet wire it to a live detector — no memory is currently written to that tier via MCP. The Mahalanobis-distance detector with the AUC=1.0 result lives in `mathir_dropin/` (the separate embeddable library for non-MCP apps, see [docs/05_SHIPPING_GUIDE.md](docs/05_SHIPPING_GUIDE.md)) — it is real and tested, but it is not currently invoked by the MCP server you'd connect a coding agent to. Don't read the AUC=1.0 figure as a feature of the MCP product specifically.
+>
+> **Retrieval quality vs FAISS:** real BEIR benchmarks (SciFact/ArguAna/NFCorpus, see [benchmarks/06_results/current/](benchmarks/06_results/current/)) currently show plain FAISS dense retrieval *outperforming* MATHIR's hybrid BM25+dense+cross-encoder pipeline. Any "+14pp vs FAISS" figure you may see elsewhere comes from a 50-query/200-chunk internal evaluation on a single textbook and is not comparable to a standard IR benchmark — see [docs/SOTA_RESEARCH_2024_2026.md](docs/SOTA_RESEARCH_2024_2026.md) for the full self-audit.
+>
+> **No LongMemEval/LoCoMo numbers yet** — the standard agent-memory benchmarks Mem0/Zep/Letta are measured on. This is open work, not a hidden strength.
+
 Full comparison: [docs/07_MATHIR_VS_VECTORDB_USE_CASES.md](docs/07_MATHIR_VS_VECTORDB_USE_CASES.md)
 
 ---
 
 ## 📊 Tests & Benchmarks
 
-**189/189 tests pass**. Run yourself:
+**189/189 tests pass** (50 in `mathir_mcp/`, 139 in `mathir_dropin/` — two separately-tested products). Run yourself:
 
 ```bash
 pytest mathir_mcp/tests/ -v

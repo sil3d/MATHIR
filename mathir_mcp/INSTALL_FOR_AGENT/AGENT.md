@@ -236,7 +236,7 @@ It will read `INSTALL_FOR_AGENT/AGENT.md` and configure MATHIR automatically.
 │   └── ... (8 more docs)
 ├── opencode_templates/              ← Per-agent template files (NOT installed by default)
 ├── mimocode_templates/              ← MiMo-code-specific templates
-├── mathir_dropin/                   ← Standalone module for ad-hoc `from mathir_dropin import MATHIRMemory`
+├── mathir_dropin/                   ← Separate embeddable library for non-MCP apps (see docs/05_SHIPPING_GUIDE.md). NOT wired to the MCP server/daemon — standalone product.
 ├── config_template.json             ← Config template
 ├── GLOBAL_INSTRUCTIONS.md           ← Distributed to each agent's instructions
 ├── README.md
