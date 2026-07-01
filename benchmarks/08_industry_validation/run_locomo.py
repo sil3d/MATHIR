@@ -211,6 +211,12 @@ def run(args: argparse.Namespace) -> dict:
 
     answer_model = os.environ.get("MATHIR_BENCHMARK_ANSWER_MODEL") or None
     judge_model = os.environ.get("MATHIR_BENCHMARK_JUDGE_MODEL") or None
+    # Reasoning/"thinking" models spend tokens on internal reasoning before
+    # the visible answer -- those tokens count against max_tokens on most
+    # providers, so a low ceiling truncates the response before any answer
+    # appears. Defaults raised well above a plain non-reasoning model's needs.
+    answer_max_tokens = int(os.environ.get("MATHIR_BENCHMARK_ANSWER_MAX_TOKENS", "4096"))
+    judge_max_tokens = int(os.environ.get("MATHIR_BENCHMARK_JUDGE_MAX_TOKENS", "2048"))
 
     per_question_results = []
     failures = []
@@ -279,7 +285,7 @@ def run(args: argparse.Namespace) -> dict:
                 generated_answer = llm_client.chat(
                     messages=[{"role": "user", "content": gen_prompt}],
                     temperature=0.0,
-                    max_tokens=512,
+                    max_tokens=answer_max_tokens,
                     model=answer_model,
                 )
                 record["generated_answer"] = generated_answer.strip()
@@ -301,7 +307,7 @@ def run(args: argparse.Namespace) -> dict:
                         {"role": "user", "content": judge_prompt},
                     ],
                     temperature=0.0,
-                    max_tokens=200,
+                    max_tokens=judge_max_tokens,
                     model=judge_model,
                 )
                 verdict, reasoning = parse_judge_verdict(judge_raw)
