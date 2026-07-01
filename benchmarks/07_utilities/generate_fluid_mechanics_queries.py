@@ -41,8 +41,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
-import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "08_industry_validation"))
@@ -147,14 +147,23 @@ def main():
     failures = 0
     examples = []
 
+    # Reasoning/"thinking" models (MiniMax-M3 and similar) spend tokens on
+    # internal reasoning before the visible question -- those tokens count
+    # against max_tokens on most providers, so a low ceiling truncates the
+    # response before any question ever appears (same issue found and fixed
+    # in the 08_industry_validation runners). Configurable via env.
+    gen_max_tokens = int(os.environ.get("MATHIR_BENCHMARK_ANSWER_MAX_TOKENS", "4096"))
+    gen_model = os.environ.get("MATHIR_BENCHMARK_ANSWER_MODEL") or None
+
     for i, doc in enumerate(sampled):
         qid = str(i + 1)
         prompt = PROMPT_TEMPLATE.format(text=doc["text"])
         try:
             question = llm_client.chat(
                 [{"role": "user", "content": prompt}],
-                max_tokens=200,
+                max_tokens=gen_max_tokens,
                 temperature=0.3,
+                model=gen_model,
             ).strip()
             if not question:
                 raise ValueError("empty response")
