@@ -204,6 +204,7 @@ def _call_daemon_raw(method: str, params: dict = None) -> dict:
         "memory_delete": "/api/memory/delete",
         "memory_stats": "/api/memory/stats",
         "memory_audit": "/api/memory/audit",
+        "memory_audit_immunological": "/api/memory/audit_immunological",
         "memory_export": "/api/memory/export",
         "memory_sessions": "/api/memory/sessions",
         "memory_promote": "/api/memory/promote",
@@ -250,7 +251,7 @@ def _call_daemon_raw(method: str, params: dict = None) -> dict:
 _AUTO_RECALL_SKIP = {
     "memory_recall", "memory_smart_search", "memory_hybrid_search",
     "memory_context", "memory_session_start",
-    "memory_stats", "memory_audit", "memory_export", "memory_sessions",
+    "memory_stats", "memory_audit", "memory_audit_immunological", "memory_export", "memory_sessions",
     "memory_auto_promote", "memory_decay", "memory_consolidate",
     "memory_get_links", "memory_build_links", "memory_delete",
     "memory_promote",   # memory_id is a key, not a query
@@ -827,6 +828,17 @@ def memory_incoming_links(memory_id: str, depth: int = 1) -> str:
     - "is this memory a leaf or a hub in the link graph?"
     """
     result = _call_daemon("memory_incoming_links", {"memory_id": memory_id, "depth": depth})
+    return json.dumps(result) if isinstance(result, dict) else str(result)
+
+
+@mcp.tool()
+def memory_audit_immunological(project: str = None, k: int = 20) -> str:
+    """List memories flagged in the immunological (anomaly) tier. Read-only —
+    this tier can only be populated by the internal anomaly detector."""
+    result = _call_daemon("memory_audit_immunological", {
+        "project": project,
+        "k": k,
+    })
     return json.dumps(result) if isinstance(result, dict) else str(result)
 
 
