@@ -487,8 +487,20 @@ class VecMemory:
         return results
 
     def search(self, query_embedding: np.ndarray, k: int = 5,
-               agent_filter: str = None, block_type_filter: str = None) -> List[Dict[str, Any]]:
-        """Search for similar memories using vector similarity."""
+               agent_filter: str = None, block_type_filter: str = None,
+               include_embeddings: bool = False) -> List[Dict[str, Any]]:
+        """Search for similar memories using vector similarity.
+
+        include_embeddings: when True, each result dict also carries an
+        ``"embedding"`` key with the memory's raw stored vector (a list of
+        floats, length == embedding_dim). Default False to keep the response
+        payload small for normal recall. This exists so downstream retrieval
+        algorithms (e.g. spectral/drift re-ranking, anomaly conditioning)
+        can operate on the actual per-memory vectors instead of collapsing
+        everything to the 1-dim similarity score -- a real gap flagged by
+        the multi-agent investigation (the /api/memory/* routes previously
+        never exposed raw embeddings, forcing those algorithms onto a
+        degraded score proxy)."""
         with self._db_lock:
             conn = self._get_conn()
 
@@ -595,7 +607,7 @@ class VecMemory:
                             continue
                         if block_type_filter and meta["block_type"] != block_type_filter:
                             continue
-                        results.append({
+                        result = {
                             "memory_id": mid,
                             "content": meta["content"],
                             "agent": meta["agent"],
@@ -605,7 +617,10 @@ class VecMemory:
                             "score": float(sims[idx]),
                             "created_at": meta["created_at"],
                             "project": meta["project"],
-                        })
+                        }
+                        if include_embeddings:
+                            result["embedding"] = embs[idx].astype(float).tolist()
+                        results.append(result)
                         if len(results) >= k:
                             break
                 return results
@@ -615,7 +630,7 @@ class VecMemory:
 
             results = []
             for row in rows:
-                results.append({
+                result = {
                     "memory_id": row["memory_id"],
                     "content": row["content"],
                     "agent": row["agent"],
@@ -625,7 +640,20 @@ class VecMemory:
                     "score": 1.0 - row["distance"],  # Convert distance to similarity
                     "created_at": row["created_at"],
                     "project": row["project"],
-                })
+                }
+                if include_embeddings:
+                    try:
+                        emb_row = conn.execute(
+                            "SELECT embedding FROM vec_memories WHERE memory_id = ?",
+                            [row["memory_id"]],
+                        ).fetchone()
+                        if emb_row and emb_row["embedding"] is not None:
+                            result["embedding"] = _deserialize_embedding(emb_row["embedding"]).astype(float).tolist()
+                    except Exception:
+                        # Best-effort: never fail a search just because the
+                        # raw embedding couldn't be re-read for one result.
+                        pass
+                results.append(result)
                 if len(results) >= k:
                     break
 

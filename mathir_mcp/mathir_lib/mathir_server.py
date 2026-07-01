@@ -755,6 +755,7 @@ def memory_recall():
             query_embedding=q_np, k=k,
             agent_filter=params.get('agent'),
             block_type_filter=params.get('block_type'),
+            include_embeddings=bool(params.get('include_embeddings', False)),
         )
         touched = 0
         try:
@@ -807,7 +808,10 @@ def memory_smart_search():
         query = params.get('query', '')
         k = min(params.get('k', 10), 1000)
         q_np = _encode_query(embedder, query)
-        results = vec_mem.search(query_embedding=q_np, k=k, agent_filter=params.get('agent'))
+        results = vec_mem.search(
+            query_embedding=q_np, k=k, agent_filter=params.get('agent'),
+            include_embeddings=bool(params.get('include_embeddings', False)),
+        )
         return jsonify({'results': results, 'query': query, 'total': len(results)})
     except Exception as e:
         return jsonify({'error': _sanitize_error(e, 'memory_smart_search')}), 500

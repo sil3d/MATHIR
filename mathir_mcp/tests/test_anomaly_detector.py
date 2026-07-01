@@ -172,3 +172,27 @@ def test_anomaly_state_persists_across_vecmemory_instances(tmp_path):
     result = vm2.check_and_update_anomaly(outlier, threshold=2.0, warmup_count=30)
     assert result["warmed_up"] is True, "detector state should have persisted across instances"
     assert result["is_anomaly"] is True
+
+
+def test_search_include_embeddings_returns_raw_vectors(tmp_path):
+    """VecMemory.search(include_embeddings=True) attaches the raw stored
+    vector to each result; default (False) omits it. This is the P0 fix
+    that lets downstream retrieval algorithms work on real per-memory
+    vectors instead of a collapsed 1-dim score proxy."""
+    db = tmp_path / "emb_expose.db"
+    vm = VecMemory(db, embedding_dim=384)
+    rng = np.random.RandomState(7)
+    stored = rng.randn(384).astype(np.float32)
+    vm.store("mem_x", stored, {"content": "hello vectors", "agent": "t",
+                               "block_type": "episodic", "label": "", "priority": 5})
+
+    # Default: no embedding key.
+    res_default = vm.search(query_embedding=stored, k=1)
+    assert res_default and "embedding" not in res_default[0]
+
+    # include_embeddings=True: embedding present, right length, matches stored.
+    res_emb = vm.search(query_embedding=stored, k=1, include_embeddings=True)
+    assert res_emb and "embedding" in res_emb[0]
+    emb = res_emb[0]["embedding"]
+    assert isinstance(emb, list) and len(emb) == 384
+    assert np.allclose(np.array(emb, dtype=np.float32), stored, atol=1e-5)
