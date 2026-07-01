@@ -96,6 +96,25 @@ misdiagnosed later:
    model (see the table above), not something further code changes here can
    fix without changing that choice.
 
+### Rejected idea: confidence-gated adaptive fusion
+
+A natural next architecture idea, given point 2 above: gate BM25 fusion
+per-query on the dense ranking's own confidence (e.g. the top1/top2 score
+margin) — fuse only when the dense ranking looks ambiguous, trust dense-only
+otherwise. This was tested empirically
+(`benchmarks/07_utilities/test_adaptive_fusion_hypothesis.py`, 2026-07-01,
+nfcorpus, median-split by margin) **before** writing any server code, and
+the hypothesis did not hold: hybrid fusion improved nDCG@10 in *both* the
+low-confidence bucket (0.1946 → 0.2847, +0.09) *and* the high-confidence
+bucket (0.2746 → 0.3267, +0.05) with the current embedder. There is no
+per-query signal here to gate on — the real, validated factor is the
+*embedder's overall strength* (point 2), not per-query ambiguity. Do not
+build a confidence-gated fusion mechanism on this premise; it would add
+real complexity for no measured benefit. If a stronger embedder is adopted
+later, this same test should be re-run with that embedder before deciding
+whether hybrid should be disabled outright versus kept adaptive — the two
+outcomes are indistinguishable without re-testing.
+
 ## How to Change Model (Step by Step)
 
 ### Step 1: Choose your model
