@@ -116,6 +116,42 @@ across more embedders. PRF's effect became much smaller (roughly neutral,
 +0.0006/-0.0049) with e5-small — consistent with, but not a strong
 confirmation of, the weak/strong pattern for that specific technique.
 
+**Follow-up hypothesis tested and also falsified**: maybe it's the dense
+ranking's *score distribution shape* (how "peaked"/confident the top
+results are, measured as a normalized top1-top10 score gap) rather than
+overall retrieval quality that predicts whether hybrid fusion helps or
+hurts (`benchmarks/07_utilities/investigate_hybrid_flip_factor.py`,
+scifact, 3 embedders side by side):
+
+| Embedder | Baseline nDCG@10 | Hybrid nDCG@10 | Delta | top1-top10 gap |
+|---|---|---|---|---|
+| default | 0.4837 | 0.6029 | **+0.1193** | 0.1897 (largest) |
+| e5-small | 0.6770 | 0.6916 | +0.0146 | 0.0362 (smallest) |
+| bge-base-en-v1.5 | 0.7376 | 0.7220 | **-0.0157** | 0.1175 (middle) |
+
+If the "peaked ranking → hybrid hurts" hypothesis held, gap and delta
+should be inversely ordered. They are not: gap order is
+default>bge>e5, but delta order is default>e5>bge — no clean
+correlation. **This hypothesis is also rejected.** Note also that
+`default`'s hybrid delta here (+0.1193, scifact) is larger than reported
+earlier in this document (see point 2's "helps when weak" framing) —
+this specific number came from re-running with a slightly different
+inline harness (`investigate_hybrid_flip_factor.py`) than the original
+`test_rrf_weights.py` measurement on nfcorpus; the two scripts aren't
+directly comparable line-for-line (different dataset shown here), which
+is itself a small methodology lesson: always name which script/dataset a
+number came from, since "the hybrid delta" is not a single universal
+constant even for the "same" embedder. **What specifically determines
+whether hybrid fusion helps or hurts a given embedder remains an open
+question** — ruled out: overall embedder strength (rejected above), and
+score-distribution peakedness (rejected here). Worth trying next: BM25
+score scale/variance relative to the dense score scale (RRF is rank-based
+so this shouldn't matter in theory, but worth checking empirically since
+theory hasn't matched data twice now), or something specific to
+training objective (e5/bge are both contrastive-retrieval-trained,
+unlike the paraphrase-trained default, yet they differ from each other
+too) rather than any single scalar statistic of the ranking.
+
 ### Rejected idea: confidence-gated adaptive fusion
 
 A natural next architecture idea, given point 2 above: gate BM25 fusion
