@@ -7,8 +7,8 @@
     "semantic_prototypes": 256,
     "immunological_capacity": 100,
     "kl_coefficient": 0.01,
-    "anomaly_threshold": 30.0,
-    "anomaly_warmup_count": 400,
+    "anomaly_threshold": 45.0,
+    "anomaly_warmup_count": 60,
     "decay_rate": 0.95
   },
   "router": {
