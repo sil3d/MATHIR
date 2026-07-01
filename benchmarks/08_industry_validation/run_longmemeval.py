@@ -321,6 +321,92 @@ def run_one_question(adapter: MathirAdapter, question: dict, k: int) -> dict:
     }
 
 
+def run_one_question_cross_model(adapter: MathirAdapter, question: dict, k: int, models: list) -> dict:
+    """Ingest and search MATHIR exactly ONCE per question, then have EACH
+    model in `models` generate + get judged from that SAME retrieved context.
+
+    This does not replace the standard single-model run above (which
+    matches Mem0/Zep's published-score methodology). It answers a different,
+    MATHIR-specific question: if the retrieved memories carry the actual
+    information, ANY reasonably capable model should be able to answer
+    correctly from them -- accuracy shouldn't depend heavily on which model
+    reads the context. If accuracy stays similar across models, that's
+    empirical evidence the memory (not the model) carries the informational
+    load, which is exactly MATHIR's cross-provider-portability claim,
+    demonstrated on a real, recognized benchmark rather than asserted.
+
+    The judge model is held FIXED across all generation models tested (via
+    MATHIR_BENCHMARK_JUDGE_MODEL, same as the single-model path) so we are
+    only varying the generation model, not conflating that with judge
+    variability.
+    """
+    question_id = question["question_id"]
+    question_type = question.get("question_type", "unknown")
+    question_text = question["question"]
+    gold_answer = question.get("answer", "")
+
+    project = f"longmemeval_{question_id}"
+
+    haystack_sessions = question.get("haystack_sessions", [])
+    haystack_dates = question.get("haystack_dates", [])
+
+    # 1. Ingest (once)
+    num_ingested = 0
+    for i, session in enumerate(haystack_sessions):
+        date = haystack_dates[i] if i < len(haystack_dates) else "unknown-date"
+        for turn in session:
+            role = turn.get("role", "unknown")
+            text = turn.get("content", "")
+            if not text:
+                continue
+            content = f"[{date}] {role}: {text}"
+            adapter.add(project=project, content=content, agent="longmemeval")
+            num_ingested += 1
+
+    # 2. Search (once -- this is the shared context every model gets)
+    search_start = time.monotonic()
+    results = adapter.search(project=project, query=question_text, k=k)
+    search_latency_ms = (time.monotonic() - search_start) * 1000.0
+    retrieved_contents = [r.get("content", "") for r in results]
+
+    import os
+    answer_max_tokens = int(os.environ.get("MATHIR_BENCHMARK_ANSWER_MAX_TOKENS", "16000"))
+    judge_max_tokens = int(os.environ.get("MATHIR_BENCHMARK_JUDGE_MAX_TOKENS", "8000"))
+    judge_model = os.environ.get("MATHIR_BENCHMARK_JUDGE_MODEL") or None
+
+    per_model = {}
+    for model_id in models:
+        gen_messages = build_generation_prompt(question_text, retrieved_contents)
+        generated_answer = llm_client.chat(
+            gen_messages, temperature=0.0, max_tokens=answer_max_tokens, model=model_id,
+        )
+        judge_messages = build_judge_prompt(question_type, question_text, gold_answer, generated_answer)
+        judge_response = llm_client.chat(
+            judge_messages, temperature=0.0, max_tokens=judge_max_tokens, model=judge_model,
+        )
+        per_model[model_id] = {
+            "generated_answer": generated_answer,
+            "judge_verdict": _parse_judge_verdict(judge_response),
+            "judge_raw_response": judge_response,
+        }
+
+    verdicts = [v["judge_verdict"] for v in per_model.values()]
+
+    return {
+        "question_id": question_id,
+        "question_type": question_type,
+        "question": question_text,
+        "ground_truth_answer": gold_answer,
+        "num_ingested": num_ingested,
+        "num_retrieved": len(results),
+        "search_latency_ms": search_latency_ms,
+        "per_model": per_model,
+        "all_correct": all(verdicts),
+        "any_correct": any(verdicts),
+        "all_agree": len(set(verdicts)) <= 1,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Aggregation / reporting
 # ---------------------------------------------------------------------------
@@ -371,6 +457,62 @@ def print_summary_table(summary: dict) -> None:
     print()
 
 
+def aggregate_cross_model_results(results: list, failed: list, models: list) -> dict:
+    """Per-model accuracy (same retrieved context for every model) plus a
+    cross-model consistency summary: how often accuracy doesn't depend on
+    which model reads MATHIR's retrieved context."""
+    n = len(results)
+    per_model_correct = {m: 0 for m in models}
+    for r in results:
+        for m, v in r["per_model"].items():
+            if v["judge_verdict"]:
+                per_model_correct[m] += 1
+
+    per_model_summary = {
+        m: {"n": n, "correct": per_model_correct[m], "accuracy": (per_model_correct[m] / n) if n else 0.0}
+        for m in models
+    }
+
+    all_correct_n = sum(1 for r in results if r["all_correct"])
+    any_correct_n = sum(1 for r in results if r["any_correct"])
+    all_agree_n = sum(1 for r in results if r["all_agree"])
+
+    return {
+        "models": models,
+        "n": n,
+        "per_model": per_model_summary,
+        "all_models_correct_rate": (all_correct_n / n) if n else 0.0,
+        "any_model_correct_rate": (any_correct_n / n) if n else 0.0,
+        "all_models_agree_rate": (all_agree_n / n) if n else 0.0,
+        "num_failed": len(failed),
+        "failed_question_ids": [f["question_id"] for f in failed],
+    }
+
+
+def print_cross_model_summary_table(summary: dict) -> None:
+    print()
+    print("=" * 72)
+    print("LongMemEval Cross-Model Consistency Results")
+    print("(same MATHIR-retrieved context for every model below)")
+    print("=" * 72)
+    print(f"{'model':<40} {'n':>5} {'accuracy':>10}")
+    print("-" * 72)
+    for model, stats in summary["per_model"].items():
+        print(f"{model:<40} {stats['n']:>5} {stats['accuracy']*100:>9.1f}%")
+    print("-" * 72)
+    print(f"All models correct on the same question: {summary['all_models_correct_rate']*100:.1f}%")
+    print(f"At least one model correct:               {summary['any_model_correct_rate']*100:.1f}%")
+    print(f"All models agree (right OR wrong):         {summary['all_models_agree_rate']*100:.1f}%")
+    print("=" * 72)
+    print("A high 'all models correct' / 'all models agree' rate is evidence that")
+    print("MATHIR's retrieved context carries the answer, not the choice of model --")
+    print("i.e. empirical support for cross-provider memory portability.")
+    if summary["num_failed"]:
+        print(f"WARNING: {summary['num_failed']} question(s) failed and were excluded: "
+              f"{summary['failed_question_ids']}")
+    print()
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -389,6 +531,14 @@ def main() -> None:
     parser.add_argument("--dataset", type=str, default=str(DEFAULT_DATASET_PATH),
                          help="Path to longmemeval_s_cleaned.json")
     parser.add_argument("--daemon-url", type=str, default="http://127.0.0.1:7338")
+    parser.add_argument("--cross-model", type=str, default=None,
+                         help="Comma-separated list of 2+ real model ids (e.g. "
+                              "'MiniMax-M2.7,MiniMax-M3'). When set, ingest+search "
+                              "run ONCE per question and EACH listed model generates "
+                              "+ gets judged from that same retrieved context, to "
+                              "measure whether accuracy depends on the model or on "
+                              "MATHIR's retrieval. Replaces the normal single-model "
+                              "run for this invocation.")
     args = parser.parse_args()
 
     question_types_filter = None
@@ -406,6 +556,13 @@ def main() -> None:
     adapter = MathirAdapter(daemon_url=args.daemon_url)
     print(f"[run_longmemeval] MATHIR daemon reachable at {args.daemon_url}")
 
+    cross_models = None
+    if args.cross_model:
+        cross_models = [m.strip() for m in args.cross_model.split(",") if m.strip()]
+        if len(cross_models) < 2:
+            raise SystemExit("--cross-model needs at least 2 comma-separated model ids to compare")
+        print(f"[run_longmemeval] cross-model mode: {cross_models}")
+
     results = []
     failed = []
 
@@ -414,11 +571,17 @@ def main() -> None:
         qtype = question.get("question_type", "unknown")
         print(f"[{idx}/{len(questions)}] {qid} ({qtype}) ...", end=" ", flush=True)
         try:
-            result = run_one_question(adapter, question, args.k)
-            results.append(result)
-            verdict_str = "CORRECT" if result["judge_verdict"] else "INCORRECT"
-            print(f"{verdict_str} (retrieved={result['num_retrieved']}, "
-                  f"search_latency_ms={result['search_latency_ms']:.0f})")
+            if cross_models:
+                result = run_one_question_cross_model(adapter, question, args.k, cross_models)
+                results.append(result)
+                print(f"all_correct={result['all_correct']} any_correct={result['any_correct']} "
+                      f"agree={result['all_agree']} (retrieved={result['num_retrieved']})")
+            else:
+                result = run_one_question(adapter, question, args.k)
+                results.append(result)
+                verdict_str = "CORRECT" if result["judge_verdict"] else "INCORRECT"
+                print(f"{verdict_str} (retrieved={result['num_retrieved']}, "
+                      f"search_latency_ms={result['search_latency_ms']:.0f})")
         except Exception as e:
             print(f"FAILED: {e}")
             failed.append({
@@ -428,8 +591,12 @@ def main() -> None:
                 "traceback": traceback.format_exc(),
             })
 
-    summary = aggregate_results(results, failed)
-    print_summary_table(summary)
+    if cross_models:
+        summary = aggregate_cross_model_results(results, failed, cross_models)
+        print_cross_model_summary_table(summary)
+    else:
+        summary = aggregate_results(results, failed)
+        print_summary_table(summary)
 
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -443,6 +610,7 @@ def main() -> None:
             "question_types_filter": question_types_filter,
             "k": args.k,
             "dataset": str(dataset_path),
+            "cross_model": cross_models,
         },
     }
     with output_path.open("w", encoding="utf-8") as f:

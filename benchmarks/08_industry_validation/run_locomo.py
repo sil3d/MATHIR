@@ -275,6 +275,63 @@ def run(args: argparse.Namespace) -> dict:
                 failures.append({"conversation_idx": conv_idx, "stage": "search", "question": question, "error": str(e)})
                 continue
 
+            if getattr(args, "cross_model", None):
+                # Cross-model mode: same retrieved context, EACH listed
+                # model generates + gets judged (judge model held fixed).
+                # See run_longmemeval.py's run_one_question_cross_model()
+                # for the full rationale.
+                record.pop("generated_answer", None)
+                record.pop("judge_verdict", None)
+                record.pop("judge_reasoning", None)
+                record["per_model"] = {}
+                try:
+                    memories_block = build_memories_block(search_results)
+                    gen_prompt = ANSWER_GENERATION_PROMPT.format(
+                        reference_date=reference_date,
+                        memories=memories_block,
+                        question=question,
+                    )
+                    for model_id in args.cross_model:
+                        generated_answer = llm_client.chat(
+                            messages=[{"role": "user", "content": gen_prompt}],
+                            temperature=0.0,
+                            max_tokens=answer_max_tokens,
+                            model=model_id,
+                        ).strip()
+                        judge_prompt = JUDGE_PROMPT.format(
+                            question=question,
+                            answer=ground_truth_str,
+                            response=generated_answer,
+                        )
+                        judge_raw = llm_client.chat(
+                            messages=[
+                                {"role": "system", "content": JUDGE_SYSTEM_PROMPT},
+                                {"role": "user", "content": judge_prompt},
+                            ],
+                            temperature=0.0,
+                            max_tokens=judge_max_tokens,
+                            model=judge_model,
+                        )
+                        verdict, reasoning = parse_judge_verdict(judge_raw)
+                        record["per_model"][model_id] = {
+                            "generated_answer": generated_answer,
+                            "judge_verdict": verdict,
+                            "judge_reasoning": reasoning,
+                        }
+                except Exception as e:
+                    record["error"] = f"cross-model generate/judge failed: {e}"
+                    per_question_results.append(record)
+                    failures.append({"conversation_idx": conv_idx, "stage": "cross_model", "question": question, "error": str(e)})
+                    continue
+
+                verdicts = [v["judge_verdict"] for v in record["per_model"].values()]
+                judged_verdicts = [v for v in verdicts if v is not None]
+                record["all_correct"] = bool(judged_verdicts) and all(judged_verdicts)
+                record["any_correct"] = any(v is True for v in judged_verdicts)
+                record["all_agree"] = len(set(judged_verdicts)) <= 1
+                per_question_results.append(record)
+                continue
+
             try:
                 memories_block = build_memories_block(search_results)
                 gen_prompt = ANSWER_GENERATION_PROMPT.format(
@@ -322,7 +379,10 @@ def run(args: argparse.Namespace) -> dict:
 
             per_question_results.append(record)
 
-    summary = summarize(per_question_results, scored_categories)
+    if getattr(args, "cross_model", None):
+        summary = summarize_cross_model(per_question_results, args.cross_model)
+    else:
+        summary = summarize(per_question_results, scored_categories)
     summary["failures_count"] = len(failures)
     summary["failures"] = failures
     summary["ingest_stats"] = ingest_stats
@@ -376,6 +436,67 @@ def summarize(records: list, scored_categories: set) -> dict:
     return result
 
 
+def summarize_cross_model(records: list, models: list) -> dict:
+    """Per-model accuracy (same retrieved context for every model, categories
+    1-4 only) plus a cross-model consistency summary."""
+    headline_records = [r for r in records if r["category"] != 5 and "per_model" in r]
+    n = len(headline_records)
+
+    per_model_correct = {m: 0 for m in models}
+    per_model_judged = {m: 0 for m in models}
+    for r in headline_records:
+        for m, v in r.get("per_model", {}).items():
+            if v["judge_verdict"] is not None:
+                per_model_judged[m] += 1
+                if v["judge_verdict"] is True:
+                    per_model_correct[m] += 1
+
+    per_model_summary = {
+        m: {
+            "n": n,
+            "n_judged": per_model_judged[m],
+            "correct": per_model_correct[m],
+            "accuracy": (per_model_correct[m] / per_model_judged[m]) if per_model_judged[m] else None,
+        }
+        for m in models
+    }
+
+    all_correct_n = sum(1 for r in headline_records if r.get("all_correct"))
+    any_correct_n = sum(1 for r in headline_records if r.get("any_correct"))
+    all_agree_n = sum(1 for r in headline_records if r.get("all_agree"))
+
+    return {
+        "models": models,
+        "overall_n_categories_1_4": n,
+        "per_model": per_model_summary,
+        "all_models_correct_rate": (all_correct_n / n) if n else 0.0,
+        "any_model_correct_rate": (any_correct_n / n) if n else 0.0,
+        "all_models_agree_rate": (all_agree_n / n) if n else 0.0,
+    }
+
+
+def print_cross_model_summary_table(summary: dict) -> None:
+    print()
+    print("=" * 72)
+    print("LoCoMo Cross-Model Consistency Results (categories 1-4)")
+    print("(same MATHIR-retrieved context for every model below)")
+    print("=" * 72)
+    print(f"{'model':<40} {'n_judged':>10} {'accuracy':>10}")
+    print("-" * 72)
+    for model, stats in summary["per_model"].items():
+        acc_str = f"{stats['accuracy']*100:.1f}%" if stats["accuracy"] is not None else "n/a"
+        print(f"{model:<40} {stats['n_judged']:>10} {acc_str:>10}")
+    print("-" * 72)
+    print(f"All models correct on the same question: {summary['all_models_correct_rate']*100:.1f}%")
+    print(f"At least one model correct:               {summary['any_model_correct_rate']*100:.1f}%")
+    print(f"All models agree (right OR wrong):         {summary['all_models_agree_rate']*100:.1f}%")
+    print("=" * 72)
+    print("A high 'all models correct' / 'all models agree' rate is evidence that")
+    print("MATHIR's retrieved context carries the answer, not the choice of model --")
+    print("i.e. empirical support for cross-provider memory portability.")
+    print()
+
+
 def print_summary_table(summary: dict) -> None:
     print()
     print("=" * 60)
@@ -421,8 +542,23 @@ def main() -> None:
     )
     parser.add_argument("--k", type=int, default=10, help="Number of memories to retrieve per question (capped at 100 server-side)")
     parser.add_argument("--output", type=str, default=str(DEFAULT_OUTPUT), help="Path to write full JSON results")
+    parser.add_argument("--cross-model", type=str, default=None,
+                         help="Comma-separated list of 2+ real model ids (e.g. "
+                              "'MiniMax-M2.7,MiniMax-M3'). When set, search runs ONCE "
+                              "per question and EACH listed model generates + gets "
+                              "judged from that same retrieved context, to measure "
+                              "whether accuracy depends on the model or on MATHIR's "
+                              "retrieval. Replaces the normal single-model run.")
     args = parser.parse_args()
     args.categories = parse_categories(args.categories)
+    if args.cross_model:
+        cross_model = [m.strip() for m in args.cross_model.split(",") if m.strip()]
+        if len(cross_model) < 2:
+            raise SystemExit("--cross-model needs at least 2 comma-separated model ids to compare")
+        args.cross_model = cross_model
+        print(f"[run_locomo] cross-model mode: {cross_model}")
+    else:
+        args.cross_model = None
 
     output = run(args)
 
@@ -431,7 +567,10 @@ def main() -> None:
     with output_path.open("w", encoding="utf-8") as f:
         json.dump(output, f, indent=2)
 
-    print_summary_table(output["summary"])
+    if args.cross_model:
+        print_cross_model_summary_table(output["summary"])
+    else:
+        print_summary_table(output["summary"])
     print(f"\nFull results written to {output_path}")
 
 
