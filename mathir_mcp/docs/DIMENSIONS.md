@@ -142,6 +142,44 @@ dense search inherits this same trade-off. Not adopted as a default; the
 script is kept for reproducibility and to save whoever revisits this idea
 from re-discovering the same drift problem from scratch.
 
+### Rejected idea: document-side hubness correction
+
+A fourth, structurally different novel idea (self-written, targets a
+different failure mode than the three above — a *document-side* ranking
+bias rather than a query-side signal):
+`benchmarks/07_utilities/novel_algo_hubness_correction.py` (2026-07-01).
+High-dimensional embedding spaces can suffer from "hubness" — some
+documents become disproportionately-frequent nearest neighbors across many
+unrelated queries, an intrinsic-dimensionality artifact rather than true
+relevance. Precomputed each document's mean similarity to a random sample
+of 500 other corpus documents as a "hub score," then penalized ranking
+scores proportionally (`adjusted = cos(q,d) - lambda * hub_score(d)`),
+sweeping lambda from 0.1 to 4.0.
+
+Result: unlike the other three techniques, this one does **not** show a
+"helps weak / hurts strong baseline" pattern — it shows negligible effect
+at small, safe lambda values (nfcorpus -0.0015, scifact +0.0028 at best —
+both within noise) and **catastrophic** degradation at larger lambda
+(scifact nDCG@10 0.4837 → 0.1196 at lambda=4, a near-total collapse, since
+a query-independent penalty this large overwhelms the actual
+query-document similarity signal entirely). Conclusion: hubness is not a
+meaningfully large effect at these corpus sizes (thousands of documents,
+not millions) with this embedder — this technique has no safe operating
+point where it provides a real benefit. Not adopted.
+
+### Overall conclusion after four independently-tested novel/existing augmentation techniques
+
+BM25 hybrid fusion, cross-encoder reranking, embedding-space PRF, and
+document-side hubness correction were all tested rigorously against real
+BEIR data with real, standard metrics — none of them provide a reliable,
+corpus-independent improvement over plain single-pass dense search with a
+good embedder. The one validated, generalizable lever for MATHIR's
+retrieval quality remains the embedding model choice itself (see the table
+above). Further architecture changes to the *search/ranking* mechanism are
+not where the effort should go without a new idea that breaks this
+pattern — this is a documented, evidence-based stopping point, not an
+assumption.
+
 ## How to Change Model (Step by Step)
 
 ### Step 1: Choose your model
