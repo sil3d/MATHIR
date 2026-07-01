@@ -115,6 +115,33 @@ later, this same test should be re-run with that embedder before deciding
 whether hybrid should be disabled outright versus kept adaptive — the two
 outcomes are indistinguishable without re-testing.
 
+### Rejected idea: embedding-space pseudo-relevance feedback (PRF)
+
+A genuinely novel (self-written, not FAISS/BM25/RRF/CE-based) two-pass
+retrieval idea: refine the query embedding using a score-weighted centroid
+of the first pass's own top-m results before searching again (Rocchio-style,
+implemented from scratch in
+`benchmarks/07_utilities/novel_algo_embedding_prf.py`, 2026-07-01). Swept
+m ∈ {3,5,10} and blend weight β ∈ {0.1,0.25,0.5,1.0} on nfcorpus and scifact.
+
+Result: small, inconsistent, dataset-dependent. Best config improved
+nfcorpus nDCG@10 by +0.0063 (0.2345→0.2408) but the best config on scifact
+still *lost* -0.0049 (0.4837→0.4787) relative to plain single-pass dense
+search, and every other tested (m, β) combination on scifact lost more.
+This is the classic PRF "query drift" failure mode: when the first pass's
+top-m already contains false positives (more likely when the baseline
+dense ranking is already fairly good, as on scifact), blending them back
+into the query moves it toward noise rather than signal.
+
+This is now the **third** independent technique (after hybrid BM25 fusion
+and cross-encoder reranking) that shows the exact same pattern: it helps
+when the baseline dense signal is weak and hurts when the baseline dense
+signal is already strong. That's a real, generalizable finding in its own
+right — any secondary/augmentation signal added on top of this embedder's
+dense search inherits this same trade-off. Not adopted as a default; the
+script is kept for reproducibility and to save whoever revisits this idea
+from re-discovering the same drift problem from scratch.
+
 ## How to Change Model (Step by Step)
 
 ### Step 1: Choose your model
