@@ -90,10 +90,13 @@ def test_memory_save_route_flags_anomalous_embedding(tmp_path, monkeypatch):
     assert body["metadata"]["block_type"] == "immunological"
     assert body["metadata"]["tier"] == "immunological"
     assert any("anomaly_score=" in w for w in (body["metadata"]["risk_warnings"] or []))
+    assert isinstance(body["metadata"]["anomaly_score"], float)
 
     # Verify it actually persisted with tier='immunological' in the DB.
     flagged = vec_mem.list_immunological(k=10)
-    assert any(m["memory_id"] == body["memory_id"] for m in flagged)
+    matching = [m for m in flagged if m["memory_id"] == body["memory_id"]]
+    assert matching, "flagged memory not found in list_immunological()"
+    assert isinstance(matching[0]["anomaly_score"], float)
 
 
 def test_audit_immunological_route_lists_flagged_memories(tmp_path, monkeypatch):

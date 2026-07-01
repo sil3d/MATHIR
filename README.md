@@ -264,7 +264,7 @@ Manual: see [INSTALL_FOR_AGENT/INSTALL_WINDOWS.md](mathir_mcp/INSTALL_FOR_AGENT/
 
 | Product | OSS? | LLM-agnostic? | Edge? | Anomaly detection | Cost |
 |---|:---:|:---:|:---:|:---:|---|
-| **🧠 MATHIR** | ✅ MIT | ✅ Any | ✅ ~500MB GPU | ⚠️ MCP server: no — `mathir_dropin` lib: AUC=1.0 | **Free** |
+| **🧠 MATHIR** | ✅ MIT | ✅ Any | ✅ ~500MB GPU | ✅ MCP server: live Mahalanobis detector, AUC-ROC=0.8533 | **Free** |
 | Mem0 | ⚠️ SDK | ✅ | ❌ | ❌ | Free → $249/mo |
 | Letta | ✅ Apache 2.0 | ✅ | ⚠️ Heavy | ❌ | Free |
 | Zep | ⚠️ | ✅ | ❌ | ❌ | $1,250/yr |
@@ -274,7 +274,7 @@ Manual: see [INSTALL_FOR_AGENT/INSTALL_WINDOWS.md](mathir_mcp/INSTALL_FOR_AGENT/
 | ChatGPT Memory | ❌ | ❌ OpenAI | ❌ | ❌ | $20/mo+ |
 | Claude Projects | ❌ | ❌ Anthropic | ❌ | ❌ | $20/mo+ |
 
-> **Anomaly detection status:** MATHIR ships **two separate products**. The MCP server/daemon (`mathir_lib/`, what coding agents connect to) defines an `immunological` tier in its schema/dashboard but does **not** yet wire it to a live detector — no memory is currently written to that tier via MCP. The Mahalanobis-distance detector with the AUC=1.0 result lives in `mathir_dropin/` (the separate embeddable library for non-MCP apps, see [docs/05_SHIPPING_GUIDE.md](docs/05_SHIPPING_GUIDE.md)) — it is real and tested, but it is not currently invoked by the MCP server you'd connect a coding agent to. Don't read the AUC=1.0 figure as a feature of the MCP product specifically.
+> **Anomaly detection status:** the MCP server/daemon (`mathir_lib/`, what coding agents connect to) now wires its `immunological` tier to a real, live Mahalanobis-distance detector: `/api/memory/save` scores every incoming embedding against a running per-project baseline and can write `tier='immunological'` when it flags an outlier. On a realistic prompt-injection corpus (`mathir_mcp/tests/data/anomaly_eval/`), the honest result is **AUC-ROC=0.8533** for normal-vs-injection separation — good, not perfect. There is no clean separation between "malicious" and "merely unusual" using distance alone: benign-but-unusual text can also score above the threshold and get flagged. Because of this, flagged content is **not** auto-blocked or silently deleted — it lands in the `immunological` tier for review via `memory_audit_immunological`. A separate, simpler (non-Mahalanobis) detector also exists in `mathir_dropin/` (the standalone embeddable library for non-MCP apps, see [docs/05_SHIPPING_GUIDE.md](docs/05_SHIPPING_GUIDE.md)) — it is a different implementation and its numbers are not the ones quoted above.
 >
 > **Retrieval quality vs FAISS:** real BEIR benchmarks (SciFact/ArguAna/NFCorpus, see [benchmarks/06_results/current/](benchmarks/06_results/current/)) currently show plain FAISS dense retrieval *outperforming* MATHIR's hybrid BM25+dense+cross-encoder pipeline. Any "+14pp vs FAISS" figure you may see elsewhere comes from a 50-query/200-chunk internal evaluation on a single textbook and is not comparable to a standard IR benchmark — see [docs/SOTA_RESEARCH_2024_2026.md](docs/SOTA_RESEARCH_2024_2026.md) for the full self-audit.
 >

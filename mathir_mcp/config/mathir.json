@@ -7,7 +7,8 @@
     "semantic_prototypes": 256,
     "immunological_capacity": 100,
     "kl_coefficient": 0.01,
-    "anomaly_threshold": 45.0,
+    "anomaly_threshold": 20.0,
+    "_anomaly_threshold_note": "Calibrated against the eval corpus in mathir_mcp/tests/data/anomaly_eval/ (normal_mean=18.6, normal_std=0.69) -- not a purely theoretical value.",
     "anomaly_warmup_count": 60,
     "decay_rate": 0.95
   },

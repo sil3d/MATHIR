@@ -699,6 +699,7 @@ def memory_save():
         }
         if tier_override:
             metadata['tier'] = tier_override
+            metadata['anomaly_score'] = float(anomaly_result['score'])
         vec_mem.store(memory_id, emb_np, metadata)
         resp = {'memory_id': memory_id, 'saved': True, 'metadata': metadata}
         _attach_legacy_warning(vec_mem, resp)

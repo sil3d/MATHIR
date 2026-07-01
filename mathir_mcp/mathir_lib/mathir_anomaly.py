@@ -2,9 +2,15 @@
 
 Maintains a running (EMA) mean and covariance of embeddings considered
 "normal" and scores new embeddings by their Mahalanobis distance to that
-distribution. Covariance shrinkage (``Sigma + epsilon*I``) keeps the matrix
-invertible even when few samples have been seen relative to the embedding
-dimensionality.
+distribution. Covariance regularization uses adaptive, Ledoit-Wolf-style
+shrinkage toward a scaled identity: the shrinkage intensity
+``alpha = max(regularization, dim / n_updates)`` adapts to how many samples
+have been seen relative to the embedding dimensionality, rather than adding
+a fixed epsilon. This keeps the matrix invertible and well-conditioned even
+when few samples have been seen relative to the embedding dimensionality --
+a fixed epsilon alone does not fix the rank-deficiency of the empirical
+covariance when n_updates is not much larger than dim (see the detailed
+note in ``_get_inverse`` below).
 
 This replaces two previous, disconnected implementations:
   - ``mathir_lib.memory.immunological.MahalanobisImmunologicalMemory``
@@ -15,9 +21,26 @@ This replaces two previous, disconnected implementations:
 """
 from __future__ import annotations
 
+import base64
 from typing import Any, Dict
 
 import numpy as np
+
+
+def _array_to_b64(arr: np.ndarray) -> str:
+    """Encode a float64 ndarray as a base64 string of its raw bytes.
+
+    Much faster and more compact to (de)serialize via JSON than
+    ``.tolist()`` / nested Python lists, which matters here because
+    ``_cov`` is a ``dim x dim`` array (147,456 floats at dim=384) that gets
+    re-serialized on every ``check_and_update_anomaly()`` call.
+    """
+    return base64.b64encode(np.ascontiguousarray(arr, dtype=np.float64).tobytes()).decode("ascii")
+
+
+def _b64_to_array(data: str, shape: tuple) -> np.ndarray:
+    flat = np.frombuffer(base64.b64decode(data), dtype=np.float64)
+    return flat.reshape(shape).copy()
 
 
 class MahalanobisDetector:
@@ -173,6 +196,14 @@ class MahalanobisDetector:
         return self.score(embedding) > self.threshold
 
     def to_dict(self) -> Dict[str, Any]:
+        # mean/cov are serialized as base64-encoded raw float64 bytes rather
+        # than nested JSON lists -- for a 384-dim embedding, ``_cov`` alone
+        # is a 384x384 array (147,456 floats), and this is re-serialized on
+        # every check_and_update_anomaly() call. Base64-encoded bytes are
+        # both much smaller and much faster to (de)serialize than the
+        # equivalent nested-list JSON representation, with no change to the
+        # public to_dict()/from_dict() interface (still a JSON-serializable
+        # dict of JSON-native types).
         return {
             "dim": self.dim,
             "threshold": self.threshold,
@@ -180,8 +211,8 @@ class MahalanobisDetector:
             "warmup_count": self.warmup_count,
             "ema_decay": self.ema_decay,
             "recompute_every": self.recompute_every,
-            "mean": self._mean.tolist(),
-            "cov": self._cov.tolist(),
+            "mean_b64": _array_to_b64(self._mean),
+            "cov_b64": _array_to_b64(self._cov),
             "n_updates": self._n_updates,
         }
 
@@ -195,7 +226,14 @@ class MahalanobisDetector:
             ema_decay=state["ema_decay"],
             recompute_every=state["recompute_every"],
         )
-        det._mean = np.array(state["mean"], dtype=np.float64)
-        det._cov = np.array(state["cov"], dtype=np.float64)
+        dim = state["dim"]
+        if "mean_b64" in state:
+            det._mean = _b64_to_array(state["mean_b64"], (dim,))
+            det._cov = _b64_to_array(state["cov_b64"], (dim, dim))
+        else:
+            # Backward compatibility with state persisted before the
+            # base64 encoding change (plain nested-list JSON).
+            det._mean = np.array(state["mean"], dtype=np.float64)
+            det._cov = np.array(state["cov"], dtype=np.float64)
         det._n_updates = state["n_updates"]
         return det

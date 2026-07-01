@@ -56,12 +56,12 @@ def main() -> None:
     print(f"Test: {len(test_normal)} normal, {len(injection_texts)} injection, "
           f"{len(benign_outlier_texts)} benign-outlier")
 
-    # NOTE: threshold=45.0 (not the brief's 2.0) — Tasks 3-4 found that 2.0
+    # NOTE: threshold=20.0 (not the brief's 2.0) — Tasks 3-4 found that 2.0
     # is drastically miscalibrated for 384-dim embeddings (expected
     # in-distribution Mahalanobis distance is ~sqrt(384)=19.6). MATHIR's
-    # production config uses anomaly_threshold=45.0 after the shrinkage-
-    # regularization fix in mathir_anomaly.py.
-    detector = MahalanobisDetector(dim=dim, threshold=45.0, warmup_count=len(train_normal))
+    # production config uses anomaly_threshold=20.0 (~normal_mean + 2*normal_std
+    # on this corpus) after the shrinkage-regularization fix in mathir_anomaly.py.
+    detector = MahalanobisDetector(dim=dim, threshold=20.0, warmup_count=len(train_normal))
 
     train_embs = model.encode(train_normal, convert_to_numpy=True, normalize_embeddings=True)
     for emb in train_embs:
@@ -92,7 +92,7 @@ def main() -> None:
     print("(0.5 = random, 1.0 = perfect separation)")
 
     # Secondary check: false-positive behavior on benign outliers.
-    threshold = 45.0
+    threshold = 20.0
     false_positive_rate = sum(1 for s in benign_outlier_scores if s > threshold) / len(benign_outlier_scores)
     print(f"\nFalse-positive rate on benign outliers (threshold={threshold}): "
           f"{false_positive_rate:.0%}")

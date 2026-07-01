@@ -20,7 +20,7 @@ That's not a Claude problem. That's a memory problem. Every provider locks conte
 
 I'm building something that fixes this. It's called MATHIR — a local memory system that works with any LLM via MCP. The memory lives on the user's machine (SQLite), not in your cloud. When they switch from Claude to GPT to Ollama, their context follows.
 
-The companion embeddable library (`mathir_dropin`, for apps that don't use MCP) also does something I haven't seen anywhere else: anomaly detection on inputs. Mahalanobis distance, AUC=1.0 on a small internal test set. Catches prompt injection before it reaches the model — a 1ms check most systems skip. (Note: this isn't wired into the MCP server yet, so it doesn't apply to the MCP integration described above.)
+MATHIR also does something I haven't seen anywhere else: anomaly detection on inputs, wired directly into the MCP server's save path. Mahalanobis distance, AUC-ROC=0.8533 on a realistic prompt-injection corpus (not a synthetic best case) — a real, imperfect detector, not a solved problem. Catches a meaningful fraction of prompt injection before it reaches the model, though it can also flag benign-but-unusual text (no clean separation from malicious content using distance alone), so flagged content goes to a review queue rather than being auto-blocked.
 
 I'm not asking for integration or promotion. I just think the cross-provider memory problem is real, and it would be valuable for Anthropic to know that open-source tools are starting to solve it.
 
@@ -125,7 +125,7 @@ Someone on Hacker News asked this: "Why is memory locked to one provider? I buil
 
 That's the cross-provider memory problem. MATHIR solves it — a local memory system that works with any LLM via MCP. When users switch between your model and others, their context stays.
 
-The companion `mathir_dropin` library (not yet wired into the MCP path above) also does anomaly detection — Mahalanobis distance, AUC=1.0 on a small internal test set. Catches prompt injection before it reaches the model.
+MATHIR's MCP path also does anomaly detection — Mahalanobis distance, AUC-ROC=0.8533 on a realistic prompt-injection corpus, wired directly into the memory-save route. Flagged content goes to a review queue, not an auto-block, since benign-but-unusual text can trigger it too.
 
 I built it alone, from my room, over a year. It's open-source, MIT licensed. For emerging providers, portable memory is a differentiator.
 
