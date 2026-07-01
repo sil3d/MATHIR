@@ -215,8 +215,8 @@ def run(args: argparse.Namespace) -> dict:
     # the visible answer -- those tokens count against max_tokens on most
     # providers, so a low ceiling truncates the response before any answer
     # appears. Defaults raised well above a plain non-reasoning model's needs.
-    answer_max_tokens = int(os.environ.get("MATHIR_BENCHMARK_ANSWER_MAX_TOKENS", "4096"))
-    judge_max_tokens = int(os.environ.get("MATHIR_BENCHMARK_JUDGE_MAX_TOKENS", "2048"))
+    answer_max_tokens = int(os.environ.get("MATHIR_BENCHMARK_ANSWER_MAX_TOKENS", "16000"))
+    judge_max_tokens = int(os.environ.get("MATHIR_BENCHMARK_JUDGE_MAX_TOKENS", "8000"))
 
     per_question_results = []
     failures = []

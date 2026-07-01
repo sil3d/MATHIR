@@ -293,7 +293,7 @@ def run_one_question(adapter: MathirAdapter, question: dict, k: int) -> dict:
     # response before any visible answer appears. Default raised well above
     # a plain non-reasoning model's needs; override via env if your model
     # needs even more headroom.
-    answer_max_tokens = int(os.environ.get("MATHIR_BENCHMARK_ANSWER_MAX_TOKENS", "4096"))
+    answer_max_tokens = int(os.environ.get("MATHIR_BENCHMARK_ANSWER_MAX_TOKENS", "16000"))
     gen_messages = build_generation_prompt(question_text, retrieved_contents)
     generated_answer = llm_client.chat(gen_messages, temperature=0.0, max_tokens=answer_max_tokens, model=answer_model)
 
@@ -302,7 +302,7 @@ def run_one_question(adapter: MathirAdapter, question: dict, k: int) -> dict:
     # Same reasoning-token concern as above -- the old max_tokens=32 was
     # sized for a non-reasoning model's bare "CORRECT"/"INCORRECT" output
     # and would truncate a thinking model before it ever reaches the verdict.
-    judge_max_tokens = int(os.environ.get("MATHIR_BENCHMARK_JUDGE_MAX_TOKENS", "2048"))
+    judge_max_tokens = int(os.environ.get("MATHIR_BENCHMARK_JUDGE_MAX_TOKENS", "8000"))
     judge_messages = build_judge_prompt(question_type, question_text, gold_answer, generated_answer)
     judge_response = llm_client.chat(judge_messages, temperature=0.0, max_tokens=judge_max_tokens, model=judge_model)
     judge_verdict = _parse_judge_verdict(judge_response)

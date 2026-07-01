@@ -6,12 +6,16 @@ LongMemEval and LoCoMo runners.
 Follows the same style as benchmarks/01_cross_llm_benchmark/benchmark.py's
 LLMClient (urllib-based POST to {api_base}/chat/completions with a Bearer
 token) and the env-var conventions in benchmarks/.env.example:
-MATHIR_LLM_BACKEND (auto/openrouter/ollama/api), MATHIR_API_KEY,
-MATHIR_API_BASE, MATHIR_API_MODEL -- also honors the standard OPENAI_API_KEY
-/ OPENAI_BASE_URL / OPENAI_MODEL env vars if already set globally in the
-shell (a real, already-working gateway, e.g. one serving MiniMax or any
-other real model), so a working setup outside the MATHIR_* scheme isn't
-silently ignored.
+MATHIR_LLM_BACKEND (auto/openrouter/api), MATHIR_API_KEY, MATHIR_API_BASE,
+MATHIR_API_MODEL -- also honors the standard OPENAI_API_KEY / OPENAI_BASE_URL
+/ OPENAI_MODEL env vars if already set globally in the shell (a real,
+already-working gateway, e.g. one serving MiniMax or any other real model),
+so a working setup outside the MATHIR_* scheme isn't silently ignored.
+
+No local Ollama backend: it's not fast enough for benchmark-scale runs
+(hundreds to thousands of LLM calls), so this module only ever talks to a
+real hosted API (OpenRouter, OpenCode Zen, MiniMax's native endpoint, or
+any other OpenAI-compatible provider via MATHIR_API_BASE/OPENAI_BASE_URL).
 
 No model name is ever hardcoded as a fallback: if a backend resolves an
 api_base/api_key but no model is set anywhere (env var or `model=` override),
@@ -58,14 +62,16 @@ except ImportError:
 def _resolve_backend_config(model_override: str | None = None) -> tuple[str, str, str]:
     """Resolve (api_base, api_key, model) from MATHIR_LLM_BACKEND + env vars.
 
-    Mirrors the "auto/openrouter/ollama/api" convention documented in
+    Mirrors the "auto/openrouter/api" convention documented in
     benchmarks/.env.example, but ALSO checks the standard OPENAI_API_KEY /
     OPENAI_BASE_URL / OPENAI_MODEL env vars first -- a real global gateway
     (any OpenAI-compatible endpoint, e.g. a proxy serving MiniMax or other
     real models) set directly in the shell, not just the bespoke MATHIR_*
     scheme that requires a separate benchmarks/.env file. Without this, a
-    real configured OPENAI_API_KEY was being silently ignored and "auto"
-    fell back to a local Ollama server that usually isn't running.
+    real configured OPENAI_API_KEY was being silently ignored.
+
+    No Ollama backend -- deliberately not fast enough for benchmark-scale
+    runs (hundreds to thousands of calls per full LongMemEval/LoCoMo pass).
     """
     backend = os.environ.get("MATHIR_LLM_BACKEND", "auto").strip().lower()
 
@@ -81,7 +87,12 @@ def _resolve_backend_config(model_override: str | None = None) -> tuple[str, str
         elif mathir_key:
             backend = "openrouter"
         else:
-            backend = "ollama"
+            raise RuntimeError(
+                "No LLM backend configured: set OPENAI_API_KEY/OPENAI_BASE_URL/"
+                "OPENAI_MODEL (a real gateway, e.g. MiniMax's native API or "
+                "OpenCode Zen), or MATHIR_API_KEY/MATHIR_API_BASE/MATHIR_API_MODEL "
+                "in benchmarks/.env. There is no local fallback."
+            )
 
     if backend == "openai_env":
         # A real, already-working OpenAI-compatible endpoint set globally
@@ -98,17 +109,6 @@ def _resolve_backend_config(model_override: str | None = None) -> tuple[str, str
                 "guess a model name for you."
             )
         return api_base, openai_key, model
-
-    if backend == "ollama":
-        api_base = os.environ.get("MATHIR_OLLAMA_URL", "http://localhost:11434").rstrip("/") + "/v1"
-        model = model_override or os.environ.get("MATHIR_OLLAMA_MODEL")
-        if not model:
-            raise RuntimeError(
-                "No model resolved for the 'ollama' backend: set MATHIR_OLLAMA_MODEL "
-                "to whichever model you've actually pulled into your local Ollama "
-                "server -- this code does not guess a model name for you."
-            )
-        return api_base, "ollama", model
 
     if backend == "openrouter":
         api_base = os.environ.get("MATHIR_API_BASE") or "https://openrouter.ai/api/v1"
@@ -158,7 +158,7 @@ def chat(messages: list, temperature: float = 0.0, max_tokens: int = 1024, model
     url = f"{api_base.rstrip('/')}/chat/completions"
 
     headers = {"Content-Type": "application/json"}
-    if api_key and api_key != "ollama":
+    if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
 
     referer = os.environ.get("MATHIR_OPENROUTER_REFERER")
