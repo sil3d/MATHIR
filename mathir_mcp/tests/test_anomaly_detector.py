@@ -44,12 +44,20 @@ def test_warmed_up_at_threshold():
 
 
 def test_score_low_for_in_distribution_point():
-    """A point drawn from the same distribution as training scores low."""
+    """A point drawn from the same distribution as training scores low.
+
+    Uses dim=4 (not 16): the expected Mahalanobis distance of a point drawn
+    from a d-dimensional standard normal is approximately sqrt(d) (it
+    follows a chi distribution with d degrees of freedom). At d=16 that's
+    ~4.0, which would make a `< 3.0` assertion fail on typical in-distribution
+    points, not just true outliers. At d=4 the expectation is ~2.0, giving
+    real headroom below the 3.0 threshold used here and in the outlier test.
+    """
     rng = np.random.RandomState(1)
-    d = MahalanobisDetector(dim=16, threshold=3.0, warmup_count=30, regularization=1e-3)
+    d = MahalanobisDetector(dim=4, threshold=3.0, warmup_count=30, regularization=1e-3)
     for _ in range(200):
-        d.update(rng.randn(16).astype(np.float32))
-    in_dist = rng.randn(16).astype(np.float32)
+        d.update(rng.randn(4).astype(np.float32))
+    in_dist = rng.randn(4).astype(np.float32)
     score = d.score(in_dist)
     assert score < 3.0, f"expected in-distribution score < 3.0, got {score}"
 
