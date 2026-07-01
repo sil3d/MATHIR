@@ -209,6 +209,7 @@ def run(args: argparse.Namespace) -> dict:
 
     adapter = MathirAdapter()
 
+    answer_model = os.environ.get("MATHIR_BENCHMARK_ANSWER_MODEL") or None
     judge_model = os.environ.get("MATHIR_BENCHMARK_JUDGE_MODEL") or None
 
     per_question_results = []
@@ -279,6 +280,7 @@ def run(args: argparse.Namespace) -> dict:
                     messages=[{"role": "user", "content": gen_prompt}],
                     temperature=0.0,
                     max_tokens=512,
+                    model=answer_model,
                 )
                 record["generated_answer"] = generated_answer.strip()
             except Exception as e:

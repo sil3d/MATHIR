@@ -285,11 +285,12 @@ def run_one_question(adapter: MathirAdapter, question: dict, k: int) -> dict:
     retrieved_contents = [r.get("content", "") for r in results]
 
     # 3. Generate
+    import os
+    answer_model = os.environ.get("MATHIR_BENCHMARK_ANSWER_MODEL") or None
     gen_messages = build_generation_prompt(question_text, retrieved_contents)
-    generated_answer = llm_client.chat(gen_messages, temperature=0.0, max_tokens=512)
+    generated_answer = llm_client.chat(gen_messages, temperature=0.0, max_tokens=512, model=answer_model)
 
     # 4. Judge
-    import os
     judge_model = os.environ.get("MATHIR_BENCHMARK_JUDGE_MODEL") or None
     judge_messages = build_judge_prompt(question_type, question_text, gold_answer, generated_answer)
     judge_response = llm_client.chat(judge_messages, temperature=0.0, max_tokens=32, model=judge_model)
