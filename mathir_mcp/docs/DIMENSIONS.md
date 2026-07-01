@@ -141,16 +141,47 @@ inline harness (`investigate_hybrid_flip_factor.py`) than the original
 directly comparable line-for-line (different dataset shown here), which
 is itself a small methodology lesson: always name which script/dataset a
 number came from, since "the hybrid delta" is not a single universal
-constant even for the "same" embedder. **What specifically determines
+constant even for the "same" embedder. ~~**What specifically determines
 whether hybrid fusion helps or hurts a given embedder remains an open
-question** — ruled out: overall embedder strength (rejected above), and
-score-distribution peakedness (rejected here). Worth trying next: BM25
-score scale/variance relative to the dense score scale (RRF is rank-based
-so this shouldn't matter in theory, but worth checking empirically since
-theory hasn't matched data twice now), or something specific to
-training objective (e5/bge are both contrastive-retrieval-trained,
-unlike the paraphrase-trained default, yet they differ from each other
-too) rather than any single scalar statistic of the ranking.
+question**~~ **RESOLVED below.**
+
+### Resolution: it's simply baseline retrieval quality, monotonically
+
+The "top1-top10 gap" statistic (rejected above) was the wrong variable to
+look at. Completing the full 3-embedder × 2-dataset matrix
+(`benchmarks/07_utilities/complete_hybrid_flip_matrix.py`, 2026-07-01) and
+sorting by the simplest possible statistic — the baseline dense nDCG@10
+itself — reveals a clean, **perfectly monotonic** relationship within each
+dataset:
+
+| Dataset | Embedder (sorted by baseline quality) | Baseline nDCG@10 | Hybrid delta |
+|---|---|---|---|
+| nfcorpus | default | 0.2345 | **+0.0711** |
+| nfcorpus | e5-small | 0.3105 | **+0.0225** |
+| nfcorpus | bge-base | 0.3681 | **-0.0050** |
+| scifact | default | 0.4837 | **+0.1193** |
+| scifact | e5-small | 0.6770 | **+0.0146** |
+| scifact | bge-base | 0.7376 | **-0.0157** |
+
+In both datasets, as baseline quality increases, the hybrid-fusion delta
+decreases monotonically, crossing from clearly positive to slightly
+negative. This is **not** a threshold/binary effect and **not** specific
+to embedder identity — it's a continuous function of how good the dense
+ranking already is on that corpus. The earlier "e5-small still helps
+despite being stronger than default, contradicting the rule" framing was
+comparing the wrong things: e5-small's improvement over default simply
+wasn't large enough yet to cross into the harmful regime for these two
+corpora; bge-base's larger improvement was what crossed it. There was
+never a contradiction — just an incomplete matrix (2-3 cherry-picked
+points) instead of the full sorted picture.
+
+**Practical, actionable rule**: the marginal value of BM25 hybrid fusion
+shrinks as the chosen embedder's baseline retrieval quality on your
+corpus rises, and can go negative once that baseline is already strong.
+There's no single universal `bm25_weight` that's right for every
+embedder/corpus combination — if you upgrade to a stronger embedder,
+re-check whether hybrid fusion (or its weight) still helps on YOUR data,
+rather than assuming the default 1.0/1.0 weighting remains optimal.
 
 ### Rejected idea: confidence-gated adaptive fusion
 
