@@ -135,6 +135,7 @@ class VecMemory:
         self._conn = None
         # H1: serialize concurrent DB ops; RLock allows re-entry from nested helpers.
         self._db_lock = threading.RLock()
+        self._anomaly_detector = None  # lazy-loaded MahalanobisDetector, see _get_anomaly_detector()
         self._ensure_db()
     
     def _get_conn(self) -> sqlite3.Connection:
@@ -285,6 +286,15 @@ class VecMemory:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_links_source ON memory_links(source_id)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_links_target ON memory_links(target_id)")
 
+            # Persisted state for the immunological-tier anomaly detector
+            # (one row per project DB, id is always 1). See mathir_anomaly.py.
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS anomaly_state (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    state_json TEXT NOT NULL
+                )
+            """)
+
             conn.commit()
     
     def store(self, memory_id: str, embedding: np.ndarray, metadata: Dict[str, Any]) -> str:
@@ -370,7 +380,112 @@ class VecMemory:
 
             conn.commit()
             return memory_id
-    
+
+    def _get_anomaly_detector(self, threshold: float, warmup_count: int = 30):
+        """Lazily load (or create) this DB's MahalanobisDetector, caching it
+        on the instance so the O(dim^3) inverse isn't recomputed from scratch
+        on every call within a single daemon process lifetime."""
+        try:
+            from .mathir_anomaly import MahalanobisDetector
+        except ImportError:
+            from mathir_anomaly import MahalanobisDetector  # type: ignore[no-redef]
+
+        if self._anomaly_detector is not None:
+            return self._anomaly_detector
+
+        with self._db_lock:
+            conn = self._get_conn()
+            row = conn.execute("SELECT state_json FROM anomaly_state WHERE id = 1").fetchone()
+
+        if row is not None:
+            state = json.loads(row[0])
+            self._anomaly_detector = MahalanobisDetector.from_dict(state)
+        else:
+            self._anomaly_detector = MahalanobisDetector(
+                dim=self.embedding_dim, threshold=threshold, warmup_count=warmup_count,
+            )
+        return self._anomaly_detector
+
+    def _save_anomaly_state(self) -> None:
+        if self._anomaly_detector is None:
+            return
+        state_json = json.dumps(self._anomaly_detector.to_dict())
+        with self._db_lock:
+            conn = self._get_conn()
+            conn.execute(
+                "INSERT INTO anomaly_state (id, state_json) VALUES (1, ?) "
+                "ON CONFLICT(id) DO UPDATE SET state_json = excluded.state_json",
+                (state_json,),
+            )
+            self._commit_with_retry()
+
+    def check_and_update_anomaly(
+        self, embedding: np.ndarray, threshold: float, warmup_count: int = 30,
+    ) -> Dict[str, Any]:
+        """Score ``embedding`` against this project's anomaly baseline.
+
+        During warmup (fewer than ``warmup_count`` prior calls), every
+        embedding is folded into the baseline and treated as non-anomalous
+        — there isn't enough data yet to trust a covariance estimate.
+
+        After warmup: embeddings scoring above ``threshold`` are flagged as
+        anomalous and are NOT folded into the baseline (anomalies must not
+        pollute what "normal" means). Non-anomalous embeddings update the
+        baseline as usual.
+
+        Returns ``{"is_anomaly": bool, "score": float | None, "warmed_up": bool}``.
+        """
+        detector = self._get_anomaly_detector(threshold=threshold, warmup_count=warmup_count)
+
+        if not detector.is_warmed_up():
+            detector.update(embedding)
+            self._save_anomaly_state()
+            return {"is_anomaly": False, "score": None, "warmed_up": False}
+
+        score = detector.score(embedding)
+        is_anomaly = score > threshold
+        if not is_anomaly:
+            detector.update(embedding)
+        self._save_anomaly_state()
+        return {"is_anomaly": is_anomaly, "score": score, "warmed_up": True}
+
+    def list_immunological(self, project: Optional[str] = None, k: int = 20) -> List[Dict[str, Any]]:
+        """List memories currently flagged in the immunological tier, most recent first."""
+        with self._db_lock:
+            conn = self._get_conn()
+            if project:
+                cursor = conn.execute(
+                    "SELECT memory_id, content, agent, label, created_at, metadata "
+                    "FROM memories WHERE tier = 'immunological' AND project = ? "
+                    "ORDER BY created_at DESC LIMIT ?",
+                    (project, k),
+                )
+            else:
+                cursor = conn.execute(
+                    "SELECT memory_id, content, agent, label, created_at, metadata "
+                    "FROM memories WHERE tier = 'immunological' "
+                    "ORDER BY created_at DESC LIMIT ?",
+                    (k,),
+                )
+            rows = cursor.fetchall()
+
+        results = []
+        for row in rows:
+            meta = {}
+            try:
+                meta = json.loads(row["metadata"]) if row["metadata"] else {}
+            except (TypeError, ValueError, json.JSONDecodeError):
+                pass
+            results.append({
+                "memory_id": row["memory_id"],
+                "content": (row["content"] or "")[:500],
+                "agent": row["agent"],
+                "label": row["label"],
+                "created_at": row["created_at"],
+                "anomaly_score": meta.get("anomaly_score"),
+            })
+        return results
+
     def search(self, query_embedding: np.ndarray, k: int = 5,
                agent_filter: str = None, block_type_filter: str = None) -> List[Dict[str, Any]]:
         """Search for similar memories using vector similarity."""

@@ -102,3 +102,73 @@ def test_to_dict_from_dict_roundtrip():
     probe = rng.randn(8).astype(np.float32)
     assert d.score(probe) == pytest.approx(d2.score(probe), rel=1e-5)
     assert d2.is_warmed_up() == d.is_warmed_up()
+
+
+try:
+    from mathir_lib.mathir_vec import VecMemory
+except ImportError:
+    from mathir_vec import VecMemory  # type: ignore[no-redef]
+
+
+def test_check_and_update_anomaly_not_warmed_up(tmp_path):
+    """Before warmup_count saves, every embedding is treated as non-anomalous
+    and silently folded into the baseline."""
+    db = tmp_path / "anomaly_warmup.db"
+    vm = VecMemory(db, embedding_dim=384)
+    rng = np.random.RandomState(10)
+    emb = rng.randn(384).astype(np.float32)
+    result = vm.check_and_update_anomaly(emb, threshold=2.0, warmup_count=30)
+    assert result["is_anomaly"] is False
+    assert result["warmed_up"] is False
+
+
+def test_check_and_update_anomaly_flags_outlier_after_warmup(tmp_path):
+    """After warmup, a far-outlier embedding is flagged; an in-distribution
+    one is not, and the baseline does not absorb the outlier.
+
+    dim=64 is the smallest value accepted by VecMemory.VALID_DIMS. For a
+    d-dimensional standard normal, the expected Mahalanobis distance to a
+    well-estimated baseline is ~sqrt(d) (chi distribution with d degrees of
+    freedom) -- for d=64 that's ~8, with in-distribution samples commonly
+    landing in the 8-11 range. threshold=20 and warmup_count=500 (>> dim,
+    so the covariance estimate is well-conditioned by the time warmup ends)
+    give a wide, seed-stable margin between in-distribution scores (~9-11)
+    and the deliberately extreme outlier (score in the hundreds).
+    """
+    db = tmp_path / "anomaly_flag.db"
+    vm = VecMemory(db, embedding_dim=64)
+    rng = np.random.RandomState(11)
+
+    # Build the baseline with the real 64-dim VecMemory path by calling
+    # check_and_update_anomaly 500 times with in-distribution points
+    # (matches what memory_save will do for non-anomalous saves).
+    for _ in range(500):
+        normal = rng.randn(64).astype(np.float32)
+        vm.check_and_update_anomaly(normal, threshold=20.0, warmup_count=500)
+
+    outlier = (rng.randn(64).astype(np.float32) * 0.1) + 50.0
+    result = vm.check_and_update_anomaly(outlier, threshold=20.0, warmup_count=500)
+    assert result["warmed_up"] is True
+    assert result["is_anomaly"] is True
+    assert result["score"] > 20.0
+
+    in_dist = rng.randn(64).astype(np.float32)
+    result2 = vm.check_and_update_anomaly(in_dist, threshold=20.0, warmup_count=500)
+    assert result2["is_anomaly"] is False
+
+
+def test_anomaly_state_persists_across_vecmemory_instances(tmp_path):
+    """Detector state survives a daemon restart (new VecMemory on same db_path)."""
+    db = tmp_path / "anomaly_persist.db"
+    rng = np.random.RandomState(12)
+
+    vm1 = VecMemory(db, embedding_dim=64)
+    for _ in range(40):
+        vm1.check_and_update_anomaly(rng.randn(64).astype(np.float32), threshold=2.0, warmup_count=30)
+    vm1.close()
+
+    vm2 = VecMemory(db, embedding_dim=64)
+    outlier = (rng.randn(64).astype(np.float32) * 0.1) + 50.0
+    result = vm2.check_and_update_anomaly(outlier, threshold=2.0, warmup_count=30)
+    assert result["warmed_up"] is True, "detector state should have persisted across instances"
+    assert result["is_anomaly"] is True
