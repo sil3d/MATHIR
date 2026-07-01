@@ -99,6 +99,15 @@ try:
 except ImportError:
     _risk_enabled = False
 
+try:
+    from .mathir_stats_server import load_config
+except ImportError:
+    from mathir_stats_server import load_config  # type: ignore[no-redef]
+
+_anomaly_config = load_config().get("memory", {})
+_ANOMALY_THRESHOLD = _anomaly_config.get("anomaly_threshold", 2.0)
+_ANOMALY_WARMUP = _anomaly_config.get("anomaly_warmup_count", 30)
+
 # ---------------------------------------------------------------------------
 # Globals
 # ---------------------------------------------------------------------------
@@ -662,21 +671,52 @@ def memory_save():
         emb_np = _encode_query(embedder, content)
         import uuid
         memory_id = f"mem_{uuid.uuid4().hex}"
+
+        block_type = params.get('block_type', 'episodic')
+        tier_override = None
+        try:
+            anomaly_result = vec_mem.check_and_update_anomaly(
+                emb_np, threshold=_ANOMALY_THRESHOLD, warmup_count=_ANOMALY_WARMUP,
+            )
+            if anomaly_result["is_anomaly"]:
+                tier_override = "immunological"
+                block_type = "immunological"
+                risk_warnings.append(f"anomaly_score={anomaly_result['score']:.2f}")
+        except Exception:
+            # Anomaly detection is best-effort — never block a save because
+            # of it (e.g. corrupt persisted state, dimension mismatch on an
+            # old DB). Falls through with tier_override=None.
+            pass
+
         metadata = {
             'agent': params.get('agent', 'unknown'),
-            'block_type': params.get('block_type', 'episodic'),
+            'block_type': block_type,
             'label': params.get('label', ''),
             'priority': params.get('priority', 5),
             'content': content,
             'project': params.get('project') or get_project_name(),
             'risk_warnings': risk_warnings if risk_warnings else None,
         }
+        if tier_override:
+            metadata['tier'] = tier_override
         vec_mem.store(memory_id, emb_np, metadata)
         resp = {'memory_id': memory_id, 'saved': True, 'metadata': metadata}
         _attach_legacy_warning(vec_mem, resp)
         return jsonify(resp)
     except Exception as e:
         return jsonify({'error': _sanitize_error(e, 'memory_save')}), 500
+
+
+@app.route("/api/memory/audit_immunological", methods=["POST"])
+def memory_audit_immunological():
+    params = _get_params()
+    try:
+        vec_mem, _db_path, _embedder = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
+        k = min(params.get('k', 20), 200)
+        results = vec_mem.list_immunological(project=params.get('project'), k=k)
+        return jsonify({"results": results, "total": len(results)})
+    except Exception as e:
+        return jsonify({'error': _sanitize_error(e, 'memory_audit_immunological')}), 500
 
 
 @app.route("/api/memory/recall", methods=["POST"])
