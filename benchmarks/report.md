@@ -10,6 +10,8 @@
 
 MATHIR is a 5-tier cognitive memory system exposed via MCP (Model Context Protocol) — a local daemon (`mathir_mcp/mathir_lib/mathir_server.py`, Flask+Waitress, port 7338) that any coding agent connects to via 24 MCP tools (`memory_save`, `memory_recall`, `memory_hybrid_search`, lifecycle tools, etc.). Backed by SQLite + sqlite-vec for vector search. Explicitly targets **local/edge deployment, no cloud dependency, low resource footprint** — this constraint shaped several decisions below (e.g. we did NOT just swap to a bigger embedding model).
 
+**Read the `mathir-vision-vs-verified-reality` memory in MATHIR itself (`memory_recall` for that label) before assuming any of the following are proven**: cross-provider portability (MATHIR's headline claim — a `--cross-model` test harness is built in section 5 below but was NEVER RUN, blocked on credits, so this has zero empirical support from this project's own testing), hallucination reduction (never measured), token reduction (never measured), and "auto-learning" via the promotion/decay/consolidation lifecycle (code exists in `mathir_vec.py` but was never mathematically validated or benchmarked this session — a completely separate, unexplored area from the retrieval-quality investigation below). This report and DIMENSIONS.md only cover raw retrieval quality on academic BEIR corpora — that is one slice of MATHIR's vision, not the whole thing.
+
 ---
 
 ## 2. Real bugs found and fixed this session (already committed, working)
