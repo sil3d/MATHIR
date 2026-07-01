@@ -1,0 +1,50 @@
+{
+  "models": {
+    "current_default (paraphrase-multilingual-MiniLM-L12-v2)": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "candidate (multilingual-e5-small)": "intfloat/multilingual-e5-small"
+  },
+  "results": {
+    "scifact": {
+      "current_default (paraphrase-multilingual-MiniLM-L12-v2)": {
+        "nDCG@10": 0.48367,
+        "MAP@10": 0.43655,
+        "Recall@100": 0.84289,
+        "time_s": 9.06997013092041
+      },
+      "candidate (multilingual-e5-small)": {
+        "nDCG@10": 0.677,
+        "MAP@10": 0.62942,
+        "Recall@100": 0.925,
+        "time_s": 51.69279146194458
+      }
+    },
+    "nfcorpus": {
+      "current_default (paraphrase-multilingual-MiniLM-L12-v2)": {
+        "nDCG@10": 0.23449,
+        "MAP@10": 0.06633,
+        "Recall@100": 0.24784,
+        "time_s": 10.166405439376831
+      },
+      "candidate (multilingual-e5-small)": {
+        "nDCG@10": 0.31004,
+        "MAP@10": 0.11564,
+        "Recall@100": 0.27366,
+        "time_s": 51.310153007507324
+      }
+    },
+    "arguana": {
+      "current_default (paraphrase-multilingual-MiniLM-L12-v2)": {
+        "nDCG@10": 0.44878,
+        "MAP@10": 0.36607,
+        "Recall@100": 0.95733,
+        "time_s": 54.69576096534729
+      },
+      "candidate (multilingual-e5-small)": {
+        "nDCG@10": 0.39085,
+        "MAP@10": 0.31734,
+        "Recall@100": 0.91323,
+        "time_s": 97.36321902275085
+      }
+    }
+  }
+}

@@ -18,6 +18,84 @@ The default model (384d) is optimized for **speed and low VRAM**. But you might 
 
 ---
 
+## Real, Independently-Verified Alternative (Same 384d Footprint)
+
+Unlike the MTEB numbers quoted elsewhere in this doc (borrowed from public
+leaderboards, not run by this project), the comparison below was actually
+executed against this project's own real BEIR corpora (scifact, nfcorpus,
+arguana) using the real `beir.retrieval.evaluation.EvaluateRetrieval`
+methodology, on 2026-06-30 (see
+`benchmarks/06_results/current/embedding_model_comparison.json` for the raw
+output and `benchmarks/07_utilities/compare_embedding_models.py` to
+reproduce it):
+
+| Dataset | Default (paraphrase-multilingual-MiniLM-L12-v2) | `intfloat/multilingual-e5-small` | Encoding speed |
+|---|---|---|---|
+| scifact | nDCG@10 0.4837 | **nDCG@10 0.6770** (+40%) | e5-small ~5x slower |
+| nfcorpus | nDCG@10 0.2345 | **nDCG@10 0.3100** (+32%) | e5-small ~5x slower |
+| arguana | **nDCG@10 0.4488** | nDCG@10 0.3908 (-13%) | e5-small ~1.8x slower |
+
+Both models are the same size class (384d, ~118M params, similar
+edge/low-VRAM footprint) — this is a same-footprint quality/speed
+trade-off, not an upgrade to a bigger model. `multilingual-e5-small` is
+trained specifically for retrieval (requires `"query: "` / `"passage: "`
+text prefixes — see the comparison script for the exact usage) and wins
+clearly on factual/QA-style retrieval (scifact, nfcorpus — closer to
+MATHIR's typical "find a fact in my memories" use case), but loses on
+argument-similarity-style retrieval (arguana) where the current default's
+paraphrase-training is actually a better fit. It is also meaningfully
+slower to encode, which matters for edge/resource-constrained deployments
+(MATHIR explicitly targets running locally without cloud dependency).
+
+**MATHIR's default was deliberately NOT changed** based on this result —
+the current 384d paraphrase-multilingual model remains the default
+specifically to preserve edge-device speed and because the trade-off is
+task-dependent, not a clean win. If your use case is factual/QA-style
+retrieval and you can accept slower encoding, set in `mathir.json`:
+
+```json
+{
+  "model": "intfloat/multilingual-e5-small",
+  "embedding_dim": 384
+}
+```
+
+then follow the migration steps below (dimension is unchanged at 384d, so
+no vec0 rebuild is needed — but re-embedding existing content is still
+recommended for consistent similarity scores across old and new memories,
+since the two models produce different embedding spaces at the same
+dimensionality).
+
+## Where MATHIR's Retrieval Quality Gap Actually Comes From (Investigation Notes)
+
+A live benchmark (`benchmarks/09_mathir_vs_faiss_stress/`) showed MATHIR's
+`hybrid_search` trailing a stronger-embedder FAISS baseline on real BEIR
+data. Two follow-up investigations (2026-07-01,
+`benchmarks/07_utilities/isolate_mathir_retrieval_bug.py` and
+`test_rrf_weights.py`) isolated exactly why, so this doesn't get
+misdiagnosed later:
+
+1. **MATHIR's vector search mechanism itself is not the problem.** Holding
+   the embedder fixed and comparing raw FAISS `IndexFlatIP` against
+   `VecMemory.search()`'s real code path on the exact same embeddings
+   (nfcorpus) produced an **identical** nDCG@10 (0.2345 = 0.2345) — sqlite-vec's
+   exact brute-force cosine search is mathematically equivalent to FAISS at
+   these corpus sizes. (It is ~500x slower per-query in this specific
+   unindexed comparison, a separate performance question, not a quality one.)
+2. **The RRF fusion default weights (vector_weight=1.0, bm25_weight=1.0)
+   are already near-optimal for the current embedder** — sweeping
+   vector_weight from 1 to 10 (favoring the vector signal more) made
+   nfcorpus nDCG@10 *worse* (0.3056 → 0.2583), not better. With a weaker
+   embedder, BM25's lexical signal compensates for semantic weakness rather
+   than diluting it; this only flips (BM25 hurting) once the embedder is
+   already strong, per the `multi_dataset_efficient.py` results using
+   bge-base-en-v1.5.
+3. **Conclusion: the quality gap is the embedding model's retrieval-specific
+   training, full stop** — not a search bug, not a fusion-weight
+   misconfiguration. The trade-off is real and belongs to whoever picks the
+   model (see the table above), not something further code changes here can
+   fix without changing that choice.
+
 ## How to Change Model (Step by Step)
 
 ### Step 1: Choose your model
