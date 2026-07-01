@@ -79,7 +79,27 @@ def _resolve_backend_config(model_override: str | None = None) -> tuple[str, str
     openai_base = os.environ.get("OPENAI_BASE_URL", "")
     openai_model = os.environ.get("OPENAI_MODEL", "")
 
-    mathir_key = os.environ.get("MATHIR_API_KEY") or os.environ.get("OPENROUTER_API_KEY", "")
+    # MATHIR_API_KEY is a deliberately generic name -- it's THIS repo's
+    # internal env var for "whichever OpenAI-compatible key you've pointed
+    # MATHIR_API_BASE at", not a provider name. But that's genuinely
+    # confusing (a user asked "why MATHIR_API_KEY, I'm not a provider,
+    # give me the real name" -- fair complaint), and benchmarks/.env.example
+    # already defines real, named per-provider key slots
+    # (OPENCODE_ZEN_KEY, MINIMAX_API_KEY, GOOGLE_AI_STUDIO_KEY, NVIDIA_API_KEY)
+    # for 01_cross_llm_benchmark that were silently NOT read here before --
+    # so pasting a key into e.g. OPENCODE_ZEN_KEY had no effect on this
+    # module. Fixed: fall back through every real provider-named key too,
+    # in addition to the generic MATHIR_API_KEY/OPENROUTER_API_KEY, so
+    # whichever named slot you actually fill in just works.
+    mathir_key = (
+        os.environ.get("MATHIR_API_KEY")
+        or os.environ.get("OPENROUTER_API_KEY")
+        or os.environ.get("OPENCODE_ZEN_KEY")
+        or os.environ.get("MINIMAX_API_KEY")
+        or os.environ.get("GOOGLE_AI_STUDIO_KEY")
+        or os.environ.get("NVIDIA_API_KEY")
+        or ""
+    )
 
     if backend == "auto":
         if openai_key:
@@ -132,7 +152,26 @@ def _resolve_backend_config(model_override: str | None = None) -> tuple[str, str
             "No api_base resolved for the 'api' backend: set MATHIR_API_BASE or "
             "OPENAI_BASE_URL to your provider's endpoint."
         )
-    api_key = mathir_key or openai_key
+
+    # Match the key to the actual configured api_base rather than picking
+    # the first key that happens to be set in a fixed priority order. With
+    # several provider keys configured at once (OpenCode Zen, MiniMax,
+    # OpenRouter, ...), a base-independent fallback chain can silently pair
+    # e.g. an OpenRouter key with an OpenCode Zen endpoint -- a real bug
+    # that was caught here (401/403 HTTP errors, not a config-missing
+    # situation) before this fix.
+    explicit_mathir_key = os.environ.get("MATHIR_API_KEY")
+    if explicit_mathir_key:
+        api_key = explicit_mathir_key
+    elif "opencode.ai" in api_base:
+        api_key = os.environ.get("OPENCODE_ZEN_KEY") or mathir_key or openai_key
+    elif "minimax.io" in api_base:
+        api_key = os.environ.get("MINIMAX_API_KEY") or mathir_key or openai_key
+    elif "openrouter.ai" in api_base:
+        api_key = os.environ.get("OPENROUTER_API_KEY") or mathir_key or openai_key
+    else:
+        api_key = mathir_key or openai_key
+
     model = model_override or os.environ.get("MATHIR_API_MODEL") or openai_model
     if not model:
         raise RuntimeError(
