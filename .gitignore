@@ -90,3 +90,7 @@ Thumbs.db
 
 # Private files — outreach templates (not for public repo)
 docs/OUTREACH.md
+
+# Downloaded benchmark datasets (large / re-downloadable via download_datasets.py)
+benchmarks/05_test_data/longmemeval/
+benchmarks/05_test_data/locomo/
