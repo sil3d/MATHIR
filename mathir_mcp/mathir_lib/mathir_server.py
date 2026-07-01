@@ -118,6 +118,26 @@ _push_lock = threading.Lock()
 _vec_cache = {}
 _vec_cache_lock = threading.Lock()
 
+# BM25 index cache for /api/memory/hybrid_search, keyed by db_path. Without
+# this, every single hybrid_search call rebuilt a fresh BM25Okapi index from
+# every row in `memories` -- O(corpus size) tokenization + corpus-statistics
+# computation per query. Measured cost on real benchmark data: 566s for
+# scifact's query set (5183 docs) vs 17s for an equivalent reference
+# hybrid-RRF pass that caches its BM25 index -- a ~30x, purely
+# architectural, avoidable cost.
+#
+# Invalidation strategy: cache is keyed by db_path and stamped with the
+# `memories` table's row count at build time; a cheap `SELECT COUNT(*)`
+# on each call detects whether the corpus has changed and triggers a
+# rebuild only then. This is a row-count heuristic, not a full content
+# hash (which would cost as much as the rebuild it's meant to avoid) --
+# it correctly detects inserts/deletes (the common case: new memories
+# being saved between searches), but will NOT detect the edge case of an
+# UPDATE that changes existing row content without changing the row
+# count. That's an accepted, documented limitation, not an oversight.
+_bm25_cache = {}
+_bm25_cache_lock = threading.Lock()
+
 _start_time = time.time()
 
 # ---------------------------------------------------------------------------
@@ -873,17 +893,35 @@ def memory_hybrid_search():
 
         bm25_results = []
         try:
-            rows = dconn.execute(f"SELECT memory_id, {text_col} FROM memories").fetchall()
+            row_count = dconn.execute("SELECT COUNT(*) FROM memories").fetchone()[0]
         except Exception:
-            rows = []
-        if rows:
+            row_count = 0
+        if row_count:
             from mathir_search import _tokenize
             from rank_bm25 import BM25Okapi
-            corpus_ids = [r['memory_id'] for r in rows]
-            corpus_texts = [r[1] or '' for r in rows]
-            tokenized = [_tokenize(t) for t in corpus_texts]
-            if tokenized:
-                bm25 = BM25Okapi(tokenized)
+
+            cache_key = str(db_path)
+            with _bm25_cache_lock:
+                cached = _bm25_cache.get(cache_key)
+
+            if cached is not None and cached["row_count"] == row_count:
+                bm25 = cached["bm25"]
+                corpus_ids = cached["corpus_ids"]
+            else:
+                try:
+                    rows = dconn.execute(f"SELECT memory_id, {text_col} FROM memories").fetchall()
+                except Exception:
+                    rows = []
+                corpus_ids = [r['memory_id'] for r in rows]
+                corpus_texts = [r[1] or '' for r in rows]
+                tokenized = [_tokenize(t) for t in corpus_texts]
+                bm25 = BM25Okapi(tokenized) if tokenized else None
+                with _bm25_cache_lock:
+                    _bm25_cache[cache_key] = {
+                        "bm25": bm25, "corpus_ids": corpus_ids, "row_count": row_count,
+                    }
+
+            if bm25 is not None:
                 scores = bm25.get_scores(_tokenize(query_text))
                 for mid, sc in sorted(zip(corpus_ids, scores), key=lambda x: x[1], reverse=True):
                     if sc > 0:
