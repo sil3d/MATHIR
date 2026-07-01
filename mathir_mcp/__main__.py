@@ -149,7 +149,7 @@ def _cmd_selftest():
 
     def _tools():
         mathir_mcp_server = _import("mathir_mcp_server")
-        TOOLS = mathir_mcp_server.TOOLS
+        TOOLS = mathir_mcp_server.get_tools_info()
         n = len(TOOLS)
         if n != 23:
             raise RuntimeError(f"expected 23 tools, got {n}")
@@ -226,7 +226,7 @@ def _cmd_selftest():
 def _cmd_list_tools():
     """Print the list of all MCP tools exposed by the server."""
     mathir_mcp_server = _import("mathir_mcp_server")
-    TOOLS = mathir_mcp_server.TOOLS
+    TOOLS = mathir_mcp_server.get_tools_info()
     # Use ASCII-only output for Windows console compatibility
     print(f"MATHIR exposes {len(TOOLS)} MCP tools (v8.5.0):")
     print()

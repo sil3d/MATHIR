@@ -94,3 +94,19 @@ class TestModuleTree:
             "internal detection tier, not client-writable)"
         )
         assert "episodic" in _CLIENT_BLOCK_TYPES
+
+
+def test_get_tools_info_returns_23_tools():
+    """get_tools_info() must enumerate every @mcp.tool()-registered tool."""
+    try:
+        from mathir_lib import mathir_mcp_server
+    except ImportError:
+        import mathir_mcp_server  # type: ignore[no-redef]
+
+    tools = mathir_mcp_server.get_tools_info()
+    assert isinstance(tools, list)
+    assert len(tools) == 23
+    assert all(isinstance(t, dict) and "name" in t and "description" in t for t in tools)
+    names = {t["name"] for t in tools}
+    assert "memory_save" in names
+    assert "memory_recall" in names

@@ -845,6 +845,18 @@ def mathir_health() -> str:
         return json.dumps({"status": "error", "error": str(e)})
 
 
+def get_tools_info() -> list[dict]:
+    """Synchronously enumerate every @mcp.tool()-registered tool.
+
+    FastMCP's own ``mcp.list_tools()`` is async; this wraps it so CLI
+    entry points (``--selftest``, ``--list-tools`` in __main__.py) can
+    call it without managing an event loop themselves.
+    """
+    import asyncio
+    tools = asyncio.run(mcp.list_tools())
+    return [{"name": t.name, "description": t.description or ""} for t in tools]
+
+
 # ---------------------------------------------------------------------------
 # Prompts capability — auto-fetched by MCP-prompt-aware hosts (Claude Desktop,
 # Cursor, Cline, Roo, Continue, …) at session start. Universal MCP-native
