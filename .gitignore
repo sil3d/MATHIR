@@ -94,3 +94,10 @@ docs/OUTREACH.md
 # Downloaded benchmark datasets (large / re-downloadable via download_datasets.py)
 benchmarks/05_test_data/longmemeval/
 benchmarks/05_test_data/locomo/
+
+# Source textbook PDFs used to build the fluid_mechanics BEIR benchmark
+# dataset -- large (~28.5MB / ~23.8MB) and likely copyrighted, never for
+# redistribution. The derived corpus.jsonl/queries.jsonl/qrels ARE committed
+# (see benchmarks/05_test_data/beir_data/fluid_mechanics/), only the raw
+# source PDFs are excluded.
+benchmarks/Fluid_mecanique_book/*.pdf

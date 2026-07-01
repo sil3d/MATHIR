@@ -22,7 +22,7 @@ from sentence_transformers import CrossEncoder, SentenceTransformer
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-DATASETS = ["scifact", "nfcorpus", "arguana"]
+DATASETS = ["scifact", "nfcorpus", "arguana", "fluid_mechanics"]
 MODEL_NAME = "BAAI/bge-base-en-v1.5"
 BEIR_DATA_DIR = Path(__file__).parent.parent / "beir_data"
 CACHE_DIR = Path(__file__).parent.parent / "controlled_emb_cache"
