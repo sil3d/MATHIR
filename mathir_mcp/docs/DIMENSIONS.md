@@ -87,14 +87,34 @@ misdiagnosed later:
    vector_weight from 1 to 10 (favoring the vector signal more) made
    nfcorpus nDCG@10 *worse* (0.3056 → 0.2583), not better. With a weaker
    embedder, BM25's lexical signal compensates for semantic weakness rather
-   than diluting it; this only flips (BM25 hurting) once the embedder is
-   already strong, per the `multi_dataset_efficient.py` results using
-   bge-base-en-v1.5.
-3. **Conclusion: the quality gap is the embedding model's retrieval-specific
-   training, full stop** — not a search bug, not a fusion-weight
+   than diluting it.
+3. **Conclusion: the quality gap is substantially the embedding model's
+   retrieval-specific training** — not a search bug, not a fusion-weight
    misconfiguration. The trade-off is real and belongs to whoever picks the
-   model (see the table above), not something further code changes here can
-   fix without changing that choice.
+   model (see the table above).
+
+**⚠️ Correction (2026-07-01, later re-test) — the "weak embedder → hybrid
+helps, strong embedder → hybrid hurts" rule stated in an earlier version of
+this section was an oversimplification, contradicted by new data.**
+Re-running the exact same RRF hybrid fusion test with
+`intfloat/multilingual-e5-small` (a substantially stronger embedder than
+the default — e5-small's dense-only baseline is 0.6770 on scifact vs the
+default's 0.4837) still showed hybrid fusion **helping**, not hurting:
++0.0225 on nfcorpus, +0.0146 on scifact
+(`benchmarks/07_utilities/retest_with_stronger_embedder.py`). This
+directly contradicts the simple binary rule, since `bge-base-en-v1.5`
+(baseline 0.744 on scifact, even stronger than e5-small) DOES show hybrid
+hurting (0.660 RRF < 0.744 dense-only, per `multi_dataset_efficient.py`).
+So the real relationship is **not** a clean function of embedder strength
+alone — there is a threshold or some other factor (possibly specific to
+how each embedder's score distribution interacts with BM25's score scale
+in RRF, or something specific to bge-base vs e5-small/the current default)
+that this session did not fully characterize. Treat "hybrid fusion's
+helpfulness depends on embedder choice" as the honest, narrower claim;
+do NOT treat it as a simple strong/weak binary without further testing
+across more embedders. PRF's effect became much smaller (roughly neutral,
++0.0006/-0.0049) with e5-small — consistent with, but not a strong
+confirmation of, the weak/strong pattern for that specific technique.
 
 ### Rejected idea: confidence-gated adaptive fusion
 
