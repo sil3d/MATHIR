@@ -167,18 +167,46 @@ meaningfully large effect at these corpus sizes (thousands of documents,
 not millions) with this embedder — this technique has no safe operating
 point where it provides a real benefit. Not adopted.
 
-### Overall conclusion after four independently-tested novel/existing augmentation techniques
+### Rejected idea: anisotropy correction ("all-but-the-top")
 
-BM25 hybrid fusion, cross-encoder reranking, embedding-space PRF, and
-document-side hubness correction were all tested rigorously against real
-BEIR data with real, standard metrics — none of them provide a reliable,
-corpus-independent improvement over plain single-pass dense search with a
-good embedder. The one validated, generalizable lever for MATHIR's
-retrieval quality remains the embedding model choice itself (see the table
-above). Further architecture changes to the *search/ranking* mechanism are
-not where the effort should go without a new idea that breaks this
-pattern — this is a documented, evidence-based stopping point, not an
-assumption.
+A fifth technique, structurally different again — corrects the embedding
+SPACE itself rather than blending a signal or penalizing scores:
+`benchmarks/07_utilities/novel_algo_anisotropy_correction.py` (2026-07-01).
+Sentence embeddings are known to be anisotropic (a few dominant principal
+directions capture most variance but little semantic content, compressing
+useful signal into a narrow cone). Self-implemented "all-but-the-top":
+fit corpus mean + top principal directions via SVD, subtract the mean and
+remove the top-D directions from both corpus and query embeddings before
+re-normalizing and re-ranking by cosine similarity. Swept D from 0
+(mean-centering only) to 20.
+
+Result: removing principal directions makes things worse, close to
+monotonically, on both datasets as D increases (nfcorpus never beats
+baseline at any D; scifact degrades from +0.0049 at D=0 down to -0.0700 at
+D=20). One notable side-observation: mean-centering ALONE (D=0, no
+directions removed) has a small positive effect on scifact (+0.0049) but a
+negative effect on nfcorpus (-0.0131) — yet another instance of the same
+dataset-dependent split seen in every technique tested so far. Not
+adopted; the underlying anisotropy hypothesis does not hold up as
+implemented here.
+
+### Overall conclusion after five independently-tested novel/existing techniques
+
+BM25 hybrid fusion, cross-encoder reranking, embedding-space PRF,
+document-side hubness correction, and embedding-space anisotropy
+correction were all tested rigorously against real BEIR data with real,
+standard metrics — none of them provide a reliable, corpus-independent
+improvement over plain single-pass dense search with a good embedder. Three
+of the five (BM25 fusion, CE rerank, PRF) share an identical qualitative
+pattern: help when the baseline dense signal is weak, hurt when it's
+already strong. The other two (hubness correction, anisotropy correction)
+are either negligible-to-harmful or monotonically harmful with no
+redeeming operating point. The one validated, generalizable lever for
+MATHIR's retrieval quality remains the embedding model choice itself (see
+the table above). Further architecture changes to the *search/ranking*
+mechanism are not where the effort should go without a genuinely new idea
+that breaks this pattern — this is a documented, evidence-based stopping
+point, not an assumption.
 
 ## How to Change Model (Step by Step)
 
