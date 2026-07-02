@@ -201,7 +201,7 @@ def _resolve_db(project: str = None, cwd: str = None):
     # ensure_embedding_model and MATHIR memory
     # embedder-swap-strongest-positive-result-hotpotqa.
     default_model = load_config().get("embedding", {}).get(
-        "model", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+        "model", "intfloat/multilingual-e5-small"
     )
     resolved_model = vec_mem.ensure_embedding_model(default_model)
     embedder = get_embedder(resolved_model)
@@ -597,7 +597,7 @@ def health():
     model_name = (
         cfg.get("embedding", {}).get("model")
         or os.environ.get("MATHIR_EMBEDDING_MODEL")
-        or "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+        or "intfloat/multilingual-e5-small"
     )
     version = (
         cfg.get("version")

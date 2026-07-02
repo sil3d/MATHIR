@@ -192,7 +192,7 @@ def get_embedder(model_name: str = None):
     global _cached_embedders
     if model_name is None:
         model_name = load_config().get("embedding", {}).get(
-            "model", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+            "model", "intfloat/multilingual-e5-small"
         )
     if model_name in _cached_embedders:
         return _cached_embedders[model_name]

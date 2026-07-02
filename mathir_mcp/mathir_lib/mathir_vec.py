@@ -2355,29 +2355,51 @@ class VecMemory:
             row = conn.execute("SELECT embedding_model FROM db_meta WHERE id = 1").fetchone()
             return row["embedding_model"] if row else None
 
+    # Every project DB created before this per-DB model-pinning feature
+    # existed was embedded with this single model -- there was no other
+    # option in MATHIR's history until now. Used to backfill pre-existing
+    # DBs correctly (see ensure_embedding_model) instead of letting them
+    # silently inherit whatever the CURRENTLY configured default is.
+    LEGACY_DEFAULT_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+
     def ensure_embedding_model(self, model_name: str) -> str:
         """Return the model this DB should use, pinning it on first call.
 
-        If this DB has never recorded a model, records `model_name` (the
-        currently configured default) and returns it. If a model was
-        already recorded (this DB has existing embeddings), returns the
-        EXISTING recorded model instead, ignoring `model_name` -- this is
-        what prevents a MATHIR-wide default-model change from silently
-        mixing two incompatible embedding spaces in an already-populated
-        project DB. New projects naturally pick up whatever the current
-        default is; existing projects keep working exactly as before.
+        Three cases:
+        1. db_meta already has a recorded model -> return it, ignore
+           `model_name`. This is what prevents a MATHIR-wide default-model
+           change from silently mixing two incompatible embedding spaces
+           in an already-populated project DB.
+        2. No db_meta row AND no existing memories (genuinely brand-new
+           DB) -> record and return `model_name` (the current configured
+           default). This is how new projects pick up a new default.
+        3. No db_meta row BUT existing memories already present (a DB
+           created before this per-DB tracking feature existed) -> record
+           and return LEGACY_DEFAULT_MODEL, NOT `model_name`. This is the
+           critical case: without it, upgrading MATHIR and changing the
+           default embedder would silently re-tag every pre-existing
+           project onto the new model on first access after upgrade,
+           corrupting retrieval against its real, already-stored vectors
+           (caught live: locomo_conv_2, 1326 real memories, would have
+           been mis-pinned to a newly-configured default without this).
         """
         with self._db_lock:
             conn = self._get_conn()
             row = conn.execute("SELECT embedding_model FROM db_meta WHERE id = 1").fetchone()
             if row and row["embedding_model"]:
                 return row["embedding_model"]
+
+            has_existing_memories = conn.execute(
+                "SELECT 1 FROM memories LIMIT 1"
+            ).fetchone() is not None
+            resolved = self.LEGACY_DEFAULT_MODEL if has_existing_memories else model_name
+
             conn.execute(
                 "INSERT OR REPLACE INTO db_meta (id, embedding_model) VALUES (1, ?)",
-                [model_name],
+                [resolved],
             )
             conn.commit()
-            return model_name
+            return resolved
 
     def close(self):
         """Close database connection."""

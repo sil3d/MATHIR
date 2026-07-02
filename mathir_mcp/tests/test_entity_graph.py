@@ -141,3 +141,42 @@ def test_get_model_prefixes_unknown_model_defaults_to_no_prefix():
     q, p = get_model_prefixes("some/other-model-nobody-registered")
     assert q == ""
     assert p == ""
+
+
+def test_ensure_embedding_model_backfills_legacy_default_for_pre_existing_data(tmp_path):
+    """CRITICAL: a DB created BEFORE the db_meta table existed (has real
+    memories but no db_meta row) must be backfilled with the LEGACY
+    default model, never silently adopt whatever the CURRENT configured
+    default is -- otherwise changing MATHIR's default embedder corrupts
+    every pre-existing project's retrieval on first access after upgrade.
+    This is a real bug caught live: locomo_conv_2 (1326 real memories,
+    embedded with the old default) got mis-pinned to a newly-configured
+    default model before this fix.
+    """
+    db = tmp_path / "legacy_backfill.db"
+    vm = VecMemory(db, embedding_dim=384)
+    rng = np.random.RandomState(0)
+    # Simulate pre-existing content (as if saved before db_meta existed).
+    vm.store("mem_old1", rng.randn(384).astype(np.float32),
+             {"content": "old memory", "agent": "t", "block_type": "episodic",
+              "label": "", "priority": 5})
+    # Manually clear db_meta to simulate "created before this migration".
+    conn = vm._get_conn()
+    conn.execute("DELETE FROM db_meta")
+    conn.commit()
+
+    resolved = vm.ensure_embedding_model("intfloat/multilingual-e5-small")
+    assert resolved == "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", (
+        f"pre-existing DB with real content must backfill the legacy default, "
+        f"not adopt the new configured default -- got {resolved}"
+    )
+
+
+def test_ensure_embedding_model_uses_new_default_for_genuinely_empty_db(tmp_path):
+    """A genuinely empty DB (no memories, no db_meta row) is a brand-new
+    project -- it should adopt whatever model is passed (the current
+    configured default), NOT the legacy fallback."""
+    db = tmp_path / "genuinely_new.db"
+    vm = VecMemory(db, embedding_dim=384)
+    resolved = vm.ensure_embedding_model("intfloat/multilingual-e5-small")
+    assert resolved == "intfloat/multilingual-e5-small"
