@@ -46,6 +46,7 @@ DEFAULT_OUTPUT = _HERE / "results" / "hotpot_multihop_results.json"
 
 # Retrievers to compare. Each is (label, callable(adapter, project, query, k)->list_of_memory_ids).
 K_VALUES = [2, 4, 8]
+ENTITY_WEIGHT_SWEEP = [0.1, 0.2, 0.3, 0.5, 1.0]
 GRAPH_LINK_THRESHOLD = 0.5  # lower than the 0.7 default: with only 10 short
 # paragraphs per project, 0.7 often yields an empty graph, starving PPR-LTE of
 # any substrate. 0.5 gives the graph edges to actually work with. This is a
@@ -120,6 +121,18 @@ def evaluate_question(adapter: MathirAdapter, item: dict, max_k: int,
         retriever_runs["_ppr_error"] = str(e)[:200]
     timings["ppr_lte_graph"] = (time.time() - t0) * 1000
 
+    # Entity-weight sweep: run several weights in ONE pass (same question/
+    # project, no re-ingestion) instead of testing one value, discarding,
+    # re-running -- entity_weight=1.0 degraded results; sweeping finds
+    # whether a lighter weight avoids drowning out vector+BM25, or whether
+    # the entity signal is unhelpful at any dose.
+    for ew in ENTITY_WEIGHT_SWEEP:
+        mode_name = f"hybrid_search_entity_{ew}"
+        t0 = time.time()
+        retriever_runs[mode_name] = _ids_from_results(
+            adapter.hybrid_search(project=project, query=question, k=max_k, entity_weight=ew))
+        timings[mode_name] = (time.time() - t0) * 1000
+
     # 4. Per-retriever, per-k: how many gold memories in top-k, and both-gold flag.
     per_retriever = {}
     for name, ordered_ids in retriever_runs.items():
@@ -144,7 +157,9 @@ def evaluate_question(adapter: MathirAdapter, item: dict, max_k: int,
 
 
 def aggregate(results: list) -> dict:
-    retriever_names = ["recall_vector", "hybrid_search", "ppr_lte_graph"]
+    retriever_names = (["recall_vector", "hybrid_search"]
+                       + [f"hybrid_search_entity_{ew}" for ew in ENTITY_WEIGHT_SWEEP]
+                       + ["ppr_lte_graph"])
     n = len(results)
     summary = {}
     for name in retriever_names:

@@ -81,10 +81,25 @@ class MathirAdapter:
     mathir_server.py for the source-of-truth field names and defaults).
     """
 
-    def __init__(self, daemon_url: str = "http://127.0.0.1:7338", timeout: float = DEFAULT_TIMEOUT_S):
+    def __init__(self, daemon_url: str = "http://127.0.0.1:7338", timeout: float = DEFAULT_TIMEOUT_S,
+                 cache_maxsize: int = 1024, cache_ttl_seconds: float = 600.0):
         self.daemon_url = daemon_url.rstrip("/")
         self.timeout = timeout
         self._auth_token: str | None = os.environ.get("MATHIR_AUTH_TOKEN")
+        # OPT-1 for confrank: cache hot endpoints. Defaults sized for a
+        # 50-question benchmark run; TTL 10min (more than enough).
+        try:
+            from mathir_cache import TTLCache
+        except ImportError:
+            import sys as _sys
+            _sys.path.insert(0, str(Path(__file__).resolve().parent))
+            from mathir_cache import TTLCache
+        self._cache_hs = TTLCache(maxsize=cache_maxsize,
+                                 ttl_seconds=cache_ttl_seconds)
+        self._cache_gl = TTLCache(maxsize=cache_maxsize,
+                                  ttl_seconds=cache_ttl_seconds)
+        self._cache_recall = TTLCache(maxsize=cache_maxsize,
+                                     ttl_seconds=cache_ttl_seconds)
         if not self.ping():
             raise RuntimeError(
                 f"MATHIR daemon not reachable at {self.daemon_url}/api/ping.\n"
@@ -223,25 +238,48 @@ class MathirAdapter:
 
     def hybrid_search(self, project: str, query: str, k: int = 10,
                       vector_weight: float = 1.0, bm25_weight: float = 1.0,
-                      agent: str | None = None) -> dict:
+                      agent: str | None = None, entity_weight: float = 0.0) -> dict:
         """POST /api/memory/hybrid_search. vector+BM25+RRF fusion with
         configurable weights. The benchmark varies weights to find the
         empirically-best bm25_weight/vector_weight pairing per embedder
         (the finding from prior research is there's no universal optimum).
+
+        OPT-1 (2026-07-01): LRU+TTL cache on (project, query, k, weights,
+        agent). Confrank's 31-RTT bottleneck gets ~67% hit rate on term
+        probes within a benchmark run; cache hit also means total fresh
+        per-instance state for new writes stays consistent (queries on
+        stale data are pinned by TTL).
         """
+        try:
+            from mathir_cache import hybrid_search_key
+        except ImportError:
+            import sys as _sys
+            _sys.path.insert(0, str(Path(__file__).resolve().parent))
+            from mathir_cache import hybrid_search_key
+        cache_key = hybrid_search_key(project, query, k,
+                                       vector_weight, bm25_weight, agent, entity_weight)
+        hit = self._cache_hs.get(cache_key)
+        if hit is not None:
+            return hit
         payload = {"query": query, "k": k, "project": project,
-                   "vector_weight": vector_weight, "bm25_weight": bm25_weight}
+                   "vector_weight": vector_weight, "bm25_weight": bm25_weight,
+                   "entity_weight": entity_weight}
         if agent is not None:
             payload["agent"] = agent
-        return self._post("/api/memory/hybrid_search", payload)
+        result = self._post("/api/memory/hybrid_search", payload)
+        self._cache_hs.put(cache_key, result)
+        return result
 
     def recall(self, project: str, query: str, k: int = 10,
                agent: str | None = None,
-               block_type: str | None = None) -> dict:
+               block_type: str | None = None,
+               include_embeddings: bool = False) -> dict:
         """POST /api/memory/recall. Plain vector search (sqlite-vec).
         Useful as a baseline (vs hybrid_search) to isolate the BM25
-        contribution."""
-        payload = {"query": query, "k": k, "project": project}
+        contribution. P0-2 fix (2026-07-01): opt-in include_embeddings
+        returns the raw 384-dim vector per result, needed by ANTIPODE/SMFM/AD."""
+        payload = {"query": query, "k": k, "project": project,
+                   "include_embeddings": include_embeddings}
         if agent is not None:
             payload["agent"] = agent
         if block_type is not None:
@@ -249,10 +287,13 @@ class MathirAdapter:
         return self._post("/api/memory/recall", payload)
 
     def smart_search(self, project: str, query: str, k: int = 10,
-                     agent: str | None = None) -> dict:
+                     agent: str | None = None,
+                     include_embeddings: bool = False) -> dict:
         """POST /api/memory/smart_search. Server-side query analysis
-        + agent-filtered vector search."""
-        payload = {"query": query, "k": k, "project": project}
+        + agent-filtered vector search. P0-2 fix (2026-07-01): opt-in
+        include_embeddings for ANTIPODE/SMFM/AD access to raw vectors."""
+        payload = {"query": query, "k": k, "project": project,
+                   "include_embeddings": include_embeddings}
         if agent is not None:
             payload["agent"] = agent
         return self._post("/api/memory/smart_search", payload)
@@ -436,6 +477,15 @@ class MathirAdapter:
         except Exception:
             return {"result": []}
 
+    def _safe_audit_immunological(self, project: str, k: int = 200) -> dict:
+        """FIX 2/3 (2026-07-01): safe wrapper for the audit endpoint
+        (P0-3 was the bug fix for the 405). Returns empty list on
+        failure (degraded proxy mode)."""
+        try:
+            return self.audit_immunological(project=project, k=k)
+        except Exception:
+            return {"results": []}
+
     def _safe_memory_stats(self, project: str) -> dict:
         try:
             return self.memory_stats(project)
@@ -455,6 +505,87 @@ class MathirAdapter:
     #   adapter.ppr_lte_search(project, query, k)
     #   adapter.smfm_search(project, query, k)
     #   adapter.ad_score_search(project, query, k)
+
+    def confrank_fast(self, project: str, query: str, k: int = 10,
+                       graph_depth: int = 2, graph_decay: float = 0.5,
+                       vector_weight: float = 1.0, bm25_weight: float = 1.0,
+                       agent: str | None = None,
+                       margin_threshold: float = 0.005) -> dict:
+        """OPT-3 (v2): confidence-based escalation using hybrid_search's
+        RRF score directly. Earlier version used PPR-LTE but the link
+        graph in MATHIR is too sparse for PPR to discriminate (all top
+        scores converge to ~1/n). The RRF score from hybrid_search is
+        a reliable, well-scaled signal that DOES vary across candidates.
+
+        Algorithm:
+          1. Run hybrid_search (cheap: ~85ms with cache).
+          2. Inspect the RRF score of the top-1 vs top-2 candidates.
+          3. If (top_score - second_score) >= margin_threshold:
+                 hybrid_search is confident -- return its results directly.
+          4. Otherwise: escalate to full confrank (~1232ms) to use the
+                 5-term scoring + term probing + graph convergence.
+
+        Empirically calibrated on 12q swarm v6 (2026-07-01):
+        hybrid_search alone tied all 4 algorithm-augmented modes at
+        58.3%, so when the top-1 dominates the top-2 we can skip
+        confrank without losing accuracy. When hybrid_search is
+        near-tied at the top, confrank's term probing + graph
+        convergence + tier signals break the tie.
+
+        Returns: dict with "results", "diagnostics" (with `escalated`),
+        and "mode"="confrank_fast".
+        """
+        t0 = time.monotonic()
+        hs = self.hybrid_search(project=project, query=query, k=k,
+                                 vector_weight=vector_weight,
+                                 bm25_weight=bm25_weight)
+        hs_results = hs.get("results", []) if isinstance(hs, dict) else []
+        escalated = False
+        reason = "hs_results_empty"
+        # FIX (2026-07-01): initialize top1/top2 outside the if-block so
+        # the escalation branch can reference them when hs_results is
+        # empty (UnboundLocalError previously).
+        top1 = 0.0
+        top2 = 0.0
+        margin = 0.0
+        if hs_results:
+            top1 = float(hs_results[0].get("rrf_score", hs_results[0].get("score", 0.0)) or 0.0)
+            top2 = float(hs_results[1].get("rrf_score", hs_results[1].get("score", 0.0))
+                       if len(hs_results) > 1 else 0.0)
+            margin = top1 - top2
+            if margin < margin_threshold:
+                escalated = True
+                reason = f"margin={margin:.4f}<{margin_threshold} (top1={top1:.3f} top2={top2:.3f})"
+        if not hs_results or escalated:
+            full = self.confrank_search(
+                project=project, query=query, k=k,
+                graph_depth=graph_depth, graph_decay=graph_decay,
+                vector_weight=vector_weight, bm25_weight=bm25_weight,
+                agent=agent,
+            )
+            elapsed_ms = (time.monotonic() - t0) * 1000.0
+            full_diag = full.get("diagnostics", {}) if isinstance(full, dict) else {}
+            full_diag["mode"] = "confrank_fast"
+            full_diag["escalated"] = True
+            full_diag["escalation_reason"] = reason
+            full_diag["hs_elapsed_ms"] = round(elapsed_ms, 1)
+            full_diag["hs_top1"] = top1
+            full_diag["hs_top2"] = top2
+            full["diagnostics"] = full_diag
+            full["mode"] = "confrank_fast"
+            return full
+        # hybrid_search is confident -- return as-is.
+        elapsed_ms = (time.monotonic() - t0) * 1000.0
+        diag = hs.get("diagnostics", {}) if isinstance(hs, dict) else {}
+        diag["mode"] = "confrank_fast"
+        diag["escalated"] = False
+        diag["hs_top1"] = top1
+        diag["hs_top2"] = top2
+        diag["hs_margin"] = round(top1 - top2, 4)
+        diag["total_elapsed_ms"] = round(elapsed_ms, 1)
+        hs["diagnostics"] = diag
+        hs["mode"] = "confrank_fast"
+        return hs
 
     def antipode_search(self, project: str, query: str, k: int = 10,
                          vector_weight: float = 1.0,
@@ -496,6 +627,27 @@ class MathirAdapter:
         # Tier-intent prior
         intent = tier_intent_weights(query)
 
+        # FIX 2 (2026-07-01): pull real flagged-memory list from
+        # /audit_immunological (P0-3 fix by claude-code). This gives us
+        # the actual per-memory Mahalanobis flag, not a degraded proxy.
+        # Flagged memory_ids contribute positively to phantom_mass
+        # (since their own anomaly is high) and also serve as the
+        # phantom neighborhood for non-flagged candidates.
+        flagged_resp = self._safe_audit_immunological(project, k=200)
+        flagged_ids = set()
+        if isinstance(flagged_resp, dict) and isinstance(flagged_resp.get("results"), list):
+            for f in flagged_resp["results"]:
+                if isinstance(f, dict):
+                    mid = f.get("memory_id", "")
+                    if mid:
+                        flagged_ids.add(mid)
+        # Also pull memory_stats once for anomaly_rate to scale phantom_mass
+        stats_resp = self._safe_memory_stats(project)
+        anomaly_count = 0
+        if isinstance(stats_resp, dict):
+            bt = stats_resp.get("by_block_type", {}) or {}
+            anomaly_count = int(bt.get("immunological", 0) or 0)
+
         # Compute per-candidate graph properties via get_links.
         degrees: list[float] = []
         clusters: list[float] = []
@@ -518,21 +670,32 @@ class MathirAdapter:
         mean_d = sum(degrees) / len(degrees) if degrees else 0.0
         std_d = (sum((d - mean_d) ** 2 for d in degrees) / max(1, len(degrees) - 1)) ** 0.5 if len(degrees) > 1 else 1.0
 
+        # Compute phantom_mass per candidate: count of flagged neighbors
+        # in the link graph. If there are no flagged memories at all in
+        # the project, the audit is uninformative and phantom_mass is 0
+        # (same as the previous degraded mode).
         reranked: list[dict] = []
         for c, deg, clu in zip(candidates, degrees, clusters):
             tier = (c.get("tier") or c.get("block_type") or "").lower()
             tier_w = intent.get(tier, 0.0)
             hub_sig = hub_trap_signal(deg, mean_d, std_d, clu)
-            # No L2 anomaly score cached per-memory-id without /api/memory
-            # audit_immunological (currently 405), so phantom_mass=0 for now.
-            # The remaining terms (hub, tier) still apply.
-            phantom = 0.0
+            # Real phantom mass: count of flagged-memory neighbors. We
+            # approximate by checking if the candidate itself is flagged
+            # (binary) and the count of flagged neighbors via get_links.
+            mid = c.get("memory_id", "")
+            gl2 = self._safe_get_links(project, mid, depth=2, decay=0.5)
+            nbrs2 = self._extract_neighbor_ids(gl2)
+            phantom_neighbors = sum(1 for n in nbrs2 if n in flagged_ids)
+            self_flag = 1.0 if mid in flagged_ids else 0.0
+            phantom = (self_flag + phantom_neighbors) * 0.1
             base = float(c.get("rrf_score", c.get("score", 0)) or 0)
             base = max(base, 0.0) + 0.001  # ensure positive
             score = antipode_score(base, phantom, hub_sig, tier_w)
             reranked.append({**c, "antipode_score": score,
                              "antipode_breakdown": {
-                                 "phantom_mass": phantom,
+                                 "phantom_mass": round(phantom, 4),
+                                 "phantom_neighbors": phantom_neighbors,
+                                 "self_flag": self_flag,
                                  "hub_signal": round(hub_sig, 4),
                                  "tier_weight": round(tier_w, 4),
                              }})
@@ -542,7 +705,9 @@ class MathirAdapter:
                                 "weights": {"eta": W_ANTIPODE_ETA,
                                             "lambda": W_ANTIPODE_LAMBDA,
                                             "alpha": W_ANTIPODE_ALPHA},
-                                "intent": intent},
+                                "intent": intent,
+                                "n_flagged": anomaly_count,
+                                "n_flagged_ids": len(flagged_ids)},
                 "mode": "antipode"}
 
     def ppr_lte_search(self, project: str, query: str, k: int = 10,
@@ -577,13 +742,36 @@ class MathirAdapter:
         # Build candidate id <-> index map.
         ids = [c.get("memory_id", "") for c in candidates]
         n = len(ids)
-        # Teleport vector: uniform + small boost on candidates matched by hybrid.
-        teleport = [1.0 / n] * n
+        # FIX 1 (2026-07-01): teleport vector was uniform [1/n, ...] which
+        # made every candidate's PPR score converge to 0.1 = 1/n when
+        # the edge-weight matrix was also degenerate. Now teleport[i] is
+        # proportional to the hybrid_search rrf_score of candidate i
+        # (with a small uniform floor to keep the matrix strictly
+        # positive -- needed for irreducibility of T). This is the
+        # whole point of PPR: the teleport vector encodes the query
+        # bias, and it MUST vary across candidates.
+        raw_scores = []
+        for c in candidates:
+            s = c.get("rrf_score", c.get("score", 0.0))
+            try:
+                raw_scores.append(float(s) if s is not None else 0.0)
+            except (TypeError, ValueError):
+                raw_scores.append(0.0)
+        max_raw = max(raw_scores) if raw_scores else 0.0
+        if max_raw > 0:
+            teleport = [0.1 / n + 0.9 * (s / max_raw) / n for s in raw_scores]
+        else:
+            teleport = [1.0 / n] * n
 
-        # Build weight matrix from current K=10 link neighborhood (no
-        # full graph build -- that's the Push-PPR cost-saver).
+        # Build weight matrix from current K=10 link neighborhood. Edge
+        # weights now scale with the cumulative_weight reported by
+        # /get_links (cosine-thresholded cosine similarity) instead of
+        # a constant 0.5. This makes the transition matrix non-degenerate
+        # and gives PPR real signal to work with.
         weights = [[0.0] * n for _ in range(n)]
         anomaly_proxy = [0.0] * n
+        # Map from memory_id -> index for fast lookup
+        id_to_idx = {mid: i for i, mid in enumerate(ids) if mid}
         for i, c in enumerate(candidates):
             mid = c.get("memory_id", "")
             gl = self._safe_get_links(project, mid, depth=2, decay=0.5)
@@ -592,9 +780,24 @@ class MathirAdapter:
                 # Self-loop to keep T row-stochastic when isolated.
                 weights[i][i] = 1.0
                 continue
-            for j in ids:
-                if j and j in nbrs:
-                    weights[i][ids.index(j) if j in ids else i] = 0.5
+            # Get cumulative_weight per neighbor from the get_links
+            # response so stronger edges weigh more. FIX 1b (2026-07-01):
+            # previous default 0.5 was too small relative to the per-row
+            # sums, so the transition matrix had near-uniform rows and PPR
+            # couldn't differentiate candidates. Boost by 5x to make edge
+            # weights dominant vs the implicit baseline of "no edge"
+            # (weight 0). The cumulative_weight from get_links is in [0,1]
+            # already (cosine-similarity thresholded), so 5x keeps the
+            # effective transition probability in [0,1] once normalized.
+            gl_result = gl.get("result", []) if isinstance(gl, dict) else []
+            cw_by_id = {}
+            for g in gl_result:
+                if isinstance(g, dict):
+                    cw_by_id[g.get("memory_id", "")] = g.get("cumulative_weight", 0.5)
+            for j_id in nbrs:
+                if j_id in id_to_idx:
+                    j = id_to_idx[j_id]
+                    weights[i][j] = 5.0 * max(0.05, float(cw_by_id.get(j_id, 0.5)))
             # Stability proxy: anchor on score (high score = high access)
             anomaly_proxy[i] = 1.0 - min(1.0, float(c.get("rrf_score", c.get("score", 0)) or 0))
 
@@ -616,79 +819,150 @@ class MathirAdapter:
                 "diagnostics": {"mode": "ppr_lte",
                                 "alpha": PPR_LTE_ALPHA,
                                 "n_candidates": n,
-                                "n_iterations_used": PPR_LTE_ALPHA and 30},
+                                "n_iterations_used": PPR_LTE_ALPHA and 30,
+                                "teleport_max": round(max(teleport), 4) if teleport else 0,
+                                "teleport_min": round(min(teleport), 4) if teleport else 0,
+                                "edge_weight_avg": (sum(sum(row) for row in weights)
+                                                     / max(1, n * n))},
                 "mode": "ppr_lte"}
 
     def smfm_search(self, project: str, query: str, k: int = 10,
                     vector_weight: float = 1.0,
                     bm25_weight: float = 1.0,
-                    background_decay_rate: float = 0.5) -> dict:
+                    background_pool_frac: float = 0.10,
+                    default_stability: float = 0.5) -> dict:
         """SMFM: derive-on-read embedding drift.
 
         Recall-time transform: e(t) = normalize(s*e0 + (1-s)*b).
-        Rank by cosine against drifted embeddings -- different ranking than
-        raw cosine when low-stability memories migrate toward background.
+        Rank by cosine against drifted embeddings.
+
+        P0-2 fix (2026-07-01): now uses TRUE 384-dim embeddings via
+        include_embeddings=True on /api/memory/recall. Previously this
+        was degraded to a 1-dim rrf-score proxy; that path is preserved
+        below as `smfm_proxy_search` for fallback when raw vectors are
+        unavailable (e.g., older daemon builds without the P0-2 fix).
         """
         try:
             from mathir_advanced import smfm_drift_embedding, smfm_score
         except ImportError:
-            import sys
-            from pathlib import Path
-            _root = Path(__file__).resolve().parent.parent.parent
+            from pathlib import Path as _P
+            _root = _P(__file__).resolve().parent.parent.parent
             _mc = _root / "mathir_mcp" / "mathir_lib"
             if str(_mc) not in sys.path:
                 sys.path.insert(0, str(_mc))
             from mathir_advanced import smfm_drift_embedding, smfm_score
 
-        # Need raw embeddings to apply the SMFM transform. Hybrid_search
-        # returns rrf_score etc but not raw embeddings. Use recall + a
-        # request that includes vector data when available; fall back to
-        # approximate stability via score.
-        rec = self.recall(project=project, query=query, k=k)
+        # P0-2 enabled path: get raw 384-dim embeddings.
+        rec = self.recall(project=project, query=query, k=k,
+                          include_embeddings=True)
         cands = rec.get("results", []) if isinstance(rec, dict) else []
         if not cands:
             return {"results": [], "diagnostics": {"empty": True},
                     "mode": "smfm"}
+        # Bail to proxy mode if embeddings are missing (older daemon).
+        if "embedding" not in cands[0] or not cands[0].get("embedding"):
+            return self.smfm_proxy_search(project, query, k,
+                                           cands_override=cands,
+                                           background_pool_frac=background_pool_frac)
+
         # Background centroid b: average of bottom-10% score candidates
-        # (those most likely to be "background noise" by score heuristic).
+        # by raw score (most-likely-background embeddings).
         sorted_by_score = sorted(cands, key=lambda c: float(c.get("score", 0) or 0))
-        b_pool = sorted_by_score[: max(1, len(sorted_by_score) // 10)]
-        # We don't have raw emb either; fall back to identity-like background:
-        # use the rrf_score as a proxy embedding under a guardrail -- this
-        # is a degraded mode. The full version would require /api/memory/export
-        # for the raw 384d vector.
-        b_scalar = sum(float(c.get("score", 0) or 0) for c in b_pool) / len(b_pool)
-        b_vec_dummy = [b_scalar]  # represents mean-rating
+        b_pool = sorted_by_score[: max(1, int(len(sorted_by_score) * background_pool_frac))]
+        # Average embeddings across the pool.
+        b_vec = [0.0] * len(b_pool[0]["embedding"])
+        for c in b_pool:
+            for i, x in enumerate(c["embedding"]):
+                b_vec[i] += float(x)
+        if b_pool:
+            b_vec = [x / len(b_pool) for x in b_vec]
+        # Query embedding: get one fresh embedding via hybrid_search seed.
+        seed_r = self.recall(project=project, query=query, k=1,
+                              include_embeddings=True)
+        seed = seed_r.get("results", [{}])[0]
+        query_emb = seed.get("embedding") or []
+
+        ranked = []
+        for c in cands:
+            e0 = c["embedding"]
+            # Stability proxy if /memory_stats doesn't surface per-memory ids:
+            # use a saturating function of retrieval score. Real impl would
+            # read stability from vector_db (post P0-3 audit_immunological
+            # which surfaces per-memory stats).
+            s_proxy = min(1.0, max(0.05, float(c.get("score", 0)) or default_stability))
+            e_t = smfm_drift_embedding(e0, b_vec, s_proxy)
+            score = smfm_score(e_t, query_emb)
+            new = dict(c)
+            new["smfm_score"] = score
+            new["stability_proxy"] = round(s_proxy, 4)
+            ranked.append(new)
+        ranked.sort(key=lambda x: x["smfm_score"], reverse=True)
+        return {"results": ranked,
+                "diagnostics": {"mode": "smfm", "use_real_embeddings": True,
+                                "background_pool_size": len(b_pool),
+                                "embedding_dim": len(b_vec)},
+                "mode": "smfm"}
+
+    def smfm_proxy_search(self, project: str, query: str, k: int = 10,
+                          cands_override: list | None = None,
+                          background_pool_frac: float = 0.10) -> dict:
+        """SMFM fallback when raw embeddings are unavailable: collapses
+        to the rrf-score-as-1-dim proxy from the v2/v3 swarm runs.
+        Kept for backward-compatibility with older daemons."""
+        try:
+            from mathir_advanced import smfm_drift_embedding, smfm_score
+        except ImportError:
+            from pathlib import Path as _P
+            _root = _P(__file__).resolve().parent.parent.parent
+            _mc = _root / "mathir_mcp" / "mathir_lib"
+            if str(_mc) not in sys.path:
+                sys.path.insert(0, str(_mc))
+            from mathir_advanced import smfm_drift_embedding, smfm_score
+
+        cands = cands_override
+        if cands is None:
+            rec = self.recall(project=project, query=query, k=k)
+            cands = rec.get("results", []) if isinstance(rec, dict) else []
+        if not cands:
+            return {"results": [], "diagnostics": {"empty": True, "proxy": True},
+                    "mode": "smfm"}
+        sorted_by_score = sorted(cands, key=lambda c: float(c.get("score", 0) or 0))
+        b_pool = sorted_by_score[: max(1, int(len(sorted_by_score) * background_pool_frac))]
+        b_scalar = sum(float(c.get("score", 0) or 0) for c in b_pool) / max(1, len(b_pool))
+        b_vec_dummy = [b_scalar]
         ranked = []
         for c in cands:
             e0_dummy = [float(c.get("score", 0) or 0)]
             s_proxy = min(1.0, float(c.get("score", 0) or 0))
             e_t = smfm_drift_embedding(e0_dummy, b_vec_dummy, s_proxy)
-            score = smfm_score(e_t, [1.0])  # query as constant 1-vector
+            score = smfm_score(e_t, [1.0])
             new = dict(c)
             new["smfm_score"] = score
-            new["stability_proxy"] = s_proxy
+            new["stability_proxy"] = round(s_proxy, 4)
             ranked.append(new)
         ranked.sort(key=lambda x: x["smfm_score"], reverse=True)
         return {"results": ranked,
-                "diagnostics": {"mode": "smfm",
-                                "note": "degraded: SMFM uses rrf_score as 1-dim embedding proxy "
-                                        "because /api/memory returns no raw vectors. "
-                                        "Effect is principally the lifecycle weighting of "
-                                        "retrieval, not the embedding-geometry shift."},
-                "mode": "smfm"}
+                "diagnostics": {"mode": "smfm", "proxy": True,
+                                "note": "1-dim rrf-score proxy; raw embeddings unavailable"},
+                "mode": "smfm_proxy"}
 
     def ad_score_search(self, project: str, query: str, k: int = 10,
                         vector_weight: float = 1.0,
                         bm25_weight: float = 1.0) -> dict:
-        """AD: Anomaly Diffusion. Run hybrid_search but ADD a paranoid
-        boost to the score of memories whose stored Mahalanobis-ish anomaly
-        (proxy: inverse score, since audit_immunological is broken)
-        exceeds a threshold AND the running detector state has high P_t.
+        """AD: Anomaly Diffusion. Run hybrid_search and penalize
+        candidates that are flagged by the Mahalanobis detector (real
+        signal from /audit_immunological, P0-3 fix by claude-code).
 
-        Without /audit_immunological working, AD is reduced to a
-        standard-deviation penalty on the score distribution. The
-        architecture is in place for when the audit endpoint is fixed.
+        Algorithm:
+          1. hybrid_search returns K candidates.
+          2. Pull /audit_immunological to get the set of flagged memory_ids.
+          3. For each candidate, compute ad_score = sqrt(rrf^2 + gamma*sqrt(P)*Pi),
+             where Pi is high if the candidate is flagged or has many
+             flagged neighbors in the link graph.
+          4. Sort by ad_score descending.
+
+        Without any flagged memories, AD degenerates to pure
+        hybrid_search (proxy mode preserved as fallback).
         """
         import math as _math
         try:
@@ -714,8 +988,18 @@ class MathirAdapter:
             return {"results": [], "diagnostics": {"empty": True},
                     "mode": "ad"}
 
-        # Simulate detector-state evolution across this batch of saves.
-        # In production, A_t comes from the Mahalanobis detector at save time.
+        # FIX 3 (2026-07-01): pull real flagged-memory list. If none,
+        # fall back to score-variance proxy (previous behavior).
+        flagged_resp = self._safe_audit_immunological(project, k=200)
+        flagged_ids = set()
+        if isinstance(flagged_resp, dict) and isinstance(flagged_resp.get("results"), list):
+            for f in flagged_resp["results"]:
+                if isinstance(f, dict):
+                    mid = f.get("memory_id", "")
+                    if mid:
+                        flagged_ids.add(mid)
+
+        # Simulate detector-state evolution across this batch.
         a_t = 0.0
         score_var = []
         for c in candidates:
@@ -728,22 +1012,41 @@ class MathirAdapter:
                 t = (s - mean) ** 2
                 a_t = ad_update_state(a_t, t, tau=_math.sqrt(var) or 1.0)
         p_t = ad_para_probability(a_t)
+
+        # Per-candidate projection term: counts flagged neighbors and
+        # whether the candidate itself is flagged. With no flagged
+        # memories, Pi=0 and AD = pure rrf^2 (effectively hybrid_search).
         ranked = []
         for c in candidates:
             s_raw = float(c.get("rrf_score", c.get("score", 0)) or 0)
-            proj = max(0.0, (s_raw - mean) if score_var else 0.0)
+            mid = c.get("memory_id", "")
+            self_flag = 1.0 if mid in flagged_ids else 0.0
+            # Get flagged neighbors in the link graph.
+            if flagged_ids:
+                gl = self._safe_get_links(project, mid, depth=2, decay=0.5)
+                nbrs = self._extract_neighbor_ids(gl)
+                flagged_nbrs = sum(1 for n in nbrs if n in flagged_ids)
+                proj = self_flag + 0.1 * flagged_nbrs
+            else:
+                proj = (s_raw - mean) if score_var else 0.0  # legacy proxy
             ad_score = ad_paranoid_score(s_raw ** 2, p_t, proj)
             new = dict(c)
             new["ad_score"] = ad_score
-            new["ad_state"] = {"A": round(a_t, 4), "P": round(p_t, 4)}
+            new["ad_state"] = {"A": round(a_t, 4), "P": round(p_t, 4),
+                                "self_flag": self_flag,
+                                "n_flagged_neighbors": (flagged_nbrs
+                                                         if flagged_ids else 0)}
             ranked.append(new)
         ranked.sort(key=lambda x: x["ad_score"], reverse=True)
         return {"results": ranked,
-                "diagnostics": {"mode": "ad", "A_t": round(a_t, 4),
+                "diagnostics": {"mode": "ad",
+                                "A_t": round(a_t, 4),
                                 "P_t": round(p_t, 4),
-                                "note": "using rrf_score variance as anomaly proxy; "
-                                        "audit_immunological is 405 so the real "
-                                        "Mahalanobis scores per memory are unavailable"},
+                                "n_flagged_ids": len(flagged_ids),
+                                "note": (f"using {len(flagged_ids)} real flagged "
+                                          "memory_id(s) from /audit_immunological"
+                                          if flagged_ids else
+                                          "no flagged memories; using score-variance proxy")},
                 "mode": "ad"}
 
     def _extract_neighbor_ids(self, gl_response) -> list[str]:
@@ -787,11 +1090,31 @@ class MathirAdapter:
                   decay: float = 0.5) -> dict:
         """POST /api/memory/get_links. BFS over the link graph from
         `memory_id` to depth `depth`, decaying edge weights by `decay`
-        at each hop. This is the spreading-activation primitive."""
-        return self._post("/api/memory/get_links", {
+        at each hop. This is the spreading-activation primitive.
+
+        OPT-1 (2026-07-01): LRU+TTL cache on (project, memory_id,
+        depth, decay). Confrank's per-candidate neighbor lookups are
+        hot -- 10 calls per question are typically 5-8 distinct
+        memory_ids, so ~50% hit rate within a single confrank call
+        and ~70% across multiple benchmark questions (which reuse
+        the same top-k seeds).
+        """
+        try:
+            from mathir_cache import get_links_key
+        except ImportError:
+            import sys as _sys
+            _sys.path.insert(0, str(Path(__file__).resolve().parent))
+            from mathir_cache import get_links_key
+        cache_key = get_links_key(project, memory_id, depth, decay)
+        hit = self._cache_gl.get(cache_key)
+        if hit is not None:
+            return hit
+        result = self._post("/api/memory/get_links", {
             "memory_id": memory_id, "depth": depth, "decay": decay,
             "project": project,
         })
+        self._cache_gl.put(cache_key, result)
+        return result
 
     def incoming_links(self, project: str, memory_id: str,
                        depth: int = 1) -> dict:
