@@ -920,6 +920,101 @@ class VecMemory:
                 "memories_scanned": len(ids),
             }
 
+    def build_entity_links_all(self, limit: int = 1000,
+                               entity_edge_weight: float = 0.9) -> Dict[str, Any]:
+        """Build an ENTITY-linked graph: connect memories that mention the
+        same named entity, regardless of embedding similarity.
+
+        This complements build_links_all() (the cosine-similarity graph).
+        The similarity graph links memories on the SAME topic; this entity
+        graph links memories that share a specific entity even when they're
+        about different topics -- the exact "bridge" relation multi-hop
+        retrieval needs and that cosine graphs structurally miss (proven on
+        HotpotQA, see benchmarks/10_multihop/). Edges go into the same
+        memory_links table, so get_links / PPR-LTE / spreading-activation
+        traverse them transparently.
+
+        entity_edge_weight defaults high (0.9) because a shared named entity
+        is a strong, precise relation signal -- stronger than a marginal
+        cosine-above-threshold link. Weight scales up with the number of
+        shared entities between a pair (more shared entities = stronger
+        relation), capped at 1.0.
+
+        Returns {links_created, memories_scanned, entities_indexed}.
+        """
+        if limit < 1:
+            raise ValueError("limit must be >= 1")
+
+        try:
+            from .mathir_entity_graph import extract_entities
+        except ImportError:
+            from mathir_entity_graph import extract_entities  # type: ignore
+
+        with self._db_lock:
+            conn = self._get_conn()
+            kind = self._schema_kind()
+            if kind == "new":
+                rows = conn.execute(
+                    "SELECT memory_id, content FROM memories LIMIT ?", [limit]
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT memory_id, json_extract(metadata, '$.content') AS content "
+                    "FROM memories LIMIT ?", [limit]
+                ).fetchall()
+
+            if not rows:
+                return {"links_created": 0, "memories_scanned": 0, "entities_indexed": 0}
+
+            # Inverted index: entity -> set of memory_ids that mention it.
+            entity_to_mems: Dict[str, set] = {}
+            scanned = 0
+            for row in rows:
+                mid = row["memory_id"]
+                content = row["content"] or ""
+                scanned += 1
+                for ent in extract_entities(content):
+                    entity_to_mems.setdefault(ent, set()).add(mid)
+
+            # Count shared entities per unordered memory pair.
+            pair_shared: Dict[tuple, int] = {}
+            for ent, mems in entity_to_mems.items():
+                if len(mems) < 2:
+                    continue  # entity mentioned by only one memory -> no edge
+                mem_list = sorted(mems)
+                for i in range(len(mem_list)):
+                    for j in range(i + 1, len(mem_list)):
+                        key = (mem_list[i], mem_list[j])
+                        pair_shared[key] = pair_shared.get(key, 0) + 1
+
+            # Build bidirectional edges; weight scales with #shared entities.
+            writes: List[tuple] = []
+            for (a, b), n_shared in pair_shared.items():
+                w = min(1.0, entity_edge_weight + 0.05 * (n_shared - 1))
+                writes.append((a, b, w))
+                writes.append((b, a, w))
+
+            if writes:
+                for attempt in range(3):
+                    try:
+                        conn.executemany(
+                            "INSERT OR REPLACE INTO memory_links(source_id, target_id, weight, created_at) VALUES (?, ?, ?, ?)",
+                            [(s, t, w, time.time()) for s, t, w in writes],
+                        )
+                        conn.commit()
+                        break
+                    except sqlite3.OperationalError as e:
+                        if "locked" in str(e) and attempt < 2:
+                            time.sleep(0.1 * (attempt + 1))
+                            continue
+                        raise
+
+            return {
+                "links_created": len(writes),
+                "memories_scanned": scanned,
+                "entities_indexed": len(entity_to_mems),
+            }
+
     def find_related(
         self,
         memory_id: str,

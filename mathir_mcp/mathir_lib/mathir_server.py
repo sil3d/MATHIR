@@ -1094,10 +1094,25 @@ def memory_build_links():
     params = _get_params()
     try:
         vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
-        return jsonify(vec_mem.build_links_all(
-            threshold=params.get('threshold', 0.7),
-            limit=params.get('limit', 1000),
-        ))
+        # mode: "cosine" (default, embedding-similarity graph -- original
+        # behavior), "entity" (entity-shared graph -- links memories that
+        # mention the same named entity, for multi-hop bridging), or "both".
+        mode = str(params.get('mode', 'cosine')).lower()
+        limit = params.get('limit', 1000)
+        out = {}
+        if mode in ("cosine", "both"):
+            out["cosine"] = vec_mem.build_links_all(
+                threshold=params.get('threshold', 0.7), limit=limit,
+            )
+        if mode in ("entity", "both"):
+            out["entity"] = vec_mem.build_entity_links_all(limit=limit)
+        # Back-compat: when a single mode is requested, also flatten its
+        # link count to the top level so existing callers that read
+        # {"links_created": N} keep working.
+        single = out.get("cosine") or out.get("entity") or {}
+        if mode != "both" and isinstance(single, dict):
+            out.update(single)
+        return jsonify(out)
     except Exception as e:
         return jsonify({'error': _sanitize_error(e, 'memory_build_links')}), 500
 
