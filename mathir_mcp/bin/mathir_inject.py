@@ -88,7 +88,7 @@ INJECT_START_PATTERNS = [
 INJECT_END = "# === END MATHIR INJECTION ==="
 
 # The standard end-marker that appears in agent templates (last meaningful line)
-STANDARD_END_MARKER = "**Model:** paraphrase-multilingual-MiniLM-L12-v2"
+STANDARD_END_MARKER = "**Model:** intfloat/multilingual-e5-small"
 
 # Files to skip in any target (README, system files, templates themselves)
 SKIP_NAMES = {"README.md", "_MATHIR_INJECT.md", "_MATHIR_INJECT_AGENTS.md",

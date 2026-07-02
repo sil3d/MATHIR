@@ -95,7 +95,7 @@ elif [ "$IS_APPLE_SILICON" = true ]; then
     $PYTHON -m pip install torch torchvision torchaudio --quiet
 elif [ "$IS_RPI" = true ]; then
     echo "    Using CPU-only (Raspberry Pi, no GPU)"
-    echo "    [NOTE] On RPi, embedding will be slow (~5s per recall with paraphrase-multilingual-MiniLM-L12-v2)"
+    echo "    [NOTE] On RPi, embedding will be slow (~5s per recall with intfloat/multilingual-e5-small)"
     $PYTHON -m pip install torch --index-url https://download.pytorch.org/whl/cpu --quiet
 else
     echo "    Using CPU-only (no NVIDIA GPU detected)"

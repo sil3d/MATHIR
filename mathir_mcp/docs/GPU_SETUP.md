@@ -99,7 +99,7 @@ print(f"Free: {free/1024**3:.1f} GB / Total: {total/1024**3:.1f} GB")
 ```
 
 Model VRAM requirements:
-- paraphrase-multilingual-MiniLM-L12-v2 (FP32): ~471 MB / FP16: ~239 MB ← MATHIR default (50+ languages)
+- intfloat/multilingual-e5-small (FP32): ~471 MB / FP16: ~239 MB ← MATHIR default (retrieval-trained, same size/architecture as the previous default)
 - bge-large-en-v1.5 (FP32): ~700 MB
 - nomic (FP32): ~300 MB
 - MiniLM (FP32): ~150 MB
@@ -116,7 +116,7 @@ Model VRAM requirements:
 │  JSON-RPC protocol                     │
 ├─────────────────────────────────────────┤
 │  SentenceTransformer (CUDA)            │
-│  ├── paraphrase-multilingual-MiniLM-L12-v2 (default, 50+ langs) │
+│  ├── intfloat/multilingual-e5-small (default, retrieval-trained) │
 │  └── CPU fallback available             │
 ├─────────────────────────────────────────┤
 │  Model loaded in VRAM                  │

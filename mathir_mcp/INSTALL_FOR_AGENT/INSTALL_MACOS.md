@@ -84,7 +84,7 @@ You should see:
 
 ```
 2026-06-23 12:00:00 [MATHIR-DAEMON] INFO Starting MATHIR daemon...
-2026-06-23 12:00:03 [MATHIR-DAEMON] INFO Loaded embedder: paraphrase-multilingual-MiniLM-L12-v2 (dim=384)
+2026-06-23 12:00:03 [MATHIR-DAEMON] INFO Loaded embedder: intfloat/multilingual-e5-small (dim=384)
 2026-06-23 12:00:04 [MATHIR-DAEMON] INFO Listening on 127.0.0.1:7338
 ```
 
@@ -270,7 +270,7 @@ launchctl print gui/$(id -u)/com.mathir.daemon 2>/dev/null | head -20
 | `ModuleNotFoundError: sentence_transformers` | Daemon can't see `--user` site-packages | Either add the site-packages to `PYTHONPATH` in the plist's `EnvironmentVariables`, or install into a venv and reference the venv's python in the plist. |
 | Daemon binds port 7338, then dies | `KeepAlive=true` is respawning a crashing process | `log show --predicate 'process == "python3"' --last 5m` to find the crash reason. |
 | Port 7338 already in use | Another process | `lsof -nP -iTCP:7338 -sTCP:LISTEN`, kill it, or set `EnvironmentVariables.MATHIR_PORT=7339` in the plist and `opencode.json`. |
-| Embedding model download is slow / fails | Hugging Face blocked, or first run | Pre-download: `huggingface-cli download sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` |
+| Embedding model download is slow / fails | Hugging Face blocked, or first run | Pre-download: `huggingface-cli download intfloat/multilingual-e5-small` |
 | OpenCode says "MCP server mathir failed to start" | `~` not expanding in the MCP command, or path wrong | Use full absolute path in `command` for debugging, then revert to `~` once it works. |
 | macOS firewall prompt keeps appearing | launchd's `python3` is not signed | Either allow in System Settings → Network → Firewall, or sign the binary. For local dev, the simplest fix is `sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add /usr/bin/python3`. |
 | Want to nuke and reinstall | — | `launchctl unload ~/Library/LaunchAgents/com.mathir.daemon.plist` → `rm ~/Library/LaunchAgents/com.mathir.daemon.plist` → `rm -rf ~/.config/opencode/bin/mathir_lib` → re-do steps 2-5. |

@@ -398,4 +398,4 @@ memory_smart_search(query="exact text", k=5)
 **Types:** working_memory, episodic, semantic, procedural, immunological
 **Priority:** 1-10 (higher = more important)
 **Port:** 7338 (daemon) / 8182 (proxy) | **Database:** auto-detected (CWD-first, registry fallback, home ignored)
-**Model:** paraphrase-multilingual-MiniLM-L12-v2 (384d, 50+ langs, 239MB VRAM fp16)
+**Model:** intfloat/multilingual-e5-small (384d, multilingual, ~240MB VRAM fp16, retrieval-trained)

@@ -253,16 +253,17 @@ layout that works out of the box**.
 
 ## Embedding Model
 
-**paraphrase-multilingual-MiniLM-L12-v2** — 384 dimensions
+**intfloat/multilingual-e5-small** — 384 dimensions (retrieval-trained; measured +2.5x retrieval quality on multi-hop benchmarks vs the previous paraphrase-trained default, at ~12% slower single-query latency -- same architecture and parameter count as the old default, not a heavier model)
 
 | Property | Value |
 |----------|-------|
 | Dimensions | 384 |
 | Parameters | 117.7M |
 | Max tokens | 128 |
-| Languages | 50+ |
+| Languages | Multilingual |
 | VRAM (fp16) | 239MB |
 | Speed | ~22ms/embedding |
+| Note | Requires "query: "/"passage: " text prefixes (applied automatically by MATHIR) for its trained retrieval behavior |
 
 All databases must use 384d vectors. If you have old 1024d databases, run migration:
 ```bash

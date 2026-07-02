@@ -144,7 +144,7 @@ TARGETS = {
 #    - extract YAML frontmatter (keep at the top)
 #    - detect existing block via anchor patterns: "# MATHIR MEMORY — v", etc.
 #    - find block end via "# === END MATHIR INJECTION ===" → standard
-#      "Model: paraphrase-multilingual-MiniLM-L12-v2" → heuristic heading
+#      "Model: intfloat/multilingual-e5-small" → heuristic heading
 #    - if existing block is content-equivalent to template, skip (idempotent)
 #    - else: strip old block, insert new block after frontmatter
 #    - write file
@@ -160,7 +160,7 @@ TARGETS = {
 - `# MATHIR MEMORY v`
 - `# MATHIR MEMORY`
 
-The block ends at the first occurrence of `# === END MATHIR INJECTION ===`, or the standard end-marker `**Model:** paraphrase-multilingual-MiniLM-L12-v2`, or — as a last resort — the first `## AGENT` / `## ROLE` / `## YOU ARE` / etc. heading that comes after line 5 of the block.
+The block ends at the first occurrence of `# === END MATHIR INJECTION ===`, or the standard end-marker `**Model:** intfloat/multilingual-e5-small`, or — as a last resort — the first `## AGENT` / `## ROLE` / `## YOU ARE` / etc. heading that comes after line 5 of the block.
 
 ---
 

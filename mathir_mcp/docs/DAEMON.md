@@ -47,7 +47,7 @@ Check if daemon is alive and model is loaded.
 ```json
 {
   "status": "ok",
-  "model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+  "model": "intfloat/multilingual-e5-small",
   "dims": 384,
   "uptime_seconds": 3600
 }

@@ -114,4 +114,4 @@ When you create a new slash command in `commands/`:
 
 **block_type:** `working_memory` | `episodic` | `semantic` | `procedural` | `immunological` (5 tiers; immunological is for threat signatures / anomaly storage)
 **priority:** 1–10 (higher = more important)
-**Port:** 7338 (daemon) | **Model:** paraphrase-multilingual-MiniLM-L12-v2 (384d)
+**Port:** 7338 (daemon) | **Model:** intfloat/multilingual-e5-small (384d)

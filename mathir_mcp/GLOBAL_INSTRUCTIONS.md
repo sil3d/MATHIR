@@ -262,3 +262,29 @@ The MCP server enforces per-field length caps to prevent DoS via unbounded paylo
 
 Tune with the `MCP_INPUT_MAX` env var (multiplier — `MCP_INPUT_MAX=2.0` doubles all caps). Out-of-range values fall back to default. Rejected payloads return `{"error": "<field> exceeds <cap> chars"}`.
 - Database lives at `.mathir/mathir.db` per project, created automatically on first write.
+
+---
+
+## 🔎 Always Orient Via the Latest Conclusion/Handoff Memory First
+
+Multiple agents/tools (Claude Code, OpenCode, MimoCode) write to the SAME shared MATHIR database — cross-tool sharing is real and verified (same file, same rows, read by different tools independently). This means the memory store accumulates findings from many sessions, and some older memories get superseded or corrected later. Reading "most recent" or "highest priority" alone is not enough — you can surface a stale intermediate finding instead of the actual current conclusion.
+
+**Before trusting any individual experiment-result memory, always look for the latest conclusion/handoff memory first:**
+
+```
+memory_recall(query="mathir session final conclusion handoff", k=5)
+```
+
+Prioritize labels containing `final-conclusion` or `handoff` over any other single memory — those are explicitly written as orientation points that supersede earlier, now-corrected findings.
+
+**If you only have shell access (no MCP tools)** — e.g. a raw script — the same shared database is a plain SQLite file at `~/.config/mathir/data/projects/<PROJECT_NAME>/mathir.db` (portable path, not machine-specific). Query it directly:
+
+```sql
+SELECT label, priority, created_at, json_extract(metadata,'$.content') as content
+FROM memories
+WHERE json_extract(metadata,'$.project') = '<PROJECT_NAME>'
+  AND (label LIKE '%final-conclusion%' OR label LIKE '%handoff%')
+ORDER BY created_at DESC LIMIT 5;
+```
+
+**Windows/PowerShell pitfall:** passing a multi-line Python script via `python -c "<script>"` with embedded double quotes fails with `SyntaxError: unterminated string literal` — PowerShell doesn't parse embedded quotes the way bash does. Write the script to a temporary `.py` file first, then run `python script.py` normally.

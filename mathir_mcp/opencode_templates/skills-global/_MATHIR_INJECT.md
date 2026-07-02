@@ -40,7 +40,7 @@ When you create a new global skill in `skills-global/<name>/SKILL.md`:
 
 **MCP tools:** `memory_save`, `memory_recall`, `memory_stats`
 **block_type:** `working_memory` | `episodic` | `semantic` | `procedural` | `immunological` (5 tiers; immunological is for threat signatures / anomaly storage)
-**Port:** 7338 (daemon) | **Model:** paraphrase-multilingual-MiniLM-L12-v2 (384d)
+**Port:** 7338 (daemon) | **Model:** intfloat/multilingual-e5-small (384d)
 ## ENFORCEMENT - MATHIR Is Your Brain (Not a Tool)
 
 MATHIR is NOT an optional tool. It IS your brain. You think with it. You decide with it. You never operate without it.

@@ -95,7 +95,7 @@ You should see logs like:
 
 ```
 2026-06-23 12:00:00 [MATHIR-DAEMON] INFO Starting MATHIR daemon...
-2026-06-23 12:00:03 [MATHIR-DAEMON] INFO Loaded embedder: paraphrase-multilingual-MiniLM-L12-v2 (dim=384)
+2026-06-23 12:00:03 [MATHIR-DAEMON] INFO Loaded embedder: intfloat/multilingual-e5-small (dim=384)
 2026-06-23 12:00:04 [MATHIR-DAEMON] INFO Listening on 127.0.0.1:7338
 ```
 
@@ -254,7 +254,7 @@ systemctl --user is-active mathir-daemon
 | Unit runs in foreground test but fails under systemd | `PATH` is empty under systemd | Edit the unit: add `Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin` |
 | `Address already in use` | Port 7338 occupied | `sudo ss -tlnp 'sport = :7338'`, kill the PID, or set `Environment=MATHIR_PORT=7339` in the unit + `opencode.json` |
 | `ModuleNotFoundError: sentence_transformers` | Deps installed system-wide, unit can't see them | Reinstall with `python3 -m pip install --user ...`, or use a venv and set `Environment=PATH=%h/.venvs/mathir/bin:%h/.local/bin` |
-| Embedding model download is slow / fails | No internet, or Hugging Face is blocked | Pre-download with `huggingface-cli download sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` |
+| Embedding model download is slow / fails | No internet, or Hugging Face is blocked | Pre-download with `huggingface-cli download intfloat/multilingual-e5-small` |
 | Headless server: daemon dies on logout | No lingering | `loginctl enable-linger $USER` |
 | `nc` not installed | Minimal container | `printf ... | socat - TCP:127.0.0.1:7338` (socat works everywhere) or use `python3 -c "import socket; ..."` |
 | Want to nuke and reinstall | — | `systemctl --user disable --now mathir-daemon` → `rm -rf ~/.config/opencode/bin/mathir_lib` → re-do steps 2-5. |

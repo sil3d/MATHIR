@@ -1,6 +1,6 @@
 # Embedding Dimensions Guide (v8.5.0)
 
-**Current model: paraphrase-multilingual-MiniLM-L12-v2 (384d, 239MB VRAM)**
+**Current model (as of 2026-07-02): intfloat/multilingual-e5-small (384d, 239MB VRAM, retrieval-trained)** — was paraphrase-multilingual-MiniLM-L12-v2 (same architecture/size, different training objective). See "Real, Independently-Verified Alternative" section below for the investigation that led to this switch; the HotpotQA multi-hop result that finally justified it (+2.5x retrieval quality, ~12% slower not 5x as earlier estimated) is in MATHIR memory embedder-swap-strongest-positive-result-hotpotqa. All comparison tables below that name both models by their historical role (default vs. alternative) reflect what was tested AT THE TIME of each experiment, not the current default -- read dates/context, not just table headers.
 
 ---
 
@@ -47,11 +47,29 @@ paraphrase-training is actually a better fit. It is also meaningfully
 slower to encode, which matters for edge/resource-constrained deployments
 (MATHIR explicitly targets running locally without cloud dependency).
 
-**MATHIR's default was deliberately NOT changed** based on this result —
-the current 384d paraphrase-multilingual model remains the default
+**UPDATE (2026-07-02): MATHIR's default WAS subsequently changed to
+`intfloat/multilingual-e5-small`**, superseding the "deliberately NOT
+changed" decision below. What changed the calculus: a later HotpotQA
+multi-hop retrieval test (not a BEIR corpus) showed a much larger gain
+(+2.5x at both_gold@2, see embedder-swap-strongest-positive-result-hotpotqa
+in MATHIR memory) than any BEIR result here, AND the "e5-small ~5x
+slower" figure in the table above was never independently re-verified
+and turned out to be wrong -- real measured single-query CPU latency is
+~12% slower (49.2ms vs 55.0ms), not 5x, because both models share the
+same 117.7M-parameter architecture. The original reasoning below
+(preserved for history) was sound given the information available at
+the time; it was the unverified 5x figure that tipped the decision, and
+correcting it changed the conclusion. Existing project databases are
+NOT affected by this default change (each DB is pinned to the model it
+was created with -- see VecMemory.ensure_embedding_model).
+
+Original 2026-06-30 reasoning (superseded, kept for context): "MATHIR's
+default was deliberately NOT changed based on this result — the
+current 384d paraphrase-multilingual model remains the default
 specifically to preserve edge-device speed and because the trade-off is
-task-dependent, not a clean win. If your use case is factual/QA-style
-retrieval and you can accept slower encoding, set in `mathir.json`:
+task-dependent, not a clean win." If your use case is factual/QA-style
+retrieval, set in `mathir.json` (now the default, shown here for
+explicitness / for reverting to the old model if desired):
 
 ```json
 {
@@ -333,7 +351,7 @@ Edit `~/.config/MATHIR/config/mathir.json`:
 
 ```json
 {
-  "model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+  "model": "intfloat/multilingual-e5-small",
   "device": "cuda",
   "embedding_dim": 384,
   "port": 7338,
@@ -442,7 +460,7 @@ python -m mathir_mcp
 ```bash
 # 1. Update config
 # Edit ~/.config/MATHIR/config/mathir.json:
-# "model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+# "model": "intfloat/multilingual-e5-small"
 # "embedding_dim": 384
 
 # 2. Migrate DB
@@ -590,13 +608,21 @@ if existing_dim and existing_dim[0] != model_dim:
 
 ### Model Profiles
 
-#### paraphrase-multilingual-MiniLM-L12-v2 (384d) — MATHIR DEFAULT
+#### intfloat/multilingual-e5-small (384d) — MATHIR DEFAULT (since 2026-07-02)
+- **Best for**: Multilingual projects, retrieval-quality-sensitive use cases
+- **Pros**: Retrieval-trained (query:/passage: asymmetric prefixes, applied automatically by MATHIR), same size/architecture as the previous default (117.7M params, 471MB CPU / 239MB fp16 GPU) -- switching cost is ~12% slower single-query latency, NOT 5x as an earlier (incorrect, unverified) estimate claimed. Measured +2.5x retrieval quality on HotpotQA multi-hop (both_gold@2: 15.0%->37.0%).
+- **Cons**: Requires the query:/passage: prefix convention (handled internally by MATHIR's get_model_prefixes(); matters only if calling the model directly outside MATHIR)
+- **Install**: pip install sentence-transformers
+- **GPU**: CUDA fp16 via SentenceTransformer (falls back to CPU automatically on load/encode failure)
+
+#### paraphrase-multilingual-MiniLM-L12-v2 (384d) — PREVIOUS MATHIR DEFAULT (pre-2026-07-02)
 - **Best for**: Multilingual projects (FR/EN/DE/ES/JA/ZH), low VRAM
 - **Pros**: 50+ languages, Apache-2.0, 43.8M downloads, 471MB CPU / 239MB fp16 GPU
-- **Cons**: Lower MTEB English (~49.7 vs bge-large 64.2), 128 token max (chunking needed)
+- **Cons**: Paraphrase/STS-trained, not retrieval-trained -- measurably weaker on retrieval tasks than e5-small at the same cost. Lower MTEB English (~49.7 vs bge-large 64.2), 128 token max (chunking needed)
 - **Install**: pip install sentence-transformers
 - **GPU**: CUDA fp16 via SentenceTransformer
 - **Verified**: 0.929 cosine sim "Bonjour le monde" ↔ "Hello world" (cross-lingual)
+- **Still in use by**: any project DB created before 2026-07-02 (MATHIR pins each DB to the model it was created with -- see VecMemory.ensure_embedding_model -- so existing projects are unaffected by the default change)
 
 #### nomic-embed-text-v1.5 (768d)
 - **Best for**: Balanced alternative, most projects
@@ -634,7 +660,7 @@ if existing_dim and existing_dim[0] != model_dim:
 
 | Scenario | Model | Why |
 |----------|-------|-----|
-| Default for MATHIR | paraphrase-multilingual-MiniLM-L12-v2 | 384d, 50+ languages, low VRAM (239MB fp16) |
+| Default for MATHIR (since 2026-07-02) | intfloat/multilingual-e5-small | 384d, retrieval-trained, low VRAM (239MB fp16), +2.5x retrieval quality vs the previous default |
 | Alternative balanced | nomic-embed-text-v1.5 | 768d, best speed/quality ratio, Apache-2.0 |
 | Edge / IoT device | Octen-INT8 | 22MB, 8ms CPU |
 | GPU server, max quality | Qwen2.5-7B-emb | 71.5 MTEB, 3584d |
