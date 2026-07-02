@@ -1,0 +1,59 @@
+{
+  "per_mode": {
+    "hybrid_search": {
+      "n_questions": 51,
+      "recall_at_k": 0.5294117647058824,
+      "mrr": 0.3657,
+      "ndcg_at_10": 0.4041,
+      "avg_latency_ms": 71.1
+    },
+    "ppr_lte": {
+      "n_questions": 51,
+      "recall_at_k": 0.5294117647058824,
+      "mrr": 0.3657,
+      "ndcg_at_10": 0.4041,
+      "avg_latency_ms": 49.3
+    },
+    "smfm": {
+      "n_questions": 51,
+      "recall_at_k": 0.45098039215686275,
+      "mrr": 0.3103,
+      "ndcg_at_10": 0.3434,
+      "avg_latency_ms": 148.1
+    },
+    "ad": {
+      "n_questions": 51,
+      "recall_at_k": 0.5294117647058824,
+      "mrr": 0.3487,
+      "ndcg_at_10": 0.3912,
+      "avg_latency_ms": 60.7
+    },
+    "confrank": {
+      "n_questions": 51,
+      "recall_at_k": 0.5294117647058824,
+      "mrr": 0.3657,
+      "ndcg_at_10": 0.4041,
+      "avg_latency_ms": 348.1
+    },
+    "confrank_fast": {
+      "n_questions": 51,
+      "recall_at_k": 0.5294117647058824,
+      "mrr": 0.3657,
+      "ndcg_at_10": 0.4041,
+      "avg_latency_ms": 211.1
+    }
+  },
+  "modes": [
+    "hybrid_search",
+    "ppr_lte",
+    "smfm",
+    "ad",
+    "confrank",
+    "confrank_fast"
+  ],
+  "k": 10,
+  "n_questions": 51,
+  "n_chunks": 3208,
+  "run_label": "fluid_full",
+  "corpus_name": "Fluid Mechanics (White 7ed + Cengel/Cimbala)"
+}
