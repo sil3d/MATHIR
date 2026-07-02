@@ -295,6 +295,20 @@ class VecMemory:
                 )
             """)
 
+            # Per-DB embedding model pin (one row, id=1). Records WHICH
+            # embedding model this DB's vectors were created with, so that
+            # changing MATHIR's configured default model never silently
+            # mixes two incompatible embedding spaces in the same DB --
+            # existing DBs keep using their original model forever; only a
+            # brand-new DB (no row yet) picks up the current default. See
+            # ensure_embedding_model() / get_stored_embedding_model().
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS db_meta (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    embedding_model TEXT
+                )
+            """)
+
             conn.commit()
     
     def store(self, memory_id: str, embedding: np.ndarray, metadata: Dict[str, Any]) -> str:
@@ -2332,6 +2346,38 @@ class VecMemory:
             len(summary['errors']),
         )
         return summary
+
+    def get_stored_embedding_model(self) -> Optional[str]:
+        """Return the embedding model this DB was created with, or None if
+        no memory has ever been embedded here yet (brand-new DB)."""
+        with self._db_lock:
+            conn = self._get_conn()
+            row = conn.execute("SELECT embedding_model FROM db_meta WHERE id = 1").fetchone()
+            return row["embedding_model"] if row else None
+
+    def ensure_embedding_model(self, model_name: str) -> str:
+        """Return the model this DB should use, pinning it on first call.
+
+        If this DB has never recorded a model, records `model_name` (the
+        currently configured default) and returns it. If a model was
+        already recorded (this DB has existing embeddings), returns the
+        EXISTING recorded model instead, ignoring `model_name` -- this is
+        what prevents a MATHIR-wide default-model change from silently
+        mixing two incompatible embedding spaces in an already-populated
+        project DB. New projects naturally pick up whatever the current
+        default is; existing projects keep working exactly as before.
+        """
+        with self._db_lock:
+            conn = self._get_conn()
+            row = conn.execute("SELECT embedding_model FROM db_meta WHERE id = 1").fetchone()
+            if row and row["embedding_model"]:
+                return row["embedding_model"]
+            conn.execute(
+                "INSERT OR REPLACE INTO db_meta (id, embedding_model) VALUES (1, ?)",
+                [model_name],
+            )
+            conn.commit()
+            return model_name
 
     def close(self):
         """Close database connection."""

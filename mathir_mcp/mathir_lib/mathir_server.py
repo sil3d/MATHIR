@@ -87,6 +87,7 @@ MAX_LABEL_LENGTH = 500
 # ---------------------------------------------------------------------------
 from mathir_mcp_server import (
     get_embedder,
+    get_model_prefixes,
     get_project_db_path,
     get_project_name,
 )
@@ -192,12 +193,39 @@ def _resolve_db(project: str = None, cwd: str = None):
     if db_path is None:
         raise ValueError("No project database found. Set MATHIR_PROJECT env var or pass project + cwd.")
     vec_mem = _get_vec_mem(db_path, dim)
-    embedder = get_embedder()
+    # Pin this DB to whichever model it was first embedded with (or, for a
+    # brand-new DB, to the current configured default). This is what lets
+    # MATHIR's default embedder change (e.g. to e5-small) apply to NEW
+    # projects only, without silently mixing embedding spaces in DBs that
+    # already have vectors from the old model. See VecMemory.
+    # ensure_embedding_model and MATHIR memory
+    # embedder-swap-strongest-positive-result-hotpotqa.
+    default_model = load_config().get("embedding", {}).get(
+        "model", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    )
+    resolved_model = vec_mem.ensure_embedding_model(default_model)
+    embedder = get_embedder(resolved_model)
+    query_prefix, passage_prefix = get_model_prefixes(resolved_model)
+    embedder.mathir_query_prefix = query_prefix
+    embedder.mathir_passage_prefix = passage_prefix
     return vec_mem, db_path, embedder
 
 
 def _encode_query(embedder, query: str):
-    emb = embedder.encode(query)
+    prefix = getattr(embedder, 'mathir_query_prefix', '')
+    emb = embedder.encode(prefix + query)
+    import numpy as np
+    if hasattr(emb, 'cpu'):
+        return emb.cpu().numpy().astype('float32').reshape(-1)
+    return np.array(emb, dtype=np.float32).reshape(-1)
+
+
+def _encode_passage(embedder, text: str):
+    """Encode text being STORED (as opposed to a query) -- applies the
+    passage-side prefix for asymmetric-retrieval embedders like e5 (see
+    _encode_query for the query-side counterpart)."""
+    prefix = getattr(embedder, 'mathir_passage_prefix', '')
+    emb = embedder.encode(prefix + text)
     import numpy as np
     if hasattr(emb, 'cpu'):
         return emb.cpu().numpy().astype('float32').reshape(-1)
@@ -694,7 +722,7 @@ def memory_save():
             except Exception:
                 pass
 
-        emb_np = _encode_query(embedder, content)
+        emb_np = _encode_passage(embedder, content)
         import uuid
         memory_id = f"mem_{uuid.uuid4().hex}"
 

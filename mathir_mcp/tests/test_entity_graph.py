@@ -76,3 +76,68 @@ def test_build_entity_links_creates_edge_between_entity_sharing_memories(tmp_pat
         "SELECT target_id FROM memory_links WHERE source_id = 'mem_a'").fetchall()}
     assert "mem_b" in a_targets, f"mem_a should link to mem_b via shared entity; targets={a_targets}"
     assert "mem_c" not in a_targets, f"mem_a should NOT link to unrelated mem_c; targets={a_targets}"
+
+
+def test_ensure_embedding_model_records_model_on_new_db(tmp_path):
+    """A brand-new DB (no stored model yet) records whichever model is
+    passed in and returns it -- this is how a NEW project picks up
+    whatever the current configured default is (e.g. e5-small)."""
+    db = tmp_path / "model_track_new.db"
+    vm = VecMemory(db, embedding_dim=384)
+    assert vm.get_stored_embedding_model() is None
+    resolved = vm.ensure_embedding_model("intfloat/multilingual-e5-small")
+    assert resolved == "intfloat/multilingual-e5-small"
+    assert vm.get_stored_embedding_model() == "intfloat/multilingual-e5-small"
+
+
+def test_ensure_embedding_model_keeps_existing_model_on_old_db(tmp_path):
+    """An EXISTING DB (model already recorded) keeps its original model
+    even if the configured default changes later -- this is the whole
+    point: swapping MATHIR's default embedder must not silently corrupt
+    retrieval on projects embedded with the old model."""
+    db = tmp_path / "model_track_old.db"
+    vm = VecMemory(db, embedding_dim=384)
+    first = vm.ensure_embedding_model("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+    assert first == "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+
+    # Simulate a config change to a new default -- must NOT affect this DB.
+    second = vm.ensure_embedding_model("intfloat/multilingual-e5-small")
+    assert second == "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2", (
+        "existing DB must keep its original model, not silently switch"
+    )
+
+
+def test_ensure_embedding_model_persists_across_instances(tmp_path):
+    """The recorded model survives a daemon restart (new VecMemory instance
+    on the same db_path)."""
+    db = tmp_path / "model_track_persist.db"
+    vm1 = VecMemory(db, embedding_dim=384)
+    vm1.ensure_embedding_model("intfloat/multilingual-e5-small")
+    vm1.close()
+
+    vm2 = VecMemory(db, embedding_dim=384)
+    assert vm2.get_stored_embedding_model() == "intfloat/multilingual-e5-small"
+
+
+try:
+    from mathir_lib.mathir_mcp_server import get_model_prefixes
+except ImportError:
+    from mathir_mcp_server import get_model_prefixes  # type: ignore
+
+
+def test_get_model_prefixes_e5_small_has_query_passage_prefixes():
+    q, p = get_model_prefixes("intfloat/multilingual-e5-small")
+    assert q == "query: "
+    assert p == "passage: "
+
+
+def test_get_model_prefixes_default_minilm_has_no_prefixes():
+    q, p = get_model_prefixes("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+    assert q == ""
+    assert p == ""
+
+
+def test_get_model_prefixes_unknown_model_defaults_to_no_prefix():
+    q, p = get_model_prefixes("some/other-model-nobody-registered")
+    assert q == ""
+    assert p == ""

@@ -147,8 +147,29 @@ def get_project_db_path(project: str = None) -> Optional[Path]:
     return cwd_db
 
 
-def get_embedder():
-    """Load embedder on demand (for daemon compatibility). CACHED.
+# Asymmetric-retrieval embedders need different text prefixes for queries
+# vs. stored passages (they were trained with these prefixes; using them
+# is what gives the retrieval-quality gain -- see MATHIR memory
+# embedder-swap-strongest-positive-result-hotpotqa). Models not listed here
+# (e.g. the default paraphrase-trained MiniLM) use no prefix at all.
+MODEL_PREFIXES = {
+    "intfloat/multilingual-e5-small": ("query: ", "passage: "),
+    "intfloat/multilingual-e5-base": ("query: ", "passage: "),
+    "intfloat/multilingual-e5-large": ("query: ", "passage: "),
+    "intfloat/e5-small-v2": ("query: ", "passage: "),
+    "intfloat/e5-base-v2": ("query: ", "passage: "),
+    "intfloat/e5-large-v2": ("query: ", "passage: "),
+}
+
+
+def get_model_prefixes(model_name: str) -> tuple:
+    """Return (query_prefix, passage_prefix) for a given embedding model.
+    Unknown/unregistered models default to no prefix (safe no-op)."""
+    return MODEL_PREFIXES.get(model_name, ("", ""))
+
+
+def get_embedder(model_name: str = None):
+    """Load embedder on demand (for daemon compatibility). CACHED PER MODEL.
 
     Tries CUDA first when available, but falls back to CPU on any load
     failure instead of crashing every request. Real failure mode hit in
@@ -156,30 +177,40 @@ def get_embedder():
     device load raises "Cannot copy out of meta tensor" (a CUDA/driver-level
     issue, not a code bug) -- previously this made get_embedder() (and
     therefore every route calling it, including /api/ping) fail on EVERY
-    call with no recovery, since the exception was raised before
-    _cached_embedder was ever assigned. CPU load is fast and reliable for
-    this 384-dim MiniLM model regardless, consistent with MATHIR's
-    edge-device-friendly design (not GPU-dependent).
+    call with no recovery, since the exception was raised before an
+    embedder was ever cached. CPU load is fast and reliable for these
+    384-dim models regardless, consistent with MATHIR's edge-device-
+    friendly design (not GPU-dependent).
+
+    model_name: when omitted, uses the configured default (embedding.model
+    in mathir.json). When given explicitly, loads/caches THAT model instead
+    -- this is what lets different project DBs use different embedding
+    models within the same daemon process (see VecMemory.ensure_embedding_
+    model): an existing DB pinned to the old default keeps working even
+    after the configured default changes for new DBs.
     """
-    global _cached_embedder
-    if _cached_embedder is not None:
-        return _cached_embedder
+    global _cached_embedders
+    if model_name is None:
+        model_name = load_config().get("embedding", {}).get(
+            "model", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+        )
+    if model_name in _cached_embedders:
+        return _cached_embedders[model_name]
     from sentence_transformers import SentenceTransformer
     import torch
-    model_name = load_config().get("embedding", {}).get(
-        "model", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-    )
+    embedder = None
     if torch.cuda.is_available():
         try:
-            _cached_embedder = SentenceTransformer(model_name, device="cuda")
-            return _cached_embedder
+            embedder = SentenceTransformer(model_name, device="cuda")
         except Exception as e:
             log.warning(f"CUDA embedder load failed ({e}); falling back to CPU")
-    _cached_embedder = SentenceTransformer(model_name, device="cpu")
-    return _cached_embedder
+    if embedder is None:
+        embedder = SentenceTransformer(model_name, device="cpu")
+    _cached_embedders[model_name] = embedder
+    return embedder
 
 
-_cached_embedder = None
+_cached_embedders = {}
 
 
 def get_embedder_dim() -> int:
