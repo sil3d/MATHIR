@@ -128,3 +128,40 @@ def test_delete_is_soft_reversible_not_hard(tmp_path):
     # Archived memories must not surface in normal search.
     vec_row = conn.execute("SELECT 1 FROM vec_memories WHERE memory_id = 'mem_del'").fetchone()
     assert vec_row is None, "archived memory must be removed from the vector index so it's invisible to recall"
+
+
+def test_reset_anomaly_state_clears_both_memory_cache_and_db(tmp_path):
+    """REAL GOTCHA found live (2026-07-02): _get_anomaly_detector() caches
+    the detector on the VecMemory INSTANCE (self._anomaly_detector), which
+    the daemon keeps alive across many requests via its long-lived
+    per-db_path VecMemory cache. Clearing the anomaly_state DB row alone
+    does NOT reset detection for an already-running daemon -- the stale,
+    drifted in-memory detector object is still used until the whole
+    daemon process restarts. This test proves reset_anomaly_state() fixes
+    both at once, no restart required.
+    """
+    import numpy as np
+    db = tmp_path / "anomaly_reset.db"
+    vm = VecMemory(db, embedding_dim=384)
+    rng = np.random.RandomState(5)
+
+    # Warm up and drift the detector with real updates (simulating in-memory cache).
+    for _ in range(35):
+        vm.check_and_update_anomaly(rng.randn(384).astype(np.float32),
+                                    threshold=25.0, warmup_count=30)
+    assert vm._anomaly_detector is not None
+    assert vm._anomaly_detector.is_warmed_up()
+
+    vm.reset_anomaly_state()
+
+    # In-memory cache must be cleared.
+    assert vm._anomaly_detector is None
+    # DB row must be cleared too.
+    conn = vm._get_conn()
+    row = conn.execute("SELECT 1 FROM anomaly_state WHERE id = 1").fetchone()
+    assert row is None
+
+    # A fresh detector must rebuild from scratch (not warmed up immediately).
+    result = vm.check_and_update_anomaly(rng.randn(384).astype(np.float32),
+                                         threshold=25.0, warmup_count=30)
+    assert result["warmed_up"] is False

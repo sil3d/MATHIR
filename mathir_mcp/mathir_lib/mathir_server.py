@@ -774,6 +774,23 @@ def memory_audit_immunological():
         return jsonify({'error': _sanitize_error(e, 'memory_audit_immunological')}), 500
 
 
+@app.route("/api/memory/reset_anomaly_state", methods=["POST"])
+def memory_reset_anomaly_state():
+    """Admin/ops route: reset a project's anomaly detection baseline (both
+    the persisted DB state and the daemon's in-memory cached detector).
+    Use after a config change to anomaly_threshold/warmup_count, or if the
+    baseline has drifted from heavy test/probe activity (real gotcha found
+    2026-07-02 -- clearing the DB row alone doesn't reset an already-
+    running daemon's cached detector)."""
+    params = _get_params()
+    try:
+        vec_mem, _db_path, _embedder = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
+        vec_mem.reset_anomaly_state()
+        return jsonify({"reset": True, "project": params.get("project")})
+    except Exception as e:
+        return jsonify({'error': _sanitize_error(e, 'memory_reset_anomaly_state')}), 500
+
+
 @app.route("/api/memory/recall", methods=["POST"])
 def memory_recall():
     params = _get_params()

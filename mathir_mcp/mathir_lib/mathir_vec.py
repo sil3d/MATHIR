@@ -483,6 +483,26 @@ class VecMemory:
             )
         return self._anomaly_detector
 
+    def reset_anomaly_state(self) -> None:
+        """Clear this project's anomaly baseline -- both the persisted DB
+        row AND the in-memory cached detector on this instance.
+
+        REAL GOTCHA this fixes (found live, 2026-07-02): _get_anomaly_
+        detector() caches the MahalanobisDetector on self._anomaly_detector
+        to avoid recomputing an O(dim^3) matrix inverse per request. The
+        daemon keeps one long-lived VecMemory instance per db_path across
+        many requests -- so deleting the anomaly_state DB row alone (e.g.
+        via raw SQL) does NOT reset detection for an already-running
+        daemon: the stale, already-drifted in-memory detector object is
+        still used until the whole daemon process restarts. Call this
+        method instead to reset cleanly without a restart.
+        """
+        with self._db_lock:
+            conn = self._get_conn()
+            conn.execute("DELETE FROM anomaly_state WHERE id = 1")
+            self._commit_with_retry()
+        self._anomaly_detector = None
+
     def _save_anomaly_state(self) -> None:
         if self._anomaly_detector is None:
             return
