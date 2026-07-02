@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 _HERE = Path(__file__).resolve().parent
 _MCP_ROOT = _HERE.parent
@@ -180,3 +181,98 @@ def test_ensure_embedding_model_uses_new_default_for_genuinely_empty_db(tmp_path
     vm = VecMemory(db, embedding_dim=384)
     resolved = vm.ensure_embedding_model("intfloat/multilingual-e5-small")
     assert resolved == "intfloat/multilingual-e5-small"
+
+
+def test_touch_recall_boosts_stability_on_new_schema(tmp_path):
+    """CRITICAL LIFECYCLE BUG: on the 'new' schema (used by every real
+    MATHIR project -- confirmed live on locomo_conv_2 and MATHIR's own
+    project), touch_recall() incremented recall_count but left stability
+    untouched, so decay_all() could only ever decrease stability -- a
+    memory recalled 20 times decayed identically to one never recalled at
+    all, defeating the entire reinforce-on-use lifecycle design. The
+    stability column exists on the new schema too (added by the
+    idempotent migration in _ensure_db), touch_recall just never wrote to
+    it. This test proves the fix: frequent recall must measurably protect
+    against decay.
+    """
+    db = tmp_path / "lifecycle_boost.db"
+    vm = VecMemory(db, embedding_dim=384)
+    assert vm._schema_kind() == "new"
+    rng = np.random.RandomState(0)
+    emb = rng.randn(384).astype(np.float32)
+    vm.store("mem_used", emb, {"content": "frequently recalled", "agent": "t",
+                               "block_type": "episodic", "label": "", "priority": 5})
+    vm.store("mem_unused", rng.randn(384).astype(np.float32),
+             {"content": "never recalled", "agent": "t",
+              "block_type": "episodic", "label": "", "priority": 5})
+
+    for _ in range(20):
+        vm.touch_recall("mem_used")
+
+    conn = vm._get_conn()
+    row = conn.execute("SELECT stability FROM memories WHERE memory_id = 'mem_used'").fetchone()
+    assert row["stability"] > 1.0 - 1e-9 or row["stability"] == 1.0, (
+        "stability should be boosted (capped at 1.0) after 20 recalls, not left untouched"
+    )
+    # More discriminating: recall a fresh memory once and check stability
+    # actually moved from whatever its floor/start value is.
+    vm.store("mem_probe", rng.randn(384).astype(np.float32),
+             {"content": "probe", "agent": "t", "block_type": "episodic",
+              "label": "", "priority": 5})
+    conn.execute("UPDATE memories SET stability = 0.5 WHERE memory_id = 'mem_probe'")
+    conn.commit()
+    r = vm.touch_recall("mem_probe")
+    row2 = conn.execute("SELECT stability FROM memories WHERE memory_id = 'mem_probe'").fetchone()
+    assert row2["stability"] > 0.5, f"expected stability boost above 0.5, got {row2['stability']}"
+    assert r["old_stability"] == 0.5
+    assert r["new_stability"] == pytest.approx(0.6)
+
+
+def test_decay_after_frequent_recall_protects_more_than_no_recall(tmp_path):
+    """The end-to-end proof: a heavily-recalled memory must decay LESS
+    than an identical never-recalled memory over repeated decay/recall
+    cycles -- this is the actual reinforce-vs-forget contract the whole
+    lifecycle system exists to provide.
+
+    Both memories start at stability=1.0 (the schema default), so a
+    single recall's boost is invisible while at the ceiling -- this test
+    runs an initial decay pass to bring both below 1.0 first (simulating
+    a month of disuse for both), THEN recalls mem_used repeatedly
+    (partially reinforcing it back up) while mem_unused stays cold, THEN
+    applies a second decay pass and compares.
+    """
+    import time as _time
+    db = tmp_path / "lifecycle_e2e.db"
+    vm = VecMemory(db, embedding_dim=384)
+    rng = np.random.RandomState(1)
+
+    vm.store("mem_used", rng.randn(384).astype(np.float32),
+             {"content": "used", "agent": "t", "block_type": "episodic",
+              "label": "", "priority": 5})
+    vm.store("mem_unused", rng.randn(384).astype(np.float32),
+             {"content": "unused", "agent": "t", "block_type": "episodic",
+              "label": "", "priority": 5})
+
+    conn = vm._get_conn()
+    stale_ts = _time.time() - 60 * 86400
+    conn.execute("UPDATE memories SET last_recalled_at = ? WHERE memory_id IN ('mem_used','mem_unused')",
+                [stale_ts])
+    conn.commit()
+    vm.decay_all(threshold_days=30)  # both drop below 1.0 equally
+
+    for _ in range(5):
+        vm.touch_recall("mem_used")  # only mem_used gets reinforced
+
+    conn.execute("UPDATE memories SET last_recalled_at = ? WHERE memory_id = 'mem_unused'",
+                [stale_ts])
+    conn.commit()
+    vm.decay_all(threshold_days=30)
+
+    used_stability = conn.execute(
+        "SELECT stability FROM memories WHERE memory_id = 'mem_used'").fetchone()["stability"]
+    unused_stability = conn.execute(
+        "SELECT stability FROM memories WHERE memory_id = 'mem_unused'").fetchone()["stability"]
+    assert used_stability > unused_stability, (
+        f"a heavily-recalled memory must retain MORE stability after decay than an "
+        f"unused one -- got used={used_stability} unused={unused_stability}"
+    )

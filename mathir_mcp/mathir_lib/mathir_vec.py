@@ -1208,13 +1208,27 @@ class VecMemory:
         Ebbinghaus spaced-repetition (BRAIN_ARCHITECTURE.md lines 63-65):
         - recall_count += 1
         - last_recalled_at = now()
-        - stability += 0.1 (capped at 1.0)  [legacy schema only]
+        - stability += 0.1 (capped at 1.0)
 
-        Works on both schemas:
+        Works on both schemas -- the ``stability`` column exists on both
+        (added to the new schema by the idempotent migration in
+        _ensure_db), so both branches boost it:
         - legacy: writes to the real ``recall_count``, ``last_recalled_at``,
           and ``stability`` columns (stability boost inlined for atomicity)
-        - new:    writes ``recall_count`` into the metadata JSON; the stability
-          boost is a no-op (no ``stability`` column in this schema)
+        - new:    writes ``recall_count`` into the metadata JSON; stability
+          is boosted via the top-level ``stability`` column, same as legacy
+
+        FIX (2026-07-02): previously the "new" schema branch never touched
+        ``stability`` at all ("no stability column in this schema" -- which
+        was true before v8.5.1's migration, but the column has existed
+        since then). This meant decay_all() (which DOES operate on
+        ``stability`` for both schemas) could only ever decrease it: a
+        memory recalled 20 times decayed identically to one never recalled
+        -- the entire reinforce-on-use half of the lifecycle design was
+        dead on the "new" schema, which every real MATHIR project uses
+        (confirmed live on locomo_conv_2 and MATHIR's own project DB).
+        Caught and proven with a direct before/after stability comparison,
+        not just code inspection.
 
         Returns ``{memory_id, found, recall_count, last_recalled_at,
         old_stability, new_stability, schema}``. If the memory doesn't exist,
@@ -1227,7 +1241,7 @@ class VecMemory:
 
             # Existence check first — don't silently bump a phantom row.
             row = conn.execute(
-                "SELECT memory_id FROM memories WHERE memory_id = ?", [memory_id]
+                "SELECT memory_id, stability FROM memories WHERE memory_id = ?", [memory_id]
             ).fetchone()
             if not row:
                 log.debug("touch_recall: memory_id %s not found", memory_id)
@@ -1240,13 +1254,16 @@ class VecMemory:
                 # H21: atomic json_set avoids the read-modify-write race on the
                 # metadata JSON. The COALESCE handles rows where recall_count
                 # was never set. last_recalled_at is also stamped in the same
-                # UPDATE so the whole bump is one transaction.
+                # UPDATE so the whole bump is one transaction. stability is
+                # boosted the same way as legacy (see FIX note above).
+                old_stability = float(row["stability"]) if row["stability"] is not None else 1.0
+                new_stability = min(1.0, old_stability + 0.1)
                 conn.execute(
                     "UPDATE memories SET "
                     "metadata = json_set(metadata, '$.recall_count', "
                     "COALESCE(json_extract(metadata, '$.recall_count'), 0) + 1), "
-                    "last_recalled_at = ? WHERE memory_id = ?",
-                    [now, memory_id],
+                    "last_recalled_at = ?, stability = ? WHERE memory_id = ?",
+                    [now, new_stability, memory_id],
                 )
             else:
                 # Legacy schema: read stability first so we can return the
