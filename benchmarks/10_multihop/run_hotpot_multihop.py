@@ -64,9 +64,14 @@ def _ids_from_results(resp: dict) -> list:
     return out
 
 
-def evaluate_question(adapter: MathirAdapter, item: dict, max_k: int) -> dict:
+def evaluate_question(adapter: MathirAdapter, item: dict, max_k: int,
+                      graph_mode: str = "cosine", run_tag: str = "run") -> dict:
     qid = item["id"]
-    project = f"hotpot_{qid}"
+    # run_tag makes the project namespace unique PER INVOCATION, so a second
+    # run never re-ingests on top of a previous run's memories (which would
+    # double the paragraph pool and silently corrupt retrieval for every
+    # retriever -- a confound that produced a fake regression before this fix).
+    project = f"hotpot_{run_tag}_{qid}"
     question = item["question"]
     gold_titles = set(item["gold_titles"])
 
@@ -84,8 +89,11 @@ def evaluate_question(adapter: MathirAdapter, item: dict, max_k: int) -> dict:
             gold_mem_ids.add(mid)
 
     # 2. Build the link graph over this project's 10 memories.
+    #    graph_mode selects cosine-similarity edges (original), entity-shared
+    #    edges (multi-hop bridging), or both.
     try:
-        adapter.build_links(project=project, threshold=GRAPH_LINK_THRESHOLD)
+        adapter.build_links(project=project, threshold=GRAPH_LINK_THRESHOLD,
+                            mode=graph_mode)
     except Exception:
         pass  # PPR-LTE will just have a sparse/empty graph; still measurable.
 
@@ -179,6 +187,11 @@ def main():
     parser.add_argument("--all", action="store_true", help="Run all questions in the dataset.")
     parser.add_argument("--output", type=str, default=str(DEFAULT_OUTPUT))
     parser.add_argument("--daemon-url", type=str, default="http://127.0.0.1:7338")
+    parser.add_argument("--graph-mode", type=str, default="cosine",
+                        choices=["cosine", "entity", "both"],
+                        help="Link-graph construction mode PPR-LTE walks: "
+                             "cosine (original similarity graph), entity "
+                             "(entity-shared bridge edges), or both.")
     args = parser.parse_args()
 
     if not DATA_FILE.exists():
@@ -193,10 +206,12 @@ def main():
     adapter = MathirAdapter(daemon_url=args.daemon_url)
     max_k = max(K_VALUES)
 
+    run_tag = f"{args.graph_mode}_{int(time.time())}"
+    print(f"[config] graph_mode={args.graph_mode}  n={len(items)}  run_tag={run_tag}", flush=True)
     results = []
     for i, item in enumerate(items, 1):
         try:
-            r = evaluate_question(adapter, item, max_k)
+            r = evaluate_question(adapter, item, max_k, graph_mode=args.graph_mode, run_tag=run_tag)
             results.append(r)
             h = r["per_retriever"].get("hybrid_search", {}).get(2, {}).get("both_gold")
             p = r["per_retriever"].get("ppr_lte_graph", {}).get(2, {}).get("both_gold")
@@ -211,7 +226,8 @@ def main():
     out.parent.mkdir(parents=True, exist_ok=True)
     with out.open("w", encoding="utf-8") as f:
         json.dump({"summary": agg, "results": results,
-                   "config": {"graph_link_threshold": GRAPH_LINK_THRESHOLD, "k_values": K_VALUES}},
+                   "config": {"graph_link_threshold": GRAPH_LINK_THRESHOLD,
+                              "k_values": K_VALUES, "graph_mode": args.graph_mode}},
                   f, ensure_ascii=False, indent=2)
     print(f"\nWrote {out}")
 
