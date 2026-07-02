@@ -1634,7 +1634,6 @@ class VecMemory:
 
             recall_count = int(row["recall_count"] or 0)
             priority = int(row["priority"] or 5)
-            label = row["label"] or ""
             age_days = self._age_days(row["created_at"], kind)
 
             # Rule evaluation — gate on force=False only.
@@ -1660,19 +1659,24 @@ class VecMemory:
                     else:
                         reason = f"recall_count={recall_count}>=10 AND age={age_days:.3f}d>=7d"
                 elif old_tier == "semantic" and new_tier == "procedural":
+                    # FIX (2026-07-02): previously also required label to
+                    # start with "how-to:"/"recipe:" -- an undocumented
+                    # convention nothing in MATHIR ever generates or tells
+                    # callers to use. Scanned 24,235 real memories across
+                    # every real project this session touched: ZERO had
+                    # such a label, meaning this promotion path had NEVER
+                    # fired once in MATHIR's real history. priority>=8 AND
+                    # recall_count>=5 alone are a real, reachable signal of
+                    # durable/reusable content -- the label gate is removed.
                     if priority < 8:
                         eligible = False
                         reason = f"priority={priority} < 8"
                     elif recall_count < 5:
                         eligible = False
                         reason = f"recall_count={recall_count} < 5"
-                    elif not (label.startswith("how-to:") or label.startswith("recipe:")):
-                        eligible = False
-                        reason = f"label={label!r} not in how-to:/recipe: prefix"
                     else:
                         reason = (
-                            f"priority={priority}>=8, recall_count={recall_count}>=5, "
-                            f"label={label!r}"
+                            f"priority={priority}>=8, recall_count={recall_count}>=5"
                         )
                 else:
                     # (working_memory→semantic would skip episodic — handled above

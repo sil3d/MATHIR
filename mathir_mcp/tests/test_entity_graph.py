@@ -276,3 +276,64 @@ def test_decay_after_frequent_recall_protects_more_than_no_recall(tmp_path):
         f"a heavily-recalled memory must retain MORE stability after decay than an "
         f"unused one -- got used={used_stability} unused={unused_stability}"
     )
+
+
+def _store_with_recall_count_and_priority(vm, memory_id, recall_count, priority,
+                                          tier="semantic", label="", age_days=10.0):
+    """Test helper: store a memory then backfill recall_count/priority/tier/
+    created_at directly, since VecMemory.store() doesn't expose those at
+    creation time the way promote() needs them for its threshold checks."""
+    import time as _time
+    rng = np.random.RandomState(hash(memory_id) % (2**31))
+    vm.store(memory_id, rng.randn(384).astype(np.float32),
+             {"content": "test content", "agent": "t", "block_type": tier,
+              "label": label, "priority": priority})
+    conn = vm._get_conn()
+    created_ts = _time.time() - age_days * 86400
+    conn.execute(
+        "UPDATE memories SET tier = ?, priority = ?, created_at = ?, "
+        "metadata = json_set(metadata, '$.recall_count', ?) "
+        "WHERE memory_id = ?",
+        [tier, priority, created_ts, recall_count, memory_id],
+    )
+    conn.commit()
+
+
+def test_promote_semantic_to_procedural_no_longer_requires_label_prefix(tmp_path):
+    """REAL FINDING: across 24,235 real memories scanned live in
+    ~/.config/mathir/data/projects/, ZERO ever had a label starting with
+    'how-to:' or 'recipe:' -- the semantic->procedural promotion path had
+    NEVER fired once in MATHIR's real history because of this undocumented,
+    never-used convention. Fix: promote high-priority, frequently-recalled
+    semantic memories to procedural WITHOUT requiring a specific label
+    prefix -- priority>=8 and recall_count>=5 alone are a real, reachable
+    signal of durable, reusable content.
+    """
+    db = tmp_path / "promote_procedural.db"
+    vm = VecMemory(db, embedding_dim=384)
+    _store_with_recall_count_and_priority(
+        vm, "mem_important", recall_count=5, priority=8,
+        tier="semantic", label="some-ordinary-label-not-a-recipe")
+
+    result = vm.promote("mem_important")
+    assert result["promoted"] is True, f"expected promotion, got {result}"
+    assert result["new_tier"] == "procedural"
+
+
+def test_promote_semantic_to_procedural_still_requires_priority_and_recall(tmp_path):
+    """The label-prefix gate is removed, but priority>=8 AND recall_count>=5
+    must still both be required -- a merely-recalled-often but low-priority
+    memory should NOT be promoted to procedural."""
+    db = tmp_path / "promote_procedural_gate.db"
+    vm = VecMemory(db, embedding_dim=384)
+    _store_with_recall_count_and_priority(
+        vm, "mem_low_priority", recall_count=20, priority=3, tier="semantic")
+    result = vm.promote("mem_low_priority")
+    assert result["promoted"] is False
+    assert "priority" in result["reason"]
+
+    _store_with_recall_count_and_priority(
+        vm, "mem_rarely_recalled", recall_count=1, priority=9, tier="semantic")
+    result2 = vm.promote("mem_rarely_recalled")
+    assert result2["promoted"] is False
+    assert "recall_count" in result2["reason"]
