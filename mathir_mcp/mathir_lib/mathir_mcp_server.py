@@ -148,17 +148,34 @@ def get_project_db_path(project: str = None) -> Optional[Path]:
 
 
 def get_embedder():
-    """Load embedder on demand (for daemon compatibility). CACHED."""
+    """Load embedder on demand (for daemon compatibility). CACHED.
+
+    Tries CUDA first when available, but falls back to CPU on any load
+    failure instead of crashing every request. Real failure mode hit in
+    practice: torch.cuda.is_available() can return True while the actual
+    device load raises "Cannot copy out of meta tensor" (a CUDA/driver-level
+    issue, not a code bug) -- previously this made get_embedder() (and
+    therefore every route calling it, including /api/ping) fail on EVERY
+    call with no recovery, since the exception was raised before
+    _cached_embedder was ever assigned. CPU load is fast and reliable for
+    this 384-dim MiniLM model regardless, consistent with MATHIR's
+    edge-device-friendly design (not GPU-dependent).
+    """
     global _cached_embedder
     if _cached_embedder is not None:
         return _cached_embedder
     from sentence_transformers import SentenceTransformer
     import torch
-    device = "cuda" if torch.cuda.is_available() else "cpu"
     model_name = load_config().get("embedding", {}).get(
         "model", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     )
-    _cached_embedder = SentenceTransformer(model_name, device=device)
+    if torch.cuda.is_available():
+        try:
+            _cached_embedder = SentenceTransformer(model_name, device="cuda")
+            return _cached_embedder
+        except Exception as e:
+            log.warning(f"CUDA embedder load failed ({e}); falling back to CPU")
+    _cached_embedder = SentenceTransformer(model_name, device="cpu")
     return _cached_embedder
 
 
