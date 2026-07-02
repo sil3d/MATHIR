@@ -202,8 +202,18 @@ def get_embedder(model_name: str = None):
     if torch.cuda.is_available():
         try:
             embedder = SentenceTransformer(model_name, device="cuda")
+            # Some torch/CUDA states construct the model successfully (lazy
+            # weight materialization) but only raise "Cannot copy out of
+            # meta tensor" on the FIRST actual forward pass -- a real
+            # failure mode hit live (constructor succeeded, then a real
+            # /api/memory/save request 500'd with this same
+            # NotImplementedError). Force one real encode here, inside the
+            # same guarded block, so a broken CUDA device is caught and
+            # falls back to CPU before ever serving a real request.
+            embedder.encode("warmup", show_progress_bar=False)
         except Exception as e:
-            log.warning(f"CUDA embedder load failed ({e}); falling back to CPU")
+            log.warning(f"CUDA embedder load/encode failed ({e}); falling back to CPU")
+            embedder = None
     if embedder is None:
         embedder = SentenceTransformer(model_name, device="cpu")
     _cached_embedders[model_name] = embedder
