@@ -138,6 +138,12 @@ _vec_cache_lock = threading.Lock()
 _bm25_cache = {}
 _bm25_cache_lock = threading.Lock()
 
+# Same row-count-invalidated caching strategy as _bm25_cache, for the
+# optional entity-overlap fusion signal in hybrid_search (opt-in via
+# entity_weight, default 0.0 -- no cost when unused).
+_entity_cache = {}
+_entity_cache_lock = threading.Lock()
+
 _start_time = time.time()
 
 # ---------------------------------------------------------------------------
@@ -860,6 +866,7 @@ def memory_hybrid_search():
         k = min(params.get('k', 5), 100)
         vector_weight = params.get('vector_weight', 1.0)
         bm25_weight = params.get('bm25_weight', 1.0)
+        entity_weight = params.get('entity_weight', 0.0)
         agent_filter = params.get('agent')
         q_np = _encode_query(embedder, query_text)
 
@@ -933,8 +940,41 @@ def memory_hybrid_search():
                     if len(bm25_results) >= k * 3:
                         break
 
+        entity_results = []
+        if entity_weight and row_count:
+            try:
+                from mathir_entity_graph import extract_entities
+
+                cache_key = str(db_path)
+                with _entity_cache_lock:
+                    cached_ent = _entity_cache.get(cache_key)
+
+                if cached_ent is not None and cached_ent["row_count"] == row_count:
+                    entity_index = cached_ent["index"]
+                else:
+                    try:
+                        rows = dconn.execute(f"SELECT memory_id, {text_col} FROM memories").fetchall()
+                    except Exception:
+                        rows = []
+                    entity_index = [(r['memory_id'], extract_entities(r[1] or '')) for r in rows]
+                    with _entity_cache_lock:
+                        _entity_cache[cache_key] = {"index": entity_index, "row_count": row_count}
+
+                query_entities = extract_entities(query_text)
+                if query_entities:
+                    scored = []
+                    for mid, ents in entity_index:
+                        overlap = len(query_entities & ents)
+                        if overlap > 0:
+                            scored.append((mid, float(overlap)))
+                    scored.sort(key=lambda x: x[1], reverse=True)
+                    entity_results = scored[:k * 3]
+            except Exception:
+                entity_results = []  # entity signal is best-effort, never fails the search
+
         from mathir_search import rrf_fusion
-        fused = rrf_fusion(vector_results, bm25_results, vector_weight=vector_weight, bm25_weight=bm25_weight)
+        fused = rrf_fusion(vector_results, bm25_results, vector_weight=vector_weight, bm25_weight=bm25_weight,
+                           entity_results=entity_results, entity_weight=entity_weight)
 
         # Detect schema for hybrid search result building
         columns = {col[1] for col in dconn.execute("PRAGMA table_info(memories)").fetchall()}

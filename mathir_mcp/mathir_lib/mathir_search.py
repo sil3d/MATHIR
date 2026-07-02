@@ -143,6 +143,76 @@ class _BM25Backend:
 
 
 # ---------------------------------------------------------------------------
+# Entity Backend — named-entity overlap signal for hybrid mode
+# ---------------------------------------------------------------------------
+
+class _EntityBackend:
+    """Ranks memories by named-entity overlap with the query.
+
+    This is the third parallel RRF signal (alongside vector + BM25),
+    following the published Mem0 architecture (semantic + BM25 keyword +
+    entity fused into one candidate pool) rather than a downstream graph
+    re-ranker -- the entity-graph re-ranking approach (build_entity_links_all
+    + PPR-LTE) was tested on HotpotQA and found too noisy/ineffective (see
+    MATHIR memory entity-graph-layer-clean-result-conmention-too-noisy).
+    Here entities only ever ADD a ranking signal into the same fusion step
+    that already ranks by vector/BM25 -- no graph, no re-ranking pass.
+
+    Rebuilt on each corpus change (cheap for N<100k, matches _BM25Backend).
+    """
+
+    def __init__(self):
+        self._entity_sets: List[frozenset] = []
+        self._ids: List[str] = []
+        self._lock = threading.RLock()
+
+    @staticmethod
+    def _extract(text: str) -> frozenset:
+        try:
+            from .mathir_entity_graph import extract_entities
+        except ImportError:
+            from mathir_entity_graph import extract_entities  # type: ignore
+        return frozenset(extract_entities(text or ""))
+
+    def build(self, items: List[Dict[str, Any]]) -> None:
+        with self._lock:
+            self._ids = [it["memory_id"] for it in items]
+            self._entity_sets = [self._extract(it.get("text", "")) for it in items]
+
+    def add(self, memory_id: str, text: str) -> None:
+        with self._lock:
+            self._ids.append(memory_id)
+            self._entity_sets.append(self._extract(text))
+
+    def remove(self, memory_id: str) -> bool:
+        with self._lock:
+            if memory_id not in self._ids:
+                return False
+            idx = self._ids.index(memory_id)
+            self._ids.pop(idx)
+            self._entity_sets.pop(idx)
+            return True
+
+    def search(self, query: str, k: int = 5) -> List[Tuple[str, float]]:
+        with self._lock:
+            if not self._ids:
+                return []
+            query_entities = self._extract(query)
+            if not query_entities:
+                return []
+            scored = []
+            for mid, ents in zip(self._ids, self._entity_sets):
+                overlap = len(query_entities & ents)
+                if overlap > 0:
+                    scored.append((mid, float(overlap)))
+            scored.sort(key=lambda x: x[1], reverse=True)
+            return scored[:k]
+
+    def count(self) -> int:
+        return len(self._ids)
+
+
+# ---------------------------------------------------------------------------
 # RRF Fusion — Combine vector + BM25 rankings
 # ---------------------------------------------------------------------------
 
@@ -150,11 +220,23 @@ def rrf_fusion(vector_results: List[Tuple[str, float]],
                bm25_results: List[Tuple[str, float]],
                k: int = 60,
                vector_weight: float = 1.0,
-               bm25_weight: float = 1.0) -> List[Tuple[str, float]]:
-    """Reciprocal Rank Fusion: combines two ranked lists into one.
+               bm25_weight: float = 1.0,
+               entity_results: Optional[List[Tuple[str, float]]] = None,
+               entity_weight: float = 0.0) -> List[Tuple[str, float]]:
+    """Reciprocal Rank Fusion: combines ranked lists into one.
 
     RRF score = sum(weight / (k + rank)) for each list.
     k=60 is the standard constant from the original RRF paper.
+
+    entity_results / entity_weight: optional third ranked list (memories
+    scored by named-entity overlap with the query). Defaults to None/0.0,
+    which is a strict no-op -- existing callers (vector+bm25 only) are
+    unaffected. When provided with a nonzero weight, this follows the
+    published Mem0 architecture pattern (semantic + BM25 keyword + entity
+    fused as parallel RRF signals into the SAME candidate pool), which is
+    a structurally different, cheaper mechanism than the entity-graph
+    re-ranking approach tested and found ineffective on HotpotQA (see
+    MATHIR memory entity-graph-layer-clean-result-conmention-too-noisy).
     """
     scores: Dict[str, float] = {}
 
@@ -163,6 +245,10 @@ def rrf_fusion(vector_results: List[Tuple[str, float]],
 
     for rank, (mid, _) in enumerate(bm25_results):
         scores[mid] = scores.get(mid, 0) + bm25_weight / (k + rank + 1)
+
+    if entity_results and entity_weight:
+        for rank, (mid, _) in enumerate(entity_results):
+            scores[mid] = scores.get(mid, 0) + entity_weight / (k + rank + 1)
 
     sorted_ids = sorted(scores.keys(), key=lambda x: scores[x], reverse=True)
     return [(mid, scores[mid]) for mid in sorted_ids]
