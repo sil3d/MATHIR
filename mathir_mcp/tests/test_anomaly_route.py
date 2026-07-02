@@ -53,10 +53,16 @@ def test_memory_save_route_flags_anomalous_embedding(tmp_path, monkeypatch):
     )
     monkeypatch.setattr(mathir_server, "_risk_enabled", False)
     # threshold=2.5 would be far below the expected in-distribution
-    # Mahalanobis distance for dim=384 (~sqrt(384)=19.6) -- the same
-    # miscalibration Task 3 found and fixed in the production config
-    # (anomaly_threshold: 2.0 -> 30.0). Match that calibration here so
-    # this test exercises the real detection boundary, not a permanently
+    # Mahalanobis distance for dim=384 (~sqrt(384)=19.6). A prior comment
+    # here claimed the production config had been fixed from 2.0 to 30.0,
+    # but the LIVE config still read anomaly_threshold=2.0 when checked
+    # directly on 2026-07-02 -- the earlier "fix" never actually landed in
+    # the config file that ships/runs, or was reverted. Re-calibrated for
+    # real this time against 58 real e5-small production embeddings
+    # (mean=18.49, std=1.96): threshold = mean + 3*std ~= 24.4, rounded to
+    # 25.0, now the real value in mathir.json/config_template.json. This
+    # test uses 30.0 (close enough, comfortably above 25.0) so it still
+    # exercises a realistic detection boundary rather than a permanently
     # tripped one.
     monkeypatch.setattr(mathir_server, "_ANOMALY_THRESHOLD", 30.0)
     monkeypatch.setattr(mathir_server, "_ANOMALY_WARMUP", 60)

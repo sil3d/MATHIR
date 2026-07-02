@@ -8,8 +8,8 @@
     "semantic_prototypes": 256,
     "immunological_capacity": 100,
     "kl_coefficient": 0.01,
-    "anomaly_threshold": 20.0,
-    "_anomaly_threshold_note": "Calibrated against the eval corpus in mathir_mcp/tests/data/anomaly_eval/ (normal_mean=18.6, normal_std=0.69) -- not a purely theoretical value.",
+    "anomaly_threshold": 25.0,
+    "_anomaly_threshold_note": "RECALIBRATED 2026-07-02 against real production memories (58 real e5-small embeddings from the live MATHIR project, not just the narrower tests/data/anomaly_eval/ corpus): normal_mean=18.49, normal_std=1.96 (wider than the eval corpus's std=0.69 -- real production content is more heterogeneous). Threshold = mean + 3*std (~24.4, rounded to 25.0), the standard 3-sigma rule for a low false-positive rate. The previous value (20.0, only ~0.8 std above this wider mean) was over-flagging real production content -- measured 11.9% of real memories flagged anomalous before this fix, far above a sane false-positive rate.",
     "anomaly_warmup_count": 60,
     "decay_rate": 0.95
   },
