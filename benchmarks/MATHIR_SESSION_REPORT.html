@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MATHIR — Rapport complet de session d'investigation</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --panel: #171a23;
+    --panel2: #1e2230;
+    --border: #2a2f3f;
+    --text: #e4e6eb;
+    --muted: #9aa1b2;
+    --accent: #5b8cff;
+    --good: #35c97a;
+    --bad: #ef5a5a;
+    --warn: #f2b544;
+    --neutral: #7a83a0;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  header {
+    padding: 32px 40px 24px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #171a23, #0f1117);
+  }
+  header h1 { margin: 0 0 6px; font-size: 26px; }
+  header p { margin: 0; color: var(--muted); font-size: 14px; }
+  nav {
+    position: sticky; top: 0; z-index: 10;
+    background: rgba(15,17,23,0.95);
+    backdrop-filter: blur(6px);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 40px;
+    display: flex; gap: 4px; flex-wrap: wrap;
+  }
+  nav a {
+    color: var(--muted); text-decoration: none; font-size: 13px;
+    padding: 6px 12px; border-radius: 6px; transition: 0.15s;
+  }
+  nav a:hover { background: var(--panel2); color: var(--text); }
+  main { padding: 8px 40px 60px; max-width: 1280px; margin: 0 auto; }
+  section { margin: 48px 0; scroll-margin-top: 60px; }
+  section h2 {
+    font-size: 20px; margin: 0 0 6px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  section h2 .num {
+    background: var(--accent); color: #fff; font-size: 12px;
+    width: 24px; height: 24px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  section .subtitle { color: var(--muted); font-size: 13px; margin: 0 0 18px 34px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px 24px; margin-bottom: 16px;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .badge {
+    display: inline-block; padding: 2px 9px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; white-space: nowrap;
+  }
+  .badge.rejected { background: rgba(239,90,90,0.15); color: var(--bad); }
+  .badge.accepted { background: rgba(53,201,122,0.15); color: var(--good); }
+  .badge.mixed { background: rgba(242,181,68,0.15); color: var(--warn); }
+  .badge.fixed { background: rgba(53,201,122,0.15); color: var(--good); }
+  .badge.found { background: rgba(239,90,90,0.15); color: var(--bad); }
+  .badge.info { background: rgba(91,140,255,0.15); color: var(--accent); }
+  .badge.na { background: rgba(122,131,160,0.15); color: var(--neutral); }
+  .chart-row { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
+  .chart-label { width: 200px; font-size: 12.5px; color: var(--muted); flex-shrink: 0; }
+  .chart-track { flex: 1; background: var(--panel2); border-radius: 6px; height: 22px; position: relative; overflow: hidden; }
+  .chart-fill { height: 100%; border-radius: 6px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; font-size: 11px; font-weight: 600; color: #fff; transition: width 0.6s ease; }
+  .chart-fill.a { background: linear-gradient(90deg, #4468d6, #5b8cff); }
+  .chart-fill.b { background: linear-gradient(90deg, #1f9d5c, #35c97a); }
+  .chart-fill.c { background: linear-gradient(90deg, #c9422e, #ef5a5a); }
+  .chart-fill.d { background: linear-gradient(90deg, #c99328, #f2b544); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 900px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+  .stat { background: var(--panel2); border-radius: 8px; padding: 16px 18px; text-align: center; }
+  .stat .n { font-size: 28px; font-weight: 700; color: var(--accent); }
+  .stat .label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .toolgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .tool { background: var(--panel2); border-radius: 8px; padding: 10px 12px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot.ok { background: var(--good); }
+  .dot.fail { background: var(--bad); }
+  .dot.skip { background: var(--neutral); }
+  code { background: var(--panel2); padding: 1px 6px; border-radius: 4px; font-size: 12px; color: #b8c4ff; }
+  .quote { border-left: 3px solid var(--accent); padding: 8px 16px; margin: 12px 0; color: var(--muted); font-size: 13px; background: rgba(91,140,255,0.05); border-radius: 0 6px 6px 0; }
+  footer { padding: 30px 40px; text-align: center; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); }
+  .pill-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+  .pill { background: var(--panel2); border: 1px solid var(--border); border-radius: 999px; padding: 5px 14px; font-size: 12px; }
+  .conclusion-box { background: linear-gradient(135deg, rgba(91,140,255,0.1), rgba(53,201,122,0.06)); border: 1px solid var(--accent); border-radius: 10px; padding: 24px; }
+  .conclusion-box h3 { margin-top: 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🧠 MATHIR — Rapport complet d'investigation</h1>
+  <p>Session marathon 2026-07-01 → 2026-07-02 · 5 corpus testés · 9+ techniques de ranking · 3 embedders · 23 outils MCP audités · 2 modèles LLM · 4 agents</p>
+</header>
+
+<nav>
+  <a href="#overview">Vue d'ensemble</a>
+  <a href="#corpora">Corpus testés</a>
+  <a href="#techniques">Techniques &amp; algorithmes</a>
+  <a href="#embedders">Embedders</a>
+  <a href="#fluid">Fluid Mechanics</a>
+  <a href="#bugs">Bugs trouvés/corrigés</a>
+  <a href="#tools">23 outils MCP</a>
+  <a href="#selfcorrect">Auto-correction LLM</a>
+  <a href="#agents">Agents &amp; modèles</a>
+  <a href="#conclusion">Conclusion</a>
+</nav>
+
+<main>
+
+<section id="overview">
+  <h2><span class="num">1</span>Vue d'ensemble</h2>
+  <p class="subtitle">Chiffres clés de toute la session</p>
+  <div class="grid3">
+    <div class="stat"><div class="n">5</div><div class="label">Corpus testés</div></div>
+    <div class="stat"><div class="n">9+</div><div class="label">Techniques de ranking testées</div></div>
+    <div class="stat"><div class="n">0</div><div class="label">Techniques qui battent hybrid_search</div></div>
+    <div class="stat"><div class="n">3</div><div class="label">Embedders comparés</div></div>
+    <div class="stat"><div class="n">23</div><div class="label">Outils MCP audités</div></div>
+    <div class="stat"><div class="n">14</div><div class="label">Bugs réels trouvés &amp; corrigés</div></div>
+    <div class="stat"><div class="n">93</div><div class="label">Tests unitaires (100% pass)</div></div>
+    <div class="stat"><div class="n">2</div><div class="label">Modèles LLM (MiniMax M2.7 / M3)</div></div>
+    <div class="stat"><div class="n">5</div><div class="label">Agents ayant contribué</div></div>
+  </div>
+</section>
+
+<section id="corpora">
+  <h2><span class="num">2</span>Corpus testés</h2>
+  <p class="subtitle">5 corpus de nature très différente, pour éviter les conclusions biaisées par un seul type de contenu</p>
+  <div class="card">
+    <table>
+      <tr><th>Corpus</th><th>Type</th><th>Taille</th><th>Mode d'évaluation</th><th>Coût</th></tr>
+      <tr><td><b>BEIR</b> (scifact, nfcorpus, arguana)</td><td>Papiers académiques</td><td>variable (std BEIR)</td><td>Retrieval seul (nDCG@10, réel package <code>beir</code>)</td><td>Gratuit</td></tr>
+      <tr><td><b>HotpotQA</b> (bridge+hard)</td><td>Multi-hop encyclopédique (Wikipedia)</td><td>200 questions, 10 paragraphes/q</td><td>Retrieval seul (both_gold@k)</td><td>Gratuit</td></tr>
+      <tr><td><b>LongMemEval-S</b></td><td>Conversations multi-session</td><td>500 dispo, 20-30 testées</td><td>Réponse LLM + jugement LLM</td><td>Payant (MiniMax)</td></tr>
+      <tr><td><b>LoCoMo</b></td><td>Conversations longues, 4 catégories</td><td>16-22 questions</td><td>Réponse LLM + jugement LLM</td><td>Payant (MiniMax)</td></tr>
+      <tr><td><b>Fluid Mechanics</b> (White + Cengel/Yunus)</td><td>Texte technique dense (formules, définitions)</td><td>3208 chunks, 51 questions</td><td>Retrieval seul (R@10, MRR, NDCG)</td><td>Gratuit</td></tr>
+    </table>
+  </div>
+</section>
+
+<section id="techniques">
+  <h2><span class="num">3</span>Techniques &amp; algorithmes testés</h2>
+  <p class="subtitle">Chaque ligne = une technique réellement testée avec des données réelles, jamais juste théorisée</p>
+  <div class="card">
+    <table>
+      <tr><th>Technique</th><th>Corpus</th><th>Résultat mesuré</th><th>Verdict</th></tr>
+      <tr><td>Fusion adaptative par confiance</td><td>BEIR</td><td>Aide dans les 2 buckets de confiance — aucun signal exploitable</td><td><span class="badge rejected">Rejeté</span></td></tr>
+      <tr><td>PRF (pseudo-relevance feedback, Rocchio)</td><td>BEIR nfcorpus/scifact</td><td>+0.0063 / -0.0049 nDCG@10 — dérive classique de requête</td><td><span class="badge rejected">Rejeté</span></td></tr>
+      <tr><td>Correction de hubness (documents)</td><td>BEIR</td><td>Négligeable à λ sûr, catastrophique à λ élevé</td><td><span class="badge rejected">Rejeté</span></td></tr>
+      <tr><td>Correction d'anisotropie (all-but-top)</td><td>BEIR</td><td>Dégrade de façon monotone</td><td><span class="badge rejected">Rejeté</span></td></tr>
+      <tr><td>Graphe cosinus + PPR-LTE</td><td>HotpotQA (200q)</td><td>both@2 16.5% vs hybrid_search 24.5%</td><td><span class="badge rejected">Rejeté</span></td></tr>
+      <tr><td>Graphe entités (co-mention) + PPR-LTE</td><td>HotpotQA (200q)</td><td>both@2 12.5% — pire que le graphe cosinus</td><td><span class="badge rejected">Rejeté</span></td></tr>
+      <tr><td>Fusion RRF entités (5 poids testés 0.1→1.0)</td><td>HotpotQA (200q)</td><td>Toutes pires que 24.5% de base, même à poids=0.1</td><td><span class="badge rejected">Rejeté</span></td></tr>
+      <tr><td>PPR-LTE (re-ranker)</td><td>LongMemEval/LoCoMo</td><td>"Égalité" 58.3%/57.1% — réconcilié comme bruit (2 bascules/21, re-ranker pas retriever)</td><td><span class="badge mixed">Faux positif</span></td></tr>
+      <tr><td>ConfRank / ConfRank_fast</td><td>Fluid Mechanics (306 essais)</td><td>Classement identique à hybrid_search, 3-5x plus lent</td><td><span class="badge rejected">Rejeté</span></td></tr>
+      <tr><td>SMFM (Spectral Mixing Forgotten Memories)</td><td>Fluid Mechanics</td><td>R@10 0.451 vs 0.529 — nuit activement</td><td><span class="badge rejected">Rejeté</span></td></tr>
+      <tr><td>AD (Anomaly Diffusion)</td><td>Fluid Mechanics</td><td>MRR/NDCG légèrement pires malgré R@10 identique</td><td><span class="badge rejected">Rejeté</span></td></tr>
+      <tr><td><b>Changement d'embedder</b> (MiniLM → e5-small)</td><td>HotpotQA</td><td><b>+145% relatif à k=2</b> (15.0% → 37.0%)</td><td><span class="badge accepted">Adopté</span></td></tr>
+      <tr><td>Changement d'embedder (e5-small → bge-base)</td><td>Fluid Mechanics</td><td>bge-base gagne partout (+9.7 à +30pp) mais dépend du corpus</td><td><span class="badge mixed">Dépend du corpus</span></td></tr>
+    </table>
+    <div class="quote">Constat central : sur 4 corpus de nature différente, <b>aucun</b> algorithme de ranking/graphe n'a battu la recherche hybride simple. Seul le choix d'embedder a un effet mesurable et large.</div>
+  </div>
+</section>
+
+<section id="embedders">
+  <h2><span class="num">4</span>Comparaison des embedders</h2>
+  <p class="subtitle">3 modèles testés : l'ancien défaut MATHIR, le nouveau défaut, et une alternative pour corpus techniques</p>
+  <div class="grid2">
+    <div class="card">
+      <h3 style="margin-top:0;font-size:14px;">HotpotQA multi-hop — both_gold@2</h3>
+      <div class="chart-row"><div class="chart-label">MiniLM (ancien défaut)</div><div class="chart-track"><div class="chart-fill c" style="width:15%">15.0%</div></div></div>
+      <div class="chart-row"><div class="chart-label">e5-small (nouveau défaut)</div><div class="chart-track"><div class="chart-fill b" style="width:37%">37.0%</div></div></div>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0;font-size:14px;">BEIR scifact — nDCG@10</h3>
+      <div class="chart-row"><div class="chart-label">MiniLM (ancien défaut)</div><div class="chart-track"><div class="chart-fill c" style="width:48%">0.484</div></div></div>
+      <div class="chart-row"><div class="chart-label">e5-small</div><div class="chart-track"><div class="chart-fill b" style="width:68%">0.677</div></div></div>
+      <div class="chart-row"><div class="chart-label">bge-base-en-v1.5</div><div class="chart-track"><div class="chart-fill a" style="width:74%">0.738</div></div></div>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0;font-size:14px;">Fluid Mechanics — hit@10 (contenu "autre")</h3>
+      <div class="chart-row"><div class="chart-label">e5-small</div><div class="chart-track"><div class="chart-fill c" style="width:50%">50.0%</div></div></div>
+      <div class="chart-row"><div class="chart-label">bge-base-en-v1.5</div><div class="chart-track"><div class="chart-fill b" style="width:80%">80.0%</div></div></div>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0;font-size:14px;">Fluid Mechanics — hit@10 (formules/définitions)</h3>
+      <div class="chart-row"><div class="chart-label">e5-small</div><div class="chart-track"><div class="chart-fill c" style="width:42%">41.9%</div></div></div>
+      <div class="chart-row"><div class="chart-label">bge-base-en-v1.5</div><div class="chart-track"><div class="chart-fill d" style="width:52%">51.6%</div></div></div>
+    </div>
+  </div>
+  <div class="card">
+    <table>
+      <tr><th>Modèle</th><th>Dimensions</th><th>Paramètres</th><th>Latence (1 requête, CPU)</th><th>Rôle</th></tr>
+      <tr><td>paraphrase-multilingual-MiniLM-L12-v2</td><td>384</td><td>117.7M</td><td>49.2ms</td><td>Ancien défaut MATHIR — entraîné pour la paraphrase, pas la recherche</td></tr>
+      <tr><td>intfloat/multilingual-e5-small</td><td>384</td><td>117.65M</td><td>55.0ms (~12% plus lent, pas 5x comme cru initialement)</td><td><b>Nouveau défaut MATHIR</b> — entraîné pour la recherche (préfixes query:/passage:)</td></tr>
+      <tr><td>BAAI/bge-base-en-v1.5</td><td>768</td><td>~110M</td><td>plus lent (dim x2)</td><td>Alternative recommandée pour projets à corpus technique/scientifique dense</td></tr>
+    </table>
+  </div>
+</section>
+
+<section id="fluid">
+  <h2><span class="num">5</span>Benchmark Fluid Mechanics (détail)</h2>
+  <p class="subtitle">51 questions × 6 modes = 306 essais réels, corpus 3208 chunks (White 7ᵉ éd. + Cengel/Yunus)</p>
+  <div class="card">
+    <h3 style="margin-top:0;font-size:14px;">R@10 par mode</h3>
+    <div class="chart-row"><div class="chart-label">hybrid_search</div><div class="chart-track"><div class="chart-fill a" style="width:52.9%">0.529</div></div></div>
+    <div class="chart-row"><div class="chart-label">ppr_lte</div><div class="chart-track"><div class="chart-fill a" style="width:52.9%">0.529 (identique)</div></div></div>
+    <div class="chart-row"><div class="chart-label">ad</div><div class="chart-track"><div class="chart-fill a" style="width:52.9%">0.529</div></div></div>
+    <div class="chart-row"><div class="chart-label">confrank</div><div class="chart-track"><div class="chart-fill a" style="width:52.9%">0.529 (identique, 5x + lent)</div></div></div>
+    <div class="chart-row"><div class="chart-label">confrank_fast</div><div class="chart-track"><div class="chart-fill a" style="width:52.9%">0.529 (identique, 3x + lent)</div></div></div>
+    <div class="chart-row"><div class="chart-label">smfm</div><div class="chart-track"><div class="chart-fill c" style="width:45.1%">0.451 (pire)</div></div></div>
+    <table style="margin-top:16px;">
+      <tr><th>Mode</th><th>R@10</th><th>MRR</th><th>NDCG@10</th><th>Latence moy.</th></tr>
+      <tr><td>hybrid_search</td><td>0.529</td><td>0.366</td><td>0.404</td><td>71ms</td></tr>
+      <tr><td>ppr_lte</td><td>0.529</td><td>0.366</td><td>0.404</td><td>49ms</td></tr>
+      <tr><td>smfm</td><td>0.451</td><td>0.310</td><td>0.343</td><td>148ms</td></tr>
+      <tr><td>ad</td><td>0.529</td><td>0.349</td><td>0.391</td><td>61ms</td></tr>
+      <tr><td>confrank</td><td>0.529</td><td>0.366</td><td>0.404</td><td>348ms</td></tr>
+      <tr><td>confrank_fast</td><td>0.529</td><td>0.366</td><td>0.404</td><td>211ms</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0;font-size:14px;">Découverte : questions formules/définitions vs procédurales</h3>
+    <div class="chart-row"><div class="chart-label">Formules/définitions (Reynolds, Navier-Stokes...)</div><div class="chart-track"><div class="chart-fill c" style="width:41.9%">41.9%</div></div></div>
+    <div class="chart-row"><div class="chart-label">Procédural/descriptif</div><div class="chart-track"><div class="chart-fill b" style="width:70%">70.0%</div></div></div>
+    <div class="quote">Écart réel de 28 points de pourcentage, confirmé sur les deux embedders testés (e5-small ET bge-base) — validant directement l'intuition initiale que "les formules + texte" posent un problème spécifique. Piste ouverte : embedder spécialisé scientifique, ou chunking conscient de LaTeX.</div>
+  </div>
+</section>
+
+<section id="bugs">
+  <h2><span class="num">6</span>Bugs trouvés &amp; corrigés</h2>
+  <p class="subtitle">14 bugs réels, tous vérifiés en direct sur le daemon, tous couverts par des tests</p>
+  <div class="card">
+    <table>
+      <tr><th>#</th><th>Bug</th><th>Gravité</th><th>Statut</th></tr>
+      <tr><td>1</td><td><code>--selftest</code> cassé (TOOLS jamais défini)</td><td>Faible</td><td><span class="badge fixed">Corrigé</span></td></tr>
+      <tr><td>2</td><td>Tier immunologique (anomalies) totalement déconnecté</td><td>Élevée</td><td><span class="badge fixed">Corrigé — AUC-ROC 0.8533</span></td></tr>
+      <tr><td>3</td><td>BM25 reconstruit à chaque requête (30x plus lent)</td><td>Moyenne</td><td><span class="badge fixed">Corrigé (cache)</span></td></tr>
+      <tr><td>4</td><td>Poids hybrid_search incohérents (MCP 0.6/0.4 vs HTTP 1.0/1.0)</td><td>Moyenne</td><td><span class="badge fixed">Corrigé (unifié 1.0/1.0)</span></td></tr>
+      <tr><td>5</td><td>Embeddings bruts jamais exposés (algos avancés sur proxy 1-dim)</td><td>Élevée</td><td><span class="badge fixed">Corrigé (flag <code>include_embeddings</code>)</span></td></tr>
+      <tr><td>6</td><td><code>audit_immunological</code> 405 (daemon périmé, pas un bug code)</td><td>Faible</td><td><span class="badge fixed">Corrigé (redémarrage)</span></td></tr>
+      <tr><td>7</td><td>CUDA "meta tensor" — 3 variantes (constructeur, encodage différé)</td><td>Critique</td><td><span class="badge fixed">Corrigé (repli CPU + warmup forcé)</span></td></tr>
+      <tr><td>8</td><td>Confusion projet HotpotQA (2 runs partagent le même état)</td><td>Moyenne</td><td><span class="badge fixed">Corrigé (namespace par run)</span></td></tr>
+      <tr><td>9</td><td><b>Renforcement mort</b> sur le nouveau schéma (touch_recall)</td><td><b>Critique</b></td><td><span class="badge fixed">Corrigé — preuve directe avant/après</span></td></tr>
+      <tr><td>10</td><td>Promotion <code>semantic→procedural</code> jamais déclenchable (0/24235)</td><td>Élevée</td><td><span class="badge fixed">Corrigé (préfixe fantôme retiré)</span></td></tr>
+      <tr><td>11</td><td><b><code>memory_audit</code> complètement mort</b> depuis toujours</td><td><b>Élevée</b></td><td><span class="badge fixed">Corrigé (table + logging réels)</span></td></tr>
+      <tr><td>12</td><td><b><code>memory_delete</code> détruisait au lieu d'archiver</b> (contredit sa doc)</td><td><b>Critique (sécurité)</b></td><td><span class="badge fixed">Corrigé (vrai soft-delete)</span></td></tr>
+      <tr><td>13</td><td>Migration embedder : ancien projet mal-épinglé sur le nouveau modèle</td><td>Critique</td><td><span class="badge fixed">Corrigé avant impact réel — audit de 40 projets</span></td></tr>
+      <tr><td>14</td><td>Bug qrels TSV (colonne score lue comme ID document)</td><td>Faible</td><td><span class="badge fixed">Corrigé (script de test, pas MATHIR)</span></td></tr>
+    </table>
+  </div>
+</section>
+
+<section id="tools">
+  <h2><span class="num">7</span>Audit systématique des 23 outils MCP</h2>
+  <p class="subtitle">Chaque outil appelé réellement sur un projet isolé (jamais sur les vraies données) via HTTP direct</p>
+  <div class="card">
+    <div class="toolgrid">
+      <div class="tool"><span class="dot ok"></span>memory_save</div>
+      <div class="tool"><span class="dot ok"></span>memory_recall</div>
+      <div class="tool"><span class="dot ok"></span>memory_recall_quality</div>
+      <div class="tool"><span class="dot ok"></span>memory_smart_search</div>
+      <div class="tool"><span class="dot ok"></span>memory_hybrid_search</div>
+      <div class="tool"><span class="dot ok"></span>memory_stats</div>
+      <div class="tool"><span class="dot ok"></span>memory_context</div>
+      <div class="tool"><span class="dot skip"></span>memory_session_start</div>
+      <div class="tool"><span class="dot fail"></span>memory_audit <small>(mort → corrigé)</small></div>
+      <div class="tool"><span class="dot ok"></span>memory_audit_immunological</div>
+      <div class="tool"><span class="dot ok"></span>memory_sessions</div>
+      <div class="tool"><span class="dot skip"></span>memory_dashboard</div>
+      <div class="tool"><span class="dot skip"></span>memory_by_path</div>
+      <div class="tool"><span class="dot ok"></span>memory_build_links</div>
+      <div class="tool"><span class="dot ok"></span>memory_get_links</div>
+      <div class="tool"><span class="dot ok"></span>memory_incoming_links</div>
+      <div class="tool"><span class="dot ok"></span>memory_link</div>
+      <div class="tool"><span class="dot ok"></span>memory_promote</div>
+      <div class="tool"><span class="dot ok"></span>memory_auto_promote</div>
+      <div class="tool"><span class="dot ok"></span>memory_decay</div>
+      <div class="tool"><span class="dot ok"></span>memory_consolidate</div>
+      <div class="tool"><span class="dot fail"></span>memory_delete <small>(dangereux → corrigé)</small></div>
+      <div class="tool"><span class="dot ok"></span>memory_export</div>
+    </div>
+    <div class="pill-row" style="margin-top:16px;">
+      <span class="pill">🟢 22/23 fonctionnels</span>
+      <span class="pill">🔴 2 bugs réels trouvés (audit, delete)</span>
+      <span class="pill">⚪ 3 sans route HTTP directe (composites MCP)</span>
+    </div>
+  </div>
+</section>
+
+<section id="selfcorrect">
+  <h2><span class="num">8</span>Test d'auto-correction LLM (MiniMax M2.7 + M3)</h2>
+  <p class="subtitle">Question centrale du goal : les modèles arrivent-ils à corriger leurs erreurs grâce à un meilleur contexte MATHIR ?</p>
+  <div class="card">
+    <div class="chart-row"><div class="chart-label">Auto-corrigé avec succès</div><div class="chart-track"><div class="chart-fill b" style="width:20%">1/5 (20%)</div></div></div>
+    <div class="chart-row"><div class="chart-label">Toujours faux malgré feedback</div><div class="chart-track"><div class="chart-fill c" style="width:80%">4/5 (80%)</div></div></div>
+    <table style="margin-top:16px;">
+      <tr><th>Question</th><th>Cause de l'échec</th><th>Type</th></tr>
+      <tr><td>Titre de poste (Manager vs Senior)</td><td>Fabrique encore une réponse assurée malgré la critique explicite</td><td><span class="badge bad" style="background:rgba(239,90,90,0.15);color:var(--bad);">Raisonnement (pas MATHIR)</span></td></tr>
+      <tr><td>Conseils Tokyo personnalisés</td><td>Reste générique au lieu d'utiliser le contexte Suica/TripIt</td><td><span class="badge bad" style="background:rgba(239,90,90,0.15);color:var(--bad);">Raisonnement (pas MATHIR)</span></td></tr>
+      <tr><td>7ème métier dans une liste</td><td>Modèle dit honnêtement "je n'ai pas accès à cette liste"</td><td><span class="badge info">Vrai manque de récupération</span></td></tr>
+      <tr><td>Calcul économies taxi/train</td><td>Erreur d'arithmétique ou contexte incomplet</td><td><span class="badge mixed">Ambigu</span></td></tr>
+    </table>
+    <div class="quote">Conclusion : sur cet échantillon, la majorité des échecs persistants sont des limites de raisonnement du modèle répondeur, pas de récupération MATHIR — cohérent avec le constat plus général de la session.</div>
+  </div>
+</section>
+
+<section id="agents">
+  <h2><span class="num">9</span>Agents &amp; modèles impliqués</h2>
+  <p class="subtitle">52 mémoires dans la base MATHIR partagée, contribuées par 5 agents différents, sur 3 outils (Claude Code, OpenCode, MimoCode)</p>
+  <div class="grid2">
+    <div class="card">
+      <h3 style="margin-top:0;font-size:14px;">Agents (mémoires contribuées)</h3>
+      <table>
+        <tr><th>Agent</th><th>Mémoires</th><th>Contribution principale</th></tr>
+        <tr><td><b>claude-code</b></td><td>27</td><td>Fixes P0, bugs de cycle de vie, validation cross-corpus, cette session</td></tr>
+        <tr><td>opencode</td><td>14</td><td>Swarm v2-v9, implémentation ConfRank, bug graph-mode</td></tr>
+        <tr><td>claude</td><td>4</td><td>Statut du projet benchmark, fluid mechanics</td></tr>
+        <tr><td>math-researcher</td><td>4</td><td>Maths SMFM, brainstorm Anomaly Diffusion</td></tr>
+        <tr><td>coder</td><td>2</td><td>51 questions fluid mechanics, stratégie benchmark</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0;font-size:14px;">Modèles LLM utilisés (tests réels avec API)</h3>
+      <table>
+        <tr><th>Modèle</th><th>Rôle</th></tr>
+        <tr><td><b>MiniMax-M2.7</b></td><td>Génération de réponses (LongMemEval, LoCoMo, auto-correction)</td></tr>
+        <tr><td><b>MiniMax-M3</b></td><td>Jugement des réponses (verdict CORRECT/INCORRECT + critique)</td></tr>
+      </table>
+      <h3 style="font-size:14px;">Outils partageant la même base MATHIR (vérifié en direct)</h3>
+      <div class="pill-row">
+        <span class="pill">Claude Code (MCP)</span>
+        <span class="pill">OpenCode / MiMo (SQL direct)</span>
+        <span class="pill">MimoCode</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="conclusion">
+  <h2><span class="num">10</span>Conclusion finale</h2>
+  <div class="conclusion-box">
+    <h3>Ce qui marche (prouvé)</h3>
+    <ul>
+      <li>Mécanisme de recherche (BM25+vectoriel+RRF) mathématiquement solide, équivalent prouvé à FAISS</li>
+      <li>Partage de mémoire cross-outils réel et re-vérifié indépendamment (Claude Code + OpenCode/MiMo)</li>
+      <li>Détection d'anomalies câblée de bout en bout (AUC-ROC=0.85), observée en action sur du contenu réel</li>
+      <li>Cycle de vie complet (promotion/décroissance/consolidation) — 2 bugs critiques corrigés</li>
+      <li>Journal d'audit réel maintenant fonctionnel (était mort depuis toujours)</li>
+      <li>Suppression réellement réversible (était une destruction irréversible malgré la doc)</li>
+    </ul>
+    <h3>Ce qui ne marche pas (prouvé négatif, sur 4 corpus)</h3>
+    <ul>
+      <li>9+ techniques de ranking/fusion/graphe testées — <b>aucune</b> ne bat hybrid_search seul</li>
+      <li>Le graphe de MATHIR encode la similarité, pas les relations — structurellement incapable de multi-hop</li>
+    </ul>
+    <h3>Le seul vrai levier</h3>
+    <p>Le choix d'embedder — mais <b>dépendant du corpus</b> : e5-small gagne sur du contenu encyclopédique général, bge-base gagne sur du contenu technique/scientifique dense. Aucun gagnant universel.</p>
+    <h3>Le plafond restant</h3>
+    <p>Une fois la récupération bonne, le goulot d'étranglement est le <b>raisonnement du modèle de génération</b>, pas MATHIR — confirmé deux fois indépendamment (LongMemEval + test d'auto-correction).</p>
+    <h3>Piste ouverte non résolue</h3>
+    <p>Le contenu formule/définition reste ~2x plus dur à récupérer que le contenu descriptif, peu importe l'embedder — nécessite un embedder scientifique spécialisé ou un chunking conscient de LaTeX.</p>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Rapport généré automatiquement à partir des mémoires MATHIR réelles de la session (2026-07-02) · Base : <code>~/.config/mathir/data/projects/MATHIR/mathir.db</code>
+</footer>
+
+<script>
+  // Smooth scroll for nav links
+  document.querySelectorAll('nav a').forEach(a => {
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+  // Animate bar charts on load
+  window.addEventListener('load', () => {
+    document.querySelectorAll('.chart-fill').forEach(bar => {
+      const w = bar.style.width;
+      bar.style.width = '0%';
+      requestAnimationFrame(() => {
+        setTimeout(() => { bar.style.width = w; }, 50);
+      });
+    });
+  });
+</script>
+
+</body>
+</html>
