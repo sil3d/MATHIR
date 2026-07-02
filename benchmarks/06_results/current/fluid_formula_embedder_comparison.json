@@ -1,0 +1,10 @@
+{
+  "e5_small (current default)": {
+    "formula_hit_rate": 0.41935483870967744,
+    "other_hit_rate": 0.5
+  },
+  "bge_base": {
+    "formula_hit_rate": 0.5161290322580645,
+    "other_hit_rate": 0.8
+  }
+}
