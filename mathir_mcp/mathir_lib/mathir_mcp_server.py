@@ -171,16 +171,24 @@ def get_model_prefixes(model_name: str) -> tuple:
 def get_embedder(model_name: str = None):
     """Load embedder on demand (for daemon compatibility). CACHED PER MODEL.
 
-    Tries CUDA first when available, but falls back to CPU on any load
-    failure instead of crashing every request. Real failure mode hit in
-    practice: torch.cuda.is_available() can return True while the actual
-    device load raises "Cannot copy out of meta tensor" (a CUDA/driver-level
-    issue, not a code bug) -- previously this made get_embedder() (and
-    therefore every route calling it, including /api/ping) fail on EVERY
-    call with no recovery, since the exception was raised before an
-    embedder was ever cached. CPU load is fast and reliable for these
-    384-dim models regardless, consistent with MATHIR's edge-device-
-    friendly design (not GPU-dependent).
+    ROOT-CAUSE FIX (2026-07-02): this repeatedly hit "Cannot copy out of
+    meta tensor; no data! Please use torch.nn.Module.to_empty() instead of
+    torch.nn.Module.to()" -- THREE times this session, in different guises
+    (at construction, on first .encode(), and even on the CPU device).
+    Earlier fixes assumed it was CUDA-specific and fell back to CPU, but
+    the CPU path hit the identical error -- proving it was never a device
+    problem. Root cause: recent transformers/accelerate versions can
+    lazily initialize weights on a "meta" device (for low-memory loading)
+    and only materialize them via `.to_empty()`; SentenceTransformer's
+    internal `.to(device)` call is incompatible with that path regardless
+    of target device. Fix: pass model_kwargs={"low_cpu_mem_usage": False}
+    to force eager weight materialization, which sidesteps the meta-device
+    path entirely. Verified live: identical model/device that failed with
+    NotImplementedError on both cuda and cpu now loads and encodes
+    successfully with this kwarg.
+
+    Tries CUDA first when available, falls back to CPU on any load failure
+    (now a real device-capability fallback, not a workaround for this bug).
 
     model_name: when omitted, uses the configured default (embedding.model
     in mathir.json). When given explicitly, loads/caches THAT model instead
@@ -201,21 +209,16 @@ def get_embedder(model_name: str = None):
     embedder = None
     if torch.cuda.is_available():
         try:
-            embedder = SentenceTransformer(model_name, device="cuda")
-            # Some torch/CUDA states construct the model successfully (lazy
-            # weight materialization) but only raise "Cannot copy out of
-            # meta tensor" on the FIRST actual forward pass -- a real
-            # failure mode hit live (constructor succeeded, then a real
-            # /api/memory/save request 500'd with this same
-            # NotImplementedError). Force one real encode here, inside the
-            # same guarded block, so a broken CUDA device is caught and
-            # falls back to CPU before ever serving a real request.
+            embedder = SentenceTransformer(model_name, device="cuda",
+                                           model_kwargs={"low_cpu_mem_usage": False})
             embedder.encode("warmup", show_progress_bar=False)
         except Exception as e:
             log.warning(f"CUDA embedder load/encode failed ({e}); falling back to CPU")
             embedder = None
     if embedder is None:
-        embedder = SentenceTransformer(model_name, device="cpu")
+        embedder = SentenceTransformer(model_name, device="cpu",
+                                       model_kwargs={"low_cpu_mem_usage": False})
+        embedder.encode("warmup", show_progress_bar=False)
     _cached_embedders[model_name] = embedder
     return embedder
 
