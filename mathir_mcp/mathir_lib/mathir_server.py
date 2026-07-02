@@ -1187,28 +1187,21 @@ def memory_build_links():
 
 @app.route("/api/memory/audit", methods=["POST", "GET"])
 def memory_audit():
-    """Audit log of recent operations."""
+    """Audit log of recent operations.
+
+    FIX (2026-07-02): previously did its own raw SQL against a
+    `memory_audit` table that NOTHING in the codebase ever created or
+    wrote to -- found via a systematic 23-tool smoke test, this route had
+    silently returned empty results for every user, forever. Now delegates
+    to VecMemory.get_audit_log(), which is backed by a real table
+    populated by save/delete/promote/decay (see _log_audit()).
+    """
     params = _get_params()
     try:
         vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         agent = params.get("agent")
         limit = params.get("limit", 50)
-        conn = vec_mem._get_conn()
-        # Check if audit table exists
-        tables = [r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()]
-        if "memory_audit" not in tables:
-            return jsonify({"entries": [], "total": 0, "note": "audit table not yet created"})
-        if agent:
-            rows = conn.execute(
-                "SELECT * FROM memory_audit WHERE agent=? ORDER BY rowid DESC LIMIT ?",
-                (agent, limit)
-            ).fetchall()
-        else:
-            rows = conn.execute(
-                "SELECT * FROM memory_audit ORDER BY rowid DESC LIMIT ?",
-                (limit,)
-            ).fetchall()
-        entries = [dict(r) for r in rows] if rows else []
+        entries = vec_mem.get_audit_log(agent=agent, limit=limit)
         return jsonify({"entries": entries, "total": len(entries)})
     except Exception as e:
         return jsonify({"error": str(e)}), 500

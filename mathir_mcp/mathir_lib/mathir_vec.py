@@ -309,7 +309,68 @@ class VecMemory:
                 )
             """)
 
+            # Audit log of real operations (save/delete/promote/decay/
+            # consolidate/link). FIX (2026-07-02): the /api/memory/audit
+            # route and memory_audit MCP tool have existed since early in
+            # MATHIR's history, gracefully handling a missing table by
+            # returning empty results + a note -- but NOTHING ever created
+            # this table or wrote to it, found via a systematic 23-tool
+            # smoke test. The tool silently returned empty results for
+            # every user, forever. See _log_audit()/get_audit_log().
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS memory_audit (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp REAL NOT NULL,
+                    agent TEXT,
+                    operation TEXT NOT NULL,
+                    memory_id TEXT,
+                    details TEXT
+                )
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_audit_agent ON memory_audit(agent)")
+
             conn.commit()
+
+    def _log_audit(self, operation: str, memory_id: str = None,
+                   agent: str = None, details: Dict[str, Any] = None) -> None:
+        """Best-effort audit log write -- never blocks or fails the calling
+        operation (a logging failure must not break a real save/delete/
+        promote/decay/consolidate/link call)."""
+        try:
+            conn = self._get_conn()
+            conn.execute(
+                "INSERT INTO memory_audit(timestamp, agent, operation, memory_id, details) "
+                "VALUES (?, ?, ?, ?, ?)",
+                [time.time(), agent, operation, memory_id,
+                 json.dumps(details) if details else None],
+            )
+            conn.commit()
+        except Exception:
+            log.debug("audit log write failed (non-fatal)", exc_info=True)
+
+    def get_audit_log(self, agent: str = None, limit: int = 50) -> List[Dict[str, Any]]:
+        """Return recent audit entries, newest first."""
+        with self._db_lock:
+            conn = self._get_conn()
+            if agent:
+                rows = conn.execute(
+                    "SELECT * FROM memory_audit WHERE agent = ? ORDER BY id DESC LIMIT ?",
+                    [agent, limit],
+                ).fetchall()
+            else:
+                rows = conn.execute(
+                    "SELECT * FROM memory_audit ORDER BY id DESC LIMIT ?", [limit],
+                ).fetchall()
+            out = []
+            for r in rows:
+                d = dict(r)
+                if d.get("details"):
+                    try:
+                        d["details"] = json.loads(d["details"])
+                    except (TypeError, ValueError):
+                        pass
+                out.append(d)
+            return out
     
     def store(self, memory_id: str, embedding: np.ndarray, metadata: Dict[str, Any]) -> str:
         """Store a memory with its embedding vector."""
@@ -393,6 +454,8 @@ class VecMemory:
                 )
 
             conn.commit()
+            self._log_audit("save", memory_id=memory_id, agent=metadata.get("agent"),
+                            details={"block_type": metadata.get("block_type"), "priority": metadata.get("priority")})
             return memory_id
 
     def _get_anomaly_detector(self, threshold: float, warmup_count: int = 30):
@@ -1129,15 +1192,31 @@ class VecMemory:
             return row["cnt"]
 
     def delete(self, memory_id: str) -> bool:
-        """Delete a memory by ID."""
+        """Soft-delete a memory: sets tier='archived' and removes it from
+        the vector index (so it no longer surfaces in search), but keeps
+        the row for audit/recovery -- consistent with the rest of MATHIR's
+        lifecycle system (decay_all/consolidate_pair both archive rather
+        than destroy).
+
+        FIX (2026-07-02): this previously performed a hard, irreversible
+        DELETE FROM memories, contradicting the memory_delete MCP tool's
+        own documented contract ("Soft-delete a memory (sets tier to
+        archived)") -- found via a systematic 23-tool smoke test. Any
+        caller trusting the tool description believed deletions were
+        recoverable when they were not.
+        """
         with self._db_lock:
             conn = self._get_conn()
-            conn.execute("DELETE FROM memories WHERE memory_id = ?", [memory_id])
+            row = conn.execute("SELECT 1 FROM memories WHERE memory_id = ?", [memory_id]).fetchone()
+            if not row:
+                return False
+            conn.execute("UPDATE memories SET tier = 'archived' WHERE memory_id = ?", [memory_id])
             if HAS_VEC:
                 conn.execute("DELETE FROM vec_memories WHERE memory_id = ?", [memory_id])
             else:
                 conn.execute("DELETE FROM embeddings_brute WHERE memory_id = ?", [memory_id])
             conn.commit()
+            self._log_audit("delete", memory_id=memory_id)
             return True
     
     def stats(self) -> Dict[str, Any]:
@@ -1562,6 +1641,7 @@ class VecMemory:
                 "decay_all: decayed=%d, archived=%d, by_tier=%s",
                 decayed, archived, by_tier,
             )
+            self._log_audit("decay", details={"decayed": decayed, "archived": archived, "by_tier": by_tier})
             return {
                 "decayed": decayed,
                 "archived": archived,
@@ -1704,6 +1784,8 @@ class VecMemory:
             log.info(
                 "promote: %s %s -> %s (%s)", memory_id, old_tier, new_tier, reason
             )
+            self._log_audit("promote", memory_id=memory_id,
+                            details={"old_tier": old_tier, "new_tier": new_tier, "reason": reason})
             return {
                 "memory_id": memory_id,
                 "found": True,
