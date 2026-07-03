@@ -1,0 +1,119 @@
+{
+  "openai/gpt-oss-120b:free": {
+    "correct": 2,
+    "total": 4,
+    "accuracy": 0.5,
+    "results": [
+      {
+        "question_id": "031748ae_abs",
+        "question_type": "knowledge-update",
+        "ground_truth": "The information provided is not enough. You mentioned starting the role as Senior Software Engineer but not Software Engineer Manager.",
+        "answer": "You lead a team of **five engineers**.",
+        "judge_verdict": false,
+        "judge_raw": "INCORRECT\nThe ground truth states that there is insufficient information to determine the number of engineers led, whereas the model arbitrarily claims the answer is five engineers, which does not match the required response."
+      },
+      {
+        "question_id": "09ba9854",
+        "question_type": "multi-session",
+        "ground_truth": "$50",
+        "answer": "You’d spend about $9 – $11 on the train (¥1,000‑¥1,200) versus roughly $60 for a taxi.  \n\n**Savings:** roughly **$49 – $51** per trip.",
+        "judge_verdict": true,
+        "judge_raw": "CORRECT\nThe model states the train costs $9‑$11 and taxi $60, giving a saving of about $49‑$51, which aligns with the expected $50 saving."
+      },
+      {
+        "question_id": "1903aded",
+        "error": "HTTP Error 429: Too Many Requests"
+      },
+      {
+        "question_id": "09d032c9",
+        "question_type": "single-session-preference",
+        "ground_truth": "The user would prefer responses that build upon their previous mention of purchasing a portable power bank, such as suggestions on how to optimize its use, like ensuring it's fully charged before use. They might also appreciate tips on utilizing battery-saving features on their phone. The user may not prefer responses that suggest alternative solutions or unrelated advice.",
+        "answer": "I’m sorry, but the provided context doesn’t contain information about phone battery life or related tips.",
+        "judge_verdict": false,
+        "judge_raw": "INCORRECT\nThe model claims there is no relevant information, whereas the ground truth expects tips on optimizing a portable power bank and phone battery‑saving features. The answer fails to address the user's request."
+      },
+      {
+        "question_id": "0a34ad58",
+        "question_type": "single-session-preference",
+        "ground_truth": "The user would prefer responses that utilize their existing resources, such as their Suica card and TripIt app, to provide personalized tips for navigating Tokyo's public transportation. They might not prefer general tips or recommendations that do not take into account their prior preparations.",
+        "answer": "Here are some practical tips to help you feel more confident navigating Tokyo:\n\n**1. Use a Suica (or Pasmo) IC card**  \n- Load the card with cash at any train station.  \n- Touch it on the gate readers when you enter and exit — the system automatically deducts the correct fare, so you don’t have to buy a ticket for each ride.  \n- The same card works on JR lines, Tokyo Metro, most private railways, and even many buses and convenience‑store ATMs.\n\n**2. Stick to the major lines first**  \n- **JR Yama",
+        "judge_verdict": true,
+        "judge_raw": "CORRECT  \nThe response builds on the user’s existing resources—emphasizing the Suica card and recommending navigation apps—while providing personalized, practical tips for Tokyo’s transit, exactly as the ground‑truth expects."
+      }
+    ]
+  },
+  "nvidia/nemotron-3-ultra-550b-a55b:free": {
+    "correct": 1,
+    "total": 5,
+    "accuracy": 0.2,
+    "results": [
+      {
+        "question_id": "031748ae_abs",
+        "question_type": "knowledge-update",
+        "ground_truth": "The information provided is not enough. You mentioned starting the role as Senior Software Engineer but not Software Engineer Manager.",
+        "answer": "Basedon the retrieved context, when you started your new role as **Senior Software Engineer** (the role mentioned in the context, not \"Software Engineer Manager\"), you stated: \"I lead a team of 4 engineers in my new role as Senior Software Engineer.\"\n\nThe context does not mention a \"Software Engineer Manager\" role specifically. It only references your role as Senior Software Engineer.",
+        "judge_verdict": false,
+        "judge_raw": "INCORRECT\n\nThe model provides a specific number (4 engineers) based on a misinterpreted role, whereas the ground truth states that the information is insufficient to answer the question about leading engineers as a Software Engineer Manager. Hence it does not match the expected answer."
+      },
+      {
+        "question_id": "09ba9854",
+        "question_type": "multi-session",
+        "ground_truth": "$50",
+        "answer": "Based on the context provided, there's a significant discrepancy in the taxi fare estimates:\n\n**Taxi estimates from the assistant:**\n- Narita Airport (daytime): **$140–180**\n- Narita Airport (late night): **$160–220**\n- Haneda Airport (daytime): **$55–90**\n- Haneda Airport (late night): **$70–125**\n\n**Train estimates to Shinjuku:**\n- Narita Express (N'EX): **~$28**\n- Keisei Skyliner + Subway: **~$25–27**\n- Keisei Electric Railway (regular train): **~$9–11**\n- Airport Limousine Bus: **~$29**\n- As",
+        "judge_verdict": false,
+        "judge_raw": "INCORRECT  \nThe model provides multiple possible savings ranges and does not state a single $50 saving as the ground truth answer, so it fails to match the expected result."
+      },
+      {
+        "question_id": "1903aded",
+        "question_type": "single-session-assistant",
+        "ground_truth": "Transcriptionist.",
+        "answer": "Theretrieved context does not contain any assistant response listing work-from-home jobs for seniors. The only relevant entry is the user's request on 2023/05/26: \"Brainstorm ideas for work from home jobs for seniors,\" but the assistant's response to that request is not included in the provided memory.",
+        "judge_verdict": false,
+        "judge_raw": "INCORRECT\nThe model failed to supply the seventh job (\"Transcriptionist\") and instead claimed the information was missing, so it does not match the ground truth."
+      },
+      {
+        "question_id": "09d032c9",
+        "question_type": "single-session-preference",
+        "ground_truth": "The user would prefer responses that build upon their previous mention of purchasing a portable power bank, such as suggestions on how to optimize its use, like ensuring it's fully charged before use. They might also appreciate tips on utilizing battery-saving features on their phone. The user may not prefer responses that suggest alternative solutions or unrelated advice.",
+        "answer": "The retrieved context doesn't contain any tips or information about improving phone battery life. The conversations cover topics like organizing tech accessories for travel, programming language choices, mini-habits, gaming chairs, snack habits, yoga classes, food waste reduction, and airline status upgrades—but nothing specific to phone battery optimization.",
+        "judge_verdict": false,
+        "judge_raw": "INCORRECT\nThe model’s response fails to provide any battery‑life tips or suggestions about using a power bank, and instead claims the context lacks relevant information, which does not match the expected answer."
+      },
+      {
+        "question_id": "0a34ad58",
+        "question_type": "single-session-preference",
+        "ground_truth": "The user would prefer responses that utilize their existing resources, such as their Suica card and TripIt app, to provide personalized tips for navigating Tokyo's public transportation. They might not prefer general tips or recommendations that do not take into account their prior preparations.",
+        "answer": "Based on the retrieved context, here are some helpful tips for getting around Tokyo:\n\n**Using Public Transportation with Suica Card:**\n- Get a **Suica card** (prepaid IC card) for convenient travel on trains, subways, and buses\n- **Touch your Suica card on the reader** at ticket gates when entering and exiting stations\n- Major lines like the **JR Yamanote Line** connect key areas (e.g., Shinjuku → Shimbashi → Tsukiji via Ginza Line)\n- **Travel time example:** Shinjuku to Tsukiji Fish Market take",
+        "judge_verdict": true,
+        "judge_raw": "CORRECT\n\nThe response builds on the user’s Suica card, giving concrete, personalized navigation tips (e.g., how to use Suica, line transfers, travel times) rather than only generic advice, which aligns with the ground‑truth preference. It doesn’t mention TripIt, but it still satisfies the core requi"
+      }
+    ]
+  },
+  "meta-llama/llama-3.3-70b-instruct:free": {
+    "correct": 0,
+    "total": 0,
+    "accuracy": 0,
+    "results": [
+      {
+        "question_id": "031748ae_abs",
+        "error": "HTTP Error 429: Too Many Requests"
+      },
+      {
+        "question_id": "09ba9854",
+        "error": "HTTP Error 429: Too Many Requests"
+      },
+      {
+        "question_id": "1903aded",
+        "error": "HTTP Error 429: Too Many Requests"
+      },
+      {
+        "question_id": "09d032c9",
+        "error": "HTTP Error 429: Too Many Requests"
+      },
+      {
+        "question_id": "0a34ad58",
+        "error": "HTTP Error 429: Too Many Requests"
+      }
+    ]
+  }
+}

@@ -1,0 +1,143 @@
+
+============================================================
+DATASET: scifact
+============================================================
+  0%|          | 0/5183 [00:00<?, ?it/s]100%|##########| 5183/5183 [00:00<00:00, 125298.00it/s]
+  Corpus: 5183, Queries: 300, Qrels: 300
+  Inserting 5183 docs into isolated MATHIR project 'beir_bench_scifact'...
+    inserted 200/5183 (0 errors) [10.7s]
+    inserted 400/5183 (0 errors) [21.4s]
+    inserted 600/5183 (0 errors) [32.0s]
+    inserted 800/5183 (0 errors) [41.9s]
+    inserted 1000/5183 (0 errors) [52.1s]
+    inserted 1200/5183 (0 errors) [60.9s]
+    inserted 1400/5183 (0 errors) [72.3s]
+    inserted 1600/5183 (0 errors) [84.5s]
+    inserted 1800/5183 (0 errors) [95.2s]
+    inserted 2000/5183 (0 errors) [105.5s]
+    inserted 2200/5183 (0 errors) [115.4s]
+    inserted 2400/5183 (0 errors) [125.1s]
+    inserted 2600/5183 (0 errors) [135.6s]
+    inserted 2800/5183 (0 errors) [145.4s]
+    inserted 3000/5183 (0 errors) [155.2s]
+    inserted 3200/5183 (0 errors) [165.0s]
+    inserted 3400/5183 (0 errors) [174.5s]
+    inserted 3600/5183 (0 errors) [183.4s]
+    inserted 3800/5183 (0 errors) [191.5s]
+    inserted 4000/5183 (0 errors) [200.5s]
+    inserted 4200/5183 (0 errors) [207.9s]
+    inserted 4400/5183 (0 errors) [216.0s]
+    inserted 4600/5183 (0 errors) [234.1s]
+    inserted 4800/5183 (0 errors) [241.4s]
+    inserted 5000/5183 (0 errors) [249.6s]
+    DONE inserting 5183 docs into project=beir_bench_scifact: 5183 ok, 0 errors, 257.4s total
+  MATHIR memory_recall (pure semantic recall)...
+  [5_MATHIR_recall] nDCG@10: 0.3974, MRR@10: 0.3486, Recall@100: 0.7922, Time: 120.06s
+  MATHIR memory_hybrid_search (vector+BM25 RRF, MATHIR's own fusion)...
+  [6_MATHIR_hybrid] nDCG@10: 0.5463, MRR@10: 0.4854, Recall@100: 0.9457, Time: 566.20s
+  Saved running results to D:\SECRET_PROJECT\MATHIR\benchmarks\09_mathir_vs_faiss_stress\results\mathir_vs_faiss_results.json
+
+============================================================
+DATASET: nfcorpus
+============================================================
+  0%|          | 0/3633 [00:00<?, ?it/s]100%|##########| 3633/3633 [00:00<00:00, 114094.62it/s]
+  Corpus: 3633, Queries: 323, Qrels: 323
+  Inserting 3633 docs into isolated MATHIR project 'beir_bench_nfcorpus'...
+    inserted 200/3633 (0 errors) [8.2s]
+    inserted 400/3633 (0 errors) [19.5s]
+    inserted 600/3633 (0 errors) [30.3s]
+    inserted 800/3633 (0 errors) [38.2s]
+    inserted 1000/3633 (0 errors) [43.8s]
+    inserted 1200/3633 (0 errors) [49.5s]
+    inserted 1400/3633 (0 errors) [55.5s]
+    inserted 1600/3633 (0 errors) [61.4s]
+    inserted 1800/3633 (0 errors) [70.8s]
+    inserted 2000/3633 (0 errors) [80.1s]
+    inserted 2200/3633 (0 errors) [88.8s]
+    inserted 2400/3633 (0 errors) [96.6s]
+    inserted 2600/3633 (0 errors) [104.6s]
+    inserted 2800/3633 (0 errors) [113.3s]
+    inserted 3000/3633 (0 errors) [119.0s]
+    inserted 3200/3633 (0 errors) [125.0s]
+    inserted 3400/3633 (0 errors) [135.0s]
+    inserted 3600/3633 (0 errors) [140.6s]
+    DONE inserting 3633 docs into project=beir_bench_nfcorpus: 3633 ok, 0 errors, 141.5s total
+  MATHIR memory_recall (pure semantic recall)...
+  [5_MATHIR_recall] nDCG@10: 0.2227, MRR@10: 0.0609, Recall@100: 0.2214, Time: 124.60s
+  MATHIR memory_hybrid_search (vector+BM25 RRF, MATHIR's own fusion)...
+  [6_MATHIR_hybrid] nDCG@10: 0.2966, MRR@10: 0.0993, Recall@100: 0.2775, Time: 485.47s
+  Saved running results to D:\SECRET_PROJECT\MATHIR\benchmarks\09_mathir_vs_faiss_stress\results\mathir_vs_faiss_results.json
+
+============================================================
+DATASET: arguana
+============================================================
+  0%|          | 0/8674 [00:00<?, ?it/s] 87%|########7 | 7551/8674 [00:00<00:00, 75174.37it/s]100%|##########| 8674/8674 [00:00<00:00, 75505.45it/s]
+  Corpus: 8674, Queries: 1406, Qrels: 1406
+  Inserting 8674 docs into isolated MATHIR project 'beir_bench_arguana'...
+    inserted 200/8674 (0 errors) [7.5s]
+    inserted 400/8674 (0 errors) [15.9s]
+    inserted 600/8674 (0 errors) [23.2s]
+    inserted 800/8674 (0 errors) [30.7s]
+    inserted 1000/8674 (0 errors) [38.2s]
+    inserted 1200/8674 (0 errors) [45.6s]
+    inserted 1400/8674 (0 errors) [52.2s]
+    inserted 1600/8674 (0 errors) [58.9s]
+    inserted 1800/8674 (0 errors) [67.2s]
+    inserted 2000/8674 (0 errors) [74.1s]
+    inserted 2200/8674 (0 errors) [79.9s]
+    inserted 2400/8674 (0 errors) [86.6s]
+    inserted 2600/8674 (0 errors) [93.1s]
+    inserted 2800/8674 (0 errors) [99.2s]
+    inserted 3000/8674 (0 errors) [105.1s]
+    inserted 3200/8674 (0 errors) [111.8s]
+    inserted 3400/8674 (0 errors) [118.6s]
+    inserted 3600/8674 (0 errors) [125.0s]
+    inserted 3800/8674 (0 errors) [134.3s]
+    inserted 4000/8674 (0 errors) [143.9s]
+    inserted 4200/8674 (0 errors) [153.5s]
+    inserted 4400/8674 (0 errors) [161.6s]
+    inserted 4600/8674 (0 errors) [168.6s]
+    inserted 4800/8674 (0 errors) [176.0s]
+    inserted 5000/8674 (0 errors) [186.3s]
+    inserted 5200/8674 (0 errors) [192.9s]
+    inserted 5400/8674 (0 errors) [199.1s]
+    inserted 5600/8674 (0 errors) [205.0s]
+    inserted 5800/8674 (0 errors) [211.5s]
+    inserted 6000/8674 (0 errors) [218.4s]
+    inserted 6200/8674 (0 errors) [225.2s]
+    inserted 6400/8674 (0 errors) [231.2s]
+    inserted 6600/8674 (0 errors) [238.0s]
+    inserted 6800/8674 (0 errors) [244.0s]
+    inserted 7000/8674 (0 errors) [251.9s]
+    inserted 7200/8674 (0 errors) [259.0s]
+    inserted 7400/8674 (0 errors) [267.2s]
+    inserted 7600/8674 (0 errors) [273.5s]
+    inserted 7800/8674 (0 errors) [282.3s]
+    inserted 8000/8674 (0 errors) [289.0s]
+    inserted 8200/8674 (0 errors) [296.4s]
+    inserted 8400/8674 (0 errors) [304.2s]
+    inserted 8600/8674 (0 errors) [311.4s]
+    DONE inserting 8674 docs into project=beir_bench_arguana: 8674 ok, 0 errors, 313.8s total
+  MATHIR memory_recall (pure semantic recall)...
+  [5_MATHIR_recall] nDCG@10: 0.4306, MRR@10: 0.3587, Recall@100: 0.8713, Time: 603.27s
+  MATHIR memory_hybrid_search (vector+BM25 RRF, MATHIR's own fusion)...
+  [6_MATHIR_hybrid] nDCG@10: 0.4148, MRR@10: 0.3395, Recall@100: 0.8727, Time: 6339.69s
+  Saved running results to D:\SECRET_PROJECT\MATHIR\benchmarks\09_mathir_vs_faiss_stress\results\mathir_vs_faiss_results.json
+
+============================================================
+DATASET: fluid_mechanics
+============================================================
+Traceback (most recent call last):
+  File "D:\SECRET_PROJECT\MATHIR\benchmarks\09_mathir_vs_faiss_stress\run_mathir_comparison.py", line 145, in <module>
+    main()
+  File "D:\SECRET_PROJECT\MATHIR\benchmarks\09_mathir_vs_faiss_stress\run_mathir_comparison.py", line 95, in main
+    loaded = load_dataset(dataset)
+             ^^^^^^^^^^^^^^^^^^^^^
+  File "D:\SECRET_PROJECT\MATHIR\benchmarks\09_mathir_vs_faiss_stress\run_mathir_comparison.py", line 63, in load_dataset
+    return GenericDataLoader(str(data_path)).load(split="test")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\So-i-learn-3D\AppData\Local\Programs\Python\Python311\Lib\site-packages\beir\datasets\data_loader.py", line 72, in load
+    self.check(fIn=self.query_file, ext="jsonl")
+  File "C:\Users\So-i-learn-3D\AppData\Local\Programs\Python\Python311\Lib\site-packages\beir\datasets\data_loader.py", line 39, in check
+    raise ValueError(f"File {fIn} not present! Please provide accurate file.")
+ValueError: File D:\SECRET_PROJECT\MATHIR\benchmarks\05_test_data\beir_data\fluid_mechanics\fluid_mechanics\queries.jsonl not present! Please provide accurate file.

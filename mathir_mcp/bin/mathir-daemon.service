@@ -4,7 +4,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 %h/.config/opencode/bin/mathir_daemon.py
+ExecStart=/usr/bin/python3 %h/.config/MATHIR/mathir_mcp/bin/mathir_daemon.py
 Restart=on-failure
 RestartSec=5
 

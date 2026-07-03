@@ -1,0 +1,467 @@
+{
+  "benchmark": "MATHIR Multi-Agent Shared Memory",
+  "timestamp": "2026-07-03T13:12:16.431353+00:00",
+  "models": {
+    "free_agents": {
+      "mimo": "mimo-v2.5-free",
+      "nemotron": "nemotron-3-ultra-free",
+      "north": "north-mini-code-free"
+    },
+    "orchestrator": "minimax-m3",
+    "judge": "MiniMax-M3",
+    "use_paid_orchestrator": false
+  },
+  "n_questions": 10,
+  "results": [
+    {
+      "question": "When did Caroline go to the LGBTQ support group?",
+      "gold_answer": "7 May 2023",
+      "category": 2,
+      "category_name": "temporal",
+      "baselines": {
+        "mimo": {
+          "answer": "Caroline went to the LGBTQ support group every Tuesday.",
+          "correct": false,
+          "reasoning": "The gold answer specifies a date of 7 May 2023, while the generated answer only states 'every Tuesday' which does not match the specific date and provides no correct information."
+        },
+        "nemotron": {
+          "answer": "I don't have any information about Caroline or her attendance at an LGBTQ support group, as I have no prior context about this conversation.",
+          "correct": false,
+          "reasoning": "The generated answer provides no information about Caroline or the date, while the correct answer is 7 May 2023."
+        },
+        "north": {
+          "answer": "I’m sorry, but I don’t have enough information about the conversation to determine when Caroline attended the LGBTQ support group. Could you provide the relevant details or context?",
+          "correct": false,
+          "reasoning": "The generated answer does not provide the correct date (7 May 2023) or any equivalent information about when Caroline attended the LGBTQ support group."
+        }
+      },
+      "mathir_assisted": {
+        "mimo": {
+          "answer": "Caroline went to the LGBTQ support group on May 7, 2023. She mentioned attending \"yesterday\" in a statement made on May 8, 2023.",
+          "correct": true,
+          "reasoning": "The generated answer correctly states Caroline went to the LGBTQ support group on May 7, 2023, which matches the gold answer."
+        },
+        "nemotron": {
+          "answer": "Carolinewent to the LGBTQ support group on May 7, 2023, as she stated on May 8, 2023 that she had attended \"yesterday.\"",
+          "correct": true,
+          "reasoning": "The generated answer states May 7, 2023, which matches the gold answer of 7 May 2023."
+        },
+        "north": {
+          "answer": "Caroline went to the LGBTQ support group on May 7, 2023, as she mentioned on May 8 that she had attended “yesterday.”",
+          "correct": true,
+          "reasoning": "The generated answer states May 7, 2023, which matches the gold answer of 7 May 2023."
+        }
+      },
+      "multi_agent": {
+        "answer": "",
+        "correct": false,
+        "error": "zen_chat failed after 3 attempts: HTTP Error 402: Payment Required"
+      }
+    },
+    {
+      "question": "When did Melanie paint a sunrise?",
+      "gold_answer": 2022,
+      "category": 2,
+      "category_name": "temporal",
+      "baselines": {
+        "mimo": {
+          "answer": "I don't have any information about a past conversation or Melanie's sunrise painting, as I lack that context. If you can provide more details, like a date or source, I'd be happy to help you find the answer.",
+          "correct": false,
+          "reasoning": "The generated answer provides no correct information about Melanie painting a sunrise in 2022."
+        },
+        "nemotron": {
+          "answer": "Idon't have any information about a past conversation or when Melanie painted a sunrise, as I have no prior context about this conversation.",
+          "correct": false,
+          "reasoning": "The generated answer provides no information about when Melanie painted a sunrise, failing to mention the correct year of 2022."
+        },
+        "north": {
+          "answer": "",
+          "correct": false,
+          "error": "zen_chat failed after 3 attempts: HTTP Error 429: Too Many Requests"
+        }
+      },
+      "mathir_assisted": {
+        "mimo": {
+          "answer": "",
+          "correct": false,
+          "error": "zen_chat failed after 3 attempts: HTTP Error 429: Too Many Requests"
+        },
+        "nemotron": {
+          "answer": "Melaniepainted the lake sunrise in 2022, as she stated on May 8, 2023: \"I painted that lake sunrise last year!\"",
+          "correct": true,
+          "reasoning": "The generated answer correctly states that Melanie painted the sunrise in 2022, which matches the gold answer."
+        },
+        "north": {
+          "answer": "Melanie painted a sunrise (the lake sunrise) in 2022.",
+          "correct": true,
+          "reasoning": "The generated answer correctly states 2022 as the year Melanie painted a sunrise, matching the gold answer."
+        }
+      },
+      "multi_agent": {
+        "answer": "",
+        "correct": false,
+        "error": "zen_chat failed after 3 attempts: HTTP Error 402: Payment Required"
+      }
+    },
+    {
+      "question": "What fields would Caroline be likely to pursue in her educaton?",
+      "gold_answer": "Psychology, counseling certification",
+      "category": 3,
+      "category_name": "open-domain",
+      "baselines": {
+        "mimo": {
+          "answer": "Without prior context about Caroline, I cannot specify her likely educational fields. Please provide more details or clarify who Caroline is.",
+          "correct": false,
+          "reasoning": "The generated answer provides no information about Caroline's likely fields of study, failing to mention psychology or counseling certification."
+        },
+        "nemotron": {
+          "answer": "I have no prior context about this conversation, so I cannot answer what fields Caroline would likely pursue in her education.",
+          "correct": false,
+          "reasoning": "The generated answer provides no information about Caroline's likely fields of education, containing zero correct information."
+        },
+        "north": {
+          "answer": "I’m unable to determine which fields Caroline would likely pursue without additional information about her interests, background, or the specific context of the conversation.",
+          "correct": false,
+          "reasoning": "The generated answer does not mention psychology or counseling certification, providing zero correct information from the gold answer."
+        }
+      },
+      "mathir_assisted": {
+        "mimo": {
+          "answer": "",
+          "correct": false,
+          "error": "zen_chat failed after 3 attempts: HTTP Error 429: Too Many Requests"
+        },
+        "nemotron": {
+          "answer": "Caroline would likely pursue counseling and the arts, combining her interest in helping others with creative expression such as therapeutic painting.",
+          "correct": true,
+          "reasoning": "The generated answer includes 'counseling,' which matches one of the correct fields in the gold answer, so partial credit applies."
+        },
+        "north": {
+          "answer": "Caroline would likely pursue fields in counseling and the arts, combining her interest in helping others with creative expression such as therapeutic painting.",
+          "correct": true,
+          "reasoning": "The generated answer includes 'counseling' which matches the gold answer's mention of 'counseling certification', so partial credit applies."
+        }
+      },
+      "multi_agent": {
+        "answer": "",
+        "correct": false,
+        "error": "zen_chat failed after 3 attempts: HTTP Error 402: Payment Required"
+      }
+    },
+    {
+      "question": "What did Caroline research?",
+      "gold_answer": "Adoption agencies",
+      "category": 1,
+      "category_name": "multi-hop",
+      "baselines": {
+        "mimo": {
+          "answer": "",
+          "correct": false,
+          "error": "zen_chat failed after 3 attempts: HTTP Error 429: Too Many Requests"
+        },
+        "nemotron": {
+          "answer": "I don't have any context about a past conversation or who Caroline is, so I cannot answer what she researched.",
+          "correct": false,
+          "reasoning": "The generated answer does not provide any information about Caroline's research and fails to mention adoption agencies or any related concept."
+        },
+        "north": {
+          "answer": "I don’t have enough information to know what Caroline researched.",
+          "correct": false,
+          "reasoning": "The generated answer provides no information about Caroline researching adoption agencies, stating instead that it doesn't have enough information."
+        }
+      },
+      "mathir_assisted": {
+        "mimo": {
+          "answer": "",
+          "correct": false,
+          "error": "zen_chat failed after 3 attempts: HTTP Error 429: Too Many Requests"
+        },
+        "nemotron": {
+          "answer": "Caroline researched counseling, focusing on topics related to her motivation and pursuit of that field.",
+          "correct": false,
+          "reasoning": "The gold answer specifies Caroline researched 'adoption agencies,' but the generated answer claims she researched counseling, which contains no correct information about the actual topic."
+        },
+        "north": {
+          "answer": "",
+          "correct": false,
+          "error": "zen_chat failed after 3 attempts: HTTP Error 429: Too Many Requests"
+        }
+      },
+      "multi_agent": {
+        "answer": "",
+        "correct": false,
+        "error": "zen_chat failed after 3 attempts: HTTP Error 402: Payment Required"
+      }
+    },
+    {
+      "question": "What is Caroline's identity?",
+      "gold_answer": "Transgender woman",
+      "category": 1,
+      "category_name": "multi-hop",
+      "baselines": {
+        "mimo": {
+          "answer": "I don't have any prior context or information about a conversation involving someone named Caroline. To answer your question, I would need more details about who Caroline is or the subject of the past conversation.",
+          "correct": false,
+          "reasoning": "The generated answer provides no information about Caroline's identity, while the gold answer specifies she is a transgender woman."
+        },
+        "nemotron": {
+          "answer": "I have no prior context about this conversation, so I cannot identify who Caroline is.",
+          "correct": false,
+          "reasoning": "The generated answer provides no information about Caroline's identity and does not mention that she is a transgender woman."
+        },
+        "north": {
+          "answer": "",
+          "correct": false,
+          "error": "zen_chat failed after 3 attempts: HTTP Error 429: Too Many Requests"
+        }
+      },
+      "mathir_assisted": {
+        "mimo": {
+          "answer": "Caroline is a counseling student and artist who explores identity, self-acceptance, and authenticity through her painting practice, including works such as \"Embracing Identity.\"",
+          "correct": false,
+          "reasoning": "The generated answer does not mention that Caroline is a transgender woman; it only describes her as a counseling student and artist exploring themes of identity without specifying her actual identity."
+        },
+        "nemotron": {
+          "answer": "",
+          "correct": false,
+          "error": "zen_chat failed after 3 attempts: HTTP Error 503: Service Unavailable"
+        },
+        "north": {
+          "answer": "Caroline is a counseling student and artist who explores self‑acceptance and identity through painting, as reflected in her artwork “Embracing Identity.”",
+          "correct": false,
+          "reasoning": "The generated answer describes Caroline as a counseling student and artist but does not mention that she is a transgender woman, which is the core identity information in the gold answer."
+        }
+      },
+      "multi_agent": {
+        "answer": "",
+        "correct": false,
+        "error": "zen_chat failed after 3 attempts: HTTP Error 402: Payment Required"
+      }
+    },
+    {
+      "question": "When did Melanie run a charity race?",
+      "gold_answer": "The sunday before 25 May 2023",
+      "category": 2,
+      "category_name": "temporal",
+      "baselines": {
+        "mimo": {
+          "answer": "",
+          "correct": false,
+          "error": "zen_chat failed after 3 attempts: HTTP Error 429: Too Many Requests"
+        },
+        "nemotron": {
+          "answer": "I don't have any information about a past conversation or when Melanie ran a charity race, as I have no prior context about this conversation.",
+          "correct": false,
+          "reasoning": "The generated answer provides no information about when Melanie ran a charity race, containing zero correct details from the gold answer."
+        },
+        "north": {
+          "answer": "I’m not aware of a specific charity race that Melanie ran, so I can’t provide a date or details.",
+          "correct": false,
+          "reasoning": "The generated answer provides no information about when Melanie ran a charity race, while the gold answer specifies it was the Sunday before 25 May 2023."
+        }
+      },
+      "mathir_assisted": {
+        "mimo": {
+          "answer": "",
+          "correct": false,
+          "error": "zen_chat failed after 3 attempts: HTTP Error 429: Too Many Requests"
+        },
+        "nemotron": {
+          "answer": "The user is asking when Melanie ran a charity race. I need to look at the memories provided to find the answer.\n\nFrom the memories:\n- Memory 2: \"Melanie ran the charity race on Saturday, 21 May 2023.\"\n- Memory 4: \"Melanie ran the charity race on Saturday, 21 May 2023.\"\n- Memory 5: \"Melanie ran the charity race on Saturday, 21 May 2023.\"\n- Memory 6: \"Melanie ran the charity race on a Saturday, mentioned on 25 May 2023.\"\n- Memory 7: \"[1:14 pm on 25 May, 2023] [Melanie]: Hey Caroline, since we last chatted, I've had a lot of things happening to me. I ran a charity race for mental health last Saturday – it was really rewarding. Really made me think about taking care of our minds.\"\n- Memory 8: Same as memory 7.\n\nThe conversation in memories 7 and 8 is dated 25 May 2023, and Melanie says she ran the race \"last Saturday.\" If 25 May 2023 is a Thursday, then \"last Saturday\" would be 20 May 2023. But memories 2, 4, and 5 say 21 May 2023. Let me check: 25 May 2023 was a Thursday. The Saturday before that would be 20 May 2023. But 21 May 2023 was a Sunday. Wait, let me verify: May 2023 calendar. May 1, 2023 was a Monday. So May 20, 2023 was a Saturday. May 21, 2023 was a Sunday. May 25, 2023 was a Thursday.\n\nBut memories 2, 4, 5 say \"Saturday, 21 May 2023\" which is incorrect because 21 May 2023 was a Sunday. However, memory 6 says \"on a Saturday, mentioned on 25 May 2023.\" And memory 7 says \"last Saturday\" from the perspective of 25 May 2023.\n\nGiven that multiple agents (north",
+          "correct": true,
+          "reasoning": "<think>The gold answer says \"The sunday before 25 May 2023.\" The generated answer discusses that 21 May 2023 was a Sunday (which is the Sunday before 25 May 2023). The generated answer also mentions \""
+        },
+        "north": {
+          "answer": "Melanie ran the charity race on Saturday, 21 May 2023.",
+          "correct": true,
+          "reasoning": "<think>The question asks when Melanie ran a charity race. The gold answer is \"The Sunday before 25 May 2023\", which would be Sunday, 21 May 2023 (since 25 May 2023 was a Thursday, the Sunday before wo"
+        }
+      },
+      "multi_agent": {
+        "answer": "",
+        "correct": false,
+        "error": "zen_chat failed after 3 attempts: HTTP Error 402: Payment Required"
+      }
+    },
+    {
+      "question": "When is Melanie planning on going camping?",
+      "gold_answer": "June 2023",
+      "category": 2,
+      "category_name": "temporal",
+      "baselines": {
+        "mimo": {
+          "answer": "I don’t have any prior context or information about Melanie’s camping plans. If you can provide more details, I’d be happy to help!",
+          "correct": false,
+          "reasoning": "The generated answer does not mention June 2023 or any specific date for Melanie's camping plans, providing no correct information."
+        },
+        "nemotron": {
+          "answer": "I don't have any information about a past conversation or Melanie's camping plans, as this appears to be a new conversation with no prior context provided.",
+          "correct": false,
+          "reasoning": "The generated answer provides no information about Melanie's camping plans, while the correct answer is June 2023."
+        },
+        "north": {
+          "answer": "I’m not aware of Melanie’s camping plans.",
+          "correct": false,
+          "reasoning": "The generated answer does not mention June 2023 or any date, providing zero correct information about Melanie's camping plans."
+        }
+      },
+      "mathir_assisted": {
+        "mimo": {
+          "answer": "",
+          "correct": false,
+          "error": "zen_chat failed after 3 attempts: HTTP Error 429: Too Many Requests"
+        },
+        "nemotron": {
+          "answer": "",
+          "correct": false,
+          "error": "zen_chat failed after 3 attempts: 'choices'"
+        },
+        "north": {
+          "answer": "Melanie was planning to go camping in June 2023.",
+          "correct": true,
+          "reasoning": "The generated answer correctly states 'June 2023', matching the gold answer exactly."
+        }
+      },
+      "multi_agent": {
+        "answer": "",
+        "correct": false,
+        "error": "zen_chat failed after 3 attempts: HTTP Error 402: Payment Required"
+      }
+    },
+    {
+      "question": "What is Caroline's relationship status?",
+      "gold_answer": "Single",
+      "category": 1,
+      "category_name": "multi-hop",
+      "baselines": {
+        "mimo": {
+          "answer": "I don't have access to any information about Caroline or past conversations. Please provide the necessary context, and I'll be happy to help you answer the question.",
+          "correct": false,
+          "reasoning": "The generated answer provides no information about Caroline's relationship status and does not mention that she is single."
+        },
+        "nemotron": {
+          "answer": "I don't have any information about Caroline's relationship status because I have no prior context about this conversation.",
+          "correct": false,
+          "reasoning": "The generated answer provides no information about Caroline's relationship status, while the correct answer is 'Single'."
+        },
+        "north": {
+          "answer": "I don’t have enough information to determine Caroline’s relationship status.",
+          "correct": false,
+          "reasoning": "The generated answer does not provide any information about Caroline's relationship status, while the correct answer is 'Single'."
+        }
+      },
+      "mathir_assisted": {
+        "mimo": {
+          "answer": "The memories consistently indicate that Caroline's relationship status is not addressed.",
+          "correct": false,
+          "reasoning": "The generated answer states that Caroline's relationship status is not addressed, which does not provide the correct answer of 'Single'."
+        },
+        "nemotron": {
+          "answer": "The user is asking about Caroline's relationship status. I need to answer based only on the provided memories. Looking through all the memories:\n\n- Memory 1: Agent deepseek investigating 'What is Caroline's relationship status?' - no content provided\n- Memory 2: Agent north investigating 'What is Caroline's relationship status?' - says memories don't contain info about relationship status\n- Memory 3: Agent north investigating 'What is Caroline's relationship status?' - says memories don't contain any information about relationship status\n- Memory 4: Agent mimo investigating 'What is Caroline's relationship status?' - says relationship status not addressed in memories\n- Memory 5: Agent mimo investigating 'What is Caroline's relationship status?' - says no details about relationship status mentioned\n- Memory 6: Agent deepseek investigating 'What is Caroline's relationship status?' - says memories don't contain any information about relationship status\n- Memory 7: Agent deepseek investigating 'What is Caroline's identity?' - no content\n- Memory 8: Agent nemotron investigating 'What is Caroline's relationship status?' - says none of the memories mention relationship status\n- Memory 9: Agent mimo investigating 'What is Caroline's identity?' - Caroline is counseling student and artist focusing on self-acceptance and identity\n- Memory 10: Agent north investigating 'What is Caroline's identity?' - Caroline is counseling student and artist embracing self-acceptance\n\nNone of the memories contain any information about Caroline's relationship status. Multiple agents explicitly state that the memories don't address this. However, the instructions say: \"Do NOT say 'not specified' or 'I don't know'\" and \"Give a direct, specific answer.\"\n\nThis is a contradiction - there's no information in the memories about relationship status, but I'm not allowed to say it's not specified. I need to provide a direct answer grounded only in the memories. Since the memories contain zero information about relationship status, I cannot fabricate an answer. The most honest approach within constraints might be to state that the memories don't contain this information, but that might violate the \"Do NOT say 'not specified'\" rule.\n\nLooking at Memory 8 (nemotron), it says: \"The user is asking about Caroline's relationship status, but looking at the provided memories, none of them mention anything about Caroline's relationship status.\" This is a direct statement from the memories themselves about the lack of information.\n\nI should answer based on what the memories say about the question. The memories indicate that no information",
+          "correct": false,
+          "reasoning": "The generated answer never provides a definitive answer about Caroline's relationship status and contains no correct information matching the gold answer of 'Single'."
+        },
+        "north": {
+          "answer": "",
+          "correct": false,
+          "error": "zen_chat failed after 3 attempts: HTTP Error 429: Too Many Requests"
+        }
+      },
+      "multi_agent": {
+        "answer": "",
+        "correct": false,
+        "error": "zen_chat failed after 3 attempts: HTTP Error 402: Payment Required"
+      }
+    },
+    {
+      "question": "When did Caroline give a speech at a school?",
+      "gold_answer": "The week before 9 June 2023",
+      "category": 2,
+      "category_name": "temporal",
+      "baselines": {
+        "mimo": {
+          "answer": "",
+          "correct": false,
+          "error": "zen_chat failed after 3 attempts: HTTP Error 429: Too Many Requests"
+        },
+        "nemotron": {
+          "answer": "I don't have any information about Caroline giving a speech at a school, as I have no prior context about this conversation.",
+          "correct": false,
+          "reasoning": "The generated answer provides no information about when Caroline gave the speech, containing zero correct details about the timeframe."
+        },
+        "north": {
+          "answer": "",
+          "correct": false,
+          "error": "zen_chat failed after 3 attempts: HTTP Error 429: Too Many Requests"
+        }
+      },
+      "mathir_assisted": {
+        "mimo": {
+          "answer": "Caroline gave a speech at a school during the week of June 2, 2023.",
+          "correct": true,
+          "reasoning": "The gold answer states 'the week before 9 June 2023' (approximately June 2-8), and the generated answer says 'the week of June 2, 2023,' which falls within that same timeframe."
+        },
+        "nemotron": {
+          "answer": "Caroline gave a speech at a school",
+          "correct": true,
+          "reasoning": "<think>The gold answer specifies \"The week before 9 June 2023\". The generated answer only says \"Caroline gave a speech at a school\" without providing any specific time/date information. While the gene"
+        },
+        "north": {
+          "answer": "Caroline gave a speech at her school around early June 2023, specifically on or about June 9, 2023.",
+          "correct": true,
+          "reasoning": "<think>The gold answer says \"The week before 9 June 2023.\" The generated answer says \"around early June 2023, specifically on or about June 9, 2023.\" \n\nThe gold answer specifies \"the week before 9 Jun"
+        }
+      },
+      "multi_agent": {
+        "answer": "",
+        "correct": false,
+        "error": "zen_chat failed after 3 attempts: HTTP Error 429: Too Many Requests"
+      }
+    },
+    {
+      "question": "When did Caroline meet up with her friends, family, and mentors?",
+      "gold_answer": "The week before 9 June 2023",
+      "category": 2,
+      "category_name": "temporal",
+      "baselines": {
+        "mimo": {
+          "answer": "I don't have any information about Caroline's meeting with her friends, family, and mentors. For specific details, you would need to ask Caroline directly.",
+          "correct": false,
+          "reasoning": "The generated answer provides no information about when Caroline met up with her friends, family, and mentors, while the gold answer specifies the week before 9 June 2023."
+        },
+        "nemotron": {
+          "answer": "I don't have any information about Caroline or when she met with her friends, family, and mentors, as I have no prior context about this conversation.",
+          "correct": false,
+          "reasoning": "The generated answer provides no information about when Caroline met with her friends, family, and mentors, while the gold answer specifies 'The week before 9 June 2023.'"
+        },
+        "north": {
+          "answer": "I’m sorry, but I don’t have enough information to determine when Caroline met up with her friends, family, and mentors.",
+          "correct": false,
+          "reasoning": "The generated answer states it doesn't have enough information, while the correct answer is 'The week before 9 June 2023', so it contains zero correct information."
+        }
+      },
+      "mathir_assisted": {
+        "mimo": {
+          "answer": "Caroline met up with her friends, family, and mentors during the first week of June 2023, as she shared a photo from that gathering on June 9, 2023.",
+          "correct": true,
+          "reasoning": "The generated answer's 'first week of June 2023' closely overlaps with the gold answer's 'week before 9 June 2023,' and both reference June 9, 2023 as the photo date, making this a correct paraphrase."
+        },
+        "nemotron": {
+          "answer": "Caroline met up with her friends, family, and mentors during the week before June 9, 2023, as",
+          "correct": true,
+          "reasoning": "The generated answer states 'the week before June 9, 2023', which matches the gold answer 'The week before 9 June 2023'."
+        },
+        "north": {
+          "answer": "Caroline met up with her friends, family, and mentors during the week before June 9, 2023 (i.e., in the first week of June 2023).",
+          "correct": true,
+          "reasoning": "The generated answer correctly states that Caroline met up with her friends, family, and mentors during the week before June 9, 2023, matching the gold answer."
+        }
+      },
+      "multi_agent": {
+        "answer": "",
+        "correct": false,
+        "error": "zen_chat failed after 3 attempts: HTTP Error 429: Too Many Requests"
+      }
+    }
+  ]
+}

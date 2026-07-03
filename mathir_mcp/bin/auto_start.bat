@@ -19,11 +19,11 @@ setlocal
 
 REM ---- Configuration ---------------------------------------------------------
 REM Resolved from %USERPROFILE% so the script is portable across usernames
-REM and matches the actual ~/.config/opencode/bin install location.
-set "BIN_DIR=%USERPROFILE%\.config\opencode\bin"
+REM and matches the actual ~/.config/MATHIR install location.
+set "BIN_DIR=%USERPROFILE%\.config\MATHIR\mathir_mcp\mathir_lib"
 set "PYTHON_PATH=%USERPROFILE%\AppData\Local\Programs\Python\Python311\python.exe"
-set "DAEMON_PATH=%BIN_DIR%\mathir_daemon.py"
-set "LOG_PATH=%BIN_DIR%\mathir_daemon.log"
+set "DAEMON_PATH=%BIN_DIR%\mathir_server.py"
+set "LOG_PATH=%USERPROFILE%\.config\MATHIR\logs\mathir_daemon.log"
 set "PORT=7338"
 
 REM ---- Sanity checks (cmd-only — no PowerShell -Command embedded) -----------

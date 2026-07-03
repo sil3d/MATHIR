@@ -5,65 +5,74 @@
 ```
 benchmarks/
 ├── README.md
-├── 01_cross_llm_benchmark/    ← Test if Claude and GPT share the same memories
-│   └── benchmark.py
-├── 02_memory_risks/           ← Detect data leaks and biases
-│   └── memory_risks.py
-├── 03_vector_search_benchmarks/ ← Test vector search speed
-│   ├── benchmark_beir.py
-│   ├── multi_dataset_efficient.py
-│   └── test_*.py
-├── 04_provider_benchmarks/    ← Test with Ollama, OpenRouter, etc.
-│   ├── ollama_one_by_one.py
-│   └── openrouter_*.py
-├── 05_test_data/              ← Test data (BEIR)
-│   ├── beir_data/
-│   └── controlled_emb_cache/
-├── 06_results/                ← Benchmark results
-│   ├── current/
-│   └── reports/
-├── 07_utilities/              ← Utility scripts
-│   └── __init__.py
-└── 99_deprecated/             ← Old scripts (outdated, ignore these)
+├── 01_cross_llm_benchmark/    <- Cross-LLM memory sharing
+├── 02_memory_risks/           <- Data leak and bias detection
+├── 03_vector_search_benchmarks/ <- Vector search quality + speed
+├── 04_provider_benchmarks/    <- Ollama, OpenRouter, etc.
+├── 05_test_data/              <- Test data (BEIR, fluid mechanics)
+├── 06_results/current/        <- All benchmark results (see README inside)
+├── 07_utilities/              <- Utility scripts
+├── 08_industry_validation/    <- LoCoMo, multi-agent, reranking benchmarks
+└── 99_deprecated/             <- Old scripts (ignore)
 ```
 
-## What is this?
+## Benchmark Suites (v8.6.0)
 
-MATHIR is a memory system for LLMs. These benchmarks test if it works.
+| Benchmark | Script | What it proves |
+|---|---|---|
+| **Multi-agent shared memory** | `08_industry_validation/multi_agent_bench.py` | Free models: 0% → 53% with MATHIR |
+| **LoCoMo (Groq)** | `08_industry_validation/run_locomo.py` | 51.2% on conversational QA |
+| **LoCoMo (Zen free)** | `08_industry_validation/zen_locomo.py` | 38.8% with free models |
+| **Cross-encoder reranking** | `08_industry_validation/rerank_benchmark.py` | +20pp hit@10 on NL queries |
+| **e5-small vs e5-large** | `08_industry_validation/e5_comparison.py` | e5-small + rerank > e5-large alone |
+| **INT8 quantization** | Built-in (mathir_vec.py auto-migration) | 4x compression, 0% recall loss |
+| **Cross-LLM** | `01_cross_llm_benchmark/benchmark.py` | Claude + GPT share memories |
+| **Risks** | `02_memory_risks/memory_risks.py` | No PII leaks between domains |
 
-## Why does it matter?
+## Key Results (2026-07-03)
 
-| Test | What does it test? | Why is it useful? |
-|------|-------------------|-------------------|
-| **Cross-LLM** | Can Claude and GPT understand the same memories? | Proves MATHIR works with any LLM |
-| **Risks** | Do personal data leak between domains? | Prevents sensitive data leaks |
-| **Speed** | Is search fast enough? | Important for real-time apps |
+```
+Benchmark                Score       vs. Baseline    Key Insight
+-------------------------------------------------------------------
+Multi-agent + MATHIR     53% avg     +53pp vs 0%     Memory makes dumb models smart
+Temporal retrieval       78%         +78pp vs 0%     MATHIR excels at time-based recall
+Cross-encoder rerank     52.9%       +7.8pp          Cheap model + rerank > expensive model
+INT8 quantization        10/10       0% loss         4x compression, zero degradation
+e5-small + rerank        52.9%       > e5-large 51%  47x cheaper, better results
+LoCoMo (Groq 70B)       51.2%       --              Competitive with published baselines
+```
 
-## How to use?
+Full detailed report: [06_results/current/README.md](06_results/current/README.md)
+
+## How to Run
 
 ```bash
 # 1. Start MATHIR daemon
-python /path/to/MATHIR/bin/mathir_server.py
+mathir-server &
 
-# 2. Run cross-LLM benchmark
-cd /path/to/MATHIR/benchmarks
-python 01_cross_llm_benchmark/benchmark.py --providers google nvidia minimax
+# 2. Set API keys
+cp .env.example .env
+# Edit .env with your keys (GROQ_API_KEY, MINIMAX_API_KEY, ZEN_API_KEY)
+
+# 3. Run multi-agent benchmark
+cd benchmarks/08_industry_validation
+python multi_agent_bench.py
+
+# 4. Run LoCoMo
+python run_locomo.py
 ```
 
-## Results
+## Models Used
 
-Results are saved in `06_results/current/`:
-- `beir/` → Vector search results
-- `memory_tiers/` → Memory tier results
-- `stress_tests/` → Stress test results
-- `gpu_vec_benchmark.json` → GPU benchmarks
+| Model | Provider | Role |
+|---|---|---|
+| mimo-v2.5-free | OpenCode Zen | Worker agent |
+| nemotron-3-ultra-free | OpenCode Zen | Worker agent |
+| north-mini-code-free | OpenCode Zen | Worker agent |
+| deepseek-v4-flash-free | OpenCode Zen | Worker/orchestrator |
+| MiniMax-M3 | MiniMax (`api.minimax.io/v1`) | Judge |
+| llama-3.3-70b-versatile | Groq | Answer + judge |
 
 ## Deprecated
 
-The `99_deprecated/` folder contains old scripts:
-- 384-dim scripts (old MiniLM model)
-- FAISS comparisons (we proved numpy is faster)
-- Demo scripts (not real benchmarks)
-- Old results (not comparable to current)
-
-**Do not use these files** — kept for history only.
+The `99_deprecated/` folder contains old scripts kept for history only.

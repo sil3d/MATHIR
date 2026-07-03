@@ -1,0 +1,281 @@
+{
+  "summary": {
+    "by_mode": {
+      "hybrid_search": {
+        "CORRECT": 2,
+        "INCORRECT": 2,
+        "UNCLEAR": 0,
+        "errors": 0,
+        "total_ms": 545.9999999729916,
+        "by_category": {
+          "1": {
+            "n": 1
+          },
+          "2": {
+            "n": 1,
+            "CORRECT": 1
+          },
+          "3": {
+            "n": 1
+          },
+          "4": {
+            "n": 1,
+            "CORRECT": 1
+          }
+        },
+        "n_questions": 4,
+        "accuracy": 0.5
+      },
+      "ppr_lte": {
+        "CORRECT": 2,
+        "INCORRECT": 2,
+        "UNCLEAR": 0,
+        "errors": 0,
+        "total_ms": 546.9999999622814,
+        "by_category": {
+          "1": {
+            "n": 1
+          },
+          "2": {
+            "n": 1,
+            "CORRECT": 1
+          },
+          "3": {
+            "n": 1
+          },
+          "4": {
+            "n": 1,
+            "CORRECT": 1
+          }
+        },
+        "n_questions": 4,
+        "accuracy": 0.5
+      }
+    }
+  },
+  "results": [
+    {
+      "conversation_idx": 0,
+      "question_id": "locomo_c0_cat1_1413820",
+      "category": 1,
+      "question_text": "What did Caroline research?",
+      "ground_truth_answer": "Adoption agencies",
+      "modes": [
+        {
+          "mode": "hybrid_search",
+          "qid": "locomo_c0_cat1_1413820",
+          "category": 1,
+          "n_results": 10,
+          "elapsed_ms": 218.0,
+          "verdict": false,
+          "judge_raw": "<think>The expected answer is \"Adoption agencies.\" The generated answer says Caroline was about to go do some research but doesn't mention adoption agencies. While there's a memory about Caroline mentioning adoption agencies later, the generated answer doesn't reference that. The answer doesn't match the expected answer semantically.</think>\n\nINCORRECT",
+          "generated_answer": "<think>\nThe user asks: \"What did Caroline research?\" There's a memory that at 1:56 pm on 8 May 2023, Caroline says \"Totally agree, Mel. Relaxing and expressing ourselves is key. Well, I'm off to go do some research.\" And again repeated four times.\n\nThere's no other memory indicating what she researched. There's no mention of a specific subject. There's also a later memory on 13 October 2023: Caroline says \"Yep! Do your research and find an adoption agency or lawyer...\" but that appears to be advice given, not what she herself researched. But the question is \"What did Caroline research?\" The only direct reference to research in the memory is that she said she was going to do some research, but it does not specify the topic.\n\nHowever, the instructions: \"Give a direct, specific answer. Do NOT say 'not specified' or 'the memories don't say' -- if any memory is relevant, give your best answer from the available evidence.\" There's a direct memory that she said she was going to go do some research, but no mention of what she researched. The question: \"What did Caroline research?\" Possibly the answer is \"She was about to go do some research, but the specific topic is not specified.\" But the instruction says do not say \"not specified.\" We must give a direct answer. There's no direct mention of what she researched. However, we have to use the most specific detail available. The most specific detail is that she said she was going to go do some research. There's no further detail. So perhaps we can answer: \"She said she was going to do some research, but the memories do not specify what she researched.\" But that would be violating the rule: \"Do NOT say 'not specified'.\" The rule says: \"If any memory is relevant, give your best answer from the available evidence.\" The memory says \"I'm off to go do some research.\" That is the only answer. The best answer from the evidence is that she was about to go do some research. We could phrase: \"Caroline was about to conduct some research, though the specific subject is not mentioned.\" But that again says \"not mentioned.\" But it's still a direct answer: She was about to go do some research. However, that seems trivial. Perhaps we can answer: \"She was going to go do research (the specific topic is not given).\" But the instruction says we cannot say \"the memories don't say.\" So we cannot mention the lack of specificity. The rule says: \"Give a direct, specific answer.\" So we need to say \"Caroline was about to go do research.\" That is direct and specific, albeit generic. The question: \"What did Caroline research?\" The memory: \"I'm off to go do some research.\" That could be considered that she researched something, but we don't know what. The direct answer: \"She was about to go do some research.\" Or \"She said she was going to do some research.\" That seems to answer the question. So answer: \"She said she was off to go do some research.\" That is the best we have. So answer: \"Caroline said she was going to go do some research.\" That is it.\n\nNow let's produce final answer.\n</think>\n\nCaroline said she was about to go do some research.",
+          "error": null,
+          "diagnostics": {},
+          "top_contents": [
+            "[1:56 pm on 8 May, 2023] Caroline: Totally agree, Mel. Relaxing and expressing ourselves is key. Well, I'm off to go do some research.",
+            "[1:56 pm on 8 May, 2023] Caroline: Totally agree, Mel. Relaxing and expressing ourselves is key. Well, I'm off to go do some research.",
+            "[1:56 pm on 8 May, 2023] Caroline: Totally agree, Mel. Relaxing and expressing ourselves is key. Well, I'm off to go do some research."
+          ]
+        },
+        {
+          "mode": "ppr_lte",
+          "qid": "locomo_c0_cat1_1413820",
+          "category": 1,
+          "n_results": 10,
+          "elapsed_ms": 78.0,
+          "verdict": false,
+          "judge_raw": "<think>\nThe question asks: \"What did Caroline research?\"\nThe expected answer is: \"Adoption agencies\"\nThe generated answer says she was going to do some research but doesn't mention adoption agencies.\n\nThe generated answer does NOT match the expected answer. The expected answer is \"Adoption agencies\" and the generated answer fails to provide this information.\n\nSo the answer is INCORRECT.\n</think>\nINCORRECT",
+          "generated_answer": "<think>\nThe user asks: \"What did Caroline research?\" We have memory entries: The only mention of \"research\" is in the first few lines: \"Caroline: Totally agree, Mel. Relaxing and expressing ourselves is key. Well, I'm off to go do some research.\" At 1:56 pm on 8 May, 2023. That's all. So Caroline says she will go do some research, but we do not know the subject of research. No other memory indicates the topic. The question asks: \"What did Caroline research?\" Based on these memories, the only mention is that she said \"I'm off to go do some research.\" So the answer: She said she would go do some research, but no specific subject is given. The instruction: \"Answer concisely in one or two sentences, grounded only in the memories above.\" We must not say \"not specified\" or \"the memories don't say.\" So we need to give a direct answer: She was going to do some research, but the memories do not specify the subject. However the rule says: Do not say \"not specified\" or \"the memories don't say\". We need to give best answer. Possibly we can say: She said she was going to do some research, but the memories do not reveal the topic. This is a direct answer: She was going to do some research. The question: \"What did Caroline research?\" Could be answered: She said she was going to do some research, but the memories do not state what she researched. This still uses the memory content. It does not say \"the memories don't say\". But we are stating the content: She said she was going to do research. It does not answer what the research was. However, we can respond that \"She said she was going to do some research, but the memories do not specify the subject.\" This uses \"not specify\" which might be considered \"not specified\". The rule says: \"Do not say 'not specified' or 'the memories don't say'\". So we need to avoid that phrasing. Perhaps we can phrase: \"The only mention is that she said she was going to do some research, with no further detail.\" That's a direct answer. The question: \"What did Caroline research?\" Could be answered: \"She said she was going to do some research, but the memories provide no further detail about the topic.\" That uses \"no further detail\". That's okay. We must avoid \"not specified\". The phrase \"no further detail\" is okay. So answer: \"She said she was going to do some research, but the memories provide no further detail about the subject.\" This satisfies one or two sentences.\n\nCheck each rule: Must read all memories, combine facts, prefer most specific detail. The only specific is the time and date. She said she was going to do research. No other memory about research. So answer: She said she was going to do some research, with no further info.\n\nWe should also avoid duplication of repeated entries. The answer should be concise.\n\nThus final answer: \"Caroline mentioned she was about to do some research, but the memories do not reveal what topic she researched.\"\n\nWe need to keep to one or two sentences. We'll answer: \"She said she was going to do some research, but the memories give no further detail about the subject.\"\n</think>\n\nShe said she was about to do some research, but the memories provide no further detail about what she researched.",
+          "error": null,
+          "diagnostics": {
+            "mode": "ppr_lte",
+            "alpha": 0.85,
+            "n_candidates": 10,
+            "n_iterations_used": 30,
+            "teleport_max": 0.1,
+            "teleport_min": 0.0579,
+            "edge_weight_avg": 0.1
+          },
+          "top_contents": [
+            "[1:56 pm on 8 May, 2023] Caroline: Totally agree, Mel. Relaxing and expressing ourselves is key. Well, I'm off to go do some research.",
+            "[1:56 pm on 8 May, 2023] Caroline: Totally agree, Mel. Relaxing and expressing ourselves is key. Well, I'm off to go do some research.",
+            "[1:56 pm on 8 May, 2023] Caroline: Totally agree, Mel. Relaxing and expressing ourselves is key. Well, I'm off to go do some research."
+          ]
+        }
+      ]
+    },
+    {
+      "conversation_idx": 0,
+      "question_id": "locomo_c0_cat2_62204585",
+      "category": 2,
+      "question_text": "When did Caroline go to the LGBTQ support group?",
+      "ground_truth_answer": "7 May 2023",
+      "modes": [
+        {
+          "mode": "hybrid_search",
+          "qid": "locomo_c0_cat2_62204585",
+          "category": 2,
+          "n_results": 10,
+          "elapsed_ms": 109.0,
+          "verdict": true,
+          "judge_raw": "<think>The expected answer is \"7 May 2023\" and the generated answer states \"May 7, 2023\" which is semantically equivalent.</think>\n\nCORRECT",
+          "generated_answer": "<think>\nThe user asks: \"When did Caroline go to the LGBTQ support group?\" The memories contain repeated entries. The relevant memory: \"1:56 pm on 8 May, 2023] Caroline: I went to a LGBTQ support group yesterday and it was so powerful.\" That indicates that Caroline went to the LGBTQ support group on the day before 8 May 2023, i.e., on 7 May 2023. However, the memory says \"yesterday\" relative to 8 May. The question: \"When did Caroline go to the LGBTQ support group?\" According to the memory, she went \"yesterday\" relative to 8 May 2023. So that would be 7 May 2023. The answer: She went on 7 May 2023. Or \"the day before May 8, 2023, i.e., May 7, 2023.\" Should answer concisely: \"She attended the group on May 7, 2023, the day before she mentioned it on May 8, 2023.\" That is a concise answer.\n</think>\n\nShe attended the LGBTQ support group on **May 7, 2023**—the day before she mentioned it in a message dated 8 May 2023.",
+          "error": null,
+          "diagnostics": {},
+          "top_contents": [
+            "[1:56 pm on 8 May, 2023] Caroline: I went to a LGBTQ support group yesterday and it was so powerful.",
+            "[1:56 pm on 8 May, 2023] Caroline: I went to a LGBTQ support group yesterday and it was so powerful.",
+            "[1:56 pm on 8 May, 2023] Caroline: I went to a LGBTQ support group yesterday and it was so powerful."
+          ]
+        },
+        {
+          "mode": "ppr_lte",
+          "qid": "locomo_c0_cat2_62204585",
+          "category": 2,
+          "n_results": 10,
+          "elapsed_ms": 172.0,
+          "verdict": true,
+          "judge_raw": "<think>The expected answer is \"7 May 2023\". The generated answer states \"May 7 2023\", which is semantically equivalent.</think>\n\nCORRECT",
+          "generated_answer": "<think>\nThe user asks: \"When did Caroline go to the LGBTQ support group?\" The memories include repeated entries: \"I went to a LGBTQ support group yesterday and it was so powerful.\" The timestamp is \"1:56 pm on 8 May, 2023\". So she went to the support group on that day, which is presumably 7 May 2023 (the day before the entry). But the question: \"When did Caroline go to the LGBTQ support group?\" The memories say she went to a LGBTQ support group yesterday (relative to the entry). The entry is on 8 May, 2023. So yesterday would be 7 May, 2023. But we should answer with the date she went, based on the entry date. The memory states \"I went to a LGBTQ support group yesterday\" with the timestamp \"1:56 pm on 8 May, 2023\". So the answer: She went on May 7, 2023. The question asks \"When did Caroline go...?\" Could also answer \"She went the day before she mentioned it, i.e., on 7 May 2023.\" The rule: answer concisely, one or two sentences, grounded only in the memories above. So we should answer: \"She attended the LGBTQ support group on May 7, 2023, the day before she mentioned it in a message on 8 May 2023.\" That is concise. Also we might include the date: \"May 7, 2023\". Should we mention that she said it was \"yesterday\"? Yes.\n\nThus answer: \"Caroline went to the LGBTQ support group on May 7 2023 (the day before she posted about it on May 8 2023).\"\n</think>\n\nCaroline attended the LGBTQ support group on May 7 2023 – the day before she posted about it on May 8 2023.",
+          "error": null,
+          "diagnostics": {
+            "mode": "ppr_lte",
+            "alpha": 0.85,
+            "n_candidates": 10,
+            "n_iterations_used": 30,
+            "teleport_max": 0.1,
+            "teleport_min": 0.0768,
+            "edge_weight_avg": 0.1
+          },
+          "top_contents": [
+            "[1:56 pm on 8 May, 2023] Caroline: I went to a LGBTQ support group yesterday and it was so powerful.",
+            "[1:56 pm on 8 May, 2023] Caroline: I went to a LGBTQ support group yesterday and it was so powerful.",
+            "[1:56 pm on 8 May, 2023] Caroline: I went to a LGBTQ support group yesterday and it was so powerful."
+          ]
+        }
+      ]
+    },
+    {
+      "conversation_idx": 0,
+      "question_id": "locomo_c0_cat3_59788287",
+      "category": 3,
+      "question_text": "What fields would Caroline be likely to pursue in her educaton?",
+      "ground_truth_answer": "Psychology, counseling certification",
+      "modes": [
+        {
+          "mode": "hybrid_search",
+          "qid": "locomo_c0_cat3_59788287",
+          "category": 3,
+          "n_results": 10,
+          "elapsed_ms": 109.0,
+          "verdict": false,
+          "judge_raw": "<think>The expected answer is \"Psychology, counseling certification\" - specific fields. The generated answer gives a vague, speculative answer about \"arts, humanities, or social sciences\" with no mention of psychology or counseling. This does not match the expected answer semantically. The generated answer is essentially a guess based on minimal memory evidence, while the expected answer is very specific.</think>\n\nINCORRECT",
+          "generated_answer": "<think>\nThe user asks: \"What fields would Caroline be likely to pursue in her education?\" According to the memories, we have:\n\n- \"Caroline: Gonna continue my edu and check out career options, which is pretty exciting!\"\n\n- \"Caroline: Totally agree, Mel. Relaxing and expressing ourselves is key. Well, I'm off to go do some research.\"\n\nThese two entries are the only ones referencing Caroline. There's no explicit mention of specific fields. We have no direct details about specific fields she might pursue.\n\nBut the rule says: \"Give a direct, specific answer. Do NOT say 'not specified' or 'the memories don't say' -- if any memory is relevant, give your best answer from the available evidence.\" So we must answer based on the memory.\n\nThe memory says: \"Gonna continue my edu and check out career options, which is pretty exciting!\" That implies she is exploring career options. Also \"Totally agree, Mel. Relaxing and expressing ourselves is key. Well, I'm off to go do some research.\"\n\nThus she may be interested in fields that align with relaxation and expression? Perhaps creative fields? Or perhaps she is exploring education in general.\n\nBut the question: \"What fields would Caroline be likely to pursue in her education?\" This is asking to infer likely fields from the memory.\n\nWe need to answer concisely, one or two sentences. Should we infer something like \"She seems interested in exploring fields that involve research, creativity, and self-expression, possibly in arts, humanities, or social sciences.\" But we must ground answer in the memory.\n\nWe have no direct mention of fields. However, we can derive: \"continuing education\" and \"checking out career options\" suggests broad exploration. \"Relaxing and expressing ourselves\" suggests perhaps creative arts or expressive fields. \"Research\" suggests perhaps academic or scientific fields.\n\nGiven we need to answer with direct specific answer, we cannot say \"unspecified.\" But we have to give best answer based on evidence. The evidence is limited. So we can answer: \"Based on her mention of continuing her education and exploring career options while valuing relaxation and self‑expression, she may be inclined toward fields that involve research and creative or expressive disciplines, such as arts, humanities, or social sciences.\"\n\nWe can be more specific? No, we can't be too specific. But the user wants answer based only on the memories. We should keep it concise.\n\nThus final answer: \"She appears to be interested in fields that combine research with creative or expressive outlets, possibly arts, humanities, or social‑science disciplines.\"\n\nLet's check compliance: It is grounded only in memories. It mentions \"research\" which is from memory (off to go do some research). \"Relaxing and expressing ourselves\" indicates creative fields. That seems plausible. It's one or two sentences. Good.\n\nNow output.\n</think>\n\nBased on her plan to keep studying and explore career options, along with her emphasis on relaxation and self‑expression, Caroline seems drawn to fields that involve both research and creative or expressive work—likely disciplines such as the arts, humanities, or social sciences.",
+          "error": null,
+          "diagnostics": {},
+          "top_contents": [
+            "[1:56 pm on 8 May, 2023] Caroline: Gonna continue my edu and check out career options, which is pretty exciting!",
+            "[6:55 pm on 20 October, 2023] Melanie: Thanks! They were scared but we reassured them and explained their brother would be OK. They're tough kids.",
+            "[1:56 pm on 8 May, 2023] Caroline: Gonna continue my edu and check out career options, which is pretty exciting!"
+          ]
+        },
+        {
+          "mode": "ppr_lte",
+          "qid": "locomo_c0_cat3_59788287",
+          "category": 3,
+          "n_results": 10,
+          "elapsed_ms": 141.0,
+          "verdict": false,
+          "judge_raw": "<think>The question asks: \"What fields would Caroline be likely to pursue in her education?\" The expected answer is \"Psychology, counseling certification.\" The generated answer says Caroline wants to continue education and explore career paths, but the memories don't reveal specific fields. \n\nThe generated answer does not mention psychology or counseling certification. It essentially says the information isn't available, which doesn't match the expected answer. So this is INCORRECT.</think>\n\nINCORRECT",
+          "generated_answer": "<think>\nThe user asks: \"What fields would Caroline be likely to pursue in her education?\" We have to answer based on the retrieved memories. The memories include statements:\n\n- \"Caroline: Gonna continue my edu and check out career options, which is pretty exciting!\"\n- \"Caroline: Totally agree, Mel. Relaxing and expressing ourselves is key. Well, I'm off to go do some research.\"\nNo specific fields are mentioned. The question asks about \"fields would Caroline be likely to pursue in her education?\" We have no direct mention of fields. We need to avoid saying \"not specified\" or \"the memories don't say\". However, the instruction: \"Give a direct, specific answer. Do NOT say \"not specified\" or \"the memories don't say\" -- if any memory is relevant, give your best answer from the available evidence.\" But there is no evidence. However, we cannot invent a name or field that doesn't appear. We have to provide a concise answer. Since there's no mention of specific fields, we need to infer from context. Caroline mentions continuing education and checking out career options, but no specifics. There's no mention of a particular field. But we are supposed to give a direct specific answer. That seems contradictory. We have to follow the instruction to not say \"not specified\". The instruction: \"Give a direct, specific answer. Do NOT say 'not specified' or 'the memories don't say' -- if any memory is relevant, give your best answer from the available evidence.\" So we must answer with what evidence suggests: \"She is interested in exploring various career options and wants to continue her education, but the memories do not specify a particular field.\" But that phrase \"not specify\" is disallowed. So we must answer something like \"Based on her interest in exploring career options and continuing her education, she may be considering fields that align with her desire to relax and express herself, but the memories do not specify which fields.\" However that includes \"do not specify\". That's disallowed. We need to phrase something that is not directly stating \"not specified\". The instruction prohibits \"not specified\" and \"the memories don't say\". So we must phrase something like \"The memories suggest she is exploring a range of career options, but no particular field is mentioned.\" That's similar to saying not specified, but it's not exactly the phrase \"not specified\". The instruction forbids that phrase, but not the concept. But we must be careful to not use \"not specified\". We can say \"no specific field is mentioned\". That is okay. It is a direct answer: we can answer that the memories do not reveal any specific field. But we need to be concise, one or two sentences.\n\nThus answer: \"Caroline's messages indicate she is interested in continuing her education and exploring various career possibilities, but the memories do not reveal which specific fields she is considering.\" That's two sentences. That's acceptable. It respects the rules: no invented fields, no \"not specified\". The phrase \"do not reveal\" is okay. We'll produce that.\n</think>\n\nCaroline’s comments show she wants to continue her education and explore different career paths, but the memories do not reveal which specific fields she is considering.",
+          "error": null,
+          "diagnostics": {
+            "mode": "ppr_lte",
+            "alpha": 0.85,
+            "n_candidates": 10,
+            "n_iterations_used": 30,
+            "teleport_max": 0.1,
+            "teleport_min": 0.0945,
+            "edge_weight_avg": 0.1
+          },
+          "top_contents": [
+            "[1:56 pm on 8 May, 2023] Caroline: Gonna continue my edu and check out career options, which is pretty exciting!",
+            "[6:55 pm on 20 October, 2023] Melanie: Thanks! They were scared but we reassured them and explained their brother would be OK. They're tough kids.",
+            "[1:56 pm on 8 May, 2023] Caroline: Gonna continue my edu and check out career options, which is pretty exciting!"
+          ]
+        }
+      ]
+    },
+    {
+      "conversation_idx": 0,
+      "question_id": "locomo_c0_cat4_57313416",
+      "category": 4,
+      "question_text": "What did the charity race raise awareness for?",
+      "ground_truth_answer": "mental health",
+      "modes": [
+        {
+          "mode": "hybrid_search",
+          "qid": "locomo_c0_cat4_57313416",
+          "category": 4,
+          "n_results": 10,
+          "elapsed_ms": 110.0,
+          "verdict": true,
+          "judge_raw": "<think>The expected answer is \"mental health\". The generated answer states the charity race raised awareness for \"mental health\". This is a direct match.</think>\n\nCORRECT",
+          "generated_answer": "<think>\nThe user asks: \"What did the charity race raise awareness for?\" We need to answer concisely, based on the memories.\n\nThe memories include Melanie saying she ran a charity race for mental health last Saturday. And Caroline replies praising raising awareness for mental health.\n\nThus answer: It raised awareness for mental health. Provide in one or two sentences.\n\nCheck for any other context: only one race. So answer: The charity race raised awareness for mental health.\n\nThus we answer.\n</think>\n\nThe charity race Melanie ran was organized to raise awareness for **mental health**.",
+          "error": null,
+          "diagnostics": {},
+          "top_contents": [
+            "[1:14 pm on 25 May, 2023] Caroline: That charity race sounds great, Mel! Making a difference & raising awareness for mental health is super rewarding - I'm real",
+            "[1:14 pm on 25 May, 2023] Caroline: That charity race sounds great, Mel! Making a difference & raising awareness for mental health is super rewarding - I'm real",
+            "[1:14 pm on 25 May, 2023] Caroline: That charity race sounds great, Mel! Making a difference & raising awareness for mental health is super rewarding - I'm real"
+          ]
+        },
+        {
+          "mode": "ppr_lte",
+          "qid": "locomo_c0_cat4_57313416",
+          "category": 4,
+          "n_results": 10,
+          "elapsed_ms": 156.0,
+          "verdict": true,
+          "judge_raw": "<think>The expected answer is \"mental health\" and the generated answer clearly states \"mental health\". This is a direct match.</think>\n\nCORRECT",
+          "generated_answer": "<think>\nThe user wants to know what the charity race raised awareness for. Looking at the memories:\n\n1. Caroline says \"That charity race sounds great, Mel! Making a difference & raising awareness for mental health is super rewarding\"\n2. Melanie says \"I ran a charity race for mental health last Saturday\"\n\nBoth clearly state the charity race was for mental health. I should answer concisely.\n</think>\n\nThe charity race Melanie ran raised awareness for **mental health**.",
+          "error": null,
+          "diagnostics": {
+            "mode": "ppr_lte",
+            "alpha": 0.85,
+            "n_candidates": 10,
+            "n_iterations_used": 30,
+            "teleport_max": 0.1,
+            "teleport_min": 0.0523,
+            "edge_weight_avg": 0.1
+          },
+          "top_contents": [
+            "[1:14 pm on 25 May, 2023] Caroline: That charity race sounds great, Mel! Making a difference & raising awareness for mental health is super rewarding - I'm real",
+            "[1:14 pm on 25 May, 2023] Caroline: That charity race sounds great, Mel! Making a difference & raising awareness for mental health is super rewarding - I'm real",
+            "[1:14 pm on 25 May, 2023] Caroline: That charity race sounds great, Mel! Making a difference & raising awareness for mental health is super rewarding - I'm real"
+          ]
+        }
+      ]
+    }
+  ],
+  "config": {
+    "modes": [
+      "hybrid_search",
+      "ppr_lte"
+    ],
+    "k": 10,
+    "n_conversations": 1,
+    "questions_per_cat": 1,
+    "scored_categories": [
+      1,
+      2,
+      3,
+      4
+    ],
+    "run_label": "locomo-smoke-1conv-4q",
+    "mathir_lib_version": "mathir_mcp==8.4.0",
+    "started_at_utc": "2026-07-02T07:20:44Z",
+    "finished_at_utc": "2026-07-02T07:20:44Z"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "formula": {
+    "n": 31,
+    "baseline_hit10": 0.4194,
+    "reranked_hit10": 0.4194,
+    "baseline_ndcg10": 0.2595,
+    "reranked_ndcg10": 0.2529,
+    "delta_hit_pp": 0.0,
+    "delta_ndcg": -0.0065
+  },
+  "other": {
+    "n": 20,
+    "baseline_hit10": 0.5,
+    "reranked_hit10": 0.7,
+    "baseline_ndcg10": 0.4262,
+    "reranked_ndcg10": 0.5457,
+    "delta_hit_pp": 20.0,
+    "delta_ndcg": 0.1195
+  },
+  "all": {
+    "n": 51,
+    "baseline_hit10": 0.451,
+    "reranked_hit10": 0.5294,
+    "baseline_ndcg10": 0.3248,
+    "reranked_ndcg10": 0.3677,
+    "delta_hit_pp": 7.84,
+    "delta_ndcg": 0.0429
+  },
+  "rerank_latency_ms": 102.7,
+  "model": "cross-encoder/ms-marco-MiniLM-L-6-v2",
+  "retrieval_depth": 30,
+  "final_k": 10
+}

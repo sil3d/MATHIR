@@ -31,7 +31,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # ---- Configuration ---------------------------------------------------------
-$BinDir          = Join-Path $env:USERPROFILE '.config\opencode\bin'
+$BinDir          = Join-Path $env:USERPROFILE '.config\MATHIR\mathir_mcp\bin'
 $VbsSource       = Join-Path $BinDir 'auto_start_vbs.vbs'
 $StartupFolder   = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup'
 $VbsDest         = Join-Path $StartupFolder 'mathir_daemon.vbs'

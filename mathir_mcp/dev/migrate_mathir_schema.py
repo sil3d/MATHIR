@@ -24,11 +24,12 @@ from datetime import datetime
 # --- Configuration ---
 TARGET_VEC_DIM = 384
 
+_HOME = os.path.expanduser("~")
 DB_PATHS = [
-    ("Mycerise V2",    r"C:\Users\So-i-learn-3D\Desktop\SECRET_CODE\Mycerise_V2_Taur\.mathir\mathir.db"),
-    ("OpenCode Home",  r"C:\Users\So-i-learn-3D\.config\opencode\data\mathir.db"),
-    ("OpenCode Project", r"C:\Users\So-i-learn-3D\.config\opencode\data\projects\mathir_08ee1e64\mathir.db"),
-    ("OpenCode Config", r"C:\Users\So-i-learn-3D\.config\opencode\.mathir\mathir.db"),
+    # Add your project DB paths here, e.g.:
+    # ("My Project", os.path.join(_HOME, "projects", "my_project", ".mathir", "mathir.db")),
+    ("MATHIR Data",    os.path.join(_HOME, ".config", "mathir", "data", "projects", "MATHIR", "mathir.db")),
+    ("OpenCode Data",  os.path.join(_HOME, ".config", "opencode", "data", "mathir.db")),
 ]
 
 

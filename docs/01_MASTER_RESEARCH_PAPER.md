@@ -1,11 +1,11 @@
-# MATHIR V8.4.1: A Hierarchical Memory Layer for Long-Horizon Agents with Adaptive Retrieval — Closing the Johnson-Lindenstrauss Bottleneck
+# MATHIR V8.6.0: A Hierarchical Memory Layer for Long-Horizon Agents with Adaptive Retrieval — Closing the Johnson-Lindenstrauss Bottleneck
 
 ## A Doctoral-Level Master's Research Paper
 
 **Author:** Prince Gildas Mbama Kombila
 **Affiliation:** MATHIR Project, Independent Research
-**Date:** June 2, 2026
-**Project Version:** MATHIR V8.4.1 (HybridSearch + daemon + brain architecture)
+**Date:** June 2, 2026 (updated July 3, 2026)
+**Project Version:** MATHIR V8.6.0 (INT8 quantization + cross-encoder reranking + multi-agent benchmark)
 **Domain:** Machine Learning, Memory-Augmented Neural Networks, Information Retrieval, Stochastic Approximation
 
 ---
@@ -341,6 +341,7 @@ MATHIR evolved through eight major versions (V1–V8.4.1), each addressing a spe
 | V8.2 | Daemon + per-project DBs | Daemon push API + per-project databases | ✓ |
 | V8.3 | Thread safety | HybridSearch thread safety + bug fixes | ✓ |
 | v8.5.0 | Living memory | Living memory — Ebbinghaus lifecycle, 5 tiers, link graph, 20 MCP tools (later bumped to 23 in v8.5.1) | ✓ (this paper) |
+| v8.6.0 | INT8 + reranking | INT8 scalar quantization (4x compression, 0% loss), cross-encoder reranking (+20pp), multi-agent benchmark (0% → 53%), 22 algorithms, 98 tests | ✓ (this paper) |
 | V8.4.1 | Dynamic injection | Dynamic injection + sync tools | ✓ (this paper) |
 
 ![MATHIR Architecture](assets/Mathir_architecture.png)

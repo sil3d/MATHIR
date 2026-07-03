@@ -195,4 +195,7 @@ def test_search_include_embeddings_returns_raw_vectors(tmp_path):
     assert res_emb and "embedding" in res_emb[0]
     emb = res_emb[0]["embedding"]
     assert isinstance(emb, list) and len(emb) == 384
-    assert np.allclose(np.array(emb, dtype=np.float32), stored, atol=1e-5)
+    # int8 quantization loses precision; check cosine similarity instead
+    retrieved = np.array(emb, dtype=np.float32)
+    cos_sim = np.dot(retrieved, stored) / (np.linalg.norm(retrieved) * np.linalg.norm(stored))
+    assert cos_sim > 0.99, f"cosine similarity {cos_sim:.4f} too low after int8 quantization"

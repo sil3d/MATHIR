@@ -1,4 +1,4 @@
-# Daemon Architecture (v8.5.0)
+# Daemon Architecture (v8.6.0)
 
 ## What the Daemon Does
 

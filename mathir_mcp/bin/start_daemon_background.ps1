@@ -29,14 +29,14 @@ param(
     [int]$WaitTimeout = 60,
 
     [string]$PythonPath = "$env:USERPROFILE\AppData\Local\Programs\Python\Python311\python.exe",
-    [string]$BinDir     = "$env:USERPROFILE\.config\opencode\bin",
-    [string]$DaemonPath = "$env:USERPROFILE\.config\opencode\bin\mathir_daemon.py",
-    [string]$StatsPath  = "$env:USERPROFILE\.config\opencode\bin\mathir_stats_server.py",
+    [string]$BinDir     = "$env:USERPROFILE\.config\MATHIR\mathir_mcp\bin",
+    [string]$DaemonPath = "$env:USERPROFILE\.config\MATHIR\mathir_mcp\mathir_lib\mathir_server.py",
+    [string]$StatsPath  = "$env:USERPROFILE\.config\MATHIR\mathir_mcp\mathir_lib\mathir_stats_server.py",
     [int]$DaemonPort    = 7338,
     [int]$StatsPort     = 7420,
-    [string]$LogPath    = "$env:USERPROFILE\.config\opencode\bin\mathir_daemon.log",
-    [string]$StatsLogPath = "$env:USERPROFILE\.config\opencode\bin\mathir_stats_server.log",
-    [string]$PidFile    = "$env:USERPROFILE\.config\opencode\bin\mathir_daemon.pid"
+    [string]$LogPath    = "$env:USERPROFILE\.config\MATHIR\logs\mathir_daemon.log",
+    [string]$StatsLogPath = "$env:USERPROFILE\.config\MATHIR\logs\mathir_stats_server.log",
+    [string]$PidFile    = "$env:USERPROFILE\.config\MATHIR\logs\mathir_daemon.pid"
 )
 
 $ErrorActionPreference = 'Stop'

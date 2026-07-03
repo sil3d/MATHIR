@@ -1,4 +1,4 @@
-# MATHIR MEMORY — v8.5.0 INJECTION BLOCK
+# MATHIR MEMORY — v8.6.0 INJECTION BLOCK
 # Injected at the top of every agent's system_prompt.
 # Use MCP tools directly — no proxy, no bash.
 
@@ -51,10 +51,10 @@ If `False` → start it:
 
 ```powershell
 # Windows: use the auto_start helper (recommended — starts daemon + stats server)
-& "C:\Users\So-i-learn-3D\.config\opencode\bin\auto_start_helpers.ps1"
+& "$env:USERPROFILE\.config\MATHIR\mathir_mcp\bin\auto_start_helpers.ps1"
 
 # Or direct launch (slower, no venv/port checks)
-Start-Process python -ArgumentList "C:\Users\So-i-learn-3D\.config\opencode\bin\mathir_server.py" -WorkingDirectory "C:\Users\So-i-learn-3D" -WindowStyle Hidden
+Start-Process python -ArgumentList "$env:USERPROFILE\.config\MATHIR\mathir_mcp\mathir_lib\mathir_server.py" -WorkingDirectory "$env:USERPROFILE" -WindowStyle Hidden
 
 # Wait 3 seconds, then verify
 Start-Sleep -Seconds 3
@@ -68,7 +68,7 @@ Get-CimInstance Win32_Process -Filter "Name='python.exe'" | Where-Object { $_.Co
 ```
 
 **Expected:** exactly 1 process.
-**If 0:** Start the MCP server: `Start-Process -FilePath python -ArgumentList "C:\Users\So-i-learn-3D\.config\opencode\bin\mathir_mcp_server.py" -WorkingDirectory "C:\Users\So-i-learn-3D" -WindowStyle Hidden`. Wait 15s for embedder pre-warm.
+**If 0:** Start the MCP server: `Start-Process -FilePath python -ArgumentList "$env:USERPROFILE\.config\MATHIR\mathir_mcp\mathir_lib\mathir_mcp_server.py" -WorkingDirectory "$env:USERPROFILE" -WindowStyle Hidden`. Wait 15s for embedder pre-warm.
 **If 2 or more:** DUPLICATES — kill all but the oldest:
 ```powershell
 Get-CimInstance Win32_Process -Filter "Name='python.exe'" | Where-Object { $_.CommandLine -like "*mathir_mcp_server*" } | Sort-Object -Property ProcessId -Descending | Select-Object -Skip 1 | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
@@ -80,14 +80,14 @@ If `memory_recall` works → great, proceed.
 If it fails → fall back to CLI (skip Python imports, they often fail):
 
 ```powershell
-cd "C:\Users\So-i-learn-3D\.config\opencode\bin"
+cd "$env:USERPROFILE\.config\MATHIR\mathir_mcp\mathir_lib"
 python mathir_client.py recall "your query" -k 5
 ```
 
 **STEP 4 — Last resort: socket directly (no Python startup).**
 
 ```powershell
-. "C:\Users\So-i-learn-3D\.config\opencode\bin\mathir_daemon.ps1"
+. "$env:USERPROFILE\.config\MATHIR\mathir_mcp\bin\mathir_daemon.ps1"
 Search-Mathir "your query" -K 5
 ```
 
@@ -97,10 +97,10 @@ Search-Mathir "your query" -K 5
 |---|---|---|
 | `memory_recall` times out | MCP server not running, or 2+ running | Check process count, kill duplicates |
 | `No module named 'mathir_lib'` | Don't import directly — use MCP or CLI | Use `python mathir_client.py` |
-| `Internal error in memory_stats` | Daemon CWD read-only (e.g. Python install dir) | Restart with `-WorkingDirectory "C:\Users\So-i-learn-3D"` |
+| `Internal error in memory_stats` | Daemon CWD read-only (e.g. Python install dir) | Restart with `-WorkingDirectory "$env:USERPROFILE"` |
 | `Port 7338 already in use` | Multiple daemons | Kill all, restart one |
 | Port 8182 "down" | NOT a real port — it's legacy | Ignore. Use 7338. |
-| `mathir_client.py` Unicode error | Console cp1252 | Already fixed in v8.5.0 |
+| `mathir_client.py` Unicode error | Console cp1252 | Already fixed in v8.6.0 |
 | Recall returns 0 results | Wrong DB (CWD issue) | Same fix as Internal error |
 
 **RULE: Always prefer MCP tool. If MCP fails, check process count FIRST. Don't import Python modules directly.**
@@ -122,14 +122,14 @@ Just call the `memory_recall` tool with these parameters:
 
 **Method 2 — CLI (always works, even without MCP):**
 ```powershell
-cd "C:\Users\So-i-learn-3D\.config\opencode\bin"
+cd "$env:USERPROFILE\.config\MATHIR\mathir_mcp\mathir_lib"
 python mathir_client.py recall "your query here" -k 5
 ```
 
 **Method 3 — Python (fallback if both above fail):**
 ```python
 import sys
-sys.path.insert(0, r"C:\Users\So-i-learn-3D\.config\opencode\bin")
+sys.path.insert(0, os.path.expanduser("~/.config/MATHIR/mathir_mcp/mathir_lib"))
 from mathir_lib import MATHIR
 m = MATHIR(project="current")
 results = m.recall("your query here", k=5)
@@ -158,7 +158,7 @@ memory_recall --query "Mycerise" --k 5
 
 ---
 
-## 🚀 Cross-Platform Auto-Start (v8.5.0+)
+## 🚀 Cross-Platform Auto-Start (v8.6.0+)
 
 The MATHIR daemon needs to be started after every PC reboot. Three cross-platform helpers are available:
 
@@ -168,12 +168,12 @@ The MATHIR daemon needs to be started after every PC reboot. Three cross-platfor
 | **Linux** | `bin/auto_start.sh` or systemd: `bin/mathir-daemon.service` | Run `./auto_start.sh` or `systemctl --user enable mathir-daemon` |
 | **macOS** | `bin/auto_start.sh` or launchd: `bin/com.mathir.daemon.plist` | Run `./auto_start.sh` or `launchctl load -w ~/Library/LaunchAgents/com.mathir.daemon.plist` |
 
-**All files are in:** `D:\SECRET_PROJECT\MATHIR\mathir_mcp\bin\` (source repo) and `~/.config/opencode/bin/` (deployed).
+**All files are in:** `mathir_mcp/bin/` (source repo) and `~/.config/MATHIR/mathir_mcp/bin/` (deployed).
 
 **Full install guides:**
-- `D:\SECRET_PROJECT\MATHIR\mathir_mcp\INSTALL\INSTALL_WINDOWS.md`
-- `D:\SECRET_PROJECT\MATHIR\mathir_mcp\INSTALL\INSTALL_LINUX.md`
-- `D:\SECRET_PROJECT\MATHIR\mathir_mcp\INSTALL\INSTALL_MACOS.md`
+- `mathir_mcp/INSTALL_FOR_AGENT/INSTALL_WINDOWS.md`
+- `mathir_mcp/INSTALL_FOR_AGENT/INSTALL_LINUX.md`
+- `mathir_mcp/INSTALL_FOR_AGENT/INSTALL_MACOS.md`
 
 **If the user asks to install or set up auto-start:** point them to the right INSTALL_*.md file for their OS.
 
@@ -185,17 +185,17 @@ When you need to reference MATHIR files, use these paths:
 
 | What | Path |
 |---|---|
-| Daemon | `~/.config/opencode/bin/mathir_server.py` |
-| MCP server | `~/.config/opencode/bin/mathir_mcp_server.py` |
-| Auto-start (Win) | `~/.config/opencode/bin/auto_start.bat` |
-| Auto-start (PS) | `~/.config/opencode/bin/auto_start_helpers.ps1` |
-| Auto-start (Unix) | `~/.config/opencode/bin/auto_start.sh` |
+| Daemon | `~/.config/MATHIR/mathir_mcp/mathir_lib/mathir_server.py` |
+| MCP server | `~/.config/MATHIR/mathir_mcp/mathir_lib/mathir_mcp_server.py` |
+| Auto-start (Win) | `~/.config/MATHIR/mathir_mcp/bin/auto_start.bat` |
+| Auto-start (PS) | `~/.config/MATHIR/mathir_mcp/bin/auto_start_helpers.ps1` |
+| Auto-start (Unix) | `~/.config/MATHIR/mathir_mcp/bin/auto_start.sh` |
 | Service (Linux) | `bin/mathir-daemon.service` (in source repo) |
 | Plist (macOS) | `bin/com.mathir.daemon.plist` (in source repo) |
 | Install guides | `mathir_mcp/INSTALL/INSTALL_{WINDOWS,LINUX,MACOS}.md` |
 | Templates | `mathir_mcp/opencode/{agents,commands,skills,docs}/` |
-| Dashboard | `~/.config/opencode/bin/mathir_dashboard.html` |
-| Logs | `~/.config/opencode/bin/mathir_daemon.log` |
+| Dashboard | `~/.config/MATHIR/mathir_mcp/mathir_dashboard.html` |
+| Logs | `~/.config/MATHIR/logs/mathir_daemon.log` |
 
 ---
 
@@ -207,7 +207,7 @@ When you need to reference MATHIR files, use these paths:
 
 ---
 
-## MATHIR v8.5.0 — LIVING MEMORY (5 TIERS)
+## MATHIR v8.6.0 — LIVING MEMORY (5 TIERS)
 
 Your memory is **alive**. It has **5 tiers** and a full lifecycle (Ebbinghaus forgetting, promotion, consolidation, link graph). Use the right tool at the right time.
 
@@ -375,8 +375,8 @@ memory_build_links(threshold=0.7)  # build graph
 
 ```bash
 # OLD (do not use):
-python ~/.config/opencode/bin/mathir_client.py recall "topic" -k 5
-python ~/.config/opencode/bin/mathir_client.py save "..." -a ... -t ... -l ... -p ...
+python ~/.config/MATHIR/mathir_mcp/mathir_lib/mathir_client.py recall "topic" -k 5
+python ~/.config/MATHIR/mathir_mcp/mathir_lib/mathir_client.py save "..." -a ... -t ... -l ... -p ...
 ```
 ## MEMORY COMMANDS (use sparingly)
 

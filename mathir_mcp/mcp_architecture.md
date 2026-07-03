@@ -1,4 +1,4 @@
-# MATHIR Architecture (v8.5.0 — Thin Proxy)
+# MATHIR Architecture (v8.6.0 — INT8 + Cross-Encoder)
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -21,8 +21,8 @@
 │  │                    Forwards to daemon via HTTP               ││
 │  │                                                              ││
 │  │  ┌─────────────┐  ┌──────────────┐  ┌────────────────────┐  ││
-│  │  │ 20 tools    │  │ /api/context │  │ /api/stats         │  ││
-│  │  │ (19 memory  │  │ auto-inject  │  │ dashboard          │  ││
+│  │  │ 23 tools    │  │ /api/context │  │ /api/stats         │  ││
+│  │  │ (22 memory  │  │ auto-inject  │  │ dashboard          │  ││
 │  │  │  + health)  │  │              │  │                    │  ││
 │  │  └──────┬──────┘  └──────┬───────┘  └────────────────────┘  ││
 │  │         │                │                                   ││
@@ -38,11 +38,11 @@
 │                                                                  │
 │  ┌──────────────────┐  ┌──────────────────┐  ┌────────────────┐ │
 │  │ sentence-        │  │ mathir_vec.py    │  │ mathir.db      │ │
-│  │ transformers     │  │ sqlite-vec       │  │ (sqlite)       │ │
-│  │ 384d embeddings  │  │ cosine search    │  │                │ │
-│  │ (cached global)  │  │                  │  │ memories       │ │
-│  └──────────────────┘  └──────────────────┘  │ memory_links   │ │
-│                                              │ memory_audit   │ │
+│  │ transformers     │  │ sqlite-vec INT8  │  │ (sqlite)       │ │
+│  │ e5-small 384d    │  │ cosine search    │  │                │ │
+│  │ + cross-encoder  │  │ 4x compressed    │  │ memories       │ │
+│  │ (cached global)  │  │                  │  │ memory_links   │ │
+│  └──────────────────┘  └──────────────────┘  │ memory_audit   │ │
 │  Endpoints:                                  └────────────────┘ │
 │    POST /api/memory/save, /recall, /stats, /delete, ...        │
 │    GET  /api/context, /api/stats, /api/memories, /health       │
@@ -60,8 +60,20 @@ TIERS:
     recall≥3        recall≥10   priority≥8
     age≥1d          age≥7d      label:how-to:
 
+STORAGE:
+  Embeddings:        INT8 scalar quantization (384 bytes/vec, was 1536)
+  Migration:         Automatic FLOAT→INT8 on first access (transparent)
+  SQL:               vec_int8(X'...') function for sqlite-vec 0.1.9
+
+RETRIEVAL:
+  Vector:            cosine similarity via sqlite-vec INT8
+  BM25:              Okapi BM25 (rank_bm25)
+  Hybrid:            Vector + BM25 + RRF (k=60) fusion
+  Reranking:         cross-encoder/ms-marco-MiniLM-L-6-v2 (optional, +20pp)
+
 LIFECYCLE:
   Ebbinghaus decay:  -5% stability / 30 days no recall
   Consolidate:       cosine > 0.95 → merge duplicates
   Link graph:        cosine > 0.7 → weighted edges
+  Anomaly:           Mahalanobis distance (threshold=25.0, immunological tier)
 ```

@@ -933,14 +933,14 @@ def memory_hybrid_search():
         vector_results = []
         if _has_vec:
             from mathir_vec import _serialize_embedding
-            q_blob = _serialize_embedding(q_np)
-            sql = """
+            q_hex = _serialize_embedding(q_np)
+            sql = f"""
                 SELECT m.memory_id, v.distance
                 FROM vec_memories v
                 JOIN memories m ON v.memory_id = m.memory_id
-                WHERE v.embedding MATCH ? AND k = ?
+                WHERE v.embedding MATCH vec_int8(X'{q_hex}') AND k = ?
             """
-            params_list = [q_blob, k * 3]
+            params_list = [k * 3]
             if agent_filter:
                 sql += " AND m.agent = ?" if 'agent' in columns else " AND json_extract(m.metadata, '$.agent') = ?"
                 params_list.append(agent_filter)
@@ -1025,8 +1025,12 @@ def memory_hybrid_search():
         columns = {col[1] for col in dconn.execute("PRAGMA table_info(memories)").fetchall()}
         text_col = 'content' if 'content' in columns else 'modality_text'
         ts_col = 'created_at' if 'created_at' in columns else 'timestamp'
+
+        do_rerank = params.get('rerank', False)
+        fetch_limit = k * 3 if do_rerank else k
+
         results = []
-        for mid, rrf_score in fused[:k]:
+        for mid, rrf_score in fused[:fetch_limit]:
             meta = dconn.execute(f"SELECT {text_col}, tier, {ts_col} FROM memories WHERE memory_id = ?", [mid]).fetchone()
             if not meta:
                 continue
@@ -1036,11 +1040,26 @@ def memory_hybrid_search():
             results.append({
                 'memory_id': mid, 'rrf_score': rrf_score, 'content': meta[0] or '',
                 'agent': agent_val, 'score': rrf_score, 'created_at': meta[2] or '', 'tier': meta[1] or 'episodic',
+                'text': meta[0] or '',
             })
+
+        reranked = False
+        if do_rerank and results:
+            try:
+                from mathir_search import CrossEncoderReranker
+                reranker = CrossEncoderReranker()
+                results = reranker.rerank(query_text, results, top_k=k)
+                reranked = True
+            except Exception as e:
+                import logging
+                logging.getLogger("mathir").warning("Reranking failed, returning RRF results: %s", e)
+
         dconn.close()
         return jsonify({
-            'results': results, 'query': query_text, 'total': len(results),
-            'mode': 'hybrid', 'vector_hits': len(vector_results), 'bm25_hits': len(bm25_results),
+            'results': results[:k], 'query': query_text, 'total': len(results[:k]),
+            'mode': 'hybrid+rerank' if reranked else 'hybrid',
+            'vector_hits': len(vector_results), 'bm25_hits': len(bm25_results),
+            'reranked': reranked,
         })
     except Exception as e:
         return jsonify({'error': _sanitize_error(e, 'memory_hybrid_search')}), 500

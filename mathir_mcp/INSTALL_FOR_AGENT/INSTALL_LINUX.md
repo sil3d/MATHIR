@@ -198,13 +198,13 @@ The daemon is running; now teach OpenCode how to talk to it. Edit `~/.config/ope
     "type": "local",
     "command": [
       "python3",
-      "~/.config/opencode/bin/mathir_lib/mathir_mcp_server.py"
+      "~/.config/MATHIR/mathir_mcp/mathir_lib/mathir_mcp_server.py"
     ],
     "environment": {
       "MATHIR_EMBEDDING_DIM": "384",
       "MATHIR_PORT": "7338",
-      "MATHIR_CONFIG": "~/.config/opencode/config/mathir.json",
-      "PYTHONPATH": "~/.config/opencode/bin/mathir_lib"
+      "MATHIR_CONFIG": "~/.config/MATHIR/config/mathir.json",
+      "PYTHONPATH": "~/.config/MATHIR/mathir_mcp/mathir_lib"
     },
     "enabled": true
   }
@@ -257,7 +257,7 @@ systemctl --user is-active mathir-daemon
 | Embedding model download is slow / fails | No internet, or Hugging Face is blocked | Pre-download with `huggingface-cli download intfloat/multilingual-e5-small` |
 | Headless server: daemon dies on logout | No lingering | `loginctl enable-linger $USER` |
 | `nc` not installed | Minimal container | `printf ... | socat - TCP:127.0.0.1:7338` (socat works everywhere) or use `python3 -c "import socket; ..."` |
-| Want to nuke and reinstall | — | `systemctl --user disable --now mathir-daemon` → `rm -rf ~/.config/opencode/bin/mathir_lib` → re-do steps 2-5. |
+| Want to nuke and reinstall | — | `systemctl --user disable --now mathir-daemon` → `rm -rf ~/.config/MATHIR/mathir_mcp/mathir_lib` → re-do steps 2-5. |
 
 ---
 
@@ -268,7 +268,7 @@ systemctl --user is-active mathir-daemon
 # install_mathir_linux.sh — run as the target user, no sudo needed.
 set -euo pipefail
 REPO="${MATHIR_REPO:-/opt/mathir_mcp}"
-DEST="$HOME/.config/opencode/bin"
+DEST="$HOME/.config/MATHIR/mathir_mcp"
 
 # 1. Copy code
 mkdir -p "$DEST"

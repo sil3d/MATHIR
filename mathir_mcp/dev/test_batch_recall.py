@@ -6,8 +6,8 @@ Tests whether batching multiple recall queries into a single daemon call
 (or parallelizing them) provides meaningful latency improvements.
 
 Usage:
-    python ~/.config/opencode/bin/test_batch_recall.py
-    python ~/.config/opencode/bin/test_batch_recall.py --queries 5 --repeat 3
+    python ~/.config/MATHIR/mathir_mcp/dev/test_batch_recall.py
+    python ~/.config/MATHIR/mathir_mcp/dev/test_batch_recall.py --queries 5 --repeat 3
 """
 
 import sys
@@ -151,7 +151,7 @@ def benchmark_true_batch(queries: List[Dict[str, Any]]) -> Dict[str, Any]:
     except ImportError:
         return {'error': 'numpy not installed', 'total_ms': 0, 'timings': []}
 
-    sys.path.insert(0, os.path.expanduser('~/.config/opencode/bin'))
+    sys.path.insert(0, os.path.expanduser('~/.config/MATHIR/mathir_mcp/mathir_lib'))
     from mathir_mcp_server import get_embedder, get_project_db_path
     from mathir_vec import VecMemory
     from mathir_daemon import get_embedder_dim

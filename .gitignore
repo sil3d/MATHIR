@@ -72,6 +72,12 @@ mathir_mcp/logs/
 daemon_*.log
 daemon_*.txt
 
+# Claude Code local settings (contains machine-specific hook paths)
+.claude/
+
+# MiMoCode local state (plans, node_modules)
+.mimocode/
+
 # Editor
 .vscode/
 .idea/

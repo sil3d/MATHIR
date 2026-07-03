@@ -36,14 +36,29 @@ except ImportError:
     log.warning("sqlite-vec not installed — using brute-force fallback")
 
 
-def _serialize_embedding(vec: np.ndarray) -> bytes:
-    """Serialize float32 numpy array to bytes for sqlite-vec."""
-    return sqlite_vec.serialize_float32(vec.tolist())
+def _quantize_int8(vec: np.ndarray) -> np.ndarray:
+    """Scalar-quantize a float32 vector to int8 ([-128, 127])."""
+    vmax = np.abs(vec).max()
+    if vmax == 0:
+        return np.zeros(len(vec), dtype=np.int8)
+    scale = 127.0 / vmax
+    return np.clip(np.round(vec * scale), -128, 127).astype(np.int8)
+
+
+def _serialize_embedding(vec: np.ndarray) -> str:
+    """Quantize float32 → int8 and return hex string for vec_int8(X'...')."""
+    q = _quantize_int8(vec)
+    return q.tobytes().hex()
+
+
+def _serialize_embedding_sql(vec: np.ndarray) -> str:
+    """Return the SQL expression ``vec_int8(X'<hex>')`` for INSERT."""
+    return f"vec_int8(X'{_serialize_embedding(vec)}')"
 
 
 def _deserialize_embedding(blob: bytes) -> np.ndarray:
-    """Deserialize bytes back to float32 numpy array."""
-    return np.frombuffer(blob, dtype=np.float32).copy()
+    """Deserialize int8 blob back to float32 (unit-range approximation)."""
+    return np.frombuffer(blob, dtype=np.int8).astype(np.float32).copy() / 127.0
 
 
 def _decode_brute_blob(blob: bytes) -> np.ndarray:
@@ -240,28 +255,57 @@ class VecMemory:
 
             # Vec table for vector search (if sqlite-vec available)
             if HAS_VEC:
-                # Auto-detect dimension from existing vec_memories table
-                import re
+                # Auto-detect dimension and dtype from existing vec_memories table
+                import re as _re
+                _needs_int8_migration = False
                 try:
                     cursor = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='vec_memories'")
                     row = cursor.fetchone()
                     if row:
-                        m = re.search(r'FLOAT\[(\d+)\]', row[0])
-                        if m:
-                            existing_dim = int(m.group(1))
+                        m_int8 = _re.search(r'INT8\[(\d+)\]', row[0], _re.IGNORECASE)
+                        m_float = _re.search(r'FLOAT\[(\d+)\]', row[0])
+                        if m_int8:
+                            existing_dim = int(m_int8.group(1))
                             if existing_dim != self.embedding_dim:
                                 log.warning(f"Auto-detecting dimension: DB has {existing_dim}, requested {self.embedding_dim}. Using DB dimension.")
                                 self.embedding_dim = existing_dim
-                except (re.error, sqlite3.OperationalError):
+                        elif m_float:
+                            existing_dim = int(m_float.group(1))
+                            if existing_dim != self.embedding_dim:
+                                log.warning(f"Auto-detecting dimension: DB has {existing_dim}, requested {self.embedding_dim}. Using DB dimension.")
+                                self.embedding_dim = existing_dim
+                            _needs_int8_migration = True
+                except (_re.error, sqlite3.OperationalError):
                     pass
 
-                conn.execute(f"""
-                    CREATE VIRTUAL TABLE IF NOT EXISTS vec_memories USING vec0(
-                        memory_id TEXT PRIMARY KEY,
-                        embedding FLOAT[{self.embedding_dim}] distance_metric=cosine
-                    )
-                """)
-                log.info(f"vec0 table ready: dim={self.embedding_dim}")
+                if _needs_int8_migration:
+                    log.info("Migrating vec_memories FLOAT → INT8 (4x compression)…")
+                    old_rows = conn.execute("SELECT memory_id, embedding FROM vec_memories").fetchall()
+                    conn.execute("DROP TABLE vec_memories")
+                    conn.execute(f"""
+                        CREATE VIRTUAL TABLE vec_memories USING vec0(
+                            memory_id TEXT PRIMARY KEY,
+                            embedding INT8[{self.embedding_dim}] distance_metric=cosine
+                        )
+                    """)
+                    migrated = 0
+                    for r in old_rows:
+                        mid = r[0] if isinstance(r, (list, tuple)) else r["memory_id"]
+                        blob = r[1] if isinstance(r, (list, tuple)) else r["embedding"]
+                        fvec = np.frombuffer(blob, dtype=np.float32).copy()
+                        hex_str = _serialize_embedding(fvec)
+                        conn.execute(f"INSERT INTO vec_memories(memory_id, embedding) VALUES (?, vec_int8(X'{hex_str}'))", [mid])
+                        migrated += 1
+                    conn.commit()
+                    log.info(f"Migrated {migrated} embeddings to INT8")
+                else:
+                    conn.execute(f"""
+                        CREATE VIRTUAL TABLE IF NOT EXISTS vec_memories USING vec0(
+                            memory_id TEXT PRIMARY KEY,
+                            embedding INT8[{self.embedding_dim}] distance_metric=cosine
+                        )
+                    """)
+                log.info(f"vec0 table ready: dim={self.embedding_dim}, dtype=INT8")
             else:
                 # Brute-force fallback table
                 conn.execute("""
@@ -437,13 +481,13 @@ class VecMemory:
                     "vec"
                 ))
 
-            # Store vector
+            # Store vector (int8 quantized — 4x smaller than float32)
             if HAS_VEC:
-                # Delete existing if present (sqlite-vec doesn't support INSERT OR REPLACE)
                 conn.execute("DELETE FROM vec_memories WHERE memory_id = ?", [memory_id])
+                hex_str = _serialize_embedding(vec)
                 conn.execute(
-                    "INSERT INTO vec_memories(memory_id, embedding) VALUES (?, ?)",
-                    [memory_id, _serialize_embedding(vec)]
+                    f"INSERT INTO vec_memories(memory_id, embedding) VALUES (?, vec_int8(X'{hex_str}'))",
+                    [memory_id]
                 )
             else:
                 # Brute-force: store as BLOB with length header
@@ -629,15 +673,15 @@ class VecMemory:
                 where_sql = "AND " + where_sql
 
             if HAS_VEC:
-                # Use sqlite-vec for fast search
-                query_blob = _serialize_embedding(query_vec)
+                # Use sqlite-vec for fast search (int8 quantized query)
+                query_hex = _serialize_embedding(query_vec)
                 if new_schema:
                     sql = f"""
                         SELECT m.memory_id, m.content, m.agent, m.block_type, m.label,
                                m.priority, m.tier, m.project, m.created_at, v.distance
                         FROM vec_memories v
                         JOIN memories m ON v.memory_id = m.memory_id
-                        WHERE v.embedding MATCH ?
+                        WHERE v.embedding MATCH vec_int8(X'{query_hex}')
                           AND k = ?
                           {where_sql}
                     """
@@ -656,12 +700,12 @@ class VecMemory:
                                v.distance
                         FROM vec_memories v
                         JOIN memories m ON v.memory_id = m.memory_id
-                        WHERE v.embedding MATCH ?
+                        WHERE v.embedding MATCH vec_int8(X'{query_hex}')
                           AND k = ?
                           {where_sql}
                     """
                 # H2: over-fetch k*4 so post-filter still yields ~k results.
-                params = [query_blob, k * 4] + params
+                params = [k * 4] + params
             else:
                 # Brute-force fallback
                 rows = conn.execute("SELECT memory_id, embedding FROM embeddings_brute").fetchall()
@@ -2085,11 +2129,12 @@ class VecMemory:
                     ).fetchone()
                     if row is None:
                         continue
+                    emb_hex = row["embedding"].hex()
                     neighbors = conn.execute(
-                        "SELECT memory_id, distance FROM vec_memories "
-                        "WHERE embedding MATCH ? AND k = 8 "
-                        "AND memory_id != ?",
-                        [row["embedding"], mid],
+                        f"SELECT memory_id, distance FROM vec_memories "
+                        f"WHERE embedding MATCH vec_int8(X'{emb_hex}') AND k = 8 "
+                        f"AND memory_id != ?",
+                        [mid],
                     ).fetchall()
                     for nb in neighbors:
                         sim = 1.0 - float(nb["distance"])
@@ -2599,9 +2644,10 @@ class VecMemory:
                                 continue
                             if HAS_VEC:
                                 conn.execute("DELETE FROM vec_memories WHERE memory_id = ?", [mid])
+                                hex_str = _serialize_embedding(vec)
                                 conn.execute(
-                                    "INSERT INTO vec_memories(memory_id, embedding) VALUES (?, ?)",
-                                    [mid, _serialize_embedding(vec)]
+                                    f"INSERT INTO vec_memories(memory_id, embedding) VALUES (?, vec_int8(X'{hex_str}'))",
+                                    [mid]
                                 )
                             else:
                                 blob = struct.pack("<i", vec.size) + vec.tobytes()

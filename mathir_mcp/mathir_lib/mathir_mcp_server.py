@@ -600,17 +600,13 @@ def memory_hybrid_search(
     agent: str = None,
     vector_weight: float = 1.0,
     bm25_weight: float = 1.0,
+    rerank: bool = False,
     project: str = None,
 ) -> str:
-    """Hybrid search: vector + BM25 + RRF fusion.
+    """Hybrid search: vector + BM25 + RRF fusion + optional cross-encoder reranking.
 
-    Weights default to 1.0/1.0 (standard equal-weight RRF), matching the
-    HTTP route's default -- previously the MCP tool defaulted to 0.6/0.4
-    while the HTTP route defaulted to 1.0/1.0, so the SAME query returned
-    different rankings depending on whether it came through the MCP tool
-    or a direct HTTP call. Empirically validated 2026-07-01 that 1.0/1.0
-    is near-optimal for the current default embedder (see
-    mathir_mcp/docs/DIMENSIONS.md); re-validate if the embedder changes.
+    Set rerank=True to apply a cross-encoder second pass on the top candidates.
+    This is slower (~100ms) but significantly more accurate for ranking precision.
     """
     _err = _check_lengths(query=query, agent=agent)
     if _err:
@@ -622,6 +618,7 @@ def memory_hybrid_search(
         "agent": agent,
         "vector_weight": vector_weight,
         "bm25_weight": bm25_weight,
+        "rerank": rerank,
         "project": project,
     })
     return json.dumps(result) if isinstance(result, dict) else str(result)

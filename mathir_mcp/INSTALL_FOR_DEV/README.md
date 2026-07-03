@@ -88,10 +88,10 @@ Use manual if:
 ## What gets installed
 
 ```
-~/.config/opencode/bin/         ← daemon, MCP server, helpers
-~/.config/opencode/config/      ← mathir.json
-~/.config/opencode/data/        ← sqlite-vec DBs (one per project)
-~/.config/opencode/GLOBAL_INSTRUCTIONS.md
+~/.config/MATHIR/mathir_mcp/    ← daemon, MCP server, helpers
+~/.config/MATHIR/config/        ← mathir.json
+~/.config/MATHIR/data/          ← sqlite-vec DBs (one per project)
+~/.config/MATHIR/GLOBAL_INSTRUCTIONS.md
 ~/.config/opencode/opencode.json (modified — MCP added)
 ~/.config/opencode/agents/*.md  (modified — MATHIR block injected)
 ```

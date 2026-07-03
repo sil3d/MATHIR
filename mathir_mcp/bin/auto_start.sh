@@ -20,7 +20,7 @@ MAX_RETRIES=3
 WAIT_SECONDS=3
 PORT=7338
 
-# Resolve script directory (so we don't hardcode ~/.config/opencode/bin).
+# Resolve script directory (so we don't hardcode ~/.config/MATHIR/mathir_mcp).
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # python3 on PATH; if not present, try common locations.

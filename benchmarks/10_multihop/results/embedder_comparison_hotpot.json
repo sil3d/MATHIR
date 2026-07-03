@@ -1,0 +1,21 @@
+{
+  "n_questions": 200,
+  "results": {
+    "default_minilm": {
+      "both_gold@2": 0.15,
+      "both_gold@4": 0.365,
+      "both_gold@8": 0.735,
+      "mean_gold_recall@2": 0.5,
+      "mean_gold_recall@4": 0.645,
+      "mean_gold_recall@8": 0.865
+    },
+    "e5_small": {
+      "both_gold@2": 0.37,
+      "both_gold@4": 0.635,
+      "both_gold@8": 0.905,
+      "mean_gold_recall@2": 0.6675,
+      "mean_gold_recall@4": 0.815,
+      "mean_gold_recall@8": 0.95
+    }
+  }
+}

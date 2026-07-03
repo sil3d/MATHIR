@@ -17,15 +17,15 @@
 
 <br/>
 
-> **🆕 v8.5.1** — 23 MCP tools, project-aware DB, `memory_by_path`, `memory_recall_quality`, `memory_incoming_links`, auto-classify. [CHANGELOG](CHANGELOG.md) · [Release notes](#-latest-v851)
+> **🆕 v8.6.0** — INT8 quantization (4x compression, 0% loss), cross-encoder reranking, multi-agent benchmark (0% → 53%). [CHANGELOG](mathir_mcp/CHANGELOG.md) · [Release notes](#-latest-v860)
 
 <br/>
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://www.python.org)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org)
 [![MIT](https://img.shields.io/badge/License-MIT-22c55e)](LICENSE)
-[![v8.5.1](https://img.shields.io/badge/Version-8.5.1-6366f1)](CHANGELOG.md)
-[![189 tests](https://img.shields.io/badge/Tests-189%20passed-22c55e)](#-tests--benchmarks)
+[![v8.6.0](https://img.shields.io/badge/Version-8.6.0-6366f1)](mathir_mcp/CHANGELOG.md)
+[![98 tests](https://img.shields.io/badge/Tests-98%20passed-22c55e)](#-tests--benchmarks)
 
 </div>
 
@@ -49,15 +49,16 @@ Full install: [mathir_mcp/README.md](mathir_mcp/README.md) · Cross-platform ins
 
 ---
 
-## 🆕 Latest: v8.5.1 (2026-06-29)
+## 🆕 Latest: v8.6.0 (2026-07-03)
 
-23 MCP tools (was 20 in v8.5.0). 5 critical bugs fixed.
+23 MCP tools. 22 algorithms. INT8 quantization. Cross-encoder reranking. Multi-agent benchmark.
 
-**New tools:** `memory_by_path` · `memory_recall_quality` · `memory_incoming_links`
-**Bug fixes:** `get_project_db_path` CWD-first · `VecMemory._get_conn` mkdir parent · FastMCP `k: str | int` coercion · daemon port 7338
-**Auto-classify:** `block_type="auto"` routes by heuristic
+**INT8 quantization** — embedding storage reduced 4x (float32 → int8), zero recall loss. 410 DBs migrated: 1.9 GB → 825 MB.
+**Cross-encoder reranking** — `ms-marco-MiniLM-L-6-v2` second-pass scoring: +20pp hit@10 on natural-language queries.
+**Multi-agent benchmark** — free-tier models (mimo, nemotron, north) score 0% without memory → 53% average with MATHIR.
+**e5-small validated** — e5-small + rerank (52.9%) beats e5-large alone (51.0%) at 47x less cost.
 
-Full diff: [CHANGELOG.md](CHANGELOG.md)
+Full diff: [mathir_mcp/CHANGELOG.md](mathir_mcp/CHANGELOG.md) · Full report: [benchmarks/06_results/current/README.md](benchmarks/06_results/current/README.md)
 
 ---
 
@@ -278,7 +279,7 @@ Manual: see [INSTALL_FOR_AGENT/INSTALL_WINDOWS.md](mathir_mcp/INSTALL_FOR_AGENT/
 >
 > **Retrieval quality vs FAISS:** real BEIR benchmarks (SciFact/ArguAna/NFCorpus, see [benchmarks/06_results/current/](benchmarks/06_results/current/)) currently show plain FAISS dense retrieval *outperforming* MATHIR's hybrid BM25+dense+cross-encoder pipeline. Any "+14pp vs FAISS" figure you may see elsewhere comes from a 50-query/200-chunk internal evaluation on a single textbook and is not comparable to a standard IR benchmark — see [docs/SOTA_RESEARCH_2024_2026.md](docs/SOTA_RESEARCH_2024_2026.md) for the full self-audit.
 >
-> **No LongMemEval/LoCoMo numbers yet** — the standard agent-memory benchmarks Mem0/Zep/Letta are measured on. This is open work, not a hidden strength.
+> **LoCoMo results (2026-07-03):** MATHIR now has LoCoMo numbers — 51.2% on Groq (Llama 3.3 70B, 41/233 judged due to TPM limits), 38.8% on OpenCode Zen free models (67/152 judged). Temporal retrieval is strong (65-73%), multi-hop is weak (8-17%). Full results: [benchmarks/06_results/current/README.md](benchmarks/06_results/current/README.md).
 
 Full comparison: [docs/07_MATHIR_VS_VECTORDB_USE_CASES.md](docs/07_MATHIR_VS_VECTORDB_USE_CASES.md)
 
@@ -286,21 +287,24 @@ Full comparison: [docs/07_MATHIR_VS_VECTORDB_USE_CASES.md](docs/07_MATHIR_VS_VEC
 
 ## 📊 Tests & Benchmarks
 
-**189/189 tests pass** (50 in `mathir_mcp/`, 139 in `mathir_dropin/` — two separately-tested products). Run yourself:
+**98/98 tests pass** (`mathir_mcp/tests/`). Run yourself:
 
 ```bash
 pytest mathir_mcp/tests/ -v
-pytest mathir_dropin/tests/ -v
 ```
 
 | Benchmark | Result |
 |---|---|
+| **Multi-agent + MATHIR** | 0% → 53% avg (free models + shared memory) |
+| **INT8 quantization** | 410 DBs, 1.9 GB → 825 MB, 0% recall loss |
+| **Cross-encoder rerank** | +20pp hit@10 on NL queries (50% → 70%) |
+| **LoCoMo (Groq 70B)** | 51.2% overall, 73% temporal |
+| **e5-small + rerank** | 52.9% > e5-large 51.0% at 47x less cost |
 | Micro (500 memories) | 360 mem/s store, 425 ops/s recall, p50=2.29ms |
 | decay_all | 599/599 decayed (100% coverage) |
 | consolidate | 99 duplicates merged |
-| Working memory 2h stress | 7140 switches, 0 contamination, isolation 0.886 |
 
-Full results: [benchmarks/06_results/current/](benchmarks/06_results/current/)
+Full report: [benchmarks/06_results/current/README.md](benchmarks/06_results/current/README.md)
 
 ---
 
@@ -315,8 +319,8 @@ Full results: [benchmarks/06_results/current/](benchmarks/06_results/current/)
 ┌──────────────────────────────────┐
 │  MATHIR Daemon (port 7338)        │
 │  Flask+Waitress · FastMCP 3.4.2  │
-│  HybridSearch auto-scaling        │
-│  5 tiers · Ebbinghaus · link graph│
+│  HybridSearch + CrossEncoder rerank│
+│  5 tiers · INT8 · Ebbinghaus      │
 └──────────────┬───────────────────┘
                │
                ▼
@@ -332,7 +336,7 @@ Full architecture: [docs/BRAIN_ARCHITECTURE.md](docs/BRAIN_ARCHITECTURE.md)
 
 ```
 MATHIR/
-├── mathir_mcp/         ← Install this (v8.5.1, 23 MCP tools)
+├── mathir_mcp/         ← Install this (v8.6.0, 23 MCP tools, INT8)
 ├── benchmarks/         ← Reproducible benchmarks
 ├── docs/                ← Doctoral paper, QA, architecture
 ├── examples/            ← Usage examples
@@ -360,6 +364,7 @@ MATHIR/
 ✅ **V8.0** Cascade architecture
 ✅ **V8.5.0** FastMCP rewrite + auto-injection (20 tools)
 ✅ **V8.5.1** New tools (23 total) + project-aware DB
+✅ **V8.6.0** INT8 quantization + cross-encoder rerank + multi-agent benchmark
 
 ### 🔜 Next: 4 validation stages
 

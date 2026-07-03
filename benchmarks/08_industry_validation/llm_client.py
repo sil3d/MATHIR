@@ -45,6 +45,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import urllib.request
 import urllib.error
@@ -98,6 +99,7 @@ def _resolve_backend_config(model_override: str | None = None) -> tuple[str, str
         or os.environ.get("MINIMAX_API_KEY")
         or os.environ.get("GOOGLE_AI_STUDIO_KEY")
         or os.environ.get("NVIDIA_API_KEY")
+        or os.environ.get("GROQ_API_KEY")
         or ""
     )
 
@@ -169,6 +171,8 @@ def _resolve_backend_config(model_override: str | None = None) -> tuple[str, str
         api_key = os.environ.get("MINIMAX_API_KEY") or mathir_key or openai_key
     elif "openrouter.ai" in api_base:
         api_key = os.environ.get("OPENROUTER_API_KEY") or mathir_key or openai_key
+    elif "groq.com" in api_base:
+        api_key = os.environ.get("GROQ_API_KEY") or mathir_key or openai_key
     else:
         api_key = mathir_key or openai_key
 
@@ -196,7 +200,10 @@ def chat(messages: list, temperature: float = 0.0, max_tokens: int = 1024, model
     api_base, api_key, resolved_model = _resolve_backend_config(model_override=model)
     url = f"{api_base.rstrip('/')}/chat/completions"
 
-    headers = {"Content-Type": "application/json"}
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "MATHIR-Benchmark/1.0",
+    }
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
 
@@ -216,24 +223,38 @@ def chat(messages: list, temperature: float = 0.0, max_tokens: int = 1024, model
         }
     ).encode("utf-8")
 
-    req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+    import time as _time
 
-    try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            body = resp.read().decode("utf-8")
-    except urllib.error.HTTPError as e:
-        body = e.read().decode("utf-8", errors="replace")
-        raise RuntimeError(
-            f"LLM chat completion failed: HTTP {e.code} from {url} (model={resolved_model}): {body}"
-        ) from e
-    except urllib.error.URLError as e:
-        raise RuntimeError(
-            f"LLM chat completion failed: could not reach {url} ({e})"
-        ) from e
+    max_retries = 3
+    for attempt in range(max_retries):
+        req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                body = resp.read().decode("utf-8")
+            break
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", errors="replace")
+            if e.code in (429, 413) and attempt < max_retries - 1:
+                wait = 15 * (attempt + 1)
+                print(f"[{e.code} rate-limit, waiting {wait}s] ", end="", flush=True)
+                _time.sleep(wait)
+                continue
+            raise RuntimeError(
+                f"LLM chat completion failed: HTTP {e.code} from {url} (model={resolved_model}): {body}"
+            ) from e
+        except urllib.error.URLError as e:
+            raise RuntimeError(
+                f"LLM chat completion failed: could not reach {url} ({e})"
+            ) from e
 
     try:
         data = json.loads(body)
-        return data["choices"][0]["message"]["content"]
+        raw = data["choices"][0]["message"]["content"]
+        # Strip <thinking>...</thinking> tags that reasoning models emit.
+        # Handles both the full block form and any leftover content.
+        cleaned = re.sub(r"<think>[\s\S]*?</think>", "", raw).strip()
+        # If cleaning removed everything (no thinking tags found), return original
+        return cleaned if cleaned else raw
     except (json.JSONDecodeError, KeyError, IndexError) as e:
         raise RuntimeError(
             f"LLM chat completion returned an unparseable response from {url} "

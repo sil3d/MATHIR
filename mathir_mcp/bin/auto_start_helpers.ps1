@@ -37,11 +37,11 @@ param(
     [int]$WaitSeconds = 3,
 
     [string]$PythonPath = "$env:USERPROFILE\AppData\Local\Programs\Python\Python311\python.exe",
-    [string]$BinDir     = "$env:USERPROFILE\.config\opencode\bin",
-    [string]$DaemonPath = "$env:USERPROFILE\.config\opencode\bin\mathir_daemon.py",
-    [string]$StatsPath  = "$env:USERPROFILE\.config\opencode\bin\mathir_stats_server.py",
+    [string]$BinDir     = "$env:USERPROFILE\.config\MATHIR\mathir_mcp\bin",
+    [string]$DaemonPath = "$env:USERPROFILE\.config\MATHIR\mathir_mcp\mathir_lib\mathir_server.py",
+    [string]$StatsPath  = "$env:USERPROFILE\.config\MATHIR\mathir_mcp\mathir_lib\mathir_stats_server.py",
     [int]$StatsPort     = 7420,
-    [string]$LogPath    = "$env:USERPROFILE\.config\opencode\bin\mathir_daemon.log",
+    [string]$LogPath    = "$env:USERPROFILE\.config\MATHIR\logs\mathir_daemon.log",
 
     [switch]$CheckOnly,
     [switch]$Quiet

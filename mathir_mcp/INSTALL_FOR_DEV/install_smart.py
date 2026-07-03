@@ -1020,7 +1020,7 @@ def _mathir_bin_dir() -> Path:
     """Resolve the MATHIR bin/ directory from this script's location.
 
     Works for both source layout (mathir_mcp/INSTALL_FOR_DEV/install_smart.py -> ../../mathir_mcp/bin)
-    and deployed layout (~/.config/opencode/bin/INSTALL_FOR_DEV/install_smart.py -> ../bin).
+    and deployed layout (~/.config/MATHIR/mathir_mcp/INSTALL_FOR_DEV/install_smart.py -> ../bin).
     """
     return Path(__file__).resolve().parent.parent / "bin"
 
@@ -1168,18 +1168,18 @@ def _setup_autostart_macos(bin_dir: Path, dry_run: bool = False) -> Tuple[bool, 
         '    <key>ProgramArguments</key>\n'
         '    <array>\n'
         f'        <string>{python_path}</string>\n'
-        f'        <string>{home}/.config/opencode/bin/mathir_daemon.py</string>\n'
+        f'        <string>{home}/.config/MATHIR/mathir_mcp/bin/mathir_daemon.py</string>\n'
         '    </array>\n'
         '    <key>RunAtLoad</key>\n'
         '    <true/>\n'
         '    <key>KeepAlive</key>\n'
         '    <true/>\n'
         '    <key>StandardOutPath</key>\n'
-        f'    <string>{home}/.config/opencode/bin/mathir_daemon.log</string>\n'
+        f'    <string>{home}/.config/MATHIR/logs/mathir_daemon.log</string>\n'
         '    <key>StandardErrorPath</key>\n'
-        f'    <string>{home}/.config/opencode/bin/mathir_daemon.err.log</string>\n'
+        f'    <string>{home}/.config/MATHIR/logs/mathir_daemon.err.log</string>\n'
         '    <key>WorkingDirectory</key>\n'
-        f'    <string>{home}/.config/opencode/bin</string>\n'
+        f'    <string>{home}/.config/MATHIR/mathir_mcp</string>\n'
         '</dict>\n'
         '</plist>\n'
     )

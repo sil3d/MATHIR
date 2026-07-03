@@ -1,4 +1,4 @@
-# Embedding Dimensions Guide (v8.5.0)
+# Embedding Dimensions Guide (v8.6.0)
 
 **Current model (as of 2026-07-02): intfloat/multilingual-e5-small (384d, 239MB VRAM, retrieval-trained)** — was paraphrase-multilingual-MiniLM-L12-v2 (same architecture/size, different training objective). See "Real, Independently-Verified Alternative" section below for the investigation that led to this switch; the HotpotQA multi-hop result that finally justified it (+2.5x retrieval quality, ~12% slower not 5x as earlier estimated) is in MATHIR memory embedder-swap-strongest-positive-result-hotpotqa. All comparison tables below that name both models by their historical role (default vs. alternative) reflect what was tested AT THE TIME of each experiment, not the current default -- read dates/context, not just table headers.
 

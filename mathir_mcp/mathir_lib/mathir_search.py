@@ -1,4 +1,4 @@
-"""MATHIR Hybrid Search — Vector + BM25 + RRF Fusion."""
+"""MATHIR Hybrid Search — Vector + BM25 + RRF Fusion + Cross-Encoder Reranking."""
 
 from __future__ import annotations
 
@@ -518,11 +518,14 @@ class HybridSearch:
     def hybrid_search(self, query_text: str, query_embedding: np.ndarray,
                       k: int = 5, vector_weight: float = 1.0,
                       bm25_weight: float = 1.0,
-                      agent_filter: Optional[str] = None) -> List[Dict[str, Any]]:
-        """Hybrid search: Vector cosine + BM25 lexical + RRF fusion.
+                      agent_filter: Optional[str] = None,
+                      rerank: bool = False,
+                      reranker: Optional["CrossEncoderReranker"] = None) -> List[Dict[str, Any]]:
+        """Hybrid search: Vector cosine + BM25 lexical + RRF fusion + optional reranking.
 
         Combines semantic understanding (vector) with exact keyword matching (BM25)
-        using Reciprocal Rank Fusion. Better than either alone.
+        using Reciprocal Rank Fusion. When rerank=True, applies a cross-encoder
+        second pass on the top candidates for higher precision.
         """
         fetch_k = min(k * 3, self._current.count())
 
@@ -546,9 +549,10 @@ class HybridSearch:
         fused = rrf_fusion(vector_results, bm25_results,
                            vector_weight=vector_weight, bm25_weight=bm25_weight)
 
-        # Build final results with metadata
+        # Build final results with metadata — fetch extra candidates when reranking
+        rerank_k = k * 3 if rerank else k
         results = []
-        for mid, rrf_score in fused[:k]:
+        for mid, rrf_score in fused[:rerank_k]:
             meta = self._meta_get(mid)
             if meta:
                 results.append({
@@ -559,7 +563,12 @@ class HybridSearch:
                     "tier": meta.get("tier", "episodic"),
                     "text": meta.get("text", ""),
                 })
-        return results
+
+        if rerank and results:
+            r = reranker or CrossEncoderReranker()
+            results = r.rerank(query_text, results, top_k=k)
+
+        return results[:k]
 
     def delete(self, memory_id: str) -> bool:
         sql_deleted = self._meta_delete(memory_id)
@@ -595,4 +604,65 @@ class HybridSearch:
         return f"HybridSearch(backend={self._current_name}, dim={self.dim}, count={self.count()})"
 
 
-__all__ = ["HybridSearch"]
+# ---------------------------------------------------------------------------
+# Cross-Encoder Reranker — second-pass scoring for top-k candidates
+# ---------------------------------------------------------------------------
+
+class CrossEncoderReranker:
+    """Reranks (query, passage) pairs using a cross-encoder model.
+
+    Cross-encoders score query+passage jointly (concatenated input) rather than
+    independently (bi-encoder). Much more accurate for ranking but O(n) per
+    query, so only applied to a small candidate set from the first-pass retrieval.
+
+    Default model: cross-encoder/ms-marco-MiniLM-L-6-v2 (~22M params, fast).
+    """
+
+    _DEFAULT_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
+    def __init__(self, model_name: Optional[str] = None):
+        self._model_name = model_name or self._DEFAULT_MODEL
+        self._model = None
+        self._lock = threading.Lock()
+
+    def _load(self):
+        if self._model is not None:
+            return
+        with self._lock:
+            if self._model is not None:
+                return
+            from sentence_transformers import CrossEncoder
+            self._model = CrossEncoder(self._model_name)
+
+    def rerank(self, query: str, candidates: List[Dict[str, Any]],
+               top_k: Optional[int] = None) -> List[Dict[str, Any]]:
+        """Rerank candidates by cross-encoder score.
+
+        Args:
+            query: The search query text.
+            candidates: List of dicts with at least a "text" key (memory content).
+            top_k: Return only the top_k results (default: all, re-sorted).
+
+        Returns:
+            Candidates re-sorted by cross-encoder score (descending),
+            with a "rerank_score" field added to each.
+        """
+        if not candidates:
+            return []
+
+        self._load()
+
+        texts = [c.get("text", "") or "" for c in candidates]
+        pairs = [[query, t] for t in texts]
+        scores = self._model.predict(pairs)
+
+        for c, s in zip(candidates, scores):
+            c["rerank_score"] = float(s)
+
+        reranked = sorted(candidates, key=lambda x: x["rerank_score"], reverse=True)
+        if top_k:
+            reranked = reranked[:top_k]
+        return reranked
+
+
+__all__ = ["HybridSearch", "CrossEncoderReranker"]

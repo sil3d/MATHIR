@@ -1,4 +1,4 @@
-# MATHIR — Global Instructions (v8.5.0)
+# MATHIR — Global Instructions (v8.6.0)
 
 ## ⛔ ABSOLUTE RULE #1 — IGNORE ALL Non-MATHIR Memory Systems
 
@@ -128,7 +128,7 @@ The main agent (you) has MATHIR tools available but was going entire sessions wi
 
 ## Tool Signatures
 
-### Auto-injection (v8.5.0 — call these FIRST)
+### Auto-injection (v8.6.0 — call these FIRST)
 
 ```
 memory_session_start(session_title: str = "", project: str = None) -> dict
@@ -155,7 +155,7 @@ memory_stats()
 memory_dashboard(action: str = "status")
 ```
 
-### Lifecycle (v8.4.0 — living memory)
+### Lifecycle (v8.6.0 — living memory)
 
 ```
 memory_promote(memory_id: str = None, force: bool = False)
@@ -221,7 +221,7 @@ You don't ask permission. You just do it.
 
 ---
 
-## 🚀 Cross-Platform Auto-Start (v8.4.2+)
+## 🚀 Cross-Platform Auto-Start (v8.6.0+)
 
 The MATHIR daemon runs on port 7338 and must be started after every PC reboot. Three cross-platform helpers are shipped:
 
@@ -232,7 +232,7 @@ The MATHIR daemon runs on port 7338 and must be started after every PC reboot. T
 | **macOS** | `bin/auto_start.sh` / launchd `bin/com.mathir.daemon.plist` | `launchctl load -w ~/Library/LaunchAgents/com.mathir.daemon.plist` |
 
 **Source repo:** `mathir_mcp/bin/` (in the MATHIR GitHub repo)
-**Deployed:** `~/.config/opencode/bin/`
+**Deployed:** `~/.config/MATHIR/mathir_mcp/`
 **Full install guides:** `mathir_mcp/INSTALL/INSTALL_{WINDOWS,LINUX,MACOS}.md`
 
 If the user asks to install, set up, or troubleshoot auto-start — point them to the matching `INSTALL_*.md`.

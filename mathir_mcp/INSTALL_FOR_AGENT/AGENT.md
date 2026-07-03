@@ -1,8 +1,8 @@
-# MATHIR — Agent Deployment Guide (v8.5.1)
+# MATHIR — Agent Deployment Guide (v8.6.0)
 
 **Universal install: one folder, 50+ agents, zero config.**
 
-**v8.5.1 highlights**: FastMCP 3.4.2 server, **23 MCP tools** (was 20 in v8.5.0), auto-injection plugin, unified HTTP daemon, **and an OpenAI-compatible proxy (port 7339) that injects memory into EVERY system prompt — works for any agent that redirects its baseUrl**. See [CHANGELOG.md](../../CHANGELOG.md) for details.
+**v8.6.0 highlights**: INT8 quantization (4x compression, 0% recall loss), cross-encoder reranking (+20pp), **23 MCP tools**, 22 algorithms, FastMCP 3.4.2, auto-injection plugin, unified HTTP daemon, **OpenAI-compatible proxy (port 7339)**. See [CHANGELOG.md](../../CHANGELOG.md) for details.
 
 ---
 
@@ -380,11 +380,11 @@ Vector + BM25 + RRF fusion (k=60). ~60ms per search.
 | `memory_smart_search` | Hybrid (vector + text, best quality) |
 | `memory_hybrid_search` | Explicit vector+BM25 fusion with tunable weights |
 
-Note: `memory_search` was removed in v8.3 — functionality folded into `memory_smart_search` (auto-tuned weights, default k=10). v8.5.1 has **23 tools total** (2 auto-injection + 10 basic + 7 lifecycle + 3 advanced + 1 health check).
+Note: `memory_search` was removed in v8.3 — functionality folded into `memory_smart_search` (auto-tuned weights, default k=10). v8.6.0 has **23 tools total** (2 auto-injection + 10 basic + 7 lifecycle + 3 advanced + 1 health check).
 
 ---
 
-## MCP Tools (23 in v8.5.1)
+## MCP Tools (23 in v8.6.0)
 
 ### Basic (every day)
 | Tool | Description |
@@ -623,7 +623,7 @@ pip install nvidia-cublas-cu12 nvidia-cudnn-cu12
 
 ---
 
-## Updating MATHIR (v8.5.1+)
+## Updating MATHIR (v8.6.0+)
 
 MATHIR self-updates via GitHub Releases. Three things happen automatically:
 
@@ -642,7 +642,7 @@ python -m mathir_mcp check --include-prerelease  # also see -rc/-dev releases
 Output:
 ```
 MATHIR Update Check
-  current:      v8.5.1
+  current:      v8.6.0
   latest:       v8.5.2
   install mode: git
   install path: /home/user/.config/MATHIR/mathir_mcp

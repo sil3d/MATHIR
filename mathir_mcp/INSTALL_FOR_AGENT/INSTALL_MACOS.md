@@ -112,7 +112,7 @@ Stop the foreground daemon with `Ctrl+C` before continuing.
 
 ## 5. Install the LaunchAgent
 
-The plist ships in the repo at `bin/com.mathir.daemon.plist`. It contains a placeholder `/Users/USERNAME/.config/opencode/bin/mathir_server.py` — we need to substitute the real path.
+The plist ships in the repo at `bin/com.mathir.daemon.plist`. It contains a placeholder `/Users/USERNAME/.config/MATHIR/mathir_mcp/bin/mathir_daemon.py` — we need to substitute the real path.
 
 ```bash
 PLIST_SRC=/path/to/mathir_mcp/bin/com.mathir.daemon.plist
@@ -121,7 +121,7 @@ PLIST_DST=~/Library/LaunchAgents/com.mathir.daemon.plist
 # Substitute the real home directory and the real python3 path
 REAL_HOME="$HOME"
 REAL_PY="$(command -v python3 || echo /usr/bin/python3)"
-DAEMON_PATH="$REAL_HOME/.config/opencode/bin/mathir_lib/mathir_server.py"
+DAEMON_PATH="$REAL_HOME/.config/MATHIR/mathir_mcp/mathir_lib/mathir_server.py"
 
 # Sanity check — fail loudly if the daemon isn't there yet
 test -f "$DAEMON_PATH" || { echo "[FAIL] Daemon not found at $DAEMON_PATH"; exit 1; }
@@ -214,13 +214,13 @@ The daemon is running; now teach OpenCode how to talk to it. Edit `~/.config/ope
     "type": "local",
     "command": [
       "python3",
-      "~/.config/opencode/bin/mathir_lib/mathir_mcp_server.py"
+      "~/.config/MATHIR/mathir_mcp/mathir_lib/mathir_mcp_server.py"
     ],
     "environment": {
       "MATHIR_EMBEDDING_DIM": "384",
       "MATHIR_PORT": "7338",
-      "MATHIR_CONFIG": "~/.config/opencode/config/mathir.json",
-      "PYTHONPATH": "~/.config/opencode/bin/mathir_lib"
+      "MATHIR_CONFIG": "~/.config/MATHIR/config/mathir.json",
+      "PYTHONPATH": "~/.config/MATHIR/mathir_mcp/mathir_lib"
     },
     "enabled": true
   }
@@ -273,7 +273,7 @@ launchctl print gui/$(id -u)/com.mathir.daemon 2>/dev/null | head -20
 | Embedding model download is slow / fails | Hugging Face blocked, or first run | Pre-download: `huggingface-cli download intfloat/multilingual-e5-small` |
 | OpenCode says "MCP server mathir failed to start" | `~` not expanding in the MCP command, or path wrong | Use full absolute path in `command` for debugging, then revert to `~` once it works. |
 | macOS firewall prompt keeps appearing | launchd's `python3` is not signed | Either allow in System Settings → Network → Firewall, or sign the binary. For local dev, the simplest fix is `sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add /usr/bin/python3`. |
-| Want to nuke and reinstall | — | `launchctl unload ~/Library/LaunchAgents/com.mathir.daemon.plist` → `rm ~/Library/LaunchAgents/com.mathir.daemon.plist` → `rm -rf ~/.config/opencode/bin/mathir_lib` → re-do steps 2-5. |
+| Want to nuke and reinstall | — | `launchctl unload ~/Library/LaunchAgents/com.mathir.daemon.plist` → `rm ~/Library/LaunchAgents/com.mathir.daemon.plist` → `rm -rf ~/.config/MATHIR/mathir_mcp/mathir_lib` → re-do steps 2-5. |
 
 ---
 
@@ -284,7 +284,7 @@ launchctl print gui/$(id -u)/com.mathir.daemon 2>/dev/null | head -20
 # install_mathir_macos.sh — run as the target user, no sudo needed.
 set -euo pipefail
 REPO="${MATHIR_REPO:-/opt/mathir_mcp}"
-DEST="$HOME/.config/opencode/bin"
+DEST="$HOME/.config/MATHIR/mathir_mcp"
 PLIST_SRC="$REPO/bin/com.mathir.daemon.plist"
 PLIST_DST="$HOME/Library/LaunchAgents/com.mathir.daemon.plist"
 

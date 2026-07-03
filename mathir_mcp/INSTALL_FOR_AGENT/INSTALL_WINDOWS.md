@@ -37,23 +37,23 @@ OpenCode expands `~` to your user profile, so the convention is:
 We will install to:
 
 ```
-C:\Users\<YOU>\.config\opencode\bin\          (the daemon + helpers)
-C:\Users\<YOU>\.config\opencode\config\        (mathir.json)
-C:\Users\<YOU>\.config\opencode\data\          (sqlite-vec DBs, one per project)
+C:\Users\<YOU>\.config\MATHIR\mathir_mcp\      (the daemon + helpers)
+C:\Users\<YOU>\.config\MATHIR\config\          (mathir.json)
+C:\Users\<YOU>\.config\MATHIR\data\            (sqlite-vec DBs, one per project)
 ```
 
 Replace `<YOU>` with your actual Windows username (`echo %USERNAME%`).
 
-**Cross-platform note:** OpenCode's `~` works on Windows the same way it does on Unix. The `opencode.json` snippet below uses `~`-relative paths so the same config travels with you to WSL/Linux/macOS.
+**Cross-platform note:** `~` expands to `$HOME` / `%USERPROFILE%` on all platforms. The config snippet below uses `~`-relative paths so the same config travels with you to WSL/Linux/macOS.
 
 ---
 
 ## 2. Copy the MATHIR Python package
 
-From the repo root (`D:\SECRET_PROJECT\MATHIR\mathir_mcp\`):
+From the repo root (your local clone of `mathir_mcp/`):
 
 ```powershell
-$dest = "$env:USERPROFILE\.config\opencode\bin"
+$dest = "$env:USERPROFILE\.config\MATHIR\mathir_mcp"
 New-Item -ItemType Directory -Path $dest -Force | Out-Null
 Copy-Item -Path ".\mathir_lib" -Destination $dest -Recurse -Force
 Write-Output "Copied to $dest\mathir_lib\"
@@ -62,7 +62,7 @@ Write-Output "Copied to $dest\mathir_lib\"
 You should now have:
 
 ```
-C:\Users\<YOU>\.config\opencode\bin\mathir_lib\
+C:\Users\<YOU>\.config\MATHIR\mathir_mcp\mathir_lib\
     mathir_server.py          ← the background process
     mathir_mcp_server.py      ← the MCP stdio server
     mathir_inject.py          ← template injection tool
@@ -78,7 +78,7 @@ The daemon uses `torch`, `sentence-transformers`, `sqlite-vec`, and `rank-bm25`.
 
 ```powershell
 python -m pip install --upgrade pip
-python -m pip install -r "$env:USERPROFILE\.config\opencode\bin\mathir_lib\requirements.txt"
+python -m pip install -r "$env:USERPROFILE\.config\MATHIR\mathir_mcp\mathir_lib\requirements.txt"
 ```
 
 If `torch` is too heavy for your box, see `docs/GPU_SETUP.md` for the ONNX fallback.
@@ -92,7 +92,7 @@ Verify the install works before wiring up auto-start:
 ```powershell
 # Launch in a hidden window so it survives the shell closing
 Start-Process python `
-  -ArgumentList "$env:USERPROFILE\.config\opencode\bin\mathir_lib\mathir_server.py" `
+  -ArgumentList "$env:USERPROFILE\.config\MATHIR\mathir_mcp\mathir_lib\mathir_server.py" `
   -WindowStyle Hidden
 Start-Sleep -Seconds 5
 ```
@@ -108,7 +108,7 @@ Expected output: `True`. If `False`, wait 5 more seconds (model load is slow on 
 ```powershell
 Get-EventLog -LogName Application -Source "Python" -Newest 20  -ErrorAction SilentlyContinue
 # Or just run the daemon in the foreground to see errors:
-python "$env:USERPROFILE\.config\opencode\bin\mathir_lib\mathir_server.py"
+python "$env:USERPROFILE\.config\MATHIR\mathir_mcp\mathir_lib\mathir_server.py"
 ```
 
 **Stop the manual daemon** before setting up auto-start (to avoid port conflicts):
@@ -138,7 +138,7 @@ Windows has no idiomatic user-level autostart for background daemons — Task Sc
 ```powershell
 $action  = New-ScheduledTaskAction `
   -Execute "python" `
-  -Argument "`"$env:USERPROFILE\.config\opencode\bin\mathir_lib\mathir_server.py`""
+  -Argument "`"$env:USERPROFILE\.config\MATHIR\mathir_mcp\mathir_lib\mathir_server.py`""
 $trigger = New-ScheduledTaskTrigger -AtLogOn
 $settings = New-ScheduledTaskSettingsSet `
   -AllowStartIfOnBatteries `
@@ -163,7 +163,7 @@ Register-ScheduledTask `
 3. **Triggers** tab → New… → "At log on" → your username
 4. **Actions** tab → New… →
    - Program: `python`
-   - Arguments: `"C:\Users\<YOU>\.config\opencode\bin\mathir_lib\mathir_server.py"`
+   - Arguments: `"C:\Users\<YOU>\.config\MATHIR\mathir_mcp\mathir_lib\mathir_server.py"`
 5. **Conditions** tab → uncheck "Start only if on AC power"
 6. **Settings** tab →
    - "Allow task to be run on demand" ✓
@@ -197,7 +197,7 @@ If you'd rather start the daemon by hand each session (e.g. on a shared dev box)
 ```bat
 @echo off
 setlocal
-set "DAEMON=%USERPROFILE%\.config\opencode\bin\mathir_lib\mathir_server.py"
+set "DAEMON=%USERPROFILE%\.config\MATHIR\mathir_mcp\mathir_lib\mathir_server.py"
 if not exist "%DAEMON%" (
   echo MATHIR not installed at: %DAEMON%
   exit /b 1
@@ -223,13 +223,13 @@ The daemon is running, but OpenCode doesn't know about it yet. Edit `%USERPROFIL
     "type": "local",
     "command": [
       "python",
-      "~/.config/opencode/bin/mathir_lib/mathir_mcp_server.py"
+      "~/.config/MATHIR/mathir_mcp/mathir_lib/mathir_mcp_server.py"
     ],
     "environment": {
       "MATHIR_EMBEDDING_DIM": "384",
       "MATHIR_PORT": "7338",
-      "MATHIR_CONFIG": "~/.config/opencode/config/mathir.json",
-      "PYTHONPATH": "~/.config/opencode/bin/mathir_lib"
+      "MATHIR_CONFIG": "~/.config/MATHIR/config/mathir.json",
+      "PYTHONPATH": "~/.config/MATHIR/mathir_mcp/mathir_lib"
     },
     "enabled": true
   }
@@ -289,7 +289,7 @@ $client.Close()
 | Scheduled task runs but daemon dies immediately | `python` not on `PATH` for the task user | Use full path: `C:\Users\<YOU>\AppData\Local\Programs\Python\Python311\python.exe` |
 | OpenCode says "MCP server mathir failed to start" | `PYTHONPATH` missing or `~` not expanding | Use the full Windows path in `command` as a debugging step, then re-add `~`. |
 | Daemon uses 100% CPU at idle | First run is indexing the model | Normal for ~30s on first launch; drops to ~0.3% after. |
-| Want to nuke and reinstall | — | `Remove-Item -Recurse -Force "$env:USERPROFILE\.config\opencode\bin\mathir_lib"` then re-do steps 2-5. |
+| Want to nuke and reinstall | — | `Remove-Item -Recurse -Force "$env:USERPROFILE\.config\MATHIR\mathir_mcp\mathir_lib"` then re-do steps 2-5. |
 
 ---
 
@@ -298,9 +298,9 @@ $client.Close()
 ```powershell
 # install_mathir_windows.ps1 — run as the target user, not Administrator
 $ErrorActionPreference = "Stop"
-$repo       = "D:\SECRET_PROJECT\MATHIR\mathir_mcp"
-$dest       = "$env:USERPROFILE\.config\opencode\bin"
-$configRoot = "$env:USERPROFILE\.config\opencode"
+$repo       = "<path-to-your-clone>\mathir_mcp"   # e.g. "C:\dev\MATHIR\mathir_mcp"
+$dest       = "$env:USERPROFILE\.config\MATHIR\mathir_mcp"
+$configRoot = "$env:USERPROFILE\.config\MATHIR"
 
 # 1. Copy
 New-Item -ItemType Directory -Path $dest -Force | Out-Null

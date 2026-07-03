@@ -23,7 +23,7 @@ $ErrorActionPreference = 'Stop'
 
 # ---- Configuration ---------------------------------------------------------
 $Port          = 7338
-$BinDir        = Join-Path $env:USERPROFILE '.config\opencode\bin'
+$BinDir        = Join-Path $env:USERPROFILE '.config\MATHIR\mathir_mcp\bin'
 $LogPath       = Join-Path $BinDir 'mathir_healthcheck.log'
 $AutoStartBat  = Join-Path $BinDir 'auto_start.bat'
 

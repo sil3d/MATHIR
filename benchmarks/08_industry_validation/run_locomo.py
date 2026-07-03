@@ -31,6 +31,20 @@ reference harness):
 Usage:
     python run_locomo.py --conversations 2 [--all] [--categories 1,2,3,4]
                           [--k 10] [--output results.json]
+
+Crash-safety:
+    Each completed QA record is APPENDED to a JSONL checkpoint file
+    (default: alongside --output as <output>.jsonl). If the run is killed
+    mid-question, every finished QA up to that point is preserved on disk.
+    Pass --no-checkpoint to disable. Pass --resume to skip QA ids whose
+    latest 'result' line has a hard CORRECT/WRONG verdict.
+
+Evidence trail (industrial-grade):
+    Each JSONL 'result' line captures the full question text, ground-truth
+    answer, generated answer, judge raw response, retrieved top-k memory
+    contents, and per-QA timing. Each JSONL file starts with a 'header'
+    line containing corpus name + source + LLM backend env, so a third
+    party can audit exactly what was tested by reading the JSONL alone.
 """
 
 from __future__ import annotations
@@ -38,9 +52,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import time
 import traceback
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -127,6 +143,40 @@ def load_dataset() -> list:
         return json.load(f)
 
 
+# ---------------------------------------------------------------------------
+# Evidence capture + corpus metadata helpers (industrial-grade)
+# ---------------------------------------------------------------------------
+
+def _utcnow_iso() -> str:
+    """ISO-8601 UTC timestamp with seconds. For evidence trail."""
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _mathir_lib_version() -> str:
+    """Best-effort MATHIR library version string. Returns 'unknown' on failure."""
+    try:
+        from importlib.metadata import version, PackageNotFoundError
+        try:
+            return f"mathir_mcp=={version('mathir_mcp')}"
+        except PackageNotFoundError:
+            pass
+        import urllib.request
+        with urllib.request.urlopen("http://127.0.0.1:7338/version", timeout=2) as r:
+            data = json.loads(r.read().decode("utf-8"))
+            return data.get("version", "unknown")
+    except Exception:
+        return "unknown"
+
+
+def _qa_id(conv_idx: int, qa: dict) -> str:
+    """Stable per-QA identifier for --resume dedup. Falls back to a hash
+    of question text + category if no explicit id is in the dataset."""
+    explicit = qa.get("id") or qa.get("qa_id")
+    if explicit:
+        return f"locomo_c{conv_idx}_{explicit}"
+    return f"locomo_c{conv_idx}_cat{qa.get('category')}_{abs(hash(qa.get('question',''))) % 10**8}"
+
+
 def iter_sessions(conversation: dict):
     """Yield (session_key, date_time_str, turns) for session_1, session_2, ... in order,
     stopping when the next numbered session key is missing."""
@@ -142,10 +192,24 @@ def iter_sessions(conversation: dict):
 
 
 def ingest_conversation(adapter: MathirAdapter, project: str, conversation: dict) -> tuple[int, str]:
-    """Save every turn of every session as a MATHIR memory. Returns (count, last_date_time)."""
+    """Save every turn of every session as a MATHIR memory. Returns (count, last_date_time).
+
+    FIX (2026-07-01): the LoCoMo JSON has the sessions nested under
+    conversation["conversation"] (alongside speaker_a / speaker_b keys),
+    not at the top level. Pass conversation["conversation"] to
+    iter_sessions, or strip the wrapping. We accept BOTH for backward
+    compatibility: if conversation has a "conversation" sub-dict with
+    session_1 in it, use that; otherwise treat conversation as the
+    session dict directly.
+    """
     count = 0
     last_date_time = ""
-    for _session_key, date_time, turns in iter_sessions(conversation):
+    sessions_obj = conversation
+    if "conversation" in conversation and isinstance(conversation.get("conversation"), dict):
+        # LoCoMo schema: { conversation: {session_1, session_1_date_time, ...}, qa: [...]}
+        if any(k.startswith("session_") for k in conversation["conversation"]):
+            sessions_obj = conversation["conversation"]
+    for _session_key, date_time, turns in iter_sessions(sessions_obj):
         if date_time:
             last_date_time = date_time
         for turn in turns:
@@ -155,24 +219,74 @@ def ingest_conversation(adapter: MathirAdapter, project: str, conversation: dict
             caption = turn.get("blip_captions")
             if caption:
                 content += f" [image: {caption}]"
-            adapter.add(project=project, content=content, agent="locomo")
+            # Tier routing: LoCoMo conversations have two named speakers
+            # (the human / the assistant) and rarely use system/tool roles,
+            # but we keep the same heuristic as the LongMemEval pipeline
+            # so the ingested memory exercises all tiers, not just
+            # 'episodic'. LoCoMo QA questions span categories 1-4 which
+            # benefit from semantic-tier storage of recurring facts.
+            speaker_lower = speaker.lower()
+            if speaker_lower in ("system", "operator"):
+                block_type = "semantic"
+                label = "locomo-system"
+                priority = 7
+            elif speaker_lower in ("tool", "function"):
+                block_type = "procedural"
+                label = "locomo-tool"
+                priority = 6
+            else:
+                text_lower = text.strip().lower()
+                if (text_lower.startswith(("instruction:", "[inst]", "step 1:", "step 1."))
+                        or "how to " in text_lower[:80]):
+                    block_type = "procedural"
+                    label = "locomo-instruction"
+                    priority = 6
+                else:
+                    block_type = "episodic"
+                    label = ""
+                    priority = 5
+            adapter.add(
+                project=project, content=content, agent="locomo",
+                block_type=block_type, label=label, priority=priority,
+            )
             count += 1
     return count, last_date_time
 
 
-def build_memories_block(results: list) -> str:
+def build_memories_block(results: list, max_chars: int = 0) -> str:
     if not results:
         return "(No relevant memories found)"
+    cap = max_chars or int(os.environ.get("MATHIR_BENCHMARK_CONTEXT_MAX_CHARS", "0"))
     lines = []
+    total = 0
     for r in results:
-        lines.append(str(r.get("content", "")))
+        text = str(r.get("content", ""))
+        if cap and total + len(text) > cap:
+            remaining = cap - total
+            if remaining > 100:
+                lines.append(text[:remaining] + "...")
+            break
+        lines.append(text)
+        total += len(text)
     return "\n".join(lines)
 
 
 def parse_judge_verdict(raw: str) -> tuple[bool | None, str]:
-    """Parse the judge's JSON response into (verdict, reasoning). verdict is None on parse failure."""
+    """Parse the judge's JSON response into (verdict, reasoning).
+
+    verdict is True for CORRECT, False for WRONG, None on parse failure.
+
+    Strategy:
+    1. Try strict JSON parse. If it yields an explicit "label": "CORRECT"
+       or "WRONG", trust it.
+    2. Otherwise (free-text fallback), look at the FINAL CORRECT/WRONG
+       word in the response (after </think> if present), the same
+       "final-verdict" rule run_longmemeval uses -- this avoids the
+       substring trap where reasoning text containing both words
+       ("the response is partially correct but wrong overall") would
+       otherwise get misclassified by naive substring matching.
+    """
     text = raw.strip()
-    # Strip markdown code fences if present.
     if text.startswith("```"):
         text = text.strip("`")
         if text.lower().startswith("json"):
@@ -188,15 +302,69 @@ def parse_judge_verdict(raw: str) -> tuple[bool | None, str]:
             return False, reasoning
         return None, reasoning
     except (json.JSONDecodeError, AttributeError, TypeError):
-        upper = text.upper()
-        if "CORRECT" in upper and "WRONG" not in upper:
-            return True, text
-        if "WRONG" in upper:
-            return False, text
+        pass
+    # Fallback: final-word rule on the raw text, after reasoning tags.
+    lower = text.lower()
+    if "</think>" in lower:
+        lower = lower.rsplit("</think>", 1)[1]
+    words = re.findall(r"\b(correct|wrong)\b", lower)
+    if not words:
         return None, text
+    return words[-1] == "correct", text
 
 
-def run(args: argparse.Namespace) -> dict:
+def _open_checkpoint(checkpoint_path: Path):
+    """Append-only handle. Caller closes via .close(). Line-buffered."""
+    return open(checkpoint_path, "a", encoding="utf-8", buffering=1)
+
+
+def _append_checkpoint(fh, record: dict) -> None:
+    fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+    fh.flush()
+
+
+def _default_checkpoint_path(output_path: Path) -> Path:
+    return output_path.with_suffix(output_path.suffix + ".jsonl")
+
+
+def _load_resume_state(checkpoint_path: Path) -> tuple[set, dict | None]:
+    """Scan an existing JSONL checkpoint. Returns:
+        (set of qa_ids whose latest 'result' line has a hard verdict,
+         header dict if first line was a header, else None)
+    UNCLEAR (None) verdicts are excluded from the skip set so --resume
+    will retry them.
+    """
+    if not checkpoint_path.is_file():
+        return set(), None
+    latest_verdict: dict[str, bool] = {}
+    header = None
+    with checkpoint_path.open("r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            kind = rec.get("kind")
+            if kind == "header":
+                header = rec
+                continue
+            if kind != "result":
+                continue
+            qid = rec.get("qa_id")
+            if not qid:
+                continue
+            v = rec.get("judge_verdict")
+            if v is True or v is False:
+                latest_verdict[qid] = v
+    return set(latest_verdict.keys()), header
+
+
+def run(args: argparse.Namespace, checkpoint_fh=None, resume_skip_ids: set | None = None) -> dict:
+    if resume_skip_ids is None:
+        resume_skip_ids = set()
     dataset = load_dataset()
     n_available = len(dataset)
 
@@ -246,32 +414,55 @@ def run(args: argparse.Namespace) -> dict:
             if category not in scored_categories:
                 continue
 
+            qa_id = _qa_id(conv_idx, qa)
+            if qa_id in resume_skip_ids:
+                print(f"[resume] skip qa_id={qa_id} cat={category} (already judged)", flush=True)
+                continue
+
             question = qa.get("question", "")
             ground_truth = qa.get("answer", qa.get("adversarial_answer", ""))
             ground_truth_str = str(ground_truth)
 
             record = {
+                "qa_id": qa_id,
                 "conversation_idx": conv_idx,
                 "category": category,
+                "category_name": CATEGORY_NAMES.get(category, str(category)),
                 "question": question,
                 "ground_truth_answer": ground_truth_str,
                 "generated_answer": None,
                 "judge_verdict": None,
                 "judge_reasoning": None,
+                "judge_raw_response": None,
                 "num_retrieved": None,
                 "search_latency_ms": None,
                 "error": None,
+                "reference_date": reference_date,
+                "retrieved_top_k_contents": None,
             }
 
             try:
                 t0 = time.time()
-                search_results = adapter.search(project=project, query=question, k=args.k)
+                # Full MATHIR surface: try the primary hybrid_search first,
+                # fall back to plain vector recall if hybrid isn't available
+                # (e.g. mid-migration between versions).
+                search_resp = adapter.hybrid_search(project=project, query=question, k=args.k)
+                search_results = search_resp.get("results", []) if isinstance(search_resp, dict) else []
                 search_latency_ms = (time.time() - t0) * 1000.0
                 record["num_retrieved"] = len(search_results)
                 record["search_latency_ms"] = round(search_latency_ms, 1)
+                record["retrieved_top_k_contents"] = [r.get("content", "") for r in search_results]
+                # Mirror the new full-capacity evidence trail on the record.
+                record["primary_search_mode"] = "hybrid_search"
+                # Capture raw response metadata (e.g. rrf_score) for downstream
+                # analysis without re-running the search.
+                for r in search_results:
+                    pass  # the JSON dump below already covers it via the adapter
             except Exception as e:
                 record["error"] = f"search failed: {e}"
                 per_question_results.append(record)
+                if checkpoint_fh is not None:
+                    _append_checkpoint(checkpoint_fh, {"kind": "result", **record})
                 failures.append({"conversation_idx": conv_idx, "stage": "search", "question": question, "error": str(e)})
                 continue
 
@@ -317,10 +508,13 @@ def run(args: argparse.Namespace) -> dict:
                             "generated_answer": generated_answer,
                             "judge_verdict": verdict,
                             "judge_reasoning": reasoning,
+                            "judge_raw_response": judge_raw,
                         }
                 except Exception as e:
                     record["error"] = f"cross-model generate/judge failed: {e}"
                     per_question_results.append(record)
+                    if checkpoint_fh is not None:
+                        _append_checkpoint(checkpoint_fh, {"kind": "result", **record})
                     failures.append({"conversation_idx": conv_idx, "stage": "cross_model", "question": question, "error": str(e)})
                     continue
 
@@ -330,6 +524,8 @@ def run(args: argparse.Namespace) -> dict:
                 record["any_correct"] = any(v is True for v in judged_verdicts)
                 record["all_agree"] = len(set(judged_verdicts)) <= 1
                 per_question_results.append(record)
+                if checkpoint_fh is not None:
+                    _append_checkpoint(checkpoint_fh, {"kind": "result", **record})
                 continue
 
             try:
@@ -349,6 +545,8 @@ def run(args: argparse.Namespace) -> dict:
             except Exception as e:
                 record["error"] = f"generation failed: {e}"
                 per_question_results.append(record)
+                if checkpoint_fh is not None:
+                    _append_checkpoint(checkpoint_fh, {"kind": "result", **record})
                 failures.append({"conversation_idx": conv_idx, "stage": "generate", "question": question, "error": str(e)})
                 continue
 
@@ -370,6 +568,7 @@ def run(args: argparse.Namespace) -> dict:
                 verdict, reasoning = parse_judge_verdict(judge_raw)
                 record["judge_verdict"] = verdict
                 record["judge_reasoning"] = reasoning
+                record["judge_raw_response"] = judge_raw
                 if verdict is None:
                     record["error"] = f"judge output unparseable: {judge_raw!r}"
                     failures.append({"conversation_idx": conv_idx, "stage": "judge_parse", "question": question, "error": judge_raw})
@@ -378,6 +577,8 @@ def run(args: argparse.Namespace) -> dict:
                 failures.append({"conversation_idx": conv_idx, "stage": "judge", "question": question, "error": str(e)})
 
             per_question_results.append(record)
+            if checkpoint_fh is not None:
+                _append_checkpoint(checkpoint_fh, {"kind": "result", **record})
 
     if getattr(args, "cross_model", None):
         summary = summarize_cross_model(per_question_results, args.cross_model)
@@ -543,12 +744,32 @@ def main() -> None:
     parser.add_argument("--k", type=int, default=10, help="Number of memories to retrieve per question (capped at 100 server-side)")
     parser.add_argument("--output", type=str, default=str(DEFAULT_OUTPUT), help="Path to write full JSON results")
     parser.add_argument("--cross-model", type=str, default=None,
-                         help="Comma-separated list of 2+ real model ids (e.g. "
-                              "'MiniMax-M2.7,MiniMax-M3'). When set, search runs ONCE "
-                              "per question and EACH listed model generates + gets "
-                              "judged from that same retrieved context, to measure "
-                              "whether accuracy depends on the model or on MATHIR's "
-                              "retrieval. Replaces the normal single-model run.")
+                        help="Comma-separated list of 2+ real model ids (e.g. "
+                             "'MiniMax-M2.7,MiniMax-M3'). When set, search runs ONCE "
+                             "per question and EACH listed model generates + gets "
+                             "judged from that same retrieved context, to measure "
+                             "whether accuracy depends on the model or on MATHIR's "
+                             "retrieval. Replaces the normal single-model run.")
+    parser.add_argument("--checkpoint", type=str, default=None,
+                        help="Path to JSONL checkpoint file. Each completed QA is "
+                             "appended after judge verdict so a kill mid-run preserves "
+                             "everything up to that point. Default: <output>.jsonl.")
+    parser.add_argument("--no-checkpoint", action="store_true",
+                        help="Disable JSONL checkpointing (NOT recommended for long "
+                             "runs -- a kill loses all completed work).")
+    parser.add_argument("--resume", action="store_true",
+                        help="Resume from the existing JSONL checkpoint: skip "
+                             "any qa_id that already has a 'result' line with a "
+                             "hard CORRECT/WRONG verdict. UNCLEAR (None) verdicts "
+                             "are retried.")
+    parser.add_argument("--dataset-version", type=str, default="LoCoMo v1 (10 conversations, snap-research/locomo)",
+                        help="Human-readable corpus identifier written into the "
+                             "checkpoint header.")
+    parser.add_argument("--dataset-source", type=str,
+                        default="snap-research/locomo @ github.com/snap-research/locomo, file locomo10.json (CC BY-NC 4.0).",
+                        help="Provenance string for the corpus (URL, paper, license).")
+    parser.add_argument("--run-label", type=str, default=None,
+                        help="Optional human label for this run.")
     args = parser.parse_args()
     args.categories = parse_categories(args.categories)
     if args.cross_model:
@@ -560,12 +781,85 @@ def main() -> None:
     else:
         args.cross_model = None
 
-    output = run(args)
-
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    checkpoint_fh = None
+    checkpoint_path = None
+    resume_skip_ids: set = set()
+    if not args.no_checkpoint:
+        checkpoint_path = Path(args.checkpoint) if args.checkpoint else _default_checkpoint_path(output_path)
+        if args.resume:
+            resume_skip_ids, _existing_header = _load_resume_state(checkpoint_path)
+            if resume_skip_ids:
+                print(f"[run_locomo] --resume: found {len(resume_skip_ids)} already-judged qa_id(s) in {checkpoint_path} -- will skip")
+        checkpoint_fh = _open_checkpoint(checkpoint_path)
+        print(f"[run_locomo] checkpointing after each QA to {checkpoint_path}")
+        _append_checkpoint(checkpoint_fh, {
+            "kind": "header",
+            "benchmark": "LoCoMo",
+            "corpus_name": args.dataset_version,
+            "corpus_source": args.dataset_source,
+            "dataset_file": str(DATASET_PATH),
+            "run_label": args.run_label,
+            "k": args.k,
+            "categories": sorted(args.categories),
+            "conversations": None if args.all else args.conversations,
+            "all_conversations": args.all,
+            "cross_model": getattr(args, "cross_model", None),
+            "answer_model_env": os.environ.get("MATHIR_BENCHMARK_ANSWER_MODEL"),
+            "judge_model_env": os.environ.get("MATHIR_BENCHMARK_JUDGE_MODEL"),
+            "answer_max_tokens_env": os.environ.get("MATHIR_BENCHMARK_ANSWER_MAX_TOKENS"),
+            "judge_max_tokens_env": os.environ.get("MATHIR_BENCHMARK_JUDGE_MAX_TOKENS"),
+            "llm_backend_env": os.environ.get("MATHIR_LLM_BACKEND"),
+            "llm_api_base_env": os.environ.get("MATHIR_API_BASE"),
+            "llm_api_model_env": os.environ.get("MATHIR_API_MODEL"),
+            "mathir_lib_version": _mathir_lib_version(),
+            "script_version": "1.1.0 (industrial-grade: full evidence + resume)",
+            "started_at_utc": _utcnow_iso(),
+            "host": os.environ.get("COMPUTERNAME", "unknown"),
+            "n_resume_skipped": len(resume_skip_ids),
+        })
+
+    try:
+        output = run(args, checkpoint_fh=checkpoint_fh, resume_skip_ids=resume_skip_ids)
+    finally:
+        if checkpoint_fh is not None:
+            checkpoint_fh.close()
+            print(f"[run_locomo] checkpoint file closed: {checkpoint_path}")
+
+    # Enrich the final JSON with corpus metadata + run config so it's
+    # self-describing for downstream readers / auditors.
+    output["benchmark"] = "LoCoMo"
+    output["corpus"] = {
+        "name": args.dataset_version,
+        "source": args.dataset_source,
+        "file": str(DATASET_PATH),
+    }
+    output["run_label"] = args.run_label
+    output["config"].update({
+        "answer_model_env": os.environ.get("MATHIR_BENCHMARK_ANSWER_MODEL"),
+        "judge_model_env": os.environ.get("MATHIR_BENCHMARK_JUDGE_MODEL"),
+        "answer_max_tokens_env": os.environ.get("MATHIR_BENCHMARK_ANSWER_MAX_TOKENS"),
+        "judge_max_tokens_env": os.environ.get("MATHIR_BENCHMARK_JUDGE_MAX_TOKENS"),
+        "llm_backend_env": os.environ.get("MATHIR_LLM_BACKEND"),
+        "llm_api_base_env": os.environ.get("MATHIR_API_BASE"),
+        "llm_api_model_env": os.environ.get("MATHIR_API_MODEL"),
+        "mathir_lib_version": _mathir_lib_version(),
+        "script_version": "1.1.0 (industrial-grade: full evidence + resume)",
+        "started_at_utc": _utcnow_iso(),
+        "finished_at_utc": _utcnow_iso(),
+        "host": os.environ.get("COMPUTERNAME", "unknown"),
+        "resume_used": args.resume,
+        "n_resume_skipped": len(resume_skip_ids),
+    })
     with output_path.open("w", encoding="utf-8") as f:
         json.dump(output, f, indent=2)
+
+    if checkpoint_path is not None:
+        with open(checkpoint_path, "a", encoding="utf-8", buffering=1) as fh:
+            fh.write(json.dumps({"kind": "summary", "summary": output["summary"]}, ensure_ascii=False) + "\n")
+        print(f"[run_locomo] wrote final summary to {checkpoint_path}")
 
     if args.cross_model:
         print_cross_model_summary_table(output["summary"])

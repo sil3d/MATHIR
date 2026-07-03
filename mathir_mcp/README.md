@@ -2,7 +2,7 @@
 
 **5-tier cognitive memory for 50 AI coding agents. Install once, use everywhere.**
 
-> **v8.5.1** — 23 MCP tools, FastMCP 3.4.2, auto-injection plugin, unified server. Project-aware DB routing. See [CHANGELOG.md](CHANGELOG.md).
+> **v8.6.0** — 23 MCP tools, INT8 quantization (4x compression), cross-encoder reranking, 22 algorithms. See [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -34,8 +34,22 @@ Platform-specific guides: [INSTALL_FOR_AGENT/INSTALL_WINDOWS.md](INSTALL_FOR_AGE
 | **Basic** | `memory_save`, `memory_recall`, `memory_smart_search`, `memory_hybrid_search`, `memory_delete`, `memory_stats`, `memory_audit`, `memory_export`, `memory_sessions`, `memory_dashboard` |
 | **Lifecycle** | `memory_promote`, `memory_auto_promote`, `memory_decay`, `memory_consolidate`, `memory_link`, `memory_get_links`, `memory_build_links` |
 | **Advanced (v8.5.1)** | `memory_by_path`, `memory_recall_quality`, `memory_incoming_links` |
+| **Health** | `mathir_health` |
 
 Full signatures: see [`mathir_lib/mathir_mcp_server.py`](mathir_lib/mathir_mcp_server.py).
+
+### Key Algorithms (v8.6.0)
+
+| Algorithm | Purpose |
+|---|---|
+| **INT8 scalar quantization** | 4x embedding compression, zero recall loss |
+| **Cross-encoder reranking** | `ms-marco-MiniLM-L-6-v2` second-pass scoring (+20pp) |
+| **Hybrid search** | Vector cosine + BM25 + RRF fusion |
+| **Ebbinghaus decay** | Time-based forgetting (5%/30d floor) |
+| **Mahalanobis anomaly** | Immunological tier (threshold=25.0) |
+| **Spreading activation** | Collins & Loftus link-graph traversal |
+
+Full list (22 algorithms): see [benchmarks/06_results/current/README.md](../benchmarks/06_results/current/README.md).
 
 ---
 

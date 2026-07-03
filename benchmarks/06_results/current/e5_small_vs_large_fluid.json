@@ -1,0 +1,50 @@
+{
+  "e5-small (384d, current)": {
+    "dim": 384,
+    "model_id": "intfloat/multilingual-e5-small",
+    "load_time_s": 18.45,
+    "corpus_encode_s": 545.23,
+    "formula": {
+      "hit_rate": 0.41935483870967744,
+      "ndcg10": 0.2594582968767435,
+      "avg_query_ms": 55.01597096773484,
+      "n": 31
+    },
+    "other": {
+      "hit_rate": 0.5,
+      "ndcg10": 0.42618595071429155,
+      "avg_query_ms": 58.330549999993764,
+      "n": 20
+    },
+    "all": {
+      "hit_rate": 0.45098039215686275,
+      "ndcg10": 0.324841690538527,
+      "avg_query_ms": 61.04044509806152,
+      "n": 51
+    }
+  },
+  "e5-large-v2 (1024d)": {
+    "dim": 1024,
+    "model_id": "intfloat/e5-large-v2",
+    "load_time_s": 5.67,
+    "corpus_encode_s": 25534.08,
+    "formula": {
+      "hit_rate": 0.41935483870967744,
+      "ndcg10": 0.2642032188777707,
+      "avg_query_ms": 606.3148903225327,
+      "n": 31
+    },
+    "other": {
+      "hit_rate": 0.65,
+      "ndcg10": 0.4895901623333446,
+      "avg_query_ms": 109.33967999972083,
+      "n": 20
+    },
+    "all": {
+      "hit_rate": 0.5098039215686274,
+      "ndcg10": 0.35259025552701545,
+      "avg_query_ms": 114.35616666651684,
+      "n": 51
+    }
+  }
+}
