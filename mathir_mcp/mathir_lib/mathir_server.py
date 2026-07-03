@@ -171,18 +171,29 @@ def _get_vec_mem(db_path, dim):
 def _resolve_db(project: str = None, cwd: str = None):
     """Resolve VecMemory + embedder. Returns (vec_mem, db_path, embedder) or raises.
 
-    Routing priority (v8.6.1 — always prefer per-project .mathir/):
-      1. Explicit cwd -> cwd/.mathir/mathir.db (create .mathir/ if needed)
-      2. No cwd but project -> registry lookup for known cwd, then .mathir/ there
-      3. Fallback -> get_project_db_path() (CWD-based)
+    Routing priority (v8.6.1 — local-first, backward-compatible):
+      1. cwd/.mathir/mathir.db if it already exists (per-project)
+      2. Global ~/.config/MATHIR/data/projects/<project>/mathir.db if it exists (legacy)
+      3. Create cwd/.mathir/mathir.db for NEW projects (prefer local going forward)
+      4. Fallback -> get_project_db_path() (registry, legacy)
     """
     dim = get_embedder_dim()
     db_path = None
     if cwd:
         cwd_path = Path(cwd)
-        mathir_dir = cwd_path / ".mathir"
-        mathir_dir.mkdir(parents=True, exist_ok=True)
-        db_path = mathir_dir / "mathir.db"
+        local_db = cwd_path / ".mathir" / "mathir.db"
+        if local_db.exists():
+            db_path = local_db
+        elif project:
+            global_db = Path(os.environ.get("MATHIR_HOME", str(Path.home() / ".config" / "MATHIR"))) / "data" / "projects" / project / "mathir.db"
+            if global_db.exists():
+                db_path = global_db
+            else:
+                local_db.parent.mkdir(parents=True, exist_ok=True)
+                db_path = local_db
+        else:
+            local_db.parent.mkdir(parents=True, exist_ok=True)
+            db_path = local_db
     elif project:
         db_path = get_project_db_path(project=project)
     if db_path is None:

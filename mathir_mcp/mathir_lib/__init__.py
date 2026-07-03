@@ -100,20 +100,23 @@ def get_data_dir() -> Path:
 
 
 def get_db_path(project: str = "default") -> Path:
-    """Get DB path for a project. Always per-project .mathir/ in cwd.
+    """Get DB path for a project. Local-first, backward-compatible.
 
     Discovery order:
-      1. ``.mathir/mathir.db`` in the current working directory (create if needed)
-      2. ``<MATHIR_HOME>/data/projects/<project>/mathir.db`` (fallback for daemon-only contexts)
+      1. ``.mathir/mathir.db`` in cwd if it already exists (per-project)
+      2. ``<MATHIR_HOME>/data/projects/<project>/mathir.db`` if it exists (legacy global)
+      3. Create ``.mathir/mathir.db`` in cwd for new projects (prefer local going forward)
+      4. Global fallback if cwd is read-only
     """
     cwd_db = Path.cwd() / ".mathir" / "mathir.db"
     if cwd_db.exists():
         return cwd_db
-    cwd_mathir = Path.cwd() / ".mathir"
+    global_db = get_data_dir() / "projects" / project / "mathir.db"
+    if global_db.exists():
+        return global_db
     try:
-        cwd_mathir.mkdir(parents=True, exist_ok=True)
-        return cwd_mathir / "mathir.db"
+        cwd_db.parent.mkdir(parents=True, exist_ok=True)
+        return cwd_db
     except OSError:
-        data = get_data_dir() / "projects" / project
-        data.mkdir(parents=True, exist_ok=True)
-        return data / "mathir.db"
+        global_db.parent.mkdir(parents=True, exist_ok=True)
+        return global_db
