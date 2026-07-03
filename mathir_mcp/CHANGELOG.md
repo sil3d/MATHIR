@@ -11,15 +11,20 @@
 - **VBS launcher** (`auto_start_vbs.vbs`) — replaced hardcoded path with `WScript.Shell.ExpandEnvironmentStrings("%USERPROFILE%")` for portable resolution
 - **Python scripts** (`migrate_mathir_schema.py`, `test_batch_recall.py`) — replaced hardcoded paths with `os.path.expanduser("~")` based resolution
 - **install_smart.py** macOS plist generation — plist paths now use `~/.config/MATHIR/` instead of `~/.config/opencode/`
-- Added `.claude/` to `.gitignore` (contains machine-specific hook paths, must not be committed)
+- Added `.claude/` and `.mimocode/` to `.gitignore` (local state, must not be committed)
+- **DB routing** — `_resolve_db()` was creating DBs in global `~/.config/MATHIR/data/projects/` even when a project cwd was provided. Now creates `.mathir/mathir.db` inside the project directory for new projects.
+- **DB routing backward-compat** — existing 417 databases in global config are still found: routing checks local `.mathir/` first, then global, only creates local for genuinely new projects.
+- **Case-sensitivity** — standardized `~/.config/MATHIR` (uppercase) everywhere. The lowercase `~/.config/mathir` variant would create a separate directory on Linux/macOS.
+- Removed legacy `~/.config/opencode` fallback from `mathir_paths.py`
 
 ### Changed
 - All cross-platform scripts (`.bat`, `.ps1`, `.sh`, `.service`, `.plist`) now resolve paths from `%USERPROFILE%` / `$HOME` / `~`
 - All install guides (Windows, Linux, macOS) updated to `~/.config/MATHIR/mathir_mcp/` paths
 - All agent/command/docs templates (opencode + mimocode) updated to new canonical paths
 - `GLOBAL_INSTRUCTIONS.md` deployed path updated
+- DB routing priority: local `.mathir/` → global `~/.config/MATHIR/data/` → create local
 
-### Files touched (18 files)
+### Files touched (24 files)
 - `bin/auto_start.bat`, `bin/auto_start.sh`, `bin/auto_start_vbs.vbs`
 - `bin/auto_start_helpers.ps1`, `bin/auto_start_healthcheck.ps1`
 - `bin/start_daemon_background.ps1`, `bin/setup-autostart.ps1`
