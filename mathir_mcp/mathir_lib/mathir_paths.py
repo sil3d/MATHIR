@@ -3,9 +3,7 @@
 No IDE-specific hardcodes. The base directory resolves as:
 
   1. ``$MATHIR_HOME`` if set
-  2. ``~/.config/mathir`` if it already exists (migrated or fresh install)
-  3. ``~/.config/opencode`` if it exists (backward compat for existing data)
-  4. ``~/.config/mathir`` (default for fresh installs)
+  2. ``~/.config/MATHIR`` (canonical since v8.6.1)
 
 Sub-paths (``config/``, ``data/``, ``logs/``) derive from the resolved base.
 """
@@ -20,13 +18,7 @@ def _resolve_home() -> Path:
     env = os.environ.get("MATHIR_HOME")
     if env:
         return Path(env).expanduser()
-    new = Path.home() / ".config" / "mathir"
-    legacy = Path.home() / ".config" / "opencode"
-    if new.exists():
-        return new
-    if legacy.exists():
-        return legacy
-    return new
+    return Path.home() / ".config" / "MATHIR"
 
 
 HOME = _resolve_home()

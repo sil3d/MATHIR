@@ -40,7 +40,7 @@ Config (env vars):
   MATHIR_PROXY_API_KEY forwarded if set, else passthrough from Authorization header
   MATHIR_PROXY_INJECT_K default 8 (memories per request)
   MATHIR_PROXY_DEBUG   default 0 (set 1 to log every augmentation)
-  MATHIR_LOG_DIR       default ~/.config/mathir/logs (or $MATHIR_HOME/logs)
+  MATHIR_LOG_DIR       default ~/.config/MATHIR/logs (or $MATHIR_HOME/logs)
 """
 
 import sys

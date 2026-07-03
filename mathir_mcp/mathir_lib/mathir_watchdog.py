@@ -12,7 +12,7 @@ Features:
 - Probes /health (HTTP 200) every N seconds
 - Exponential backoff between restart attempts (avoids pile-up while the
   embedder loads, which can take 15-30 s)
-- Logs to $MATHIR_HOME/logs/mathir_watchdog.log (default ~/.config/mathir/logs)
+- Logs to $MATHIR_HOME/logs/mathir_watchdog.log (default ~/.config/MATHIR/logs)
 - Has its own PID lockfile to prevent multiple instances
 - Cross-platform PID-alive check (no psutil required)
 - --kill flag: port-based kill (netstat on Windows, lsof on POSIX) with
@@ -49,7 +49,7 @@ sys.path.insert(0, os.path.normpath(os.path.join(
 try:
     from mathir_paths import LOG_DIR as _P_LOG
 except ImportError:
-    _P_LOG = Path.home() / ".config" / "mathir" / "logs"
+    _P_LOG = Path.home() / ".config" / "MATHIR" / "logs"
 LOG_DIR = Path(os.environ.get("MATHIR_LOG_DIR", str(_P_LOG)))
 try:
     LOG_DIR.mkdir(parents=True, exist_ok=True)

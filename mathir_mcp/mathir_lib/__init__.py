@@ -100,16 +100,20 @@ def get_data_dir() -> Path:
 
 
 def get_db_path(project: str = "default") -> Path:
-    """Get DB path for a project. CWD-first, then the unified data dir.
+    """Get DB path for a project. Always per-project .mathir/ in cwd.
 
     Discovery order:
-      1. ``.mathir/mathir.db`` in the current working directory (per-project isolation)
-      2. ``$MATHIR_DATA_DIR/projects/<project>/mathir.db``
-      3. ``<MATHIR_HOME>/data/projects/<project>/mathir.db`` (fallback via mathir_paths)
+      1. ``.mathir/mathir.db`` in the current working directory (create if needed)
+      2. ``<MATHIR_HOME>/data/projects/<project>/mathir.db`` (fallback for daemon-only contexts)
     """
     cwd_db = Path.cwd() / ".mathir" / "mathir.db"
     if cwd_db.exists():
         return cwd_db
-    data = get_data_dir() / "projects" / project
-    data.mkdir(parents=True, exist_ok=True)
-    return data / "mathir.db"
+    cwd_mathir = Path.cwd() / ".mathir"
+    try:
+        cwd_mathir.mkdir(parents=True, exist_ok=True)
+        return cwd_mathir / "mathir.db"
+    except OSError:
+        data = get_data_dir() / "projects" / project
+        data.mkdir(parents=True, exist_ok=True)
+        return data / "mathir.db"

@@ -171,23 +171,20 @@ def _get_vec_mem(db_path, dim):
 def _resolve_db(project: str = None, cwd: str = None):
     """Resolve VecMemory + embedder. Returns (vec_mem, db_path, embedder) or raises.
 
-    Routing priority (v8.5.1 fix):
-      1. Explicit project + cwd from MCP request -> use cwd/.mathir/mathir.db
-      2. Just project -> ~/.config/MATHIR/data/projects/<project>/mathir.db
-      3. No project/cwd -> fall back to get_project_db_path() (CWD-based)
+    Routing priority (v8.6.1 — always prefer per-project .mathir/):
+      1. Explicit cwd -> cwd/.mathir/mathir.db (create .mathir/ if needed)
+      2. No cwd but project -> registry lookup for known cwd, then .mathir/ there
+      3. Fallback -> get_project_db_path() (CWD-based)
     """
     dim = get_embedder_dim()
     db_path = None
-    if cwd and project:
+    if cwd:
         cwd_path = Path(cwd)
-        candidate = cwd_path / ".mathir" / "mathir.db"
-        if candidate.parent.exists():
-            db_path = candidate
-        else:
-            # Create .mathir/ alongside the project (use project name for DB)
-            db_path = Path(os.environ.get("MATHIR_HOME", str(Path.home() / ".config" / "mathir"))) / "data" / "projects" / project / "mathir.db"
+        mathir_dir = cwd_path / ".mathir"
+        mathir_dir.mkdir(parents=True, exist_ok=True)
+        db_path = mathir_dir / "mathir.db"
     elif project:
-        db_path = Path(os.environ.get("MATHIR_HOME", str(Path.home() / ".config" / "mathir"))) / "data" / "projects" / project / "mathir.db"
+        db_path = get_project_db_path(project=project)
     if db_path is None:
         db_path = get_project_db_path(project=project)
     if db_path is None:

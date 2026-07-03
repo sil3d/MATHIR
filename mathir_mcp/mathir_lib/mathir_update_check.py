@@ -50,7 +50,7 @@ def _cache_path() -> Path:
     env = os.environ.get("MATHIR_HOME")
     if env:
         return Path(env) / CACHE_FILENAME
-    canonical = Path.home() / ".config" / "mathir" / CACHE_FILENAME
+    canonical = Path.home() / ".config" / "MATHIR" / CACHE_FILENAME
     if canonical.parent.exists():
         return canonical
     return Path.home() / CACHE_FILENAME
