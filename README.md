@@ -63,6 +63,52 @@ Terminal 4:  mathir_god_orchestre(directive="Refactor auth + tests + docs")
 
 **What it solves:** You have 4 AI agents open. You copy-paste context between them. You decide who does what. You check each result manually. **You are the bottleneck.**
 
+```mermaid
+mindmap
+  root((🔱 GOD MODE))
+    🧠 Orchestrator
+      Decomposes directive
+      Reads worker profiles
+      Assigns by strength
+      Monitors & verifies
+      Dispatches dependents
+    👷 Workers
+      Self-identify
+        Name & capabilities
+        Strengths & weaknesses
+        Tool access
+      Poll for tasks
+      Execute & report
+      Loop until shutdown
+    📡 Shared Memory
+      MATHIR Daemon :7338:
+      Label Protocol
+        god:reg — registration
+        god:task — dispatch
+        god:result — completion
+        god:shutdown — stop
+      No broker needed
+      Cross-process
+    ⚙️ Core Engine
+      TaskGraph — DAG
+        Dependency resolution
+        Cycle detection DFS
+      WorkerRegistry
+        Capability matching
+        Status tracking
+      GodProtocol
+        Label encode/decode
+        Task ID generation
+      WorktreeManager
+        Git isolation
+        Branch per task
+    🛡️ Safety
+      LIKE injection prevention
+      Cycle detection
+      No premature completion
+      Honest self-assessment
+```
+
 **How it works:**
 1. Workers call `mathir_god_agent()` with **no arguments** → they self-identify (name, strengths, weaknesses)
 2. Orchestrator calls `mathir_god_orchestre(directive="...")` → sees all worker profiles → decomposes → assigns by strength → dispatches
