@@ -115,3 +115,114 @@ class TaskGraph:
         g = cls(d["directive"], d.get("directive_id"))
         g._tasks = d["tasks"]
         return g
+
+
+class WorkerRegistry:
+    """Track registered workers (in-memory, populated from daemon responses)."""
+
+    def __init__(self):
+        self._workers: dict[str, dict] = {}
+
+    def register(self, name: str, capabilities: list[str]) -> None:
+        self._workers[name] = {
+            "name": name,
+            "capabilities": capabilities,
+            "status": "idle",
+        }
+
+    def unregister(self, name: str) -> None:
+        self._workers.pop(name, None)
+
+    def set_status(self, name: str, status: str) -> None:
+        if name in self._workers:
+            self._workers[name]["status"] = status
+
+    def list_idle(self) -> list[dict]:
+        return [w for w in self._workers.values() if w["status"] == "idle"]
+
+    def list_all(self) -> list[dict]:
+        return list(self._workers.values())
+
+    def find_by_capability(self, cap: str) -> list[str]:
+        return [
+            w["name"]
+            for w in self._workers.values()
+            if cap in w["capabilities"]
+        ]
+
+    @classmethod
+    def from_daemon_response(cls, agents: list[dict]) -> "WorkerRegistry":
+        r = cls()
+        for a in agents:
+            r._workers[a["name"]] = {
+                "name": a["name"],
+                "capabilities": a.get("capabilities", []),
+                "status": a.get("status", "idle"),
+            }
+        return r
+
+
+class WorktreeManager:
+    """Git worktree lifecycle for task isolation."""
+
+    def __init__(self, base_dir: Path = None):
+        self.base_dir = base_dir or Path.cwd()
+        self.worktree_dir = self.base_dir / ".worktrees"
+
+    def create(self, task_id: str) -> tuple[bool, str, Path | None]:
+        wt_path = self.worktree_dir / f"god-{task_id}"
+        branch = f"god/{task_id}"
+        result = subprocess.run(
+            ["git", "worktree", "add", str(wt_path), "-b", branch],
+            capture_output=True,
+            text=True,
+            cwd=str(self.base_dir),
+        )
+        if result.returncode == 0:
+            return True, f"Created worktree at {wt_path}", wt_path
+        return False, result.stderr.strip(), None
+
+    def merge(self, task_id: str) -> tuple[bool, str]:
+        branch = f"god/{task_id}"
+        result = subprocess.run(
+            ["git", "merge", branch, "--no-edit"],
+            capture_output=True,
+            text=True,
+            cwd=str(self.base_dir),
+        )
+        if result.returncode == 0:
+            return True, result.stdout.strip()
+        return False, result.stderr.strip() or result.stdout.strip()
+
+    def cleanup(self, task_id: str) -> None:
+        wt_path = self.worktree_dir / f"god-{task_id}"
+        subprocess.run(
+            ["git", "worktree", "remove", str(wt_path), "--force"],
+            capture_output=True,
+            text=True,
+            cwd=str(self.base_dir),
+        )
+        branch = f"god/{task_id}"
+        subprocess.run(
+            ["git", "branch", "-D", branch],
+            capture_output=True,
+            text=True,
+            cwd=str(self.base_dir),
+        )
+
+    def list_active(self) -> list[str]:
+        result = subprocess.run(
+            ["git", "worktree", "list"],
+            capture_output=True,
+            text=True,
+            cwd=str(self.base_dir),
+        )
+        task_ids = []
+        for line in result.stdout.strip().split("\n"):
+            if "god-" in line:
+                for part in line.split():
+                    if "god-" in part:
+                        tid = part.split("god-")[-1].rstrip("]").rstrip("/")
+                        task_ids.append(tid)
+                        break
+        return task_ids

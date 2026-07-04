@@ -3,6 +3,8 @@
 import sys
 import os
 import json
+from unittest.mock import patch, MagicMock
+from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "mathir_lib"))
 
@@ -127,3 +129,118 @@ class TestTaskGraph:
         ready = g.get_ready_tasks()
         ids = [t["task_id"] for t in ready]
         assert "t1" not in ids  # already running
+
+
+from mathir_god import WorkerRegistry, WorktreeManager
+
+
+class TestWorkerRegistry:
+
+    def test_register(self):
+        r = WorkerRegistry()
+        r.register("mimo", ["code", "test"])
+        assert len(r.list_all()) == 1
+        assert r.list_all()[0]["name"] == "mimo"
+
+    def test_register_overwrites(self):
+        r = WorkerRegistry()
+        r.register("mimo", ["code"])
+        r.register("mimo", ["code", "test"])
+        assert len(r.list_all()) == 1
+        assert "test" in r.list_all()[0]["capabilities"]
+
+    def test_unregister(self):
+        r = WorkerRegistry()
+        r.register("mimo", ["code"])
+        r.unregister("mimo")
+        assert len(r.list_all()) == 0
+
+    def test_unregister_nonexistent(self):
+        r = WorkerRegistry()
+        r.unregister("ghost")  # should not raise
+
+    def test_set_status(self):
+        r = WorkerRegistry()
+        r.register("mimo", ["code"])
+        r.set_status("mimo", "busy")
+        assert r.list_all()[0]["status"] == "busy"
+
+    def test_list_idle(self):
+        r = WorkerRegistry()
+        r.register("mimo", ["code"])
+        r.register("codex", ["code"])
+        r.set_status("mimo", "busy")
+        idle = r.list_idle()
+        assert len(idle) == 1
+        assert idle[0]["name"] == "codex"
+
+    def test_find_by_capability(self):
+        r = WorkerRegistry()
+        r.register("mimo", ["code", "test"])
+        r.register("codex", ["code"])
+        r.register("opencode", ["review", "docs"])
+        assert "mimo" in r.find_by_capability("test")
+        assert "codex" not in r.find_by_capability("test")
+        assert len(r.find_by_capability("code")) == 2
+
+    def test_from_daemon_response(self):
+        data = [
+            {"name": "mimo", "status": "idle", "capabilities": ["code"]},
+            {"name": "codex", "status": "busy", "capabilities": ["code", "fast"]},
+        ]
+        r = WorkerRegistry.from_daemon_response(data)
+        assert len(r.list_all()) == 2
+        assert r.list_idle()[0]["name"] == "mimo"
+
+
+class TestWorktreeManager:
+
+    @patch("mathir_god.subprocess.run")
+    def test_create_success(self, mock_run):
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+        wm = WorktreeManager(base_dir=Path("/tmp/test"))
+        ok, msg, path = wm.create("abc12345")
+        assert ok is True
+        assert path is not None
+        assert "abc12345" in str(path)
+
+    @patch("mathir_god.subprocess.run")
+    def test_create_failure(self, mock_run):
+        mock_run.return_value = MagicMock(returncode=1, stderr="fatal: already exists")
+        wm = WorktreeManager(base_dir=Path("/tmp/test"))
+        ok, msg, path = wm.create("abc12345")
+        assert ok is False
+        assert path is None
+
+    @patch("mathir_god.subprocess.run")
+    def test_merge_success(self, mock_run):
+        mock_run.return_value = MagicMock(returncode=0, stderr="", stdout="Already up to date.")
+        wm = WorktreeManager(base_dir=Path("/tmp/test"))
+        ok, msg = wm.merge("abc12345")
+        assert ok is True
+
+    @patch("mathir_god.subprocess.run")
+    def test_merge_conflict(self, mock_run):
+        mock_run.return_value = MagicMock(returncode=1, stderr="CONFLICT", stdout="")
+        wm = WorktreeManager(base_dir=Path("/tmp/test"))
+        ok, msg = wm.merge("abc12345")
+        assert ok is False
+        assert "CONFLICT" in msg
+
+    @patch("mathir_god.subprocess.run")
+    def test_cleanup(self, mock_run):
+        mock_run.return_value = MagicMock(returncode=0, stderr="")
+        wm = WorktreeManager(base_dir=Path("/tmp/test"))
+        wm.cleanup("abc12345")  # should not raise
+        assert mock_run.called
+
+    @patch("mathir_god.subprocess.run")
+    def test_list_active(self, mock_run):
+        mock_run.return_value = MagicMock(
+            returncode=0,
+            stdout="/repo/.worktrees/god-abc12345 abc12345abc [god/abc12345]\n/repo/.worktrees/god-def67890 def67890def [god/def67890]\n/repo/main HEAD [main]\n",
+        )
+        wm = WorktreeManager(base_dir=Path("/repo"))
+        active = wm.list_active()
+        assert "abc12345" in active
+        assert "def67890" in active
