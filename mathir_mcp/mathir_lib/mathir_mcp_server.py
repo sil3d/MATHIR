@@ -917,27 +917,26 @@ def memory_audit_immunological(project: str = None, k: int = 20) -> str:
 
 @mcp.tool()
 def mathir_god_agent(
-    name: str,
+    name: str = "",
     capabilities: str = "",
+    introduction: str = "",
     poll_interval: int = 8,
     worktree: bool = True,
 ) -> str:
     """Register as a God worker agent and poll once for a pending task.
 
-    Call with name="help" to get a full usage guide.
+    Call with NO arguments to start the self-identification flow:
+    - Step 1: Call mathir_god_agent() → you get an "identify" instruction
+    - Step 2: Assess yourself honestly, then call again with your identity:
+      mathir_god_agent(name="...", capabilities="...", introduction="...")
+    - Step 3: You're registered. The orchestrator will assign tasks based on your profile.
 
-    Call this repeatedly (e.g. via Claude Code /loop) to make this agent
-    available for orchestrated tasks. Each call registers the worker (if not
-    already registered), polls once for a pending task, and returns immediately.
-
-    Returns:
-    - {"status": "waiting", ...}  — no task found, call again after poll_interval
-    - {"status": "task_found", "instruction": "EXECUTE THIS TASK: ...", ...}
-    - {"status": "shutdown"}      — orchestrator requested shutdown
+    Call with name="help" for a full usage guide.
 
     Args:
-        name: Unique worker name — any string you choose (e.g. "claude1", "mimo", "worker-A")
+        name: Your unique worker ID. Leave empty for self-identification.
         capabilities: Comma-separated skills (e.g. "code,test,debug,review,docs")
+        introduction: Your self-assessment — who you are, your strengths, weaknesses, what you excel at.
         poll_interval: Seconds between polls suggested to caller (default 8)
         worktree: Use git worktree for task isolation (default True)
     """
@@ -948,42 +947,81 @@ def mathir_god_agent(
                 "=== MATHIR GOD MODE — WORKER GUIDE ===\n\n"
                 "God Mode lets you orchestrate multiple AI agents across terminals.\n"
                 "This tool makes your agent a WORKER that receives and executes tasks.\n\n"
-                "--- QUICK START ---\n\n"
-                "1. Open this terminal with any AI agent (Claude Code, MiMo, Codex, etc.)\n"
-                "2. Call: mathir_god_agent(name='my-worker', capabilities='code,test')\n"
-                "3. The tool registers you and polls for tasks\n"
-                "4. When a task arrives, you'll get an instruction to execute\n"
-                "5. Execute the task using your normal tools (Edit, Bash, etc.)\n"
-                "6. Report results with memory_save (instructions provided in response)\n"
-                "7. Call mathir_god_agent() again to get the next task\n\n"
-                "--- PARAMETERS ---\n\n"
-                "name:          Any unique string — your worker ID (e.g. 'claude1', 'worker-A')\n"
-                "capabilities:  Comma-separated skills: code, test, debug, review, docs, refactor\n"
-                "               The orchestrator uses these to assign matching tasks\n"
-                "poll_interval: Seconds between polls (default 8). Lower = faster response\n"
-                "worktree:      Git worktree isolation (default True)\n\n"
+                "--- QUICK START (3 steps) ---\n\n"
+                "1. Call mathir_god_agent() with NO arguments\n"
+                "   → You'll get an 'identify' instruction\n\n"
+                "2. Assess yourself honestly, then call again:\n"
+                "   mathir_god_agent(\n"
+                "       name='claude-code',\n"
+                "       capabilities='code,refactor,debug,architecture',\n"
+                "       introduction='I am Claude Code by Anthropic. I excel at complex refactoring,\n"
+                "                     multi-file architecture, and debugging. I am a thinking model\n"
+                "                     with deep reasoning. Weakness: I am slower than lightweight agents.'\n"
+                "   )\n\n"
+                "3. You're registered! Keep calling mathir_god_agent() to poll for tasks.\n"
+                "   When a task arrives, execute it and report back as instructed.\n\n"
+                "--- WHAT HAPPENS ---\n\n"
+                "• The orchestrator sees your profile (name, capabilities, introduction)\n"
+                "• It assigns tasks based on your strengths vs other workers' strengths\n"
+                "• You get a task → execute it → report results → poll for next task\n\n"
+                "--- SELF-IDENTIFICATION TIPS ---\n\n"
+                "Be honest about:\n"
+                "  • What model/agent you are (Claude, GPT, MiMo, Codex, etc.)\n"
+                "  • Your strengths (reasoning, speed, code quality, testing, etc.)\n"
+                "  • Your weaknesses (slow, limited context, no web access, etc.)\n"
+                "  • What tasks you're BEST at vs merely capable of\n"
+                "  • Your tool access (can you edit files? run tests? search web?)\n\n"
+                "The orchestrator uses this to make optimal assignments.\n"
+                "Lying about your abilities means you'll get tasks you can't handle well.\n\n"
                 "--- RETURN VALUES ---\n\n"
+                "status='identify'   → First call, no name. Tell the tool who you are\n"
                 "status='waiting'    → No task yet. Call again after poll_interval seconds\n"
                 "status='task_found' → Task assigned! Read 'instruction' and 'report_instruction'\n"
                 "status='shutdown'   → Orchestrator says stop. Exit the loop\n\n"
-                "--- WORKFLOW ---\n\n"
-                "Terminal 1 (worker):       mathir_god_agent(name='w1', capabilities='code,test')\n"
-                "Terminal 2 (worker):       mathir_god_agent(name='w2', capabilities='code,review')\n"
-                "Terminal 3 (orchestrator): mathir_god_orchestre(directive='...')\n\n"
-                "The orchestrator dispatches tasks → workers poll and execute → report back.\n"
-                "All communication goes through MATHIR shared memory (port 7338).\n\n"
                 "--- TIPS ---\n\n"
                 "• Use Claude Code /loop to auto-poll repeatedly\n"
-                "• Name doesn't matter — pick anything unique per terminal\n"
-                "• Capabilities help the orchestrator assign the right tasks\n"
                 "• Call mathir_god_orchestre(directive='help') for orchestrator guide"
             ),
         })
 
-    caps = [c.strip() for c in capabilities.split(",") if c.strip()]
-    reg_content = json.dumps({"capabilities": caps})
+    if not name:
+        return json.dumps({
+            "status": "identify",
+            "instruction": (
+                "SELF-IDENTIFICATION REQUIRED\n\n"
+                "You are joining a multi-agent team. Before you can receive tasks, "
+                "the orchestrator needs to know who you are.\n\n"
+                "Assess yourself honestly and call mathir_god_agent again with:\n\n"
+                "  name:          A unique ID for yourself (e.g. 'claude-code', 'mimo', 'codex-1')\n"
+                "  capabilities:  Comma-separated list of what you can do.\n"
+                "                 Common: code, test, debug, review, docs, refactor, architecture,\n"
+                "                 search, analysis, fast-execution\n"
+                "  introduction:  A honest self-assessment (2-4 sentences):\n"
+                "                 - What agent/model are you?\n"
+                "                 - What are you BEST at? (not just capable — where do you SHINE?)\n"
+                "                 - What are your weaknesses or limitations?\n"
+                "                 - What tools do you have access to?\n\n"
+                "Example:\n"
+                "  mathir_god_agent(\n"
+                "      name='claude-code',\n"
+                "      capabilities='code,refactor,debug,architecture,review',\n"
+                "      introduction='I am Claude Code (Opus). I excel at complex multi-file refactoring, "
+                "architecture decisions, and deep debugging. I have full file system access, can run "
+                "tests, and use git. Weakness: I am slower and more expensive than lightweight models. "
+                "Best used for tasks requiring deep reasoning, not bulk mechanical work.'\n"
+                "  )\n\n"
+                "BE HONEST. The orchestrator assigns tasks based on your profile. "
+                "Overestimating yourself means getting tasks you'll do poorly. "
+                "Underestimating means missing tasks you'd excel at."
+            ),
+        })
 
-    # Register / heartbeat the worker as idle
+    caps = [c.strip() for c in capabilities.split(",") if c.strip()]
+    reg_content = json.dumps({
+        "capabilities": caps,
+        "introduction": introduction,
+    })
+
     _call_daemon_raw("memory_save", {
         "content": reg_content,
         "agent": name,
@@ -994,8 +1032,9 @@ def mathir_god_agent(
 
     log.info(f"[God Worker] {name} registered with capabilities: {caps}")
     result_lines = [f"[God Worker] {name} registered. Capabilities: {caps}. poll_interval={poll_interval}s."]
+    if introduction:
+        result_lines.append(f"[God Worker] Introduction saved: {introduction[:100]}...")
 
-    # Poll once for a pending task
     try:
         resp = _call_daemon_raw("god_poll", {"agent": name, "status": "pending"})
     except Exception as e:
@@ -1105,55 +1144,41 @@ def mathir_god_orchestre(
             "guide": (
                 "=== MATHIR GOD MODE — ORCHESTRATOR GUIDE ===\n\n"
                 "God Mode lets you orchestrate multiple AI agents across terminals.\n"
-                "This tool makes your agent the ORCHESTRATOR that assigns and monitors tasks.\n\n"
+                "This tool makes your agent the ORCHESTRATOR — the brain that plans,\n"
+                "assigns, and verifies. You don't code. You direct.\n\n"
                 "--- SETUP (do this first) ---\n\n"
                 "1. Open 2+ terminals with AI agents (Claude Code, MiMo, Codex, etc.)\n"
-                "2. In each WORKER terminal, run:\n"
-                "   mathir_god_agent(name='worker-1', capabilities='code,test')\n"
-                "   mathir_god_agent(name='worker-2', capabilities='code,review')\n"
-                "3. Workers will register and wait for tasks\n\n"
+                "2. In each WORKER terminal, just run:\n"
+                "   mathir_god_agent()\n"
+                "3. Each agent will self-identify (name, capabilities, strengths/weaknesses)\n"
+                "4. Workers register and start polling for tasks\n\n"
                 "--- ORCHESTRATE ---\n\n"
-                "4. In the ORCHESTRATOR terminal, run:\n"
-                "   mathir_god_orchestre(directive='Refactor auth module + write tests + update docs')\n"
-                "5. The tool returns: registered workers, their capabilities, and dispatch instructions\n"
-                "6. YOU (the orchestrator agent) decompose the directive into tasks\n"
-                "7. Dispatch each task with memory_save:\n\n"
-                "   memory_save(\n"
-                "       content='{\"description\": \"Refactor auth.py: extract validate_token()\"}',\n"
-                "       label='god:task:<8-char-hex>:<worker-name>:pending',\n"
-                "       block_type='working_memory',\n"
-                "       priority=7\n"
-                "   )\n\n"
-                "--- MONITOR ---\n\n"
-                "8. Check results:  memory_smart_search(query='god:result orchestrator')\n"
-                "9. When a task completes, dispatch dependent tasks\n"
-                "10. Repeat until all tasks are done\n\n"
-                "--- SHUTDOWN WORKERS ---\n\n"
-                "   memory_save(\n"
-                "       content='shutdown',\n"
-                "       label='god:task:00000000:<worker-name>:shutdown',\n"
-                "       block_type='working_memory',\n"
-                "       priority=9\n"
-                "   )\n\n"
-                "--- PARAMETERS ---\n\n"
-                "directive:   What you want done (natural language, any complexity)\n"
-                "strategy:    'auto' (LLM decides per task), 'parallel' (all at once),\n"
-                "             'sequential' (one after another)\n"
-                "verify:      True = review each result before marking verified (recommended)\n"
-                "auto_merge:  False = ask user before merging git branches (recommended)\n\n"
-                "--- LABEL PROTOCOL ---\n\n"
-                "All coordination uses labels: god:{type}:{id}:{target}:{status}\n\n"
-                "  god:reg:<name>:<name>:idle       → worker registered and waiting\n"
-                "  god:task:<id>:<worker>:pending    → task dispatched to worker\n"
-                "  god:task:<id>:<worker>:running    → worker accepted the task\n"
-                "  god:result:<id>:orchestrator:completed → worker finished\n"
-                "  god:task:00000000:<worker>:shutdown    → tell worker to stop\n\n"
+                "5. In the ORCHESTRATOR terminal, run:\n"
+                "   mathir_god_orchestre(directive='Refactor auth module + write tests + docs')\n"
+                "6. You'll see each worker's full profile (capabilities + self-assessment)\n"
+                "7. YOU decide who does what based on their strengths:\n"
+                "   - Deep reasoning task → strongest thinking model\n"
+                "   - Bulk mechanical work → fastest agent\n"
+                "   - Testing → agent with test expertise\n"
+                "8. Dispatch tasks with memory_save (instructions provided in response)\n\n"
+                "--- SMART ASSIGNMENT ---\n\n"
+                "Workers introduce themselves honestly. Use that information:\n"
+                "  • 'I excel at complex refactoring' → give them architecture tasks\n"
+                "  • 'I am fast but shallow' → give them mechanical/bulk tasks\n"
+                "  • 'I have web access' → give them research tasks\n"
+                "  • 'I am weak at testing' → don't give them test tasks\n\n"
+                "--- MONITOR & VERIFY ---\n\n"
+                "9. Check results:  memory_smart_search(query='god:result orchestrator')\n"
+                "10. Review each result before dispatching dependent tasks\n"
+                "11. If quality is poor, reassign to a stronger worker\n\n"
+                "--- SHUTDOWN ---\n\n"
+                "   memory_save(content='shutdown', label='god:task:00000000:{name}:shutdown',\n"
+                "               block_type='working_memory', priority=9)\n\n"
                 "--- TIPS ---\n\n"
-                "• The orchestrator does NOT code — it plans, assigns, and verifies\n"
-                "• Workers do the actual coding with their own tools\n"
-                "• Use 8-char hex IDs for tasks (e.g. 'a1b2c3d4')\n"
-                "• Tasks can have dependencies — dispatch dependents after prerequisites complete\n"
-                "• Call mathir_god_agent(name='help') for worker guide"
+                "• You do NOT code — you plan, assign, verify, and decide\n"
+                "• Workers identify themselves — you don't need to know what's installed\n"
+                "• If you doubt a worker's ability, give them a small probe task first\n"
+                "• Call mathir_god_agent(name='help') for the worker guide"
             ),
         })
 
@@ -1167,10 +1192,26 @@ def mathir_god_orchestre(
     if not agents:
         return json.dumps({
             "error": "No workers registered",
-            "instruction": "Open separate terminals and run mathir_god_agent(name='agent_name', capabilities='code,test') in each one first.",
+            "instruction": (
+                "No workers found. Open separate terminals with AI agents and run:\n\n"
+                "  mathir_god_agent()\n\n"
+                "Each agent will self-identify (name, capabilities, strengths). "
+                "Once workers are registered, call mathir_god_orchestre again."
+            ),
         })
 
     idle_agents = [a for a in agents if a.get("status") == "idle"]
+
+    worker_profiles = []
+    for a in agents:
+        intro = a.get("introduction", "")
+        caps = a.get("capabilities", [])
+        profile = (
+            f"  [{a['name']}] status={a.get('status','?')}\n"
+            f"    capabilities: {', '.join(caps) if caps else 'not specified'}\n"
+            f"    self-assessment: {intro if intro else 'no introduction provided'}"
+        )
+        worker_profiles.append(profile)
 
     results_resp = _call_daemon_raw("memory_smart_search", {
         "query": "god:result orchestrator",
@@ -1193,17 +1234,36 @@ def mathir_god_orchestre(
         "idle_workers": idle_agents,
         "pending_results": pending_results,
         "instruction": (
-            f"You are the God Orchestrator. You have {len(agents)} workers registered "
-            f"({len(idle_agents)} idle). Decompose this directive into tasks and dispatch them:\n\n"
+            f"YOU ARE THE GOD ORCHESTRATOR.\n\n"
             f"DIRECTIVE: {directive}\n\n"
-            f"WORKERS:\n" +
-            "\n".join(f"  - {a['name']} ({a.get('status','?')}): {a.get('capabilities',[])}" for a in agents) +
-            "\n\nTo dispatch a task, use memory_save with:\n"
-            f"  label='god:task:{{task_id}}:{{agent_name}}:pending'\n"
-            f"  content=JSON with 'description' key\n"
-            f"  block_type='working_memory', priority=7\n\n"
-            f"To check results, use memory_smart_search(query='god:result orchestrator').\n"
-            f"To shutdown a worker, use memory_save with label='god:task:00000000:{{agent_name}}:shutdown'."
+            f"STRATEGY: {strategy}\n\n"
+            f"=== WORKER PROFILES ({len(agents)} registered, {len(idle_agents)} idle) ===\n\n"
+            + "\n\n".join(worker_profiles) +
+            "\n\n=== YOUR JOB ===\n\n"
+            "1. ANALYZE the directive — break it into concrete tasks\n"
+            "2. ANALYZE each worker's profile — their strengths, weaknesses, capabilities\n"
+            "3. ASSIGN tasks to the BEST worker for each task based on their self-assessment:\n"
+            "   - Complex reasoning/architecture → strongest reasoning model\n"
+            "   - Bulk mechanical work → fastest agent\n"
+            "   - Testing → agent with best test capabilities\n"
+            "   - Review → agent with review experience\n"
+            "4. DISPATCH each task with memory_save:\n"
+            "   memory_save(\n"
+            "       content='{\"description\": \"...\", \"context\": \"...\", \"expected_output\": \"...\"}',\n"
+            "       label='god:task:{8-char-hex}:{agent_name}:pending',\n"
+            "       block_type='working_memory',\n"
+            "       priority=7\n"
+            "   )\n"
+            "5. MONITOR results: memory_smart_search(query='god:result orchestrator')\n"
+            "6. VERIFY each result before dispatching dependent tasks\n"
+            "7. SHUTDOWN workers when done:\n"
+            "   memory_save(content='shutdown', label='god:task:00000000:{name}:shutdown', ...)\n\n"
+            "=== ASSIGNMENT PRINCIPLES ===\n\n"
+            "• Match task complexity to agent capability — don't waste a deep reasoner on simple tasks\n"
+            "• If a worker said they're weak at X, don't assign them X\n"
+            "• If two workers can do a task, prefer the one who said it's their strength\n"
+            "• Consider task dependencies — don't dispatch tasks whose prerequisites aren't done\n"
+            "• If unsure about a worker's ability, assign a small probe task first"
         ),
     })
 

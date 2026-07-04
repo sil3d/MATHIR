@@ -1433,6 +1433,7 @@ def api_god_agents():
                         "name": name,
                         "status": parts[4],
                         "capabilities": info.get("capabilities", []),
+                        "introduction": info.get("introduction", ""),
                     }
         return jsonify({"agents": list(seen.values())})
     except Exception as e:
