@@ -1050,6 +1050,80 @@ def mathir_god_agent(
     })
 
 
+@mcp.tool()
+def mathir_god_orchestre(
+    directive: str,
+    strategy: str = "auto",
+    verify: bool = True,
+    auto_merge: bool = False,
+) -> str:
+    """Orchestrate a multi-agent task from a high-level directive.
+
+    Discovers registered god workers, decomposes the directive into tasks,
+    and dispatches them. The orchestrating agent (you) should:
+    1. Review the returned plan and workers
+    2. Call this tool to dispatch tasks
+    3. Monitor progress by calling this tool with the same directive
+
+    Semi-autonomous: presents a plan for user approval before dispatching.
+
+    Args:
+        directive: High-level task description (e.g. "Refactor auth + tests + docs")
+        strategy: "auto" (LLM decides), "parallel" (all at once), "sequential" (one by one)
+        verify: Whether orchestrator should review each result before marking verified
+        auto_merge: Merge git branches without user confirmation
+    """
+    try:
+        agents_resp = _call_daemon_raw("god_agents", {})
+    except Exception as e:
+        return json.dumps({"error": f"Cannot reach daemon: {e}"})
+
+    agents = agents_resp.get("agents", []) if isinstance(agents_resp, dict) else []
+
+    if not agents:
+        return json.dumps({
+            "error": "No workers registered",
+            "instruction": "Open separate terminals and run mathir_god_agent(name='agent_name', capabilities='code,test') in each one first.",
+        })
+
+    idle_agents = [a for a in agents if a.get("status") == "idle"]
+
+    results_resp = _call_daemon_raw("memory_smart_search", {
+        "query": "god:result orchestrator",
+        "k": 20,
+    })
+    pending_results = []
+    if isinstance(results_resp, dict):
+        for mem in results_resp.get("results", []):
+            label = mem.get("label", "")
+            if label.startswith("god:result:") and ":completed" in label:
+                pending_results.append(mem)
+
+    return json.dumps({
+        "status": "ready",
+        "directive": directive,
+        "strategy": strategy,
+        "verify": verify,
+        "auto_merge": auto_merge,
+        "registered_workers": agents,
+        "idle_workers": idle_agents,
+        "pending_results": pending_results,
+        "instruction": (
+            f"You are the God Orchestrator. You have {len(agents)} workers registered "
+            f"({len(idle_agents)} idle). Decompose this directive into tasks and dispatch them:\n\n"
+            f"DIRECTIVE: {directive}\n\n"
+            f"WORKERS:\n" +
+            "\n".join(f"  - {a['name']} ({a.get('status','?')}): {a.get('capabilities',[])}" for a in agents) +
+            "\n\nTo dispatch a task, use memory_save with:\n"
+            f"  label='god:task:{{task_id}}:{{agent_name}}:pending'\n"
+            f"  content=JSON with 'description' key\n"
+            f"  block_type='working_memory', priority=7\n\n"
+            f"To check results, use memory_smart_search(query='god:result orchestrator').\n"
+            f"To shutdown a worker, use memory_save with label='god:task:00000000:{{agent_name}}:shutdown'."
+        ),
+    })
+
+
 # ---------------------------------------------------------------------------
 # Health check tool (no daemon needed)
 # ---------------------------------------------------------------------------
