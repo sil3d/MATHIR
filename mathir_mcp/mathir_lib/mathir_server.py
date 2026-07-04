@@ -1366,14 +1366,14 @@ def push_cache_stats():
 def api_god_poll():
     """Optimized task polling for god workers."""
     try:
-        data = request.get_json(force=True) or {}
-        agent = data.get("agent", "")
-        status = data.get("status", "pending")
+        params = _get_params()
+        agent = params.get("agent", "")
+        status = params.get("status", "pending")
         if not agent:
             return jsonify({"error": "agent is required"}), 400
 
-        db = get_project_db()
-        conn = db.conn if hasattr(db, "conn") else db._conn
+        vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
+        conn = vec_mem._get_conn()
         suffix = f":{agent}:{status}"
         cursor = conn.execute(
             """SELECT memory_id, metadata, label
@@ -1401,12 +1401,13 @@ def api_god_poll():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route("/api/god/agents", methods=["GET"])
+@app.route("/api/god/agents", methods=["GET", "POST"])
 def api_god_agents():
     """List all registered god workers."""
     try:
-        db = get_project_db()
-        conn = db.conn if hasattr(db, "conn") else db._conn
+        params = _get_params() if request.method == "POST" else {}
+        vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
+        conn = vec_mem._get_conn()
         cursor = conn.execute(
             """SELECT memory_id, metadata, label
                FROM memories

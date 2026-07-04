@@ -1017,35 +1017,17 @@ def mathir_god_agent(
 
     result_lines.append(f"[God Worker] Accepted task {task_id}: {description[:80]}")
 
-    # Write a result placeholder (agent will overwrite after actual execution)
-    result_content = json.dumps({
-        "summary": f"Task {task_id} accepted by {name}",
-        "description": description,
-        "branch": f"god/{task_id}" if worktree else "main",
-    })
-    _call_daemon_raw("memory_save", {
-        "content": result_content,
-        "agent": name,
-        "block_type": "episodic",
-        "label": f"god:result:{task_id}:orchestrator:completed",
-        "priority": 7,
-    })
-
-    # Return worker to idle for next poll cycle
-    _call_daemon_raw("memory_save", {
-        "content": reg_content,
-        "agent": name,
-        "block_type": "working_memory",
-        "label": f"god:reg:{name}:{name}:idle",
-        "priority": 3,
-    })
-
     return json.dumps({
-        "status": "task_completed",
+        "status": "task_found",
         "task_id": task_id,
         "description": description,
         "instruction": f"EXECUTE THIS TASK: {description}",
-        "poll_interval": poll_interval,
+        "report_instruction": (
+            f"After completing the task, report results by calling memory_save with: "
+            f"label='god:result:{task_id}:orchestrator:completed', "
+            f"content=JSON summary of what you did, block_type='episodic', priority=7. "
+            f"Then call mathir_god_agent again to poll for the next task."
+        ),
         "log": result_lines,
     })
 
