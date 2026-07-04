@@ -912,6 +912,145 @@ def memory_audit_immunological(project: str = None, k: int = 20) -> str:
 
 
 # ---------------------------------------------------------------------------
+# God Orchestrator tools (v8.8.0)
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def mathir_god_agent(
+    name: str,
+    capabilities: str = "",
+    poll_interval: int = 8,
+    worktree: bool = True,
+) -> str:
+    """Register as a God worker agent and poll once for a pending task.
+
+    Call this repeatedly (e.g. via Claude Code /loop) to make this agent
+    available for orchestrated tasks. Each call registers the worker (if not
+    already registered), polls once for a pending task, and returns immediately.
+
+    Returns:
+    - {"status": "waiting", ...}  — no task found, call again after poll_interval
+    - {"status": "task_completed", "instruction": "EXECUTE THIS TASK: ...", ...}
+    - {"status": "shutdown"}      — orchestrator requested shutdown
+
+    Args:
+        name: Unique worker name (e.g. "mimo", "codex", "opencode")
+        capabilities: Comma-separated skills (e.g. "code,test,debug,review,docs")
+        poll_interval: Seconds between polls suggested to caller (default 8)
+        worktree: Use git worktree for task isolation (default True)
+    """
+    caps = [c.strip() for c in capabilities.split(",") if c.strip()]
+    reg_content = json.dumps({"capabilities": caps})
+
+    # Register / heartbeat the worker as idle
+    _call_daemon_raw("memory_save", {
+        "content": reg_content,
+        "agent": name,
+        "block_type": "working_memory",
+        "label": f"god:reg:{name}:{name}:idle",
+        "priority": 3,
+    })
+
+    log.info(f"[God Worker] {name} registered with capabilities: {caps}")
+    result_lines = [f"[God Worker] {name} registered. Capabilities: {caps}. poll_interval={poll_interval}s."]
+
+    # Poll once for a pending task
+    try:
+        resp = _call_daemon_raw("god_poll", {"agent": name, "status": "pending"})
+    except Exception as e:
+        log.warning(f"[God Worker] Poll error: {e}")
+        return json.dumps({
+            "status": "waiting",
+            "reason": f"poll_error: {e}",
+            "poll_interval": poll_interval,
+            "instruction": f"Call mathir_god_agent again after {poll_interval}s",
+            "log": result_lines,
+        })
+
+    task = resp.get("task") if isinstance(resp, dict) else None
+    if not task:
+        return json.dumps({
+            "status": "waiting",
+            "reason": "no_pending_task",
+            "poll_interval": poll_interval,
+            "instruction": f"Call mathir_god_agent again after {poll_interval}s",
+            "log": result_lines,
+        })
+
+    task_label = task.get("label", "")
+    parts = task_label.split(":")
+    if len(parts) >= 5 and parts[4] == "shutdown":
+        _call_daemon_raw("memory_save", {
+            "content": "shutdown",
+            "agent": name,
+            "block_type": "working_memory",
+            "label": f"god:reg:{name}:{name}:offline",
+            "priority": 3,
+        })
+        result_lines.append(f"[God Worker] {name} received shutdown.")
+        return json.dumps({"status": "shutdown", "log": result_lines})
+
+    task_id = parts[2] if len(parts) >= 3 else "unknown"
+    task_content = task.get("content", "")
+    try:
+        task_info = json.loads(task_content)
+    except (json.JSONDecodeError, TypeError):
+        task_info = {"description": task_content}
+
+    description = task_info.get("description", task_content)
+
+    # Accept task — mark as running
+    _call_daemon_raw("memory_save", {
+        "content": "accepted",
+        "agent": name,
+        "block_type": "working_memory",
+        "label": f"god:task:{task_id}:{name}:running",
+        "priority": 7,
+    })
+    _call_daemon_raw("memory_save", {
+        "content": reg_content,
+        "agent": name,
+        "block_type": "working_memory",
+        "label": f"god:reg:{name}:{name}:busy",
+        "priority": 3,
+    })
+
+    result_lines.append(f"[God Worker] Accepted task {task_id}: {description[:80]}")
+
+    # Write a result placeholder (agent will overwrite after actual execution)
+    result_content = json.dumps({
+        "summary": f"Task {task_id} accepted by {name}",
+        "description": description,
+        "branch": f"god/{task_id}" if worktree else "main",
+    })
+    _call_daemon_raw("memory_save", {
+        "content": result_content,
+        "agent": name,
+        "block_type": "episodic",
+        "label": f"god:result:{task_id}:orchestrator:completed",
+        "priority": 7,
+    })
+
+    # Return worker to idle for next poll cycle
+    _call_daemon_raw("memory_save", {
+        "content": reg_content,
+        "agent": name,
+        "block_type": "working_memory",
+        "label": f"god:reg:{name}:{name}:idle",
+        "priority": 3,
+    })
+
+    return json.dumps({
+        "status": "task_completed",
+        "task_id": task_id,
+        "description": description,
+        "instruction": f"EXECUTE THIS TASK: {description}",
+        "poll_interval": poll_interval,
+        "log": result_lines,
+    })
+
+
+# ---------------------------------------------------------------------------
 # Health check tool (no daemon needed)
 # ---------------------------------------------------------------------------
 @mcp.tool()
