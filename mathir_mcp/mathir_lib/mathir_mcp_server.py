@@ -924,21 +924,62 @@ def mathir_god_agent(
 ) -> str:
     """Register as a God worker agent and poll once for a pending task.
 
+    Call with name="help" to get a full usage guide.
+
     Call this repeatedly (e.g. via Claude Code /loop) to make this agent
     available for orchestrated tasks. Each call registers the worker (if not
     already registered), polls once for a pending task, and returns immediately.
 
     Returns:
     - {"status": "waiting", ...}  — no task found, call again after poll_interval
-    - {"status": "task_completed", "instruction": "EXECUTE THIS TASK: ...", ...}
+    - {"status": "task_found", "instruction": "EXECUTE THIS TASK: ...", ...}
     - {"status": "shutdown"}      — orchestrator requested shutdown
 
     Args:
-        name: Unique worker name (e.g. "mimo", "codex", "opencode")
+        name: Unique worker name — any string you choose (e.g. "claude1", "mimo", "worker-A")
         capabilities: Comma-separated skills (e.g. "code,test,debug,review,docs")
         poll_interval: Seconds between polls suggested to caller (default 8)
         worktree: Use git worktree for task isolation (default True)
     """
+    if name == "help":
+        return json.dumps({
+            "status": "help",
+            "guide": (
+                "=== MATHIR GOD MODE — WORKER GUIDE ===\n\n"
+                "God Mode lets you orchestrate multiple AI agents across terminals.\n"
+                "This tool makes your agent a WORKER that receives and executes tasks.\n\n"
+                "--- QUICK START ---\n\n"
+                "1. Open this terminal with any AI agent (Claude Code, MiMo, Codex, etc.)\n"
+                "2. Call: mathir_god_agent(name='my-worker', capabilities='code,test')\n"
+                "3. The tool registers you and polls for tasks\n"
+                "4. When a task arrives, you'll get an instruction to execute\n"
+                "5. Execute the task using your normal tools (Edit, Bash, etc.)\n"
+                "6. Report results with memory_save (instructions provided in response)\n"
+                "7. Call mathir_god_agent() again to get the next task\n\n"
+                "--- PARAMETERS ---\n\n"
+                "name:          Any unique string — your worker ID (e.g. 'claude1', 'worker-A')\n"
+                "capabilities:  Comma-separated skills: code, test, debug, review, docs, refactor\n"
+                "               The orchestrator uses these to assign matching tasks\n"
+                "poll_interval: Seconds between polls (default 8). Lower = faster response\n"
+                "worktree:      Git worktree isolation (default True)\n\n"
+                "--- RETURN VALUES ---\n\n"
+                "status='waiting'    → No task yet. Call again after poll_interval seconds\n"
+                "status='task_found' → Task assigned! Read 'instruction' and 'report_instruction'\n"
+                "status='shutdown'   → Orchestrator says stop. Exit the loop\n\n"
+                "--- WORKFLOW ---\n\n"
+                "Terminal 1 (worker):       mathir_god_agent(name='w1', capabilities='code,test')\n"
+                "Terminal 2 (worker):       mathir_god_agent(name='w2', capabilities='code,review')\n"
+                "Terminal 3 (orchestrator): mathir_god_orchestre(directive='...')\n\n"
+                "The orchestrator dispatches tasks → workers poll and execute → report back.\n"
+                "All communication goes through MATHIR shared memory (port 7338).\n\n"
+                "--- TIPS ---\n\n"
+                "• Use Claude Code /loop to auto-poll repeatedly\n"
+                "• Name doesn't matter — pick anything unique per terminal\n"
+                "• Capabilities help the orchestrator assign the right tasks\n"
+                "• Call mathir_god_orchestre(directive='help') for orchestrator guide"
+            ),
+        })
+
     caps = [c.strip() for c in capabilities.split(",") if c.strip()]
     reg_content = json.dumps({"capabilities": caps})
 
@@ -1042,6 +1083,8 @@ def mathir_god_orchestre(
 ) -> str:
     """Orchestrate a multi-agent task from a high-level directive.
 
+    Call with directive="help" to get a full usage guide.
+
     Discovers registered god workers, decomposes the directive into tasks,
     and dispatches them. The orchestrating agent (you) should:
     1. Review the returned plan and workers
@@ -1056,6 +1099,64 @@ def mathir_god_orchestre(
         verify: Whether orchestrator should review each result before marking verified
         auto_merge: Merge git branches without user confirmation
     """
+    if directive == "help":
+        return json.dumps({
+            "status": "help",
+            "guide": (
+                "=== MATHIR GOD MODE — ORCHESTRATOR GUIDE ===\n\n"
+                "God Mode lets you orchestrate multiple AI agents across terminals.\n"
+                "This tool makes your agent the ORCHESTRATOR that assigns and monitors tasks.\n\n"
+                "--- SETUP (do this first) ---\n\n"
+                "1. Open 2+ terminals with AI agents (Claude Code, MiMo, Codex, etc.)\n"
+                "2. In each WORKER terminal, run:\n"
+                "   mathir_god_agent(name='worker-1', capabilities='code,test')\n"
+                "   mathir_god_agent(name='worker-2', capabilities='code,review')\n"
+                "3. Workers will register and wait for tasks\n\n"
+                "--- ORCHESTRATE ---\n\n"
+                "4. In the ORCHESTRATOR terminal, run:\n"
+                "   mathir_god_orchestre(directive='Refactor auth module + write tests + update docs')\n"
+                "5. The tool returns: registered workers, their capabilities, and dispatch instructions\n"
+                "6. YOU (the orchestrator agent) decompose the directive into tasks\n"
+                "7. Dispatch each task with memory_save:\n\n"
+                "   memory_save(\n"
+                "       content='{\"description\": \"Refactor auth.py: extract validate_token()\"}',\n"
+                "       label='god:task:<8-char-hex>:<worker-name>:pending',\n"
+                "       block_type='working_memory',\n"
+                "       priority=7\n"
+                "   )\n\n"
+                "--- MONITOR ---\n\n"
+                "8. Check results:  memory_smart_search(query='god:result orchestrator')\n"
+                "9. When a task completes, dispatch dependent tasks\n"
+                "10. Repeat until all tasks are done\n\n"
+                "--- SHUTDOWN WORKERS ---\n\n"
+                "   memory_save(\n"
+                "       content='shutdown',\n"
+                "       label='god:task:00000000:<worker-name>:shutdown',\n"
+                "       block_type='working_memory',\n"
+                "       priority=9\n"
+                "   )\n\n"
+                "--- PARAMETERS ---\n\n"
+                "directive:   What you want done (natural language, any complexity)\n"
+                "strategy:    'auto' (LLM decides per task), 'parallel' (all at once),\n"
+                "             'sequential' (one after another)\n"
+                "verify:      True = review each result before marking verified (recommended)\n"
+                "auto_merge:  False = ask user before merging git branches (recommended)\n\n"
+                "--- LABEL PROTOCOL ---\n\n"
+                "All coordination uses labels: god:{type}:{id}:{target}:{status}\n\n"
+                "  god:reg:<name>:<name>:idle       → worker registered and waiting\n"
+                "  god:task:<id>:<worker>:pending    → task dispatched to worker\n"
+                "  god:task:<id>:<worker>:running    → worker accepted the task\n"
+                "  god:result:<id>:orchestrator:completed → worker finished\n"
+                "  god:task:00000000:<worker>:shutdown    → tell worker to stop\n\n"
+                "--- TIPS ---\n\n"
+                "• The orchestrator does NOT code — it plans, assigns, and verifies\n"
+                "• Workers do the actual coding with their own tools\n"
+                "• Use 8-char hex IDs for tasks (e.g. 'a1b2c3d4')\n"
+                "• Tasks can have dependencies — dispatch dependents after prerequisites complete\n"
+                "• Call mathir_god_agent(name='help') for worker guide"
+            ),
+        })
+
     try:
         agents_resp = _call_daemon_raw("god_agents", {})
     except Exception as e:
