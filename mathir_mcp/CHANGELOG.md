@@ -1,5 +1,23 @@
 # MATHIR Changelog
 
+## [8.8.0] — 2026-07-04 — GOD MODE — MULTI-AGENT ORCHESTRATION
+
+### Added
+- **`mathir_god_agent`** MCP tool — worker self-identification + task polling. Call with no args → agent self-assesses honestly (name, capabilities, strengths, weaknesses). Call with profile → register + poll.
+- **`mathir_god_orchestre`** MCP tool — orchestrator discovers workers with full profiles, decomposes directives, assigns tasks by worker strength.
+- **`mathir_god.py`** core module — `GodProtocol` (label encoding), `TaskGraph` (DAG + cycle detection), `WorkerRegistry` (capability lookup), `WorktreeManager` (git worktree lifecycle)
+- **`/api/god/poll`** daemon route — optimized SQL polling for pending tasks
+- **`/api/god/agents`** daemon route — list registered workers with introductions
+- **Built-in helpers** — `name="help"` and `directive="help"` return full usage guides
+- **LIKE injection prevention** — `%` and `_` escaped in god/poll queries
+- 40 new tests in `tests/test_god.py`
+- `docs/GOD_MODE.md` — full architecture and usage guide
+
+### Changed
+- Total MCP tools: 25 (was 23)
+
+---
+
 ## [8.7.0] — 2026-07-03 — 3-LAYER AUTO-CACHE
 
 ### Added

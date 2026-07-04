@@ -17,14 +17,14 @@
 
 <br/>
 
-> **🆕 v8.6.0** — INT8 quantization (4x compression, 0% loss), cross-encoder reranking, multi-agent benchmark (0% → 53%). [CHANGELOG](mathir_mcp/CHANGELOG.md) · [Release notes](#-latest-v860)
+> **🆕 v8.8.0** — **GOD MODE** — multi-agent orchestration via shared memory. Agents self-identify, orchestrator assigns tasks by strength. [God Mode docs](docs/GOD_MODE.md) · [CHANGELOG](mathir_mcp/CHANGELOG.md)
 
 <br/>
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://www.python.org)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org)
 [![MIT](https://img.shields.io/badge/License-MIT-22c55e)](LICENSE)
-[![v8.6.0](https://img.shields.io/badge/Version-8.6.0-6366f1)](mathir_mcp/CHANGELOG.md)
+[![v8.8.0](https://img.shields.io/badge/Version-8.8.0-6366f1)](mathir_mcp/CHANGELOG.md)
 [![98 tests](https://img.shields.io/badge/Tests-98%20passed-22c55e)](#-tests--benchmarks)
 
 </div>
@@ -42,16 +42,46 @@ git clone https://github.com/sil3d/MATHIR.git
 cd MATHIR/mathir_mcp
 pip install -e .
 mathir-server &
-# Add mathir to your MCP config — 23 tools available.
+# Add mathir to your MCP config — 25 tools available.
 ```
 
 Full install: [mathir_mcp/README.md](mathir_mcp/README.md) · Cross-platform installer: `python mathir_mcp/INSTALL_FOR_DEV/install_smart.py` (see [🛠️ Install Scripts](#-install-scripts) below)
 
 ---
 
+## 🔱 Introducing: MATHIR GOD MODE
+
+**Multi-agent orchestration via shared memory.** One orchestrator. N workers. Zero configuration.
+
+```
+Terminal 1:  mathir_god_agent()        → "I am MiMo. I'm fast at code generation..."
+Terminal 2:  mathir_god_agent()        → "I am Codex. I excel at bulk testing..."
+Terminal 3:  mathir_god_agent()        → "I am OpenCode. I'm good at docs..."
+Terminal 4:  mathir_god_orchestre(directive="Refactor auth + tests + docs")
+             → Sees all profiles. Assigns tasks by strength. Monitors. Verifies.
+```
+
+**What it solves:** You have 4 AI agents open. You copy-paste context between them. You decide who does what. You check each result manually. **You are the bottleneck.**
+
+**How it works:**
+1. Workers call `mathir_god_agent()` with **no arguments** → they self-identify (name, strengths, weaknesses)
+2. Orchestrator calls `mathir_god_orchestre(directive="...")` → sees all worker profiles → decomposes → assigns by strength → dispatches
+3. Workers poll, execute, report. Orchestrator verifies and dispatches next tasks.
+4. All communication goes through MATHIR shared memory. No new infrastructure.
+
+**Built-in intelligence:**
+- Agents **self-identify honestly** — the orchestrator doesn't guess who's installed
+- Tasks matched to **worker strengths** — deep reasoning → Claude, bulk work → fast model
+- **Dependency-aware** — tasks dispatched only when prerequisites complete
+- **Cycle detection** — circular dependencies caught at creation time
+
+Full guide: **[docs/GOD_MODE.md](docs/GOD_MODE.md)**
+
+---
+
 ## 🆕 Latest: v8.6.0 (2026-07-03)
 
-23 MCP tools. 22 algorithms. INT8 quantization. Cross-encoder reranking. Multi-agent benchmark.
+25 MCP tools. 22 algorithms. INT8 quantization. Cross-encoder reranking. Multi-agent benchmark.
 
 **INT8 quantization** — embedding storage reduced 4x (float32 → int8), zero recall loss. 410 DBs migrated: 1.9 GB → 825 MB.
 **Cross-encoder reranking** — `ms-marco-MiniLM-L-6-v2` second-pass scoring: +20pp hit@10 on natural-language queries.
@@ -216,7 +246,7 @@ Add MATHIR to your AI agent (OpenCode, Claude Code, Cursor, MiMo, etc.):
 }
 ```
 
-**That's it.** 23 tools (`memory_save`, `memory_recall`, `memory_by_path`, `memory_recall_quality`, `memory_incoming_links`, etc.) — all your agents.
+**That's it.** 25 tools (`memory_save`, `memory_recall`, `mathir_god_orchestre`, `mathir_god_agent`, etc.) — all your agents.
 
 Full MCP config: [mathir_mcp/INSTALL_FOR_AGENT/AGENT.md](mathir_mcp/INSTALL_FOR_AGENT/AGENT.md) (50+ agents).
 
@@ -244,6 +274,7 @@ Install: `pip install -e ./mathir_mcp`
 | **[mathir_mcp/docs/DAEMON.md](mathir_mcp/docs/DAEMON.md)** | Daemon HTTP API + JSON-RPC protocol |
 | **[mathir_mcp/docs/DIMENSIONS.md](mathir_mcp/docs/DIMENSIONS.md)** | Embedding model selection |
 | **[mathir_mcp/docs/DASHBOARD_GUIDE.md](mathir_mcp/docs/DASHBOARD_GUIDE.md)** | Stats dashboard setup |
+| **[docs/GOD_MODE.md](docs/GOD_MODE.md)** | God Mode — multi-agent orchestration guide |
 | **[mathir_mcp/docs/GPU_SETUP.md](mathir_mcp/docs/GPU_SETUP.md)** | GPU/ONNX acceleration |
 | **[docs/01_MASTER_RESEARCH_PAPER.md](docs/01_MASTER_RESEARCH_PAPER.md)** | Doctoral research paper (6 theorems) |
 | **[docs/03_MASTER_QA_GUIDE.md](docs/03_MASTER_QA_GUIDE.md)** | 63 Q&A for defense / evaluation |
@@ -321,6 +352,11 @@ Full report: [benchmarks/06_results/current/README.md](benchmarks/06_results/cur
 │  Flask+Waitress · FastMCP 3.4.2  │
 │  HybridSearch + CrossEncoder rerank│
 │  5 tiers · INT8 · Ebbinghaus      │
+│                                    │
+│  GOD MODE (v8.8.0)                 │
+│  /api/god/poll · /api/god/agents   │
+│  Cross-process multi-agent         │
+│  orchestration via shared memory   │
 └──────────────┬───────────────────┘
                │
                ▼
@@ -336,7 +372,7 @@ Full architecture: [docs/BRAIN_ARCHITECTURE.md](docs/BRAIN_ARCHITECTURE.md)
 
 ```
 MATHIR/
-├── mathir_mcp/         ← Install this (v8.6.0, 23 MCP tools, INT8)
+├── mathir_mcp/         ← Install this (v8.8.0, 25 MCP tools, God Mode)
 ├── benchmarks/         ← Reproducible benchmarks
 ├── docs/                ← Doctoral paper, QA, architecture
 ├── examples/            ← Usage examples
@@ -365,6 +401,8 @@ MATHIR/
 ✅ **V8.5.0** FastMCP rewrite + auto-injection (20 tools)
 ✅ **V8.5.1** New tools (23 total) + project-aware DB
 ✅ **V8.6.0** INT8 quantization + cross-encoder rerank + multi-agent benchmark
+✅ **V8.7.0** 3-layer auto-cache (L1 embedding, L2 recall, L3 session)
+✅ **V8.8.0** God Mode — cross-process multi-agent orchestration
 
 ### 🔜 Next: 4 validation stages
 

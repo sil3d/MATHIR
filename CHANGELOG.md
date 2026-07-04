@@ -8,6 +8,35 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [8.8.0] — 2026-07-04 — GOD MODE — MULTI-AGENT ORCHESTRATION
+
+**Cross-process multi-agent orchestration via MATHIR shared memory.** Agents self-identify, orchestrator assigns tasks by strength. Two new MCP tools, two daemon routes, one new module.
+
+### New features
+- **`mathir_god_agent`** MCP tool — workers self-identify (name, capabilities, strengths/weaknesses), register, and poll for tasks. No manual configuration needed.
+- **`mathir_god_orchestre`** MCP tool — orchestrator discovers workers with full profiles, decomposes directives into tasks, assigns based on worker self-assessments.
+- **Auto-identification flow** — `mathir_god_agent()` with no args prompts the agent to honestly self-assess. The orchestrator sees all profiles and assigns intelligently.
+- **`GodProtocol`** — structured label encoding/decoding (`god:{type}:{id}:{target}:{status}`)
+- **`TaskGraph`** — DAG with dependency resolution, cycle detection (DFS), JSON serialization
+- **`WorkerRegistry`** — in-memory worker tracking, capability-based lookup, daemon response hydration
+- **`WorktreeManager`** — git worktree lifecycle (create/merge/cleanup/list) for task isolation
+- **`/api/god/poll`** daemon route — query pending tasks for a specific worker
+- **`/api/god/agents`** daemon route — list registered workers with profiles and introductions
+- **Built-in helpers** — `mathir_god_agent(name="help")` and `mathir_god_orchestre(directive="help")` return full usage guides
+
+### Security
+- LIKE wildcard injection prevention in `/api/god/poll` (escapes `%` and `_`)
+
+### Tests
+- 40 new tests (GodProtocol: 9, TaskGraph: 12, WorkerRegistry: 8, WorktreeManager: 6, DaemonRoutes: 2, Integration: 3)
+
+### New files
+- `mathir_mcp/mathir_lib/mathir_god.py` — core module (~250 lines)
+- `mathir_mcp/tests/test_god.py` — test suite (~300 lines)
+- `docs/GOD_MODE.md` — full documentation
+
+---
+
 ## [8.5.1] — 2026-06-29 — NEW TOOLS + PROJECT-AWARE DB + BUG FIXES
 
 **Bug fixes + 3 new MCP tools.** Project-aware DB routing, VecMemory mkdir fix, FastMCP k-coerce, incoming_links daemon endpoint.
