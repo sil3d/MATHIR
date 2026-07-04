@@ -1,5 +1,23 @@
 # MATHIR Changelog
 
+## [8.7.0] — 2026-07-03 — 3-LAYER AUTO-CACHE
+
+### Added
+- **3-layer auto-cache system** (`mathir_cache.py`) for significant performance boost:
+  - **L1 Embedding Cache** — LRU (1024 entries) on `_encode_query()`/`_encode_passage()`. Same text → instant lookup (~60ms → <1ms). Deterministic, never expires.
+  - **L2 Recall Cache** — TTL-based (256 entries, 60s TTL) on `/api/memory/recall` results. Deduplicates identical queries across agents. Invalidated on any write (save/delete/promote/consolidate).
+  - **L3 Session Cache** — Pre-warmed top-20 memories per project (5 min TTL) on `/api/context`. Session start and context calls return instantly on repeat.
+- **`/api/cache/stats`** endpoint — hit/miss counters and hit ratio for all 3 layers
+- **`cache` field** in recall responses — `"hit"` or `"miss"` for observability
+- **Write-through invalidation** — `invalidate_on_write()` called on save, delete, promote, auto_promote, consolidate (non-dry-run)
+- 24 new cache tests (LRU eviction, TTL expiry, invalidation, stats, integration)
+
+### Changed
+- `_encode_query()` / `_encode_passage()` now check L1 cache before calling `embedder.encode()`
+- `/api/memory/recall` checks L2 cache before running vector search
+- `/api/context` checks L3 cache before running search
+- Total tests: 122 (was 98)
+
 ## [8.6.1] — 2026-07-03 — PORTABLE PATHS + CROSS-PLATFORM INSTALL FIX
 
 ### Fixed

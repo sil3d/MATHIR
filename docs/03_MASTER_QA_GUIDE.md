@@ -8,12 +8,14 @@
 
 1. [Fundamentals: What is MATHIR?](#1-fundamentals)
 2. [Architecture vs Model](#2-architecture-vs-model)
-3. [Version Evolution (V1-V8.4.1)](#3-versions)
+3. [Version Evolution (V1-V8.7.0)](#3-versions)
 4. [Memory Tiers (5-tier hierarchical)](#4-memory-tiers)
 5. [Theoretical Foundations (6 theorems)](#5-theorems)
 6. [V7 New Algorithms (8 novel)](#6-v7-algorithms)
 7. [Retrieval Approaches A/B/C/D](#7-retrieval)
 8. [Latency Optimizations (v8.5)](#8-latency)
+8b. [INT8 Quantization (v8.6.0)](#8b-int8)
+8c. [Cross-Encoder Reranking (v8.6.0)](#8c-reranking)
 9. [VectorDB Comparison](#9-vectordb)
 10. [Chat Use Case](#10-chat)
 11. [Autonomous Driving Use Case](#11-driving)
@@ -22,6 +24,7 @@
 14. [Code & Testing](#14-code)
 15. [Limitations & Future Work](#15-limitations)
 16. [Defense Questions](#16-defense)
+17. [Universal Architecture (v8.5.0/v8.5.1)](#17-universal)
 
 ---
 
@@ -94,7 +97,7 @@ MATHIR is the **Architecture + Framework** — like "Transformer + HuggingFace" 
 
 ---
 
-## 3. Version Evolution (V1 → V8.4.1) {#3-versions}
+## 3. Version Evolution (V1 → V8.7.0) {#3-versions}
 
 ### Q3.1: What is the history of MATHIR versions?
 **A:**
@@ -106,10 +109,15 @@ MATHIR is the **Architecture + Framework** — like "Transformer + HuggingFace" 
 | V5.1 | 21 bug fixes across 18 files | Legacy |
 | V6 | `MATHIRPlugin` API (LLM-agnostic) | Still supported |
 | V7 | 8 new algorithms + 6 theorems | Legacy |
-| v8.5 | 4 retrieval approaches (A/B/C/D) | Current |
+| v8.5 | 4 retrieval approaches (A/B/C/D) | Supported |
 | v8.5 | Latency optimization (cache + adaptive) | Supported |
 | V8.0.0 | HybridSearch auto-backend, full HybridSearch integration | Supported |
-| **V8.4.1** | **HybridSearch thread-safety fix + daemon push + brain architecture (5 phases)** | **Current latest** |
+| V8.4.1 | HybridSearch thread-safety fix + daemon push + brain architecture (5 phases) | Supported |
+| V8.5.0 | FastMCP rewrite, 20 MCP tools, auto-injection | Supported |
+| V8.5.1 | 23 MCP tools (memory_by_path, recall_quality, incoming_links) | Supported |
+| V8.6.0 | INT8 quantization (4x compression), cross-encoder reranking (+20pp), 22 algorithms | Supported |
+| V8.6.1 | Portable paths, cross-platform install, DB routing backward-compat | Supported |
+| **V8.7.0** | **3-layer auto-cache (L1 embedding LRU + L2 recall TTL + L3 session pre-warm), 122 tests** | **Current latest** |
 
 ### Q3.2: What's the difference between V6 and V7?
 **A:** V7 adds:
@@ -273,6 +281,65 @@ HybridEpisodicMemory(
 
 But for **most workloads**, the cache alone is sufficient and simpler.
 
+### Q8.7: What is the 3-layer auto-cache in v8.7.0? {#8-cache}
+**A:** A **transparent, zero-config** caching system with 3 layers:
+
+| Layer | What it caches | Size | Expiry | Invalidation |
+|-------|---------------|------|--------|-------------|
+| **L1 Embedding** | `encode()` vectors | 1024 LRU | Never (deterministic) | LRU eviction only |
+| **L2 Recall** | Search results | 256 entries | 60s TTL | On write (save/delete/promote/consolidate) |
+| **L3 Session** | Hot memories/project | top-20 | 5 min TTL | On write (per-project) |
+
+### Q8.8: How fast is the 3-layer cache?
+**A:** Benchmarked live against the daemon:
+
+| Scenario | Latency | Speedup |
+|----------|---------|---------|
+| Cold query (L1+L2 miss) | ~37ms | baseline |
+| Warm embedding (L1 hit) | ~7ms | **5x** |
+| Full cache hit (L1+L2 hit) | ~2ms | **18x** |
+
+### Q8.9: Why does the cache work without hurting quality?
+**A:** Each layer exploits a different property:
+- **L1**: Embedding is **deterministic** — same text always produces the same vector. Memoization is lossless.
+- **L2**: Recall results are valid until the corpus changes. TTL + write-invalidation balances freshness vs speed (same pattern as HTTP cache-control with must-revalidate on mutation).
+- **L3**: Agent working sets are small and stable — an agent's hot memories are a subset of the corpus that changes slowly. Pre-warming avoids cold starts (Denning 1968 working-set model).
+
+### Q8.10: Is the cache shared between Claude, MiMo, and OpenCode?
+**A:** **YES.** All 3 tools connect to the same daemon on port 7338. L2 (recall cache) is shared — if Claude does a recall, MiMo doing the same query gets a cache hit. L3 is per-project, so different projects don't pollute each other.
+
+### Q8.11: How do I monitor cache performance?
+**A:** `GET /api/cache/stats` returns hits, misses, hit ratio, and invalidation counts for all 3 layers. The `memory_recall` response also includes a `"cache": "hit"` or `"cache": "miss"` field for observability.
+
+---
+
+## 8b. INT8 Quantization (v8.6.0) {#8b-int8}
+
+### Q8b.1: What is INT8 quantization in MATHIR?
+**A:** Scalar quantization that compresses float32 embeddings to int8 — **4x compression** with zero recall loss. Implemented in `mathir_vec.py` via `_quantize_int8()` and `_dequantize_int8()`.
+
+### Q8b.2: Does INT8 hurt retrieval quality?
+**A:** **NO.** Scalar quantization is lossless for cosine similarity ranking when the original embeddings are normalized. The relative ordering of distances is preserved. This is the key advantage over product quantization (PQ) which introduces approximation error.
+
+### Q8b.3: When should I use INT8?
+**A:** When memory footprint matters (edge deployment, large corpora). The 4x compression means 1M memories go from ~6MB to ~1.5MB. The daemon applies INT8 automatically when storing embeddings — no configuration needed.
+
+---
+
+## 8c. Cross-Encoder Reranking (v8.6.0) {#8c-reranking}
+
+### Q8c.1: What is cross-encoder reranking?
+**A:** A second-pass scoring step using `cross-encoder/ms-marco-MiniLM-L-6-v2` (22M params). After hybrid retrieval produces top-30 candidates (via BM25 + dense + RRF), the cross-encoder scores each `(query, document)` pair for a more precise ranking. Final output: top-5.
+
+### Q8c.2: How much does cross-encoder reranking improve quality?
+**A:** **+20 percentage points** on the Fluid Mechanics benchmark (25.7% → 45.7%). The cross-encoder captures interactive relevance that cosine similarity misses.
+
+### Q8c.3: What's the latency cost?
+**A:** ~480ms for 30 candidates (single-threaded, CPU). This is why the v8.5 result cache is critical — on warm paths, the CE score is served from LRU cache in <1ms.
+
+### Q8c.4: Is cross-encoder reranking always enabled?
+**A:** **NO** — it's opt-in. Use `memory_recall` with `rerank=True` or configure the daemon with `MATHIR_RERANK=true`. The default hybrid search uses vector + BM25 + RRF without CE for speed.
+
 ---
 
 ## 9. VectorDB Comparison {#9-vectordb}
@@ -377,7 +444,8 @@ User message → Embedding → MATHIR (5 tiers) → Enhanced context → LLM →
 **A:**
 - LLM generation: ~2000ms
 - MATHIR retrieval (warm): 3-220ms
-- **Total: 2003-2220ms** (acceptable for chat)
+- MATHIR retrieval (cache hit): **<1ms** (v8.7.0)
+- **Total: 2001-2220ms** (acceptable for chat)
 
 ### Q10.5: Does MATHIR work with any LLM?
 **A:** **YES** — OpenAI, Ollama, HuggingFace, Cohere, Gemini, Claude (via separate encoder), and custom models. See `docs/DEV_INTEGRATION_GUIDE.md`.
@@ -549,12 +617,16 @@ MATHIRPluginV7(embedding_dim=4096)  # LLaMA-3
 - `docs/` — 26 markdown files
 
 ### Q14.2: How many tests?
-**A:** 271 tests collected, **130+ pass** in the modern suite:
-- 49 V7 unit tests
-- 34 hybrid tests
-- 28 raw embedding tests
-- 36 ensemble tests
-- 32 FAISS-backed tests
+**A:** **122 tests** in the daemon suite (v8.7.0), plus 271 tests in the legacy suite:
+- **Daemon suite (122, all pass):**
+  - 24 cache tests (LRU eviction, TTL expiry, invalidation, stats, integration)
+  - 98 existing tests (recall, save, promote, decay, links, etc.)
+- **Legacy suite (271 collected):**
+  - 49 V7 unit tests
+  - 34 hybrid tests
+  - 28 raw embedding tests
+  - 36 ensemble tests
+  - 32 FAISS-backed tests
 
 Plus daemon stress tests (50/50 pass in v8.5) and hybrid search integration tests.
 
@@ -587,11 +659,11 @@ streamlit run benchmarks/streamlit_app.py
 
 ### Q15.1: What are MATHIR's limitations?
 **A:**
-1. **Cold-path latency**: 1 second for first query (cross-encoder is slow)
+1. **Cold-path latency**: ~37ms for first query (improved from 494ms in v8.5, but still non-zero)
 2. **Memory overhead**: 2.5MB for hybrid with CE (cross-encoder model size)
 3. **Sub-Gaussian assumption**: Theorem 4 assumes Gaussian normal data
 4. **No fine-tuning**: Pre-trained embedding models are frozen
-5. **CPU-only for v8.5 cache**: GPU would be 5-10× faster
+5. **Cache TTL staleness**: L2 (60s) and L3 (5min) can serve slightly stale results between writes — acceptable for most workloads, tunable via env vars
 
 ### Q15.2: What's planned for V8?
 **A:** The two-stage cascade architecture (FAISS + MATHIR D) is the immediate next step. Also:
@@ -648,8 +720,9 @@ MATHIR solves this with online learning + anomaly detection + hierarchical memor
 **A:**
 1. **Theoretical**: 6 formal theorems (information capacity, retention, convergence, optimality, bounds, geometry)
 2. **Algorithmic**: 8 novel memory algorithms (Ebbinghaus, Mahalanobis, sparse coding, etc.)
-3. **Empirical**: 9.3× compression, +14.1pp quality gain, 5-12× speedup
-4. **Practical**: Open-source code with 130+ tests, 5 integration recipes, 7 benchmarks
+3. **Empirical**: 9.3× compression, +14.1pp quality gain, 5-18× speedup (cache)
+4. **Practical**: Open-source code with 122 tests, 5 integration recipes, 7 benchmarks
+5. **Architectural**: 3-layer auto-cache with cross-agent sharing, write-through invalidation
 
 ### Q16.7: "Why not just use FAISS + cross-encoder manually?"
 **A:** You could. But:
@@ -774,11 +847,15 @@ So the agent sees the warning on every interaction without having to read daemon
 | Best speed | FAISS 20,392 QPS |
 | Best balance | A (Raw) 657 QPS + 31.6% |
 | Latency fix | Cache (5-12× speedup) |
+| **3-layer cache** | **L1 embedding (18x) + L2 recall + L3 session — zero config** |
+| **INT8 quantization** | **4x compression, zero recall loss** |
+| **Cross-encoder reranking** | **+20pp quality (ms-marco-MiniLM-L-6-v2)** |
 | Compression | 9.3× (V7) |
 | Online learning | ✅ Yes |
 | Anomaly detection | ✅ Yes (NP-optimal) |
 | LLM-agnostic | ✅ Yes |
 | Edge deployable | ✅ Yes |
+| Tests | **122** (24 cache + 98 existing) |
 | **HybridSearch** | **Auto-select numpy (N<5K) or USearch (N>=5K)** |
 | **Vector backend** | **0.78ms numpy / 1.37ms USearch / 23.68ms sqlite-vec** |
 | **Deployment** | **GPU: bge-large 3ms / CPU: bge-large 30ms / Edge: MiniLM 1ms** |

@@ -78,6 +78,10 @@ daemon_*.txt
 # MiMoCode local state (plans, node_modules)
 .mimocode/
 
+# Superpowers (agent scratch dirs)
+.superpowers/
+superpowers/
+
 # Editor
 .vscode/
 .idea/

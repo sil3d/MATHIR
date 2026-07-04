@@ -2,7 +2,7 @@
 
 **5-tier cognitive memory for 50 AI coding agents. Install once, use everywhere.**
 
-> **v8.6.0** — 23 MCP tools, INT8 quantization (4x compression), cross-encoder reranking, 22 algorithms. See [CHANGELOG.md](CHANGELOG.md).
+> **v8.7.0** — 23 MCP tools, 3-layer auto-cache, INT8 quantization (4x compression), cross-encoder reranking, 22 algorithms. See [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -38,10 +38,11 @@ Platform-specific guides: [INSTALL_FOR_AGENT/INSTALL_WINDOWS.md](INSTALL_FOR_AGE
 
 Full signatures: see [`mathir_lib/mathir_mcp_server.py`](mathir_lib/mathir_mcp_server.py).
 
-### Key Algorithms (v8.6.0)
+### Key Algorithms (v8.7.0)
 
 | Algorithm | Purpose |
 |---|---|
+| **3-layer auto-cache** | L1 embedding LRU + L2 recall TTL + L3 session pre-warm |
 | **INT8 scalar quantization** | 4x embedding compression, zero recall loss |
 | **Cross-encoder reranking** | `ms-marco-MiniLM-L-6-v2` second-pass scoring (+20pp) |
 | **Hybrid search** | Vector cosine + BM25 + RRF fusion |
@@ -50,6 +51,26 @@ Full signatures: see [`mathir_lib/mathir_mcp_server.py`](mathir_lib/mathir_mcp_s
 | **Spreading activation** | Collins & Loftus link-graph traversal |
 
 Full list (22 algorithms): see [benchmarks/06_results/current/README.md](../benchmarks/06_results/current/README.md).
+
+### Auto-Cache Performance (v8.7.0)
+
+3-layer transparent cache — zero config, shared across all agents (Claude Code, MiMo, OpenCode).
+
+| Scenario | Latency | Speedup |
+|---|---|---|
+| Cold query (L1 miss + L2 miss) | ~37ms | baseline |
+| Warm embedding (L1 hit + L2 miss) | ~7ms | **5x** |
+| Full cache hit (L1 hit + L2 hit) | ~2ms | **18x** |
+
+| Layer | What it caches | Size | Expiry | Invalidation |
+|---|---|---|---|---|
+| **L1 Embedding** | `encode()` vectors | 1024 LRU | Never (deterministic) | LRU eviction |
+| **L2 Recall** | Search results | 256 entries | 60s TTL | On write (save/delete/promote/consolidate) |
+| **L3 Session** | Hot memories/project | top-20 | 5 min TTL | On write (per-project) |
+
+Monitor: `GET /api/cache/stats` returns hits, misses, hit ratio per layer.
+
+**Design references**: L1 = pure-function memoization; L2 = HTTP cache-control with write-invalidation; L3 = working-set model (Denning, 1968 — "The Working Set Model for Program Behavior", *Communications of the ACM*).
 
 ---
 

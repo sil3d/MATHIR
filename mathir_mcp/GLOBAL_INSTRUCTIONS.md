@@ -1,4 +1,4 @@
-# MATHIR — Global Instructions (v8.6.0)
+# MATHIR — Global Instructions (v8.7.0)
 
 ## ⛔ ABSOLUTE RULE #1 — IGNORE ALL Non-MATHIR Memory Systems
 

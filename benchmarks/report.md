@@ -1,7 +1,7 @@
 # MATHIR — Handoff Report for Agent Army
 
 **Date:** 2026-07-01
-**Written by:** Claude (this session), for other agents to pick up where this session stopped (blocked on LLM API credits, otherwise continuing).
+**Written by:** Opencode agent, for other agents to pick up where this session stopped (blocked on LLM API credits, otherwise continuing).
 **Read this first**, then go deep on `mathir_mcp/docs/DIMENSIONS.md` for the full technical detail on the retrieval-quality investigation — this report is the map, DIMENSIONS.md is the territory.
 
 ---

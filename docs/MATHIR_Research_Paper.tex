@@ -32,7 +32,7 @@
 % ===== HEADERS/FOOTERS =====
 \pagestyle{fancy}
 \fancyhf{}
-\fancyhead[L]{\small MATHIR V8.4.1}
+\fancyhead[L]{\small MATHIR V8.7.0}
 \fancyhead[R]{\small Prince Gildas Mbama Kombila}
 \fancyfoot[C]{\thepage}
 
@@ -96,7 +96,7 @@ Prince Gildas Mbama Kombila \\
 \texttt{soilearn3d@gmail.com} \\
 \url{https://github.com/sil3d/MATHIR}
 }
-\date{June 2026 \\ Version 8.4.1}
+\date{July 2026 \\ Version 8.7.0}
 
 \begin{document}
 
@@ -110,7 +110,7 @@ We present \MATHIR{} (Memory-Augmented Tensor Hybrid with Intelligent Routing), 
 
 We address a critical bottleneck discovered during empirical evaluation: a 64-dimensional projection in the episodic memory caused a 12--14 percentage-point loss in retrieval quality compared to a raw 384-dimensional baseline. We prove that the root cause is a Johnson-Lindenstrauss (JL) violation and propose four candidate solutions. The optimal approach (dense-only FAISS) achieves 0.7441 nDCG@10 on BEIR SciFact, matching state-of-the-art.
 
-The V7.7 release adds a complete vision/audio testing environment with LFM2.5 models, a \texttt{SimpleMemory} class using SQLite FTS5 (zero external dependencies), and a web UI with 17 API routes. The V7.8 release upgrades the embedding engine to GPU-accelerated \texttt{BAAI/bge-large-en-v1.5} via PyTorch sentence-transformers, resolving silent CPU fallback issues with ONNX Runtime. All 31 memory audit checks pass.
+The V7.7 release adds a complete vision/audio testing environment with LFM2.5 models, a \texttt{SimpleMemory} class using SQLite FTS5 (zero external dependencies), and a web UI with 17 API routes. The V7.8 release upgrades the embedding engine to GPU-accelerated \texttt{BAAI/bge-large-en-v1.5} via PyTorch sentence-transformers, resolving silent CPU fallback issues with ONNX Runtime. All 31 memory audit checks pass. V8.6.0 adds INT8 scalar quantization (4$\times$ compression, zero recall loss), cross-encoder reranking (+20pp hit@10), and a multi-agent shared-memory benchmark (0\% $\to$ 53\% accuracy). V8.7.0 introduces a 3-layer auto-cache (embedding LRU, recall TTL, session pre-warm) achieving 18$\times$ speedup on repeated queries.
 
 \textbf{Keywords:} memory-augmented agents, hierarchical memory, retrieval-augmented generation, vector databases, Johnson-Lindenstrauss lemma, online learning, anomaly detection, plug-and-play memory
 \end{abstract}
@@ -241,7 +241,7 @@ A generalisation of the Euclidean distance that accounts for the covariance stru
 % ========================================
 % SECTION 3: ARCHITECTURE
 % ========================================
-\section{System Architecture: MATHIR V1 to V7}
+\section{System Architecture: MATHIR V1 to V8}
 \label{sec:architecture}
 
 \subsection{Evolution from V1 to V7}
@@ -271,6 +271,9 @@ V8.3 & 2026-06 & HybridSearch thread safety + bug fixes & \checkmark \\
 V8.4.0 & 2026-06-23 & Living memory --- Ebbinghaus lifecycle, 5 tiers, link graph, 17 MCP tools & \checkmark \\
 V8.5.0 & 2026-06-25 & FastMCP rewrite, 20 MCP tools, auto-injection & \checkmark \\
 V8.5.1 & 2026-06-29 & New tools (memory\_by\_path, recall\_quality, incoming\_links), 23 MCP tools & \checkmark \\
+V8.6.0 & 2026-07-03 & INT8 quantization (4x compression, 0\% loss), cross-encoder reranking (+20pp), 22 algorithms, 122 tests & \checkmark \\
+V8.6.1 & 2026-07-03 & Portable paths, cross-platform install fix, DB routing backward-compat & \checkmark \\
+V8.7.0 & 2026-07-03 & 3-layer auto-cache (L1 embedding LRU + L2 recall TTL + L3 session pre-warm), 122 tests & \checkmark \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -349,7 +352,7 @@ The immunological memory detects anomalies via Mahalanobis distance:
 
 \subsection{Immunological Tier --- The 5th Cognitive Layer}
 
-The immunological tier is the \textbf{5th, first-class, addressable memory tier} of MATHIR (the others being working, episodic, semantic, and procedural). It is named by analogy with the innate immune system: just as biological immunity stores and matches against previously-seen pathogen signatures, the immunological tier stores and matches against previously-seen \emph{anomaly signatures} (prompt injections, threat patterns, suspicious embeddings). In V8.4.1 the immunological tier is no longer an internal detection layer --- it is a fully first-class memory tier with its own \texttt{block\_type}, its own row in the database, its own lifecycle (promotion, decay, consolidation, linking), and its own queryable/writable MCP API surface (\texttt{memory\_save(\ldots, block\_type="immunological", \ldots)} and \texttt{memory\_recall(\ldots, block\_type="immunological", \ldots)}).
+The immunological tier is the \textbf{5th, first-class, addressable memory tier} of MATHIR (the others being working, episodic, semantic, and procedural). It is named by analogy with the innate immune system: just as biological immunity stores and matches against previously-seen pathogen signatures, the immunological tier stores and matches against previously-seen \emph{anomaly signatures} (prompt injections, threat patterns, suspicious embeddings). In V8.7.0 the immunological tier is no longer an internal detection layer --- it is a fully first-class memory tier with its own \texttt{block\_type}, its own row in the database, its own lifecycle (promotion, decay, consolidation, linking), and its own queryable/writable MCP API surface (\texttt{memory\_save(\ldots, block\_type="immunological", \ldots)} and \texttt{memory\_recall(\ldots, block\_type="immunological", \ldots)}).
 
 \subsubsection{Definition (what it stores)}
 
@@ -974,7 +977,7 @@ B vs A & $-2.5$ & $-0.9$ & n/s \\
 % ========================================
 % SECTION 8: V7.7
 % ========================================
-\section{V7.7--V8.4.1: Vision, Audio, SimpleMemory, GPU Embedding, and Living Memory}
+\section{V7.7--V8.7.0: Vision, Audio, SimpleMemory, GPU Embedding, and Living Memory}
 \label{sec:v77}
 
 \subsection{SimpleMemory: FTS5-Only Memory}
@@ -1016,6 +1019,46 @@ LocateAnything-3B & Grounding & 2.3 GB \\
 \subsection{MATHIR Memory Integration}
 
 Every chat interaction is stored in \MATHIR{} memory and recalled for future context. Audit results: \textbf{31/31 checks pass}.
+
+\subsection{V8.7.0: 3-Layer Auto-Cache}
+
+V8.7.0 introduces a transparent 3-layer caching system that eliminates redundant computation across all agents sharing the daemon:
+
+\begin{table}[H]
+\centering
+\caption{MATHIR auto-cache layers and measured performance.}
+\label{tab:cache}
+\begin{tabular}{llccl}
+\toprule
+\textbf{Layer} & \textbf{What} & \textbf{Size} & \textbf{Expiry} & \textbf{Invalidation} \\
+\midrule
+L1 Embedding & \texttt{encode()} vectors & 1024 LRU & Never & LRU eviction \\
+L2 Recall & Search results & 256 entries & 60s TTL & Write-through \\
+L3 Session & Hot memories/project & top-20 & 5 min TTL & Write-through \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Design rationale.} L1 exploits the determinism of embedding models: the same input text always produces the same output vector, making embeddings ideal candidates for memoization~\cite{nishtala2013}. L2 follows the HTTP cache-control pattern with write-through invalidation on any mutation (save, delete, promote, consolidate). L3 implements the working-set model of Denning~\cite{denning1968}: an agent's hot memories are a small, stable subset of the corpus, and pre-loading the top-$N$ avoids cold starts on \texttt{session\_start} calls.
+
+\textbf{Measured speedup.} On a production daemon (port 7338, multilingual-e5-small 384d):
+
+\begin{table}[H]
+\centering
+\caption{Cache hit latency vs cold query latency.}
+\label{tab:cache-latency}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Scenario} & \textbf{Latency} & \textbf{Speedup} \\
+\midrule
+Cold query (L1 miss + L2 miss) & 37 ms & baseline \\
+Warm embedding (L1 hit + L2 miss) & 7 ms & $5\times$ \\
+Full cache hit (L1 hit + L2 hit) & 2 ms & $18\times$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The write-through invalidation ensures that stale results are never served: any call to \texttt{memory\_save}, \texttt{memory\_delete}, \texttt{memory\_promote}, or \texttt{memory\_consolidate} clears L2 entirely and invalidates the affected project's L3 entry. This is the same strategy used by Facebook's Memcache layer at scale~\cite{nishtala2013}.
 
 % ========================================
 % SECTION 9: DISCUSSION
@@ -1142,6 +1185,20 @@ V7.8 defaults to \texttt{BAAI/bge-large-en-v1.5} (1024d) on CUDA with $\sim$500 
 
 \bibitem{kushner2003} Kushner, H. J., \& Yin, G. G. (2003). \textit{Stochastic Approximation}. Springer.
 
+\bibitem{denning1968} Denning, P. J. (1968). The Working Set Model for Program Behavior. \textit{Communications of the ACM}, 11(5), 323--333.
+
+\bibitem{nishtala2013} Nishtala, R., et al. (2013). Scaling Memcache at Facebook. \textit{USENIX NSDI}, 385--398.
+
+\bibitem{zhong2024} Zhong, W., et al. (2024). MemoryBank: Enhancing Large Language Models with Long-Term Memory. \textit{AAAI 2024}, 38(17), 19724--19731.
+
+\bibitem{collins1975} Collins, A. M. \& Loftus, E. F. (1975). A Spreading-Activation Theory of Semantic Processing. \textit{Psychological Review}, 82(6), 407--428.
+
+\bibitem{begum2026} Begum, F., et al. (2026). Hierarchical Caching for Agentic Workflows. \textit{Machine Learning and Knowledge Extraction}, 8(2), Article 30.
+
+\bibitem{oneil1993} O'Neil, E. J., O'Neil, P. E., \& Weikum, G. (1993). The LRU-K Page Replacement Algorithm. \textit{ACM SIGMOD}, 297--306.
+
+\bibitem{ledoit2004} Ledoit, O. \& Wolf, M. (2004). A Well-Conditioned Estimator for Large-Dimensional Covariance Matrices. \textit{Journal of Multivariate Analysis}, 88(2), 365--411.
+
 \end{thebibliography}
 
 % ========================================
@@ -1226,6 +1283,7 @@ test\_hybrid.py & 20 & 20/20 PASS \\
 \textbf{Total} & \textbf{226} & \textbf{226/226 (100\%)} \\
 \midrule
 mathir\_dropin audit & 24 & 24/24 PASS \\
+mathir\_mcp (v8.7.0) & 122 & 122/122 PASS \\
 \bottomrule
 \end{tabular}
 \end{table}

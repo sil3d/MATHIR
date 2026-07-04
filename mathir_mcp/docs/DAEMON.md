@@ -1,4 +1,4 @@
-# Daemon Architecture (v8.6.0)
+# Daemon Architecture (v8.7.0)
 
 ## What the Daemon Does
 
@@ -12,6 +12,7 @@ The MATHIR daemon is a **persistent background process** that:
 
 Without daemon: each embedding request loads the model (~2-5s)
 With daemon: model stays loaded, requests complete in ~20ms
+With cache (v8.7.0): repeated queries complete in <1ms (L1 embedding + L2 recall cache)
 
 ## Protocol
 
@@ -236,6 +237,57 @@ Check memory content for privacy risks (PersistBench findings: 53% leakage, >90%
   "safe_to_store": false
 }
 ```
+
+### `cache_stats` (v8.7.0)
+
+Get cache hit/miss statistics for all 3 layers.
+
+**Endpoint**: `GET /api/cache/stats`
+**Params**: None
+**Returns**:
+```json
+{
+  "L1_embedding": {
+    "size": 42,
+    "maxsize": 1024,
+    "hits": 156,
+    "misses": 42,
+    "hit_ratio": 0.7879
+  },
+  "L2_recall": {
+    "size": 8,
+    "maxsize": 256,
+    "ttl_seconds": 60.0,
+    "hits": 31,
+    "misses": 12,
+    "hit_ratio": 0.7209,
+    "invalidations": 3
+  },
+  "L3_session": {
+    "projects_cached": 2,
+    "top_n": 20,
+    "ttl_seconds": 300.0,
+    "hits": 5,
+    "misses": 2,
+    "hit_ratio": 0.7143
+  }
+}
+```
+
+**Cache layers**:
+
+| Layer | What | Size | Expiry | Invalidation |
+|---|---|---|---|---|
+| L1 Embedding | `encode()` results | 1024 LRU | Never (deterministic) | LRU eviction only |
+| L2 Recall | `/api/memory/recall` responses | 256 entries | 60s TTL | On any write (save/delete/promote/consolidate) |
+| L3 Session | `/api/context` hot memories | top-20/project | 5 min TTL | On save (per-project), on delete/consolidate (global) |
+
+The `memory_recall` response includes a `"cache"` field (`"hit"` or `"miss"`) for observability.
+
+**Design references**:
+- L1: Standard memoization for pure functions (embedding is deterministic)
+- L2: HTTP cache-control pattern with must-revalidate on mutation
+- L3: Working-set model (Denning, 1968) — hot memories are a small, stable subset
 
 ## Threading Model
 

@@ -1,8 +1,8 @@
 # MATHIR Brain Architecture
 
-**5-phase system that makes MATHIR proactive, never-blocking, and brain-like.**
+**5-phase system + 3-layer auto-cache that makes MATHIR proactive, never-blocking, and brain-like.**
 
-> **v8.5.0+ note:** Phase 1 was reimplemented in v8.5.0 as **`mathir_proxy.py` on port 7339** (OpenAI-compatible universal proxy, replaces the legacy `mathir_inject_proxy.py` on 8182). See AGENT.md §"Brain Architecture" for the updated architecture. The 8182 legacy proxy still ships in `mathir_mcp/brain/` for backward compatibility but is no longer the recommended path.
+> **v8.7.0** — Added 3-layer auto-cache (L1 Embedding / L2 Recall / L3 Session) and `/api/cache/stats` endpoint. Phase 1 was reimplemented in v8.5.0 as **`mathir_proxy.py` on port 7339** (OpenAI-compatible universal proxy, replaces the legacy `mathir_inject_proxy.py` on 8182). See AGENT.md §"Brain Architecture" for the updated architecture. The 8182 legacy proxy still ships in `mathir_mcp/brain/` for backward compatibility but is no longer the recommended path.
 
 ## The Problem
 
@@ -88,12 +88,29 @@ This is added to the recall query so the LLM gets project-relevant memories, not
 
 **Effect:** When working in Mycerise_V2_Taur, the query becomes "fix the bug" + "project:Mycerise_V2_Taur" + "branch:main" → retrieves project-specific memories.
 
+## 3-Layer Auto-Cache (v8.7.0)
+
+Three transparent caching layers sit between MCP tool calls and the daemon, eliminating redundant work:
+
+| Layer | Scope | Strategy | Size | Invalidation |
+|---|---|---|---|---|
+| **L1 Embedding Cache** | `encode()` output | LRU | 1024 entries | Never (deterministic — same text always produces same vector) |
+| **L2 Recall Cache** | Search results (`recall`, `smart_search`, `hybrid_search`) | TTL 60 s | 256 entries | Immediate on any `memory_save` / `memory_delete` write |
+| **L3 Session Cache** | `session_start` / `context` (top-20 per project) | TTL 5 min | top-20/project | Immediate on any write |
+
+**Effect:** Repeated recalls for the same query within 60 s are served from L2 in <1 ms instead of hitting the vector index. Session starts within the same 5-minute window reuse L3. L1 removes all redundant embedding computation permanently.
+
+**Monitoring:** `GET /api/cache/stats` returns hit/miss counts and eviction stats for all three layers.
+
 ## All-in-One Launcher
 
 ```bash
 python mathir_brain.py start    # Start daemon + watchdog + proxy
 python mathir_brain.py status   # Show status
 python mathir_brain.py stop     # Stop all
+
+# Cache statistics (v8.7.0)
+curl http://127.0.0.1:7338/api/cache/stats
 ```
 
 ## Pointing your LLM client to the proxy
@@ -134,6 +151,7 @@ After this, every LLM call gets `<mathir-auto-injection>` block prepended to the
 | Sleep consolidates memories | `mathir_consolidate.py` |
 | Reticular activating system filters | Pre-cognitive priming (cwd, git, files) |
 | No "explicit search" needed | LLM never calls recall — memories appear |
+| Synaptic facilitation (repeated access = faster) | 3-layer auto-cache (L1/L2/L3) |
 
 ## Files
 

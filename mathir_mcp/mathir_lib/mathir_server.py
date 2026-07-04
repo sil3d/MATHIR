@@ -92,6 +92,7 @@ from mathir_mcp_server import (
     get_project_name,
 )
 from mathir_push import ContextAnalyzer, PushCache, context_hash, deduplicate_memories
+from mathir_cache import embedding_cache, recall_cache, session_cache, cache_stats, invalidate_on_write
 
 # Risk mitigation (optional)
 try:
@@ -220,24 +221,35 @@ def _resolve_db(project: str = None, cwd: str = None):
 
 
 def _encode_query(embedder, query: str):
-    prefix = getattr(embedder, 'mathir_query_prefix', '')
-    emb = embedder.encode(prefix + query)
     import numpy as np
+    prefix = getattr(embedder, 'mathir_query_prefix', '')
+    full_text = prefix + query
+    cached = embedding_cache.get(full_text)
+    if cached is not None:
+        return cached
+    emb = embedder.encode(full_text)
     if hasattr(emb, 'cpu'):
-        return emb.cpu().numpy().astype('float32').reshape(-1)
-    return np.array(emb, dtype=np.float32).reshape(-1)
+        result = emb.cpu().numpy().astype('float32').reshape(-1)
+    else:
+        result = np.array(emb, dtype=np.float32).reshape(-1)
+    embedding_cache.put(full_text, result)
+    return result
 
 
 def _encode_passage(embedder, text: str):
-    """Encode text being STORED (as opposed to a query) -- applies the
-    passage-side prefix for asymmetric-retrieval embedders like e5 (see
-    _encode_query for the query-side counterpart)."""
-    prefix = getattr(embedder, 'mathir_passage_prefix', '')
-    emb = embedder.encode(prefix + text)
     import numpy as np
+    prefix = getattr(embedder, 'mathir_passage_prefix', '')
+    full_text = prefix + text
+    cached = embedding_cache.get(full_text)
+    if cached is not None:
+        return cached
+    emb = embedder.encode(full_text)
     if hasattr(emb, 'cpu'):
-        return emb.cpu().numpy().astype('float32').reshape(-1)
-    return np.array(emb, dtype=np.float32).reshape(-1)
+        result = emb.cpu().numpy().astype('float32').reshape(-1)
+    else:
+        result = np.array(emb, dtype=np.float32).reshape(-1)
+    embedding_cache.put(full_text, result)
+    return result
 
 
 def get_embedder_dim():
@@ -527,9 +539,14 @@ def api_context():
     if not task:
         return jsonify({"error": "task parameter required"}), 400
     try:
-        vec_mem, db_path, embedder = _resolve_db(project=project, cwd=request.args.get("cwd") if request.method == "GET" else (request.get_json(silent=True) or {}).get("cwd"))
-        query_vec = _encode_query(embedder, task)
-        results = vec_mem.search(query_vec, k=k)
+        cached_results = session_cache.get(project or "", task)
+        if cached_results is not None:
+            results = cached_results
+        else:
+            vec_mem, db_path, embedder = _resolve_db(project=project, cwd=request.args.get("cwd") if request.method == "GET" else (request.get_json(silent=True) or {}).get("cwd"))
+            query_vec = _encode_query(embedder, task)
+            results = vec_mem.search(query_vec, k=k)
+            session_cache.put(project or "", results)
         # Normalize results to dicts with metadata
         normalized = []
         for r in results:
@@ -587,6 +604,11 @@ def api_context():
 @app.route("/api/projects")
 def api_projects():
     return jsonify({"projects": _list_projects()})
+
+
+@app.route("/api/cache/stats", methods=["GET"])
+def api_cache_stats():
+    return jsonify(cache_stats())
 
 
 # ---------------------------------------------------------------------------
@@ -763,6 +785,7 @@ def memory_save():
             metadata['tier'] = tier_override
             metadata['anomaly_score'] = float(anomaly_result['score'])
         vec_mem.store(memory_id, emb_np, metadata)
+        invalidate_on_write(project=params.get('project'))
         resp = {'memory_id': memory_id, 'saved': True, 'metadata': metadata}
         _attach_legacy_warning(vec_mem, resp)
         return jsonify(resp)
@@ -806,14 +829,21 @@ def memory_recall():
     if err:
         return err
     try:
-        vec_mem, _db_path, embedder = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         query = params.get('query', '')
         k = min(params.get('k', 5), 1000)
+        project = params.get("project")
+        agent = params.get('agent')
+        block_type = params.get('block_type')
+        cached = recall_cache.get(query, k, project=project, agent=agent, block_type=block_type)
+        if cached is not None:
+            cached['cache'] = 'hit'
+            return jsonify(cached)
+        vec_mem, _db_path, embedder = _resolve_db(project=project, cwd=params.get("cwd"))
         q_np = _encode_query(embedder, query)
         results = vec_mem.search(
             query_embedding=q_np, k=k,
-            agent_filter=params.get('agent'),
-            block_type_filter=params.get('block_type'),
+            agent_filter=agent,
+            block_type_filter=block_type,
             include_embeddings=bool(params.get('include_embeddings', False)),
         )
         touched = 0
@@ -825,7 +855,9 @@ def memory_recall():
                     touched += 1
         except Exception:
             pass
-        return jsonify({'results': results, 'query': query, 'total': len(results), 'touched': touched})
+        response = {'results': results, 'query': query, 'total': len(results), 'touched': touched, 'cache': 'miss'}
+        recall_cache.put(query, k, response, project=project, agent=agent, block_type=block_type)
+        return jsonify(response)
     except Exception as e:
         return jsonify({'error': _sanitize_error(e, 'memory_recall')}), 500
 
@@ -849,6 +881,7 @@ def memory_delete():
         if not memory_id:
             return jsonify({'error': 'memory_id required'}), 400
         deleted = vec_mem.delete(memory_id)
+        invalidate_on_write(project=params.get('project'))
         resp = {'memory_id': memory_id, 'deleted': deleted}
         _attach_legacy_warning(vec_mem, resp)
         return jsonify(resp)
@@ -1104,7 +1137,9 @@ def memory_promote():
     params = _get_params()
     try:
         vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
-        return jsonify(vec_mem.promote(params.get('memory_id', ''), force=params.get('force', False)))
+        result = vec_mem.promote(params.get('memory_id', ''), force=params.get('force', False))
+        invalidate_on_write(project=params.get('project'))
+        return jsonify(result)
     except Exception as e:
         return jsonify({'error': _sanitize_error(e, 'memory_promote')}), 500
 
@@ -1115,6 +1150,8 @@ def memory_auto_promote():
     try:
         vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         promoted = vec_mem.auto_promote_all()
+        if promoted:
+            invalidate_on_write(project=params.get('project'))
         return jsonify({'promoted': promoted, 'count': len(promoted)})
     except Exception as e:
         return jsonify({'error': _sanitize_error(e, 'memory_auto_promote')}), 500
@@ -1138,11 +1175,14 @@ def memory_consolidate():
     params = _get_params()
     try:
         vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
-        return jsonify(vec_mem.consolidate_all(
+        result = vec_mem.consolidate_all(
             threshold=params.get('threshold', 0.95),
             limit=params.get('limit', 100),
             dry_run=params.get('dry_run', True),
-        ))
+        )
+        if not params.get('dry_run', True):
+            invalidate_on_write(project=params.get('project'))
+        return jsonify(result)
     except Exception as e:
         return jsonify({'error': _sanitize_error(e, 'memory_consolidate')}), 500
 
