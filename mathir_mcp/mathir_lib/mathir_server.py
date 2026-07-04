@@ -1359,6 +1359,84 @@ def push_cache_stats():
 
 
 # ---------------------------------------------------------------------------
+# God Orchestrator routes (v8.8.0)
+# ---------------------------------------------------------------------------
+
+@app.route("/api/god/poll", methods=["POST"])
+def api_god_poll():
+    """Optimized task polling for god workers."""
+    try:
+        data = request.get_json(force=True) or {}
+        agent = data.get("agent", "")
+        status = data.get("status", "pending")
+        if not agent:
+            return jsonify({"error": "agent is required"}), 400
+
+        db = get_project_db()
+        conn = db.conn if hasattr(db, "conn") else db._conn
+        suffix = f":{agent}:{status}"
+        cursor = conn.execute(
+            """SELECT memory_id, metadata, label
+               FROM memories
+               WHERE label LIKE 'god:task:%'
+                 AND label LIKE ?
+               ORDER BY priority DESC, created_at ASC
+               LIMIT 1""",
+            (f"%{suffix}",),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return jsonify({"task": None})
+
+        meta = json.loads(row["metadata"]) if row["metadata"] else {}
+        return jsonify({
+            "task": {
+                "memory_id": row["memory_id"],
+                "label": row["label"],
+                "content": meta.get("content", ""),
+                "priority": meta.get("priority", 5),
+            }
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/god/agents", methods=["GET"])
+def api_god_agents():
+    """List all registered god workers."""
+    try:
+        db = get_project_db()
+        conn = db.conn if hasattr(db, "conn") else db._conn
+        cursor = conn.execute(
+            """SELECT memory_id, metadata, label
+               FROM memories
+               WHERE label LIKE 'god:reg:%'
+               ORDER BY created_at DESC"""
+        )
+        seen = {}
+        for row in cursor.fetchall():
+            meta = json.loads(row["metadata"]) if row["metadata"] else {}
+            label = row["label"] or ""
+            parts = label.split(":")
+            if len(parts) >= 5:
+                name = parts[2]
+                if name not in seen:
+                    content = meta.get("content", "{}")
+                    try:
+                        info = json.loads(content) if isinstance(content, str) else content
+                    except (json.JSONDecodeError, TypeError):
+                        info = {}
+                    seen[name] = {
+                        "name": name,
+                        "status": parts[4],
+                        "capabilities": info.get("capabilities", []),
+                    }
+        return jsonify({"agents": list(seen.values())})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
 # Startup
 # ---------------------------------------------------------------------------
 

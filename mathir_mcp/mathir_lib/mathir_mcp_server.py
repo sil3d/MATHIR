@@ -278,6 +278,8 @@ def _call_daemon_raw(method: str, params: dict = None) -> dict:
         "memory_incoming_links": "/api/memory/incoming_links",
         "memory_context": "/api/context",
         "memory_session_start": "/api/context",
+        "god_poll": "/api/god/poll",
+        "god_agents": "/api/god/agents",
     }
 
     endpoint = endpoint_map.get(method, f"/api/memory/{method.replace('memory_', '')}")

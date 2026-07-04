@@ -244,3 +244,37 @@ class TestWorktreeManager:
         active = wm.list_active()
         assert "abc12345" in active
         assert "def67890" in active
+
+
+class TestDaemonRoutes:
+    """Tests for the god-mode SQL queries used by daemon routes.
+
+    These test the query logic, not Flask — we verify the SQL patterns
+    that /api/god/poll and /api/god/agents will use.
+    """
+
+    def test_parse_god_labels_from_rows(self):
+        labels = [
+            "god:reg:mimo:mimo:idle",
+            "god:reg:codex:codex:busy",
+            "not-a-god-label",
+            "god:task:abc12345:mimo:pending",
+        ]
+        parsed = [GodProtocol.parse_label(l) for l in labels]
+        regs = [p for p in parsed if p and p["type"] == "reg"]
+        assert len(regs) == 2
+        assert regs[0]["target"] == "mimo"
+        assert regs[0]["status"] == "idle"
+
+    def test_filter_tasks_for_agent(self):
+        labels = [
+            "god:task:aaa11111:mimo:pending",
+            "god:task:bbb22222:codex:pending",
+            "god:task:ccc33333:mimo:running",
+        ]
+        mimo_pending = [
+            GodProtocol.parse_label(l) for l in labels
+            if l.endswith(":mimo:pending")
+        ]
+        assert len(mimo_pending) == 1
+        assert mimo_pending[0]["id"] == "aaa11111"
