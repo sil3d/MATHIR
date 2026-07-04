@@ -278,3 +278,89 @@ class TestDaemonRoutes:
         ]
         assert len(mimo_pending) == 1
         assert mimo_pending[0]["id"] == "aaa11111"
+
+
+class TestIntegration:
+    """End-to-end test of the god orchestration protocol (no daemon needed)."""
+
+    def test_full_protocol_flow(self):
+        """Simulate: register 2 workers, create task graph, dispatch, complete."""
+        # 1. Workers register
+        registry = WorkerRegistry()
+        registry.register("mimo", ["code", "test"])
+        registry.register("codex", ["code", "fast"])
+
+        # 2. Orchestrator creates plan
+        graph = TaskGraph("Refactor auth + tests")
+        graph.add_task("t1", "Refactor auth.py", "mimo", ["code"], [])
+        graph.add_task("t2", "Write tests for auth", "codex", ["code", "test"], ["t1"])
+        graph.add_task("t3", "Fix security issue", "codex", ["code"], [])
+
+        # 3. Check initial ready tasks (t1 and t3 — no deps)
+        ready = graph.get_ready_tasks()
+        ready_ids = [t["task_id"] for t in ready]
+        assert "t1" in ready_ids
+        assert "t3" in ready_ids
+        assert "t2" not in ready_ids
+
+        # 4. Dispatch t1 to mimo, t3 to codex
+        for task in ready:
+            label = GodProtocol.make_label("task", task["task_id"], task["agent"], "pending")
+            assert label.startswith("god:task:")
+            graph.set_status(task["task_id"], "running")
+            registry.set_status(task["agent"], "busy")
+
+        assert len(registry.list_idle()) == 0
+
+        # 5. t1 completes → t2 becomes ready
+        graph.set_status("t1", "completed")
+        registry.set_status("mimo", "idle")
+        ready = graph.get_ready_tasks()
+        assert "t2" in [t["task_id"] for t in ready]
+
+        # 6. t3 completes
+        graph.set_status("t3", "completed")
+        registry.set_status("codex", "idle")
+
+        # 7. Dispatch t2
+        graph.set_status("t2", "running")
+        registry.set_status("codex", "busy")
+
+        # 8. t2 completes
+        graph.set_status("t2", "verified")
+        registry.set_status("codex", "idle")
+
+        # 9. All done
+        graph.set_status("t1", "verified")
+        graph.set_status("t3", "verified")
+        assert graph.is_all_done() is True
+
+        # 10. Verify JSON roundtrip preserves state
+        restored = TaskGraph.from_json(graph.to_json())
+        assert restored.is_all_done() is True
+
+    def test_worker_reassignment_on_failure(self):
+        """If a worker fails, find another with matching capabilities."""
+        registry = WorkerRegistry()
+        registry.register("mimo", ["code", "test"])
+        registry.register("codex", ["code", "fast"])
+
+        graph = TaskGraph("Fix bug")
+        graph.add_task("t1", "Fix the auth bug", "mimo", ["code"], [])
+
+        # mimo fails
+        graph.set_status("t1", "queued")  # reset to queued for reassignment
+        registry.set_status("mimo", "idle")
+
+        # Find another worker with "code" capability
+        alternatives = registry.find_by_capability("code")
+        alternatives = [a for a in alternatives if a != "mimo"]
+        assert "codex" in alternatives
+
+    def test_shutdown_protocol(self):
+        """Shutdown label format is correct."""
+        label = GodProtocol.make_label("task", "00000000", "mimo", "shutdown")
+        assert label == "god:task:00000000:mimo:shutdown"
+        parsed = GodProtocol.parse_label(label)
+        assert parsed["status"] == "shutdown"
+        assert parsed["target"] == "mimo"
