@@ -978,8 +978,9 @@ def mathir_god_agent(
         })
 
     task_label = task.get("label", "")
-    parts = task_label.split(":")
-    if len(parts) >= 5 and parts[4] == "shutdown":
+    from mathir_god import GodProtocol
+    parsed = GodProtocol.parse_label(task_label)
+    if parsed and parsed["status"] == "shutdown":
         _call_daemon_raw("memory_save", {
             "content": "shutdown",
             "agent": name,
@@ -990,7 +991,7 @@ def mathir_god_agent(
         result_lines.append(f"[God Worker] {name} received shutdown.")
         return json.dumps({"status": "shutdown", "log": result_lines})
 
-    task_id = parts[2] if len(parts) >= 3 else "unknown"
+    task_id = parsed["id"] if parsed else "unknown"
     task_content = task.get("content", "")
     try:
         task_info = json.loads(task_content)

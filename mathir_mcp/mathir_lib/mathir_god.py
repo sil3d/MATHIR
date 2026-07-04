@@ -61,6 +61,15 @@ class TaskGraph:
         capabilities_required: list[str] = None,
         depends_on: list[str] = None,
     ) -> None:
+        deps = depends_on or []
+        for d in deps:
+            if d not in self._tasks:
+                continue
+            if self._has_path(d, task_id):
+                raise ValueError(
+                    f"Cycle detected: {task_id} depends on {d}, "
+                    f"but {d} already depends on {task_id}"
+                )
         self._tasks[task_id] = {
             "task_id": task_id,
             "description": description,
@@ -70,6 +79,21 @@ class TaskGraph:
             "status": "queued",
             "worktree_branch": f"god/{task_id}",
         }
+
+    def _has_path(self, from_id: str, to_id: str) -> bool:
+        """Check if there's a dependency path from from_id to to_id (DFS)."""
+        visited = set()
+        stack = [from_id]
+        while stack:
+            current = stack.pop()
+            if current == to_id:
+                return True
+            if current in visited:
+                continue
+            visited.add(current)
+            if current in self._tasks:
+                stack.extend(self._tasks[current]["depends_on"])
+        return False
 
     def set_status(self, task_id: str, status: str) -> None:
         if task_id not in self._tasks:

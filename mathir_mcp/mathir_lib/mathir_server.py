@@ -1374,12 +1374,14 @@ def api_god_poll():
 
         vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         conn = vec_mem._get_conn()
-        suffix = f":{agent}:{status}"
+        safe_agent = agent.replace("%", r"\%").replace("_", r"\_")
+        safe_status = status.replace("%", r"\%").replace("_", r"\_")
+        suffix = f":{safe_agent}:{safe_status}"
         cursor = conn.execute(
             """SELECT memory_id, metadata, label
                FROM memories
                WHERE label LIKE 'god:task:%'
-                 AND label LIKE ?
+                 AND label LIKE ? ESCAPE '\\'
                ORDER BY priority DESC, created_at ASC
                LIMIT 1""",
             (f"%{suffix}",),
