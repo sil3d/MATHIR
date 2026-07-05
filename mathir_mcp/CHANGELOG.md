@@ -1,5 +1,26 @@
 # MATHIR Changelog
 
+## [8.9.1] — 2026-07-05 — DOC CORRECTION (27 tools canonical)
+
+### Fixed
+- **Canonical tool count corrected: 26 → 27** — verified against live MCP tool list.
+  - The `audit_immunological` tool was missing from the v8.9.0 count.
+  - All docs, templates, READMEs, and architecture diagrams now consistently say **27 MCP tools**.
+- Canonical breakdown: 2 auto-injection + 10 basic + 7 lifecycle + 3 advanced + 1 guardrail + 1 immunological + 1 health + 2 god mode = **27**.
+- `block_type` declarations everywhere now list all 6 tiers: `working_memory | episodic | semantic | procedural | guardrail | immunological`.
+- `LIVING MEMORY (5 TIERS)` headers → `(6 TIERS)` in all 150+ agent/skill files.
+- Guardrail row added to all memory-tier tables (was missing in skill/agent injections).
+- Version titles updated to v8.9.0 (was stale v8.5.0/v8.6.0/v8.7.0 in some deployments).
+- Templates `opencode_templates/README.md`: "19 MCP tools" → "27 MCP tools", "5-tier model" → "6-tier model".
+
+### Synced deployments
+- `~/.config/MATHIR/` (mathir_mcp full copy)
+- `~/.config/opencode/` (32 agents + 82 skills + 82 skills-global re-injected)
+- `~/.config/mimocode/` (32 agents re-injected)
+- `~/.claude/CLAUDE.md`
+
+---
+
 ## [8.9.0] — 2026-07-05 — GUARDRAIL TIER
 
 ### Added
@@ -11,7 +32,7 @@
 - Minimum priority enforced at 8, max 50 per project
 
 ### Changed
-- Total MCP tools: 26 (was 25)
+- Total MCP tools: 27 (corrected in 8.9.1; was miscounted as 26 at release)
 - Total tiers: 6 (was 5)
 
 ---

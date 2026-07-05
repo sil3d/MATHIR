@@ -2,7 +2,7 @@
 
 **6-tier cognitive memory for 50 AI coding agents. Install once, use everywhere.**
 
-> **v8.9.0** — **God Mode** (multi-agent orchestration), 26 MCP tools, 3-layer auto-cache, INT8 quantization, cross-encoder reranking. See [CHANGELOG.md](CHANGELOG.md).
+> **v8.9.0** — **God Mode** (multi-agent orchestration), 27 MCP tools, 3-layer auto-cache, INT8 quantization, cross-encoder reranking. See [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -17,7 +17,7 @@ pip install -e .
 # 2. Start the daemon
 mathir-server &   # listens on 127.0.0.1:7338
 
-# 3. Add to your agent's MCP config — done. 26 tools available.
+# 3. Add to your agent's MCP config — done. 27 tools available.
 ```
 
 For cold-boot auto-start: `python mathir_mcp/INSTALL_FOR_DEV/install_smart.py --autostart-only`
@@ -26,7 +26,7 @@ Platform-specific guides: [INSTALL_FOR_AGENT/INSTALL_WINDOWS.md](INSTALL_FOR_AGE
 
 ---
 
-## 🔌 MCP Tools (23)
+## 🔌 MCP Tools (27)
 
 | Category | Tools |
 |---|---|
@@ -34,7 +34,10 @@ Platform-specific guides: [INSTALL_FOR_AGENT/INSTALL_WINDOWS.md](INSTALL_FOR_AGE
 | **Basic** | `memory_save`, `memory_recall`, `memory_smart_search`, `memory_hybrid_search`, `memory_delete`, `memory_stats`, `memory_audit`, `memory_export`, `memory_sessions`, `memory_dashboard` |
 | **Lifecycle** | `memory_promote`, `memory_auto_promote`, `memory_decay`, `memory_consolidate`, `memory_link`, `memory_get_links`, `memory_build_links` |
 | **Advanced (v8.5.1)** | `memory_by_path`, `memory_recall_quality`, `memory_incoming_links` |
+| **Guardrail (v8.9.0)** | `memory_list_guardrails` |
+| **Immunological** | `memory_audit_immunological` |
 | **Health** | `mathir_health` |
+| **God Mode (v8.8.0)** | `mathir_mathir_god_agent`, `mathir_mathir_god_orchestre` |
 
 Full signatures: see [`mathir_lib/mathir_mcp_server.py`](mathir_lib/mathir_mcp_server.py).
 

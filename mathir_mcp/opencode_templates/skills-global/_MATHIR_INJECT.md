@@ -39,7 +39,7 @@ When you create a new global skill in `skills-global/<name>/SKILL.md`:
 3. Global skills apply broadly — keep the body portable (no hardcoded paths).
 
 **MCP tools:** `memory_save`, `memory_recall`, `memory_stats`
-**block_type:** `working_memory` | `episodic` | `semantic` | `procedural` | `immunological` (6 tiers; immunological=anomaly, guardrail=always-active rules)
+**block_type:** `working_memory` | `episodic` | `semantic` | `procedural` | `guardrail` | `immunological` (6 tiers; immunological=anomaly, guardrail=always-active rules)
 **Port:** 7338 (daemon) | **Model:** intfloat/multilingual-e5-small (384d)
 ## ENFORCEMENT - MATHIR Is Your Brain (Not a Tool)
 

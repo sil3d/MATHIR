@@ -224,13 +224,13 @@ Your memory is **alive**. It has **6 tiers** and a full lifecycle (Ebbinghaus fo
 
 **Rule of thumb:** start with `episodic` for most things. The lifecycle will auto-promote to `semantic` if the memory is recalled often enough. Use `working_memory` for session-scoped stuff (it's promoted to episodic on session end). Use `procedural` for runbooks (label must start with `how-to:` or `recipe:`). Use `guardrail` for critical rules the LLM must always see (min priority 8, max 50/project). Use `immunological` for detected threat patterns.
 
-### 26 MCP tools at your disposal
+### 27 MCP tools at your disposal
 
 #### Basic CRUD (use these every day)
 
 ```
 memory_save(content, agent, block_type, label, priority, project)
-  - Saves a memory. block_type is the tier: working_memory | episodic | semantic | procedural | immunological
+  - Saves a memory. block_type is the tier: working_memory | episodic | semantic | procedural | guardrail | immunological
   - priority 0-10, default 5. Use 8+ for critical facts, 9-10 for runbooks.
   - label should be short, searchable, and stable (e.g. "jwt-validation-fix" not "the fix")
   - immunological tier is the immune system — saves detected threat signatures, anomalies, quarantined content
@@ -396,7 +396,7 @@ memory_recall(query="specific topic", k=10)
 memory_smart_search(query="exact text", k=5)
 ```
 
-**Types:** working_memory, episodic, semantic, procedural, immunological
+**Types:** working_memory, episodic, semantic, procedural, guardrail, immunological
 **Priority:** 1-10 (higher = more important)
 **Port:** 7338 (daemon) / 8182 (proxy) | **Database:** auto-detected (CWD-first, registry fallback, home ignored)
 **Model:** intfloat/multilingual-e5-small (384d, multilingual, ~240MB VRAM fp16, retrieval-trained)

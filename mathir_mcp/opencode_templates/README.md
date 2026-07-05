@@ -62,7 +62,7 @@ opencode/
 
 | Template | Size | When it fires | Purpose |
 |---|---:|---|---|
-| `agents/_MATHIR_INJECT.md` | 9.4 KB | Every sub-agent system prompt | Full block: daemon health check, recall workflow, 19 MCP tools, save tiers, lifecycle housekeeping, error rules |
+| `agents/_MATHIR_INJECT.md` | 9.4 KB | Every sub-agent system prompt | Full block: daemon health check, recall workflow, 27 MCP tools, save tiers, lifecycle housekeeping, error rules |
 | `commands/_MATHIR_INJECT.md` | 2.4 KB | Slash-command system prompts | Shortened block: just the recall + save cheatsheet, no housekeeping |
 | `skills/_MATHIR_INJECT.md` | 1.6 KB | `SKILL.md` frontmatter in `~/.config/opencode/skills/` | Minimal: "memory is pre-loaded; save non-obvious things" |
 | `skills-global/_MATHIR_INJECT.md` | 1.2 KB | `SKILL.md` frontmatter in `~/.config/opencode/skills-global/` | Same as `skills/`, kept separate so skills-global can drift later |
@@ -81,7 +81,7 @@ This is the block that gets injected into every one of the 32 agents (`@coder`, 
 - **Daemon health check** — the agent's first instruction is `Test-NetConnection -ComputerName localhost -Port 7338`. If the daemon is down, the agent is told to start it, not assume MCP is broken.
 - **Active memory auto-injection slot** — `{{MATHIR_CONTEXT}}`, filled in at session start with the top-K most relevant prior memories.
 - **6-tier model recap** — `working_memory` / `episodic` / `semantic` / `procedural` / `immunological` / `guardrail`, with the rule "start with `episodic`".
-- **26 MCP tools** — basic CRUD, lifecycle (`promote`, `decay`, `consolidate`, `link`, `build_links`), God Mode orchestration, guardrail management, and end-of-session housekeeping commands.
+- **27 MCP tools** — basic CRUD, lifecycle (`promote`, `decay`, `consolidate`, `link`, `build_links`), God Mode orchestration, guardrail management, and end-of-session housekeeping commands.
 - **End-of-session recipe** — the exact `memory_auto_promote()` / `memory_decay()` / `memory_consolidate()` / `memory_build_links()` sequence every agent runs before exiting.
 - **Error rules** — no "pre-existing error" excuses, no commented-out code, no hardcoded paths.
 - **Rule 0.5 / 0.6** — search for existing systems first, test with the real stack (no mocks).
@@ -94,7 +94,7 @@ Slash commands (`/mathir_inject`, `/commit`, etc.) are short-lived and don't run
 - Recall the 2-3 most relevant memories for the command's task.
 - Save the result at the end.
 
-No lifecycle, no housekeeping, no 17-tool catalog.
+No lifecycle, no housekeeping, no full 27-tool catalog.
 
 ### 3. `skills/_MATHIR_INJECT.md` — minimal variant
 

@@ -47,7 +47,7 @@ When you create a new skill in `skills/<name>/SKILL.md`:
 | New pattern discovered | `memory_save(... block_type="semantic", label="<pattern>")` |
 
 **MCP tools:** `memory_save`, `memory_recall`, `memory_stats`
-**block_type:** `working_memory` | `episodic` | `semantic` | `procedural` | `immunological` (5 tiers; immunological is for threat signatures / anomaly storage)
+**block_type:** `working_memory` | `episodic` | `semantic` | `procedural` | `guardrail` | `immunological` (6 tiers; immunological is for threat signatures / anomaly storage, guardrail=always-active rules)
 **Port:** 7338 (daemon) | **Model:** intfloat/multilingual-e5-small (384d)
 ## ENFORCEMENT - MATHIR Is Your Brain (Not a Tool)
 

@@ -2,7 +2,7 @@
 
 **Universal install: one folder, 50+ agents, zero config.**
 
-**v8.9.0 highlights**: **God Mode** (multi-agent orchestration), INT8 quantization (4x compression), cross-encoder reranking (+20pp), **26 MCP tools**, 22 algorithms, FastMCP 3.4.2, auto-injection plugin, unified HTTP daemon, **OpenAI-compatible proxy (port 7339)**. See [CHANGELOG.md](../../CHANGELOG.md) for details.
+**v8.9.0 highlights**: **God Mode** (multi-agent orchestration), INT8 quantization (4x compression), cross-encoder reranking (+20pp), **27 MCP tools**, 22 algorithms, FastMCP 3.4.2, auto-injection plugin, unified HTTP daemon, **OpenAI-compatible proxy (port 7339)**. See [CHANGELOG.md](../../CHANGELOG.md) for details.
 
 ---
 
@@ -380,11 +380,11 @@ Vector + BM25 + RRF fusion (k=60). ~60ms per search.
 | `memory_smart_search` | Hybrid (vector + text, best quality) |
 | `memory_hybrid_search` | Explicit vector+BM25 fusion with tunable weights |
 
-Note: `memory_search` was removed in v8.3 — functionality folded into `memory_smart_search` (auto-tuned weights, default k=10). v8.9.0 has **26 tools total** (2 auto-injection + 11 basic + 7 lifecycle + 3 advanced + 1 health check + 2 god mode).
+Note: `memory_search` was removed in v8.3 — functionality folded into `memory_smart_search` (auto-tuned weights, default k=10). v8.9.0 has **27 tools total** (2 auto-injection + 10 basic + 7 lifecycle + 3 advanced + 1 guardrail + 1 immunological + 1 health + 2 god mode).
 
 ---
 
-## MCP Tools (25 in v8.9.0)
+## MCP Tools (27 in v8.9.0)
 
 ### Basic (every day)
 | Tool | Description |
@@ -411,13 +411,14 @@ Note: `memory_search` was removed in v8.3 — functionality folded into `memory_
 | `memory_get_links` | BFS traversal of the link graph |
 | `memory_build_links` | Build the graph from cosine similarities |
 
-### 5 memory tiers
+### 6 memory tiers
 | Tier | Use for |
 |------|---------|
 | `working_memory` | Current session scratchpad |
 | `episodic` | Events: bugs fixed, decisions, sessions |
 | `semantic` | Stable facts that apply broadly |
 | `procedural` | How-to recipes (label must start with `how-to:` or `recipe:`) |
+| `guardrail` | Critical rules always injected into every context response (immune to decay, min priority 8, max 50/project) |
 | `immunological` | Immune response — auto-quarantines toxic, biased, or unsafe memories |
 
 Canonical list — matches `mathir_lib/mathir_mcp_server.py` TOOLS array.
@@ -454,7 +455,7 @@ For agents that can't call MCP tools directly:
 
 > **Note:** OpenCode doesn't support `baseUrl` configuration, so Path A (direct MCP tools) is the only working path. Other agents (Claude Code, Cursor, MiMo) can use either path.
 
-**In both paths, the agent has 26 tools (2 auto-injection + 11 basic + 7 lifecycle + 1 health check + 2 god mode + 3 advanced) at its disposal — no manual `memory_recall` is strictly required if instructions are properly loaded.**
+**In both paths, the agent has 27 tools (2 auto-injection + 10 basic + 7 lifecycle + 3 advanced + 1 guardrail + 1 immunological + 1 health + 2 god mode) at its disposal — no manual `memory_recall` is strictly required if instructions are properly loaded.**
 
 ---
 

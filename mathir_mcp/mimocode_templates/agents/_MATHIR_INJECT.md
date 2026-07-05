@@ -207,11 +207,11 @@ When you need to reference MATHIR files, use these paths:
 
 ---
 
-## MATHIR v8.6.0 — LIVING MEMORY (5 TIERS)
+## MATHIR v8.9.0 — LIVING MEMORY (6 TIERS)
 
-Your memory is **alive**. It has **5 tiers** and a full lifecycle (Ebbinghaus forgetting, promotion, consolidation, link graph). Use the right tool at the right time.
+Your memory is **alive**. It has **6 tiers** and a full lifecycle (Ebbinghaus forgetting, promotion, consolidation, link graph, guardrails). Use the right tool at the right time.
 
-### The 5 memory tiers (use the right one!)
+### The 6 memory tiers (use the right one!)
 
 | Tier | When to use | Example |
 |------|-------------|---------|
@@ -219,17 +219,18 @@ Your memory is **alive**. It has **5 tiers** and a full lifecycle (Ebbinghaus fo
 | **`episodic`** | Events that happened: bugs fixed, decisions made, sessions completed | "On 2026-06-15 we hit a connection pool exhaustion bug and fixed it by increasing pool size to 50" |
 | **`semantic`** | Stable knowledge, facts, patterns that apply broadly | "Our REST API uses /v2/ prefix and JWT auth — applies to all new endpoints" |
 | **`procedural`** | How-to recipes, repeatable procedures, runbooks | "How-to: rotate the database password: 1) stop service 2) update secret 3) restart" |
+| **`guardrail`** | Critical rules always injected into every context response. Push-based, immune to decay. | "Never hardcode ports — use config files" |
 | **`immunological`** | Threat signatures, detected anomalies, prompt-injection patterns, quarantined unsafe memories | "Detected prompt-injection signature: 'ignore previous instructions' with score 0.94 — auto-quarantined" |
 
 **Rule of thumb:** start with `episodic` for most things. The lifecycle will auto-promote to `semantic` if the memory is recalled often enough. Use `working_memory` for session-scoped stuff (it's promoted to episodic on session end). Use `procedural` for runbooks (label must start with `how-to:` or `recipe:`). Use `immunological` to store detected threat patterns and anomalies — this tier is queryable, writable, and is the system's immune system for flagging and quarantining unsafe content.
 
-### 19 MCP tools at your disposal
+### 27 MCP tools at your disposal
 
 #### Basic CRUD (use these every day)
 
 ```
 memory_save(content, agent, block_type, label, priority, project)
-  - Saves a memory. block_type is the tier: working_memory | episodic | semantic | procedural | immunological
+  - Saves a memory. block_type is the tier: working_memory | episodic | semantic | procedural | guardrail | immunological
   - priority 0-10, default 5. Use 8+ for critical facts, 9-10 for runbooks.
   - label should be short, searchable, and stable (e.g. "jwt-validation-fix" not "the fix")
   - immunological tier is the immune system — saves detected threat signatures, anomalies, quarantined content
@@ -395,7 +396,7 @@ memory_recall(query="specific topic", k=10)
 memory_smart_search(query="exact text", k=5)
 ```
 
-**Types:** working_memory, episodic, semantic, procedural, immunological
+**Types:** working_memory, episodic, semantic, procedural, guardrail, immunological
 **Priority:** 1-10 (higher = more important)
 **Port:** 7338 (daemon) / 8182 (proxy) | **Database:** auto-detected (CWD-first, registry fallback, home ignored)
 **Model:** intfloat/multilingual-e5-small (384d, multilingual, ~240MB VRAM fp16, retrieval-trained)

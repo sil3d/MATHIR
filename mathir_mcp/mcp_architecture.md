@@ -21,8 +21,8 @@
 │  │                    Forwards to daemon via HTTP               ││
 │  │                                                              ││
 │  │  ┌─────────────┐  ┌──────────────┐  ┌────────────────────┐  ││
-│  │  │ 26 tools    │  │ /api/context │  │ /api/stats         │  ││
-│  │  │ (22 memory  │  │ auto-inject  │  │ /api/god/poll      │  ││
+│  │  │ 27 tools    │  │ /api/context │  │ /api/stats         │  ││
+│  │  │ (24 memory  │  │ auto-inject  │  │ /api/god/poll      │  ││
 │  │  │ +2 god +1h) │  │              │  │ /api/god/agents    │  ││
 │  │  └──────┬──────┘  └──────┬───────┘  └────────────────────┘  ││
 │  │         │                │                                   ││
