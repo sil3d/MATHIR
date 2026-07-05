@@ -2,7 +2,7 @@
 
 **Does MATHIR accept video, audio, text from an LLM? How does it store data as a memory?**
 
-*Master's-thesis-grade technical reference · MATHIR V8.4.1 · 2026*
+*Master's-thesis-grade technical reference · MATHIR V8.9.2 · 2026-07*
 
 ---
 

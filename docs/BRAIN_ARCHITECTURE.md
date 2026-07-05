@@ -1,8 +1,8 @@
 # MATHIR Brain Architecture
 
-**5-phase system + 3-layer auto-cache that makes MATHIR proactive, never-blocking, and brain-like.**
+**6-phase system + 3-layer auto-cache that makes MATHIR proactive, never-blocking, and brain-like.**
 
-> **v8.9.0** — 6-tier architecture (added guardrail tier — push-based always-active rules, immune to decay). 3-layer auto-cache (L1 Embedding / L2 Recall / L3 Session) and `/api/cache/stats` endpoint. Phase 1 was reimplemented in v8.5.0 as **`mathir_proxy.py` on port 7339** (OpenAI-compatible universal proxy, replaces the legacy `mathir_inject_proxy.py` on 8182). See AGENT.md §"Brain Architecture" for the updated architecture. The 8182 legacy proxy still ships in `mathir_mcp/brain/` for backward compatibility but is no longer the recommended path.
+> **v8.9.2** — 6-tier architecture (guardrail tier: push-based always-active rules, immune to decay). 3-layer auto-cache (L1 Embedding / L2 Recall / L3 Session) and `/api/cache/stats` endpoint. Phase 1 reimplemented in v8.5.0 as **`mathir_proxy.py` on port 7339** (OpenAI-compatible universal proxy, replaces the legacy `mathir_inject_proxy.py` on 8182). **Phase 6 added in v8.9.x**: god-mode orchestration + client polling bridge (`bin/god/`). See AGENT.md §"Brain Architecture" for the updated architecture. The 8182 legacy proxy still ships in `mathir_mcp/brain/` for backward compatibility but is no longer the recommended path.
 
 ## The Problem
 
@@ -88,6 +88,25 @@ This is added to the recall query so the LLM gets project-relevant memories, not
 
 **Effect:** When working in Mycerise_V2_Taur, the query becomes "fix the bug" + "project:Mycerise_V2_Taur" + "branch:main" → retrieves project-specific memories.
 
+### Phase 6 — Multi-Agent Orchestration Bridge (`bin/god/`)
+
+Turns MATHIR's shared memory into a **cross-process message queue** for coordinating multiple AI agents across terminals:
+
+- **Server-side:** `mathir_lib/mathir_god.py` exposes `/api/god/poll` + `/api/god/agents` HTTP routes. Workers register, orchestrators dispatch tasks via `memory_save(label="god:task:...")`.
+- **Client-side:** `bin/god/god_bridge.py` is a standalone polling daemon for terminals (3 modes: `worker` / `orchestrator` / `observer`). Stdlib-only, cross-platform (Windows / Linux / macOS).
+- **Protocol:** Structured labels (`god:task:{id}:{worker}:pending`, `god:result:{id}:{worker}:completed`) — see `bin/god/PROTOCOL.md`.
+
+**Why a separate client bridge?** MCP tools return immediately — they can't block waiting for events. `god_bridge.py` runs as an external process, polls every N seconds, beeps + logs on new events. **Effect:** One orchestrator can dispatch to N workers across N terminals, with zero manual relay.
+
+**Usage:**
+```bash
+# Worker terminal (waits across many agent turns)
+python mathir_mcp/bin/god/god_bridge.py --mode worker --name mimo --interval 5
+
+# Orchestrator terminal
+python mathir_mcp/bin/god/god_bridge.py --mode orchestrator --interval 5 --project <name>
+```
+
 ## 3-Layer Auto-Cache (v8.7.0)
 
 Three transparent caching layers sit between MCP tool calls and the daemon, eliminating redundant work:
@@ -161,6 +180,10 @@ After this, every LLM call gets `<mathir-auto-injection>` block prepended to the
 - `mathir_mcp/brain/mathir_spread.py` — Phase 3: spreading activation
 - `mathir_mcp/brain/mathir_consolidate.py` — Phase 4: sleep consolidation
 - `mathir_mcp/brain/mathir_prime.py` — Phase 5: pre-cognitive priming
+- `mathir_mcp/mathir_lib/mathir_god.py` — Phase 6 (v8.8.0+): god-mode server logic (`GodProtocol`, `TaskGraph`, `WorkerRegistry`, `WorktreeManager`)
+- `mathir_mcp/bin/god/god_bridge.py` — Phase 6 (v8.9.2+): god-mode client polling daemon (3 modes)
+- `mathir_mcp/bin/god/god_poll.{ps1,sh}` — Phase 6: lightweight cross-platform pollers
+- `mathir_mcp/bin/god/PROTOCOL.md` — Phase 6: label spec + message flow
 - `mathir_mcp/brain/mathir_brain.py` — All-in-one launcher
 - `mathir_mcp/opencode_templates/plugins/mathir-auto-inject.ts` — Tier-A plugin (opencode/mimocode only)
 

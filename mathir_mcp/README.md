@@ -87,6 +87,34 @@ Monitor: `GET /api/cache/stats` returns hits, misses, hit ratio per layer.
 | **[docs/GPU_SETUP.md](docs/GPU_SETUP.md)** | GPU/ONNX acceleration |
 | **[docs/DIMENSIONS.md](docs/DIMENSIONS.md)** | Embedding model selection |
 | **[CHANGELOG.md](../CHANGELOG.md)** | Version history |
+| **[bin/god/PROTOCOL.md](bin/god/PROTOCOL.md)** | God-mode label spec + client bridge protocol |
+| **[../docs/GOD_MODE.md](../docs/GOD_MODE.md)** | Multi-agent orchestration guide (server + client) |
+
+---
+
+## 🔱 God-mode orchestration (multi-agent coordination)
+
+MATHIR ships god-mode for **multi-terminal multi-agent coordination**. The `mathir_lib/mathir_god.py` module is the **server-side** orchestrator (runs inside the daemon). Companion **client-side tooling** lives in [`bin/god/`](bin/god/):
+
+| File | What it does |
+|---|---|
+| `god/god_bridge.py` | Cross-platform polling daemon — 3 modes: `worker` / `orchestrator` / `observer`. Stdlib only. |
+| `god/god_poll.ps1` | PowerShell one-shot poller (Windows, faster boot) |
+| `god/god_poll.sh` | Bash one-shot poller (POSIX) |
+| `god/PROTOCOL.md` | Full label taxonomy (`god:task:...`, `god:result:...`) + message flow |
+| `god/README.md` | Usage, env vars, troubleshooting |
+
+**Worker quick start:**
+```bash
+python god/god_bridge.py --mode worker --name <my-worker-name> --interval 5
+```
+
+**Orchestrator quick start (separate terminal):**
+```bash
+python god/god_bridge.py --mode orchestrator --interval 5 --project <project>
+```
+
+Cross-platform by design: no hardcoded paths, portable XDG state dir, env vars override per machine.
 
 ---
 

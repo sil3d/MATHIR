@@ -1,4 +1,4 @@
-# MATHIR — Quick Start Guide (v8.9.0)
+# MATHIR — Quick Start Guide (v8.9.2)
 
 **Get MATHIR running in 3 minutes.**
 
@@ -103,6 +103,22 @@ for mem in results["memories"]:
 
 ---
 
+## 5b. Long-running polling (god bridge)
+
+For multi-agent orchestration, the MCP god tools (`mathir_god_agent`, `mathir_god_orchestre`) are designed for single-turn usage — they return immediately. For a **worker waiting across many turns** or an **orchestrator watching for results**, use the standalone `god_bridge.py`:
+
+```bash
+# Worker terminal (waits for tasks assigned to you)
+python mathir_mcp/bin/god/god_bridge.py --mode worker --name <my-name> --interval 5
+
+# Orchestrator terminal (watches for worker completions)
+python mathir_mcp/bin/god/god_bridge.py --mode orchestrator --interval 5 --project <name>
+```
+
+Three modes: `worker` / `orchestrator` / `observer`. Stdlib-only, cross-platform. See [docs/GOD_MODE.md](../docs/GOD_MODE.md) for protocol + [mathir_mcp/bin/god/PROTOCOL.md](../mathir_mcp/bin/god/PROTOCOL.md) for label spec.
+
+---
+
 ## 6. Auto-start on boot (optional)
 
 ```bash
@@ -122,7 +138,7 @@ launchctl load -w ~/Library/LaunchAgents/com.mathir.daemon.plist
 
 | Feature | Description |
 |---------|-------------|
-| 26 MCP tools | Save, recall, search, link, decay, promote, consolidate, god mode |
+| **27 MCP tools** | Save, recall, search, link, decay, promote, consolidate, **god mode + client bridge (`bin/god/`)** |
 | 3-layer cache | 18x speedup on repeated queries (zero config) |
 | INT8 quantization | 4x embedding compression, zero recall loss |
 | Cross-encoder reranking | +20pp quality on retrieval |

@@ -40,6 +40,36 @@ MATHIR on a fresh machine.
 | **`mathir_inject.py`** | Injects the MATHIR memory block into all agent `.md` files (agents, commands, skills, docs). Idempotent. |
 | **`mathir_sync.py`** | Copies new files from source repo to deployed configs. Safe by default (never overwrites). |
 
+## God-mode orchestration (multi-agent coordination)
+
+Solves the **async coordination gap** between an orchestrator and N worker agents (no native waiting pool).
+Uses the daemon's `/api/god/poll` and `/api/god/agents` endpoints (defined in `mathir_lib/mathir_god.py`).
+
+| File | What it does |
+|---|---|
+| **`god/god_bridge.py`** | Cross-platform polling daemon — 3 modes: `worker` / `orchestrator` / `observer`. Stdlib only. Beeps + logs when new god-events detected. |
+| **`god/god_poll.ps1`** | PowerShell one-shot poller (Windows, faster boot) |
+| **`god/god_poll.sh`** | Bash one-shot poller (POSIX) |
+| **`god/PROTOCOL.md`** | Full label taxonomy (`god:task:…`, `god:result:…`, etc.) + message flow |
+| **`god/README.md`** | Usage, env vars, troubleshooting |
+
+**Quick start (worker terminal):**
+```bash
+python god/god_bridge.py --mode worker --name mimo-code --interval 5
+```
+
+**Quick start (orchestrator terminal):**
+```bash
+python god/god_bridge.py --mode orchestrator --interval 5 --project Mycerise_V2_Taur
+```
+
+**Env vars** (override per machine):
+- `MATHIR_DAEMON_URL` (default `http://localhost:7338`)
+- `MYCERISE_STATE_DIR` (state + log dir, default `$XDG_CONFIG_HOME/mycerise`)
+- `MYCERISE_LOG_FILE` (default `$MYCERISE_STATE_DIR/god_bridge.log`)
+
+> Cross-platform by design: no hardcoded paths, no env pollution, portable XDG state dir.
+
 ## Smart installer
 
 > Moved to `../INSTALL_FOR_AGENT/` and `../INSTALL_FOR_DEV/` to keep this folder lean. The installer scripts
@@ -65,6 +95,8 @@ MATHIR on a fresh machine.
 | Save memory | Use MCP tool, or PowerShell module, or `python mathir_client.py save "content" -a my_agent -t episodic -l "label"` |
 | Inject into all agents | `python mathir_inject.py --apply --target all` |
 | Sync source to deployed | `python mathir_sync.py` (dry-run) then `--force` |
+| Start god-mode bridge (orchestrator) | `python god/god_bridge.py --mode orchestrator --interval 5` |
+| Start god-mode bridge (worker)    | `python god/god_bridge.py --mode worker --name <my-name> --interval 5` |
 | View dashboard | http://localhost:7420 (after starting stats server) |
 
 ## Dependencies

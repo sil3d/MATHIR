@@ -166,6 +166,60 @@ Two HTTP endpoints added to the MATHIR daemon:
 
 ---
 
+## Client-side tooling (`bin/god/`)
+
+The MCP tools above are designed for single-turn agent sessions — they return immediately, they can't loop forever. For **long-running polling** (a worker waiting for tasks across many turns, or an orchestrator watching for results), use the standalone bridge daemon shipped in [`mathir_mcp/bin/god/`](../mathir_mcp/bin/god/).
+
+### Why a separate client bridge?
+
+| Need | MCP tool | `god_bridge.py` |
+|---|---|---|
+| Run inside an agent's tool loop | ✅ | ❌ (external process) |
+| Block until a task arrives | ❌ (returns immediately) | ✅ (polls every N seconds) |
+| Cross-platform without dependencies | ✅ (uses existing MCP) | ✅ (stdlib only) |
+| Notify on new events (beep + log) | ❌ | ✅ |
+
+### Modes
+
+| Mode | What it does | When to use |
+|---|---|---|
+| `worker` | Polls `/api/god/poll` for tasks dispatched to `--name <me>` | Each worker terminal |
+| `orchestrator` | Watches `/api/memories` for new `god:result:*` entries | Orchestrator terminal |
+| `observer` | Logs every `god:*` event | Debug / monitoring |
+
+### Quick start
+
+```bash
+# Worker terminal
+python bin/god/god_bridge.py --mode worker --name mimo-code --interval 5
+
+# Orchestrator terminal (separate)
+python bin/god/god_bridge.py --mode orchestrator --interval 5 --project Mycerise_V2_Taur
+
+# Observer
+python bin/god/god_bridge.py --mode observer --interval 10
+```
+
+### Cross-platform
+
+| Shell | Pollers |
+|---|---|
+| Python (cross-platform) | `god_bridge.py` |
+| Windows PowerShell | `god_poll.ps1` |
+| POSIX bash | `god_poll.sh` |
+
+Env vars (override per machine, no hardcoded paths):
+
+| Var | Default | Purpose |
+|---|---|---|
+| `MATHIR_DAEMON_URL` | `http://localhost:7338` | Daemon URL |
+| `MYCERISE_STATE_DIR` | `$XDG_CONFIG_HOME/mycerise` | State + log dir |
+| `MYCERISE_LOG_FILE` | derived from `MYCERISE_STATE_DIR` | Log file path |
+
+Full spec: [`bin/god/PROTOCOL.md`](../mathir_mcp/bin/god/PROTOCOL.md) · Usage: [`bin/god/README.md`](../mathir_mcp/bin/god/README.md).
+
+---
+
 ## Design Principles
 
 1. **No new infrastructure** — MATHIR's existing memory is the message queue

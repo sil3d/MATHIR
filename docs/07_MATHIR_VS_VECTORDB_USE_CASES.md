@@ -2,15 +2,18 @@
 
 **Author:** Prince Gildas Mbama Kombila
 **Affiliation:** MATHIR Project, Independent Master's Research
-**Date:** June 2, 2026
-**Project Version:** MATHIR V8.4.1 (HybridSearch + full integration)
+**Original analysis:** June 2, 2026
+**Project Version (original):** MATHIR V8.4.1 (HybridSearch + full integration)
+**Current implementation:** MATHIR v8.9.2 (6 memory tiers + guardrail tier + God Mode orchestration; see CHANGELOG)
 **Domain:** Memory-Augmented LLM Systems, Edge Deployment, Safety-Critical AI
+
+> **Note (2026-07-05):** The theorems, benchmarks, and architectural arguments below remain valid for the current v8.9.2 implementation. The tier count has been corrected from "seven" to **six** (working_memory, episodic, semantic, procedural, immunological, guardrail — see [06_MULTIMODAL_MEMORY_GUIDE.md](../06_MULTIMODAL_MEMORY_GUIDE.md#1-tldr)). The underlying hybrid retrieval (FAISS L1 + MATHIR L2 reranker) is unchanged.
 
 ---
 
 ## 1. Overview
 
-Vector databases (FAISS, Qdrant, Chroma, Pinecone, Weaviate) are the dominant *external-memory* paradigm for LLM augmentation in 2026. They store high-dimensional embeddings and retrieve the top-$k$ nearest neighbours in sub-millisecond latency, but they do not learn from the data they store, do not adapt their indices to the user's distribution, do not detect when an input is anomalous, and cannot correlate symbolic metadata with dense geometry. **MATHIR (Memory-Augmented Tensor Hybrid with Intelligent Routing)** is a hierarchical, online-learning memory layer designed to sit between any LLM (or vision-language model) and the real world. It provides seven memory tiers, a KL-constrained router, and six formal theorems that bound its behaviour. This document compares MATHIR against a production-grade FAISS vector database on two concrete use cases — **conversational chat** and **autonomous driving** — and shows that MATHIR is the right choice when adaptation, anomaly detection, hybrid retrieval, or safety is required, while the vector database remains optimal for ultra-low-latency, static, and batch workloads. The recommendation is not "either/or" but a **cascade architecture** in which the vector database is the L1 retriever and MATHIR is the L2 reranker + learner + safety net.
+Vector databases (FAISS, Qdrant, Chroma, Pinecone, Weaviate) are the dominant *external-memory* paradigm for LLM augmentation in 2026. They store high-dimensional embeddings and retrieve the top-$k$ nearest neighbours in sub-millisecond latency, but they do not learn from the data they store, do not adapt their indices to the user's distribution, do not detect when an input is anomalous, and cannot correlate symbolic metadata with dense geometry. **MATHIR (Memory-Augmented Tensor Hybrid with Intelligent Routing)** is a hierarchical, online-learning memory layer designed to sit between any LLM (or vision-language model) and the real world. It provides **six memory tiers** (working_memory, episodic, semantic, procedural, immunological, guardrail), a KL-constrained router, and six formal theorems that bound its behaviour. This document compares MATHIR against a production-grade FAISS vector database on two concrete use cases — **conversational chat** and **autonomous driving** — and shows that MATHIR is the right choice when adaptation, anomaly detection, hybrid retrieval, or safety is required, while the vector database remains optimal for ultra-low-latency, static, and batch workloads. The recommendation is not "either/or" but a **cascade architecture** in which the vector database is the L1 retriever and MATHIR is the L2 reranker + learner + safety net.
 
 ---
 

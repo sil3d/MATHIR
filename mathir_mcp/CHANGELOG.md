@@ -1,5 +1,35 @@
 # MATHIR Changelog
 
+## [8.9.2] — 2026-07-05 — GOD-MODE CLIENT BRIDGE
+
+### Added
+- **`bin/god/god_bridge.py`** — cross-platform polling daemon for god-mode (3 modes: `worker` / `orchestrator` / `observer`), stdlib-only, no new deps. Beeps + logs when new `god:*` events arrive.
+- **`bin/god/god_poll.ps1`** — Windows PowerShell one-shot poller.
+- **`bin/god/god_poll.sh`** — POSIX bash one-shot poller.
+- **`bin/god/PROTOCOL.md`** — full label taxonomy + message flow.
+- **`bin/god/README.md`** — usage + env vars (`MATHIR_DAEMON_URL`, `MYCERISE_STATE_DIR`, `MYCERISE_LOG_FILE`).
+- **`docs/GOD_MODE.md`** — new "Client-side tooling (`bin/god/`)" section explaining modes, quick start, cross-platform.
+- **Top-level `README.md`** — added client bridge link + bumped to v8.9.1.
+- **`mathir_mcp/README.md`** — new "God-mode orchestration" section.
+
+### Changed
+- Daemon `/health` reports `version: 8.9.1` (was `8.5.1`) after pip editable install refresh.
+- `__version__` + `pyproject.toml`: `8.5.1` → `8.9.1`.
+- `docs/GOD_MODE.md` extended with client-side tooling section (was server-only).
+- Default tool count docs: `26 tools` → `27 tools` (mathir_god_agent + mathir_god_orchestre were missing from the count).
+
+### Synced across all 3 MATHIR install locations
+- `D:\SECRET_PROJECT\MATHIR\mathir_mcp\` (github source / truth)
+- `~/.config/MATHIR/mathir_mcp/` (egg install used by Claude / MiMo / OpenCode — `bin/god/` populated, `.mathir/` DB preserved, 780 memories intact)
+- `~/.config/mimocode/tools/mathir_mcp/` (v8.4.0 dev copy — 12 drifted files re-synced, `bin/god/` populated)
+
+### Hygiene
+- 4 stale `god:task:*:pending` entries purged (had completed siblings).
+- `~/.config/MATHIR/mathir_mcp-8.5.1.dist-info` (stale pip editable-install metadata) refreshed to `8.9.1` via `pip install --force-reinstall --no-deps -e ...`.
+- Mycerise `scripts/god-mode/` + `scripts/mathir/` deleted (were polluting namespace, never belonged in the consumer project).
+
+---
+
 ## [8.9.1] — 2026-07-05 — DOC CORRECTION (27 tools canonical)
 
 ### Fixed

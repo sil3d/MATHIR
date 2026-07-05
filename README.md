@@ -17,14 +17,14 @@
 
 <br/>
 
-> **🆕 v8.9.0** — **GUARDRAIL TIER** — 6th tier, push-based always-active rules. Critical corrections auto-injected into every context response. [God Mode](docs/GOD_MODE.md) · [CHANGELOG](mathir_mcp/CHANGELOG.md)
+> **🆕 v8.9.1** — **GUARDRAIL TIER** — 6th tier, push-based always-active rules. Critical corrections auto-injected into every context response. [God Mode](docs/GOD_MODE.md) · [Client Bridge](mathir_mcp/bin/god/PROTOCOL.md) · [CHANGELOG](mathir_mcp/CHANGELOG.md)
 
 <br/>
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://www.python.org)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org)
 [![MIT](https://img.shields.io/badge/License-MIT-22c55e)](LICENSE)
-[![v8.9.0](https://img.shields.io/badge/Version-8.9.0-6366f1)](mathir_mcp/CHANGELOG.md)
+[![v8.9.1](https://img.shields.io/badge/Version-v8.9.1-6366f1)](mathir_mcp/CHANGELOG.md)
 [![98 tests](https://img.shields.io/badge/Tests-98%20passed-22c55e)](#-tests--benchmarks)
 
 </div>
@@ -42,7 +42,7 @@ git clone https://github.com/sil3d/MATHIR.git
 cd MATHIR/mathir_mcp
 pip install -e .
 mathir-server &
-# Add mathir to your MCP config — 26 tools available.
+# Add mathir to your MCP config — 27 tools available (including 2 for god-mode orchestration).
 ```
 
 Full install: [mathir_mcp/README.md](mathir_mcp/README.md) · Cross-platform installer: `python mathir_mcp/INSTALL_FOR_DEV/install_smart.py` (see [🛠️ Install Scripts](#-install-scripts) below)

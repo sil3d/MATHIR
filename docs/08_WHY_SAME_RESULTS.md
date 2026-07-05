@@ -2,6 +2,8 @@
 
 **A doctoral-level explanation of why Approach A (Raw) and FAISS VectorDB give the same quality, and why Approach D (Hybrid) is genuinely better.**
 
+> **Note (2026-07-05):** Pure mathematical content — valid for v8.9.2 implementation (v8.5 terminology in the proof body is historical; tier counts and embedding geometry unchanged).
+
 ---
 
 ## The Question

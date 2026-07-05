@@ -1,4 +1,4 @@
-# MATHIR — How to Ship (v8.9.0)
+# MATHIR — How to Ship (v8.9.2)
 
 **Production deployment guide. One daemon, any agent.**
 
@@ -63,7 +63,7 @@ mathir-server &   # port 7338
 
 ### Step 4: Done
 
-The agent now has 23 memory tools. Memory is per-project (auto-routed by CWD). The 3-layer cache gives 18x speedup on repeated queries.
+The agent now has 27 memory tools. Memory is per-project (auto-routed by CWD). The 3-layer cache gives 18x speedup on repeated queries.
 
 ---
 
@@ -106,7 +106,7 @@ context = requests.post(f"{DAEMON}/api/context", json={
 
 The old `mathir_dropin/` package (embedded library) still works but is **not recommended** for new projects. The daemon architecture is better because:
 
-| | Daemon (v8.9.0) | mathir_dropin (legacy) |
+| | Daemon (v8.9.2) | mathir_dropin (legacy) |
 |---|---|---|
 | **Shared across agents** | Yes (all agents → same daemon) | No (each process has its own DB) |
 | **Auto-cache** | Yes (18x speedup) | No |
@@ -115,6 +115,24 @@ The old `mathir_dropin/` package (embedded library) still works but is **not rec
 | **Per-project routing** | Yes (auto by CWD) | Manual |
 | **Auto-start on boot** | Yes (systemd/launchd/Startup) | No |
 | **Setup** | `mathir-server &` | Copy folder + code changes |
+
+---
+
+## Option D: God Bridge (multi-agent orchestration, v8.9.2+)
+
+If you run multiple AI agents in separate terminals (Claude Code, MiMo, OpenCode, Codex…) and want them to coordinate as orchestrator + N workers, use the standalone polling bridge in `mathir_mcp/bin/god/`:
+
+```bash
+# Worker terminal (across any agent — even non-MCP ones that have shell access)
+python mathir_mcp/bin/god/god_bridge.py --mode worker --name mimo-code --interval 5
+
+# Orchestrator terminal (separate — watches for results)
+python mathir_mcp/bin/god/god_bridge.py --mode orchestrator --interval 5 --project myproject
+```
+
+Three modes: `worker` / `orchestrator` / `observer`. The bridge uses no extra dependencies (stdlib only), polls the daemon's `/api/god/poll` + `/api/memories` endpoints, and beeps on new events. Cross-platform: `god_bridge.py` (Python), `god_poll.ps1` (Windows), `god_poll.sh` (POSIX).
+
+See [docs/GOD_MODE.md](../docs/GOD_MODE.md) for the orchestration model and [mathir_mcp/bin/god/PROTOCOL.md](../mathir_mcp/bin/god/PROTOCOL.md) for the label spec.
 
 ---
 

@@ -1,4 +1,4 @@
-# MATHIR — Outreach Email Templates v8.9.0
+# MATHIR — Outreach Email Templates v8.9.2
 
 Each email has:
 1. Same proven narrative arc (Anthropic email structure)
@@ -6,7 +6,7 @@ Each email has:
 3. A SPECIFIC reason why THIS provider matters
 4. GitHub link
 
-**Latest numbers (v8.9.0):** 26 MCP tools (incl. God Mode multi-agent orchestration), 18x cache speedup (37ms→2ms), 4x INT8 compression, +20pp cross-encoder reranking, 162 tests passing.
+**Latest numbers (v8.9.2):** **27 MCP tools** (incl. God Mode + client bridge `bin/god/`), 18x cache speedup (37ms→2ms), 4x INT8 compression, +20pp cross-encoder reranking, 6-tier memory (incl. guardrail), 162 tests passing.
 
 ---
 
@@ -24,7 +24,7 @@ I'm building something that fixes this. It's called MATHIR — a local memory sy
 
 MATHIR also does something I haven't seen anywhere else: anomaly detection on inputs, wired directly into the MCP server's save path. Mahalanobis distance, AUC-ROC=0.8533 on a realistic prompt-injection corpus (not a synthetic best case) — a real, imperfect detector, not a solved problem. Catches a meaningful fraction of prompt injection before it reaches the model, though it can also flag benign-but-unusual text (no clean separation from malicious content using distance alone), so flagged content goes to a review queue rather than being auto-blocked.
 
-New in v8.9.0: guardrail tier (6th tier, push-based always-active rules), God Mode multi-agent orchestration, 3-layer auto-cache (18x speedup, 37ms→2ms), INT8 quantization (4x compression, zero recall loss), cross-encoder reranking (+20pp). 26 MCP tools, 6 tiers, 98 tests passing.
+New in v8.9.2: cross-platform **god-mode client bridge** (`bin/god/god_bridge.py`) for multi-terminal multi-agent orchestration (worker / orchestrator / observer modes). Plus all v8.9.0 features: guardrail tier (6th tier, push-based always-active rules), God Mode server-side (`mathir_god.py`), 3-layer auto-cache (18x speedup, 37ms→2ms), INT8 quantization (4x compression, zero recall loss), cross-encoder reranking (+20pp). **27 MCP tools**, **6 tiers**, 98 tests passing.
 
 I'm not asking for integration or promotion. I just think the cross-provider memory problem is real, and it would be valuable for Anthropic to know that open-source tools are starting to solve it.
 
@@ -102,7 +102,7 @@ Hi,
 
 A Cursor user wrote this in a forum post: "I explain my project every session. After 7 sessions, I've repeated myself 7 times. Why can't the AI just remember?"
 
-That's the core problem. Users invest time building context, then lose it when they close the app. MATHIR fixes this — a memory system with 26 MCP tools that persists across sessions.
+That's the core problem. Users invest time building context, then lose it when they close the app. MATHIR fixes this — a memory system with 27 MCP tools (incl. God Mode + client bridge for multi-agent) that persists across sessions.
 
 One line in the MCP config:
 ```json
