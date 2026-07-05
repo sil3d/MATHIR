@@ -24,7 +24,7 @@ I'm building something that fixes this. It's called MATHIR — a local memory sy
 
 MATHIR also does something I haven't seen anywhere else: anomaly detection on inputs, wired directly into the MCP server's save path. Mahalanobis distance, AUC-ROC=0.8533 on a realistic prompt-injection corpus (not a synthetic best case) — a real, imperfect detector, not a solved problem. Catches a meaningful fraction of prompt injection before it reaches the model, though it can also flag benign-but-unusual text (no clean separation from malicious content using distance alone), so flagged content goes to a review queue rather than being auto-blocked.
 
-New in v8.7.0: a 3-layer auto-cache that gives 18x speedup on repeated queries (37ms→2ms), INT8 quantization for 4x embedding compression with zero recall loss, and cross-encoder reranking that boosts retrieval quality by +20 percentage points. 122 tests passing.
+New in v8.9.0: guardrail tier (6th tier, push-based always-active rules), God Mode multi-agent orchestration, 3-layer auto-cache (18x speedup, 37ms→2ms), INT8 quantization (4x compression, zero recall loss), cross-encoder reranking (+20pp). 26 MCP tools, 6 tiers, 98 tests passing.
 
 I'm not asking for integration or promotion. I just think the cross-provider memory problem is real, and it would be valuable for Anthropic to know that open-source tools are starting to solve it.
 

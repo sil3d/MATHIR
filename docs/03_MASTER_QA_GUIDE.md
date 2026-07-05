@@ -8,8 +8,8 @@
 
 1. [Fundamentals: What is MATHIR?](#1-fundamentals)
 2. [Architecture vs Model](#2-architecture-vs-model)
-3. [Version Evolution (V1-V8.7.0)](#3-versions)
-4. [Memory Tiers (5-tier hierarchical)](#4-memory-tiers)
+3. [Version Evolution (V1-V8.9.0)](#3-versions)
+4. [Memory Tiers (6-tier hierarchical)](#4-memory-tiers)
 5. [Theoretical Foundations (6 theorems)](#5-theorems)
 6. [V7 New Algorithms (8 novel)](#6-v7-algorithms)
 7. [Retrieval Approaches A/B/C/D](#7-retrieval)
@@ -64,7 +64,7 @@
 
 ### Q2.1: Is MATHIR an architecture or a model?
 **A:** MATHIR is an **ARCHITECTURE + FRAMEWORK**, NOT a model.
-- **Architecture** = the design (5-tier memory, KL router, 6 theorems, 8 algorithms)
+- **Architecture** = the design (6-tier memory, KL router, 6 theorems, 8 algorithms)
 - **Framework** = the code (`mathir_lib` Python library)
 - **NOT a model** = no `.bin` to download, weights are randomly initialized at each instantiation
 
@@ -435,7 +435,7 @@ This gives you the best of both worlds.
 ![MATHIR Architecture](assets/Mathir_architecture.png)
 
 ```
-User message → Embedding → MATHIR (5 tiers) → Enhanced context → LLM → Response
+User message → Embedding → MATHIR (6 tiers) → Enhanced context → LLM → Response
                                     ↑
                           (online learning happens here)
 ```
@@ -444,7 +444,7 @@ User message → Embedding → MATHIR (5 tiers) → Enhanced context → LLM →
 **A:**
 - LLM generation: ~2000ms
 - MATHIR retrieval (warm): 3-220ms
-- MATHIR retrieval (cache hit): **<1ms** (v8.7.0)
+- MATHIR retrieval (cache hit): **<1ms** (v8.9.0)
 - **Total: 2001-2220ms** (acceptable for chat)
 
 ### Q10.5: Does MATHIR work with any LLM?
@@ -461,11 +461,12 @@ Camera + Lidar + IMU
     ↓
 Perception (EfficientNet + YOLO)
     ↓
-MATHIR Plugin (5 tiers)
+MATHIR Plugin (6 tiers)
     ├─ Working: last 64 frames
     ├─ Episodic: past 1000 experiences
     ├─ Semantic: 256 driving prototypes
-    └─ Immune: 100 normal patterns (anomaly!)
+    ├─ Immune: 100 normal patterns (anomaly!)
+    └─ Guardrail: always-active rules (immune to decay)
     ↓
 LLM/VLM Decision (Qwen-VL, GPT-4V, etc.)
     ↓
@@ -617,7 +618,7 @@ MATHIRPluginV7(embedding_dim=4096)  # LLaMA-3
 - `docs/` — 26 markdown files
 
 ### Q14.2: How many tests?
-**A:** **122 tests** in the daemon suite (v8.7.0), plus 271 tests in the legacy suite:
+**A:** **98 tests** in the daemon suite (v8.9.0), plus 271 tests in the legacy suite:
 - **Daemon suite (122, all pass):**
   - 24 cache tests (LRU eviction, TTL expiry, invalidation, stats, integration)
   - 98 existing tests (recall, save, promote, decay, links, etc.)
@@ -827,9 +828,9 @@ So the agent sees the warning on every interaction without having to read daemon
 
 **Additive migrations** (new columns like `stability`, `last_recalled_at`) are auto-applied by `mathir_vec.py` at startup — no action needed.
 
-### Q17.6: Does MATHIR's "20 tools" claim still hold?
+### Q17.6: How many MCP tools does MATHIR have?
 
-**A:** The doc says "20 MCP tools" but the actual count is **23** in v8.5.1. The 3 new tools are: `memory_by_path`, `memory_recall_quality`, `memory_incoming_links`. The "20" number in some places of the docs is stale — the source code (`mathir_mcp_server.py:152`) lists 23 tools. This is a documentation-only discrepancy, not a functional one.
+**A:** **26 MCP tools** as of v8.9.0. The count has grown over time: 20 in v8.5.0, 23 in v8.5.1 (added `memory_by_path`, `memory_recall_quality`, `memory_incoming_links`), 25 in v8.8.0 (added `mathir_god_orchestre`, `mathir_god_agent`), 26 in v8.9.0 (added `memory_list_guardrails`).
 
 ### Q17.7: How is MATHIR's HTTP daemon different from raw TCP?
 

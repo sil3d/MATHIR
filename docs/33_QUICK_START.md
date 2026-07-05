@@ -1,4 +1,4 @@
-# MATHIR — Quick Start Guide (v8.7.0)
+# MATHIR — Quick Start Guide (v8.9.0)
 
 **Get MATHIR running in 3 minutes.**
 
@@ -149,7 +149,7 @@ The first request downloads the embedding model (~80MB). Subsequent requests are
 Make sure the daemon is running: `curl http://127.0.0.1:7338/health`
 
 ### Legacy training scripts (train.bat, dashboard.bat)
-These were part of MATHIR v1-v5 (autonomous driving research). The current system (v8.7.0) is a daemon-based MCP server — no training scripts needed.
+These were part of MATHIR v1-v5 (autonomous driving research). The current system (v8.9.0) is a daemon-based MCP server — no training scripts needed.
 
 ---
 

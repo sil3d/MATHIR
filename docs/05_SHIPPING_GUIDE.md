@@ -1,4 +1,4 @@
-# MATHIR — How to Ship (v8.7.0)
+# MATHIR — How to Ship (v8.9.0)
 
 **Production deployment guide. One daemon, any agent.**
 
@@ -106,7 +106,7 @@ context = requests.post(f"{DAEMON}/api/context", json={
 
 The old `mathir_dropin/` package (embedded library) still works but is **not recommended** for new projects. The daemon architecture is better because:
 
-| | Daemon (v8.7.0) | mathir_dropin (legacy) |
+| | Daemon (v8.9.0) | mathir_dropin (legacy) |
 |---|---|---|
 | **Shared across agents** | Yes (all agents → same daemon) | No (each process has its own DB) |
 | **Auto-cache** | Yes (18x speedup) | No |

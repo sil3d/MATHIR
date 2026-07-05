@@ -333,14 +333,14 @@ MATHIR evolved through eight major versions (V1–V8.7.0), each addressing a spe
 | V3 | 3-tier memory | Working + episodic + semantic | ✓ |
 | V4 | mHC integration | Sinkhorn-Knopp projection | ✓ |
 | V5 | KL router + immune | Anomaly detection via Mahalanobis | ✓ |
-| V6 | LLM-agnostic API | 5-tier memory, providers, TurboQuant | ✓ |
+| V6 | LLM-agnostic API | 6-tier memory, providers, TurboQuant | ✓ |
 | V7 | Theoretical advances | 8 new algorithms, 6 theorems | ✓ |
 | V8.4.1 | Retrieval research | 4 new approaches, hybrid wins | ✓ |
 | V8.0 | HybridSearch | HybridSearch + daemon + brain architecture | ✓ |
 | V8.1 | Multimodal support | Multimodal support (text, image, audio, video) | ✓ |
 | V8.2 | Daemon + per-project DBs | Daemon push API + per-project databases | ✓ |
 | V8.3 | Thread safety | HybridSearch thread safety + bug fixes | ✓ |
-| v8.5.0 | Living memory | Living memory — Ebbinghaus lifecycle, 5 tiers, link graph, 20 MCP tools (later bumped to 23 in v8.5.1) | ✓ (this paper) |
+| v8.5.0 | Living memory | Living memory — Ebbinghaus lifecycle, 6 tiers, link graph, 26 MCP tools (20 in v8.5.0, 23 in v8.5.1, 25 in v8.8.0, 26 in v8.9.0) | ✓ (this paper) |
 | v8.6.0 | INT8 + reranking | INT8 scalar quantization (4x compression, 0% loss), cross-encoder reranking (+20pp), multi-agent benchmark (0% → 53%), 22 algorithms, 122 tests | ✓ (this paper) |
 | V8.6.1 | 2026-07-03 | Portable paths fix | Eliminated all hardcoded paths, cross-platform install, DB routing backward-compat | ✓ |
 | V8.7.0 | 2026-07-03 | 3-layer auto-cache | L1 embedding LRU (1024), L2 recall TTL (256, 60s), L3 session pre-warm (top-20, 5min), 122 tests | ✓ (this paper) |
@@ -372,7 +372,7 @@ A KL-constrained router $R_t : \mathcal{X} \to \Delta_5$ (a **five-way** probabi
 
 ### 3.3 MCP Tool Surface (V8.5.1)
 
-MATHIR V8.5.1 exposes 23 tools via the Model Context Protocol (MCP), enabling any LLM to interact with the memory system. The tools are organized into four groups:
+MATHIR v8.9.0 exposes 26 tools via the Model Context Protocol (MCP), enabling any LLM to interact with the memory system. The tools are organized into four groups:
 
 | Group | Tools | Purpose |
 |-------|-------|---------|
@@ -419,7 +419,7 @@ MATHIR V8.5.1 exposes 23 tools via the Model Context Protocol (MCP), enabling an
 
 16. **`memory_sessions(limit)`** — Lists recent memory sessions with their timestamps, agent names, and operation counts. Helps identify which agents have been active and what they have stored.
 
-17. **`memory_dashboard(action)`** — Launches or manages the MATHIR Neural Memory Dashboard, a web UI for real-time monitoring of the **5-tier** cognitive memory system (working, episodic, semantic, procedural, immunological). Actions: `status` (check if running), `start` (launch the dashboard), `open` (open in browser).
+17. **`memory_dashboard(action)`** — Launches or manages the MATHIR Neural Memory Dashboard, a web UI for real-time monitoring of the **6-tier** cognitive memory system (working, episodic, semantic, procedural, immunological, guardrail). Actions: `status` (check if running), `start` (launch the dashboard), `open` (open in browser).
 
 ### 3.4 V7–V8 Theoretical Advances
 
@@ -796,11 +796,11 @@ Each immunological cluster supports two query modes:
 
 The two modes compose: an incoming query is first scored for embedding-match anomaly; if anomalous, the matched cluster's tag is used to retrieve *related* clusters by tag-match, giving a two-hop pattern lookup. This is the immunological analogue of antibody cross-reactivity.
 
-#### 3.13.6 Integration with the other 5 tiers — cross-tier linking
+#### 3.13.6 Integration with the other tiers — cross-tier linking
 
-> Note: with the v8.5.0 release, immunological is now a real 5th tier, so the system has 5 tiers total (working, episodic, semantic, procedural, immunological). This section describes the current 5-tier architecture.
+> Note: with v8.9.0, the system has 6 tiers total (working, episodic, semantic, procedural, immunological, guardrail). The guardrail tier (v8.9.0) is push-based and always auto-injected, immune to decay.
 
-The immunological tier is not isolated; it integrates with the other four tiers through MATHIR's link graph (see tool #11, `memory_link`):
+The immunological tier is not isolated; it integrates with the other tiers through MATHIR's link graph (see tool #11, `memory_link`):
 
 - **Episodic → Immunological:** when an episodic memory is flagged as anomalous (Mahalanobis score exceeds $\tau$), a `memory_link` edge is created from the episodic node to the matched immunological cluster, with weight equal to the anomaly score.
 - **Semantic → Immunological:** the running mean $\mu_c$ of each cluster is treated as a pseudo-prototype; semantic queries that fall within a cluster's confidence ellipsoid are routed to that cluster for inspection.

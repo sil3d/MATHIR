@@ -13,7 +13,7 @@ They are now co-located with the rest of the documentation in `docs/`.
 |------|------------|
 | `generate_diagrams.py` | matplotlib-based generator. Produces the 8 PNGs below. |
 | `build_report.py` | Builds `visual_report.html` with all PNGs embedded as base64. |
-| `01_architecture_main.png` | 5-tier MATHIR architecture (high-level system diagram). |
+| `01_architecture_main.png` | 6-tier MATHIR architecture (high-level system diagram). |
 | `02_4_memory_tiers.png` | Memory tier deep-dive with slot visualizations. |
 | `03_retrieval_comparison.png` | Quality comparison of 5 retrieval systems (v8.5). |
 | `04_latency_quality_tradeoff.png` | Speed-quality Pareto frontier. |

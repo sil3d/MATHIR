@@ -2,7 +2,7 @@
 
 **5-phase system + 3-layer auto-cache that makes MATHIR proactive, never-blocking, and brain-like.**
 
-> **v8.7.0** — Added 3-layer auto-cache (L1 Embedding / L2 Recall / L3 Session) and `/api/cache/stats` endpoint. Phase 1 was reimplemented in v8.5.0 as **`mathir_proxy.py` on port 7339** (OpenAI-compatible universal proxy, replaces the legacy `mathir_inject_proxy.py` on 8182). See AGENT.md §"Brain Architecture" for the updated architecture. The 8182 legacy proxy still ships in `mathir_mcp/brain/` for backward compatibility but is no longer the recommended path.
+> **v8.9.0** — 6-tier architecture (added guardrail tier — push-based always-active rules, immune to decay). 3-layer auto-cache (L1 Embedding / L2 Recall / L3 Session) and `/api/cache/stats` endpoint. Phase 1 was reimplemented in v8.5.0 as **`mathir_proxy.py` on port 7339** (OpenAI-compatible universal proxy, replaces the legacy `mathir_inject_proxy.py` on 8182). See AGENT.md §"Brain Architecture" for the updated architecture. The 8182 legacy proxy still ships in `mathir_mcp/brain/` for backward compatibility but is no longer the recommended path.
 
 ## The Problem
 
