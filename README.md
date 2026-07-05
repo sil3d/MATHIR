@@ -212,7 +212,7 @@ A car following pre-programmed rules in a perfect simulation isn't intelligent â
 
 That's where MATHIR started. An AI can't be intelligent if it can't **remember** â€” every session starts from zero, that's amnesia, not intelligence.
 
-**Next step:** MATHIR has been validated in software (23 MCP tools, 5-tier architecture, plug-and-play MCP). The next step is to **build a 3D-printed RC car** and test MATHIR as its actual memory layer in a real autonomous-driving scenario.
+**Next step:** MATHIR has been validated in software (25 MCP tools, 5-tier architecture, plug-and-play MCP). The next step is to **build a 3D-printed RC car** and test MATHIR as its actual memory layer in a real autonomous-driving scenario.
 
 ---
 
@@ -300,7 +300,7 @@ Full MCP config: [mathir_mcp/INSTALL_FOR_AGENT/AGENT.md](mathir_mcp/INSTALL_FOR_
 
 | Command | What it does |
 |---|---|
-| `mathir-mcp` | MCP stdio server (23 tools, 2 prompts) |
+| `mathir-mcp` | MCP stdio server (25 tools, 2 prompts) |
 | `mathir-server` | HTTP unified server (port 7338) |
 | `mathir-client` | CLI client: `mathir-client recall "my query"` |
 | `mathir-dashboard` | Stats dashboard (port 7420) |
@@ -315,7 +315,7 @@ Install: `pip install -e ./mathir_mcp`
 
 | Doc | Purpose |
 |---|---|
-| **[mathir_mcp/README.md](mathir_mcp/README.md)** | Install, MCP setup, all 23 tools |
+| **[mathir_mcp/README.md](mathir_mcp/README.md)** | Install, MCP setup, all 25 tools |
 | **[mathir_mcp/INSTALL_FOR_AGENT/AGENT.md](mathir_mcp/INSTALL_FOR_AGENT/AGENT.md)** | Per-agent MCP config (50+ agents) |
 | **[mathir_mcp/docs/DAEMON.md](mathir_mcp/docs/DAEMON.md)** | Daemon HTTP API + JSON-RPC protocol |
 | **[mathir_mcp/docs/DIMENSIONS.md](mathir_mcp/docs/DIMENSIONS.md)** | Embedding model selection |

@@ -122,7 +122,7 @@ launchctl load -w ~/Library/LaunchAgents/com.mathir.daemon.plist
 
 | Feature | Description |
 |---------|-------------|
-| 23 MCP tools | Save, recall, search, link, decay, promote, consolidate |
+| 25 MCP tools | Save, recall, search, link, decay, promote, consolidate, god mode |
 | 3-layer cache | 18x speedup on repeated queries (zero config) |
 | INT8 quantization | 4x embedding compression, zero recall loss |
 | Cross-encoder reranking | +20pp quality on retrieval |

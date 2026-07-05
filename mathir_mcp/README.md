@@ -2,7 +2,7 @@
 
 **5-tier cognitive memory for 50 AI coding agents. Install once, use everywhere.**
 
-> **v8.7.0** — 23 MCP tools, 3-layer auto-cache, INT8 quantization (4x compression), cross-encoder reranking, 22 algorithms. See [CHANGELOG.md](CHANGELOG.md).
+> **v8.8.0** — **God Mode** (multi-agent orchestration), 25 MCP tools, 3-layer auto-cache, INT8 quantization, cross-encoder reranking. See [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -17,7 +17,7 @@ pip install -e .
 # 2. Start the daemon
 mathir-server &   # listens on 127.0.0.1:7338
 
-# 3. Add to your agent's MCP config — done. 23 tools available.
+# 3. Add to your agent's MCP config — done. 25 tools available.
 ```
 
 For cold-boot auto-start: `python mathir_mcp/INSTALL_FOR_DEV/install_smart.py --autostart-only`

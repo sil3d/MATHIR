@@ -1,8 +1,8 @@
-# MATHIR — Agent Deployment Guide (v8.6.0)
+# MATHIR — Agent Deployment Guide (v8.8.0)
 
 **Universal install: one folder, 50+ agents, zero config.**
 
-**v8.6.0 highlights**: INT8 quantization (4x compression, 0% recall loss), cross-encoder reranking (+20pp), **23 MCP tools**, 22 algorithms, FastMCP 3.4.2, auto-injection plugin, unified HTTP daemon, **OpenAI-compatible proxy (port 7339)**. See [CHANGELOG.md](../../CHANGELOG.md) for details.
+**v8.8.0 highlights**: **God Mode** (multi-agent orchestration), INT8 quantization (4x compression), cross-encoder reranking (+20pp), **25 MCP tools**, 22 algorithms, FastMCP 3.4.2, auto-injection plugin, unified HTTP daemon, **OpenAI-compatible proxy (port 7339)**. See [CHANGELOG.md](../../CHANGELOG.md) for details.
 
 ---
 
@@ -380,11 +380,11 @@ Vector + BM25 + RRF fusion (k=60). ~60ms per search.
 | `memory_smart_search` | Hybrid (vector + text, best quality) |
 | `memory_hybrid_search` | Explicit vector+BM25 fusion with tunable weights |
 
-Note: `memory_search` was removed in v8.3 — functionality folded into `memory_smart_search` (auto-tuned weights, default k=10). v8.6.0 has **23 tools total** (2 auto-injection + 10 basic + 7 lifecycle + 3 advanced + 1 health check).
+Note: `memory_search` was removed in v8.3 — functionality folded into `memory_smart_search` (auto-tuned weights, default k=10). v8.8.0 has **25 tools total** (2 auto-injection + 10 basic + 7 lifecycle + 3 advanced + 1 health check + 2 god mode).
 
 ---
 
-## MCP Tools (23 in v8.6.0)
+## MCP Tools (25 in v8.8.0)
 
 ### Basic (every day)
 | Tool | Description |
@@ -454,7 +454,7 @@ For agents that can't call MCP tools directly:
 
 > **Note:** OpenCode doesn't support `baseUrl` configuration, so Path A (direct MCP tools) is the only working path. Other agents (Claude Code, Cursor, MiMo) can use either path.
 
-**In both paths, the agent has 20 tools (2 auto-injection + 10 basic + 7 lifecycle + 1 health check) at its disposal — no manual `memory_recall` is strictly required if instructions are properly loaded.**
+**In both paths, the agent has 25 tools (2 auto-injection + 10 basic + 7 lifecycle + 1 health check + 2 god mode + 3 advanced) at its disposal — no manual `memory_recall` is strictly required if instructions are properly loaded.**
 
 ---
 

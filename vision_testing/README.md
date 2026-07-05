@@ -2,7 +2,7 @@
 
 A web playground to chat with vision/audio LLMs (via OpenRouter) and exercise the MATHIR memory backend (via the running daemon). **NO HARDCODED PATHS** — everything is configurable via JSON files.
 
-**v8.5.1** (2026-06-29) — Current version. Uses OpenRouter cloud API for inference and the new MCP daemon (23 tools) for memory.
+**v8.8.0** (2026-07-04) — Current version. Uses OpenRouter cloud API for inference and the MATHIR daemon (25 tools) for memory.
 
 ---
 
@@ -50,7 +50,7 @@ vision_testing/
 ├── ui_server.py             # Flask backend (17 API routes)
 ├── start_ui.py              # Launcher (installs deps, runs server)
 ├── vision_test.py           # Core: VisionTester, OpenRouterClient, ModelManager
-├── mathir_daemon_client.py  # MATHIR MCP daemon bridge (23 tools)
+├── mathir_daemon_client.py  # MATHIR MCP daemon bridge (25 tools)
 │
 ├── env_config.py            # .env loader
 ├── model_manager.py         # Model list/select/enable
