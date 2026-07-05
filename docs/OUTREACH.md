@@ -1,4 +1,4 @@
-# MATHIR — Outreach Email Templates v8.8.0
+# MATHIR — Outreach Email Templates v8.9.0
 
 Each email has:
 1. Same proven narrative arc (Anthropic email structure)
@@ -6,7 +6,7 @@ Each email has:
 3. A SPECIFIC reason why THIS provider matters
 4. GitHub link
 
-**Latest numbers (v8.8.0):** 25 MCP tools (incl. God Mode multi-agent orchestration), 18x cache speedup (37ms→2ms), 4x INT8 compression, +20pp cross-encoder reranking, 162 tests passing.
+**Latest numbers (v8.9.0):** 26 MCP tools (incl. God Mode multi-agent orchestration), 18x cache speedup (37ms→2ms), 4x INT8 compression, +20pp cross-encoder reranking, 162 tests passing.
 
 ---
 
@@ -102,7 +102,7 @@ Hi,
 
 A Cursor user wrote this in a forum post: "I explain my project every session. After 7 sessions, I've repeated myself 7 times. Why can't the AI just remember?"
 
-That's the core problem. Users invest time building context, then lose it when they close the app. MATHIR fixes this — a memory system with 25 MCP tools that persists across sessions.
+That's the core problem. Users invest time building context, then lose it when they close the app. MATHIR fixes this — a memory system with 26 MCP tools that persists across sessions.
 
 One line in the MCP config:
 ```json

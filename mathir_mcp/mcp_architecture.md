@@ -1,4 +1,4 @@
-# MATHIR Architecture (v8.7.0 — 3-Layer Auto-Cache + INT8 + Cross-Encoder)
+# MATHIR Architecture (v8.9.0 — 3-Layer Auto-Cache + INT8 + Cross-Encoder)
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -21,7 +21,7 @@
 │  │                    Forwards to daemon via HTTP               ││
 │  │                                                              ││
 │  │  ┌─────────────┐  ┌──────────────┐  ┌────────────────────┐  ││
-│  │  │ 25 tools    │  │ /api/context │  │ /api/stats         │  ││
+│  │  │ 26 tools    │  │ /api/context │  │ /api/stats         │  ││
 │  │  │ (22 memory  │  │ auto-inject  │  │ /api/god/poll      │  ││
 │  │  │ +2 god +1h) │  │              │  │ /api/god/agents    │  ││
 │  │  └──────┬──────┘  └──────┬───────┘  └────────────────────┘  ││
@@ -37,7 +37,7 @@
 │                    Port 7338 — 1 embedder (cached)              │
 │                                                                  │
 │  ┌──────────────────────────────────────────────────────────────┐│
-│  │              3-LAYER AUTO-CACHE (v8.7.0)                    ││
+│  │              3-LAYER AUTO-CACHE (v8.9.0)                    ││
 │  │  L1 Embedding LRU (1024)  — encode() ~60ms → <1ms          ││
 │  │  L2 Recall TTL (256, 60s) — dedup queries across agents    ││
 │  │  L3 Session (top-20, 5m)  — session_start/context instant  ││
@@ -79,7 +79,7 @@ RETRIEVAL:
   Hybrid:            Vector + BM25 + RRF (k=60) fusion
   Reranking:         cross-encoder/ms-marco-MiniLM-L-6-v2 (optional, +20pp)
 
-CACHING (v8.7.0):
+CACHING (v8.9.0):
   L1 Embedding:      LRU, 1024 entries, never expires (deterministic)
   L2 Recall:         TTL 60s, 256 entries, invalidated on writes
   L3 Session:        TTL 300s, top-20/project, invalidated on writes

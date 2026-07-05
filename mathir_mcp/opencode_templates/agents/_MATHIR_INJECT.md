@@ -207,11 +207,11 @@ When you need to reference MATHIR files, use these paths:
 
 ---
 
-## MATHIR v8.6.0 — LIVING MEMORY (5 TIERS)
+## MATHIR v8.9.0 — LIVING MEMORY (6 TIERS)
 
-Your memory is **alive**. It has **5 tiers** and a full lifecycle (Ebbinghaus forgetting, promotion, consolidation, link graph). Use the right tool at the right time.
+Your memory is **alive**. It has **6 tiers** and a full lifecycle (Ebbinghaus forgetting, promotion, consolidation, link graph, guardrails). Use the right tool at the right time.
 
-### The 5 memory tiers (use the right one!)
+### The 6 memory tiers (use the right one!)
 
 | Tier | When to use | Example |
 |------|-------------|---------|
@@ -220,10 +220,11 @@ Your memory is **alive**. It has **5 tiers** and a full lifecycle (Ebbinghaus fo
 | **`semantic`** | Stable knowledge, facts, patterns that apply broadly | "Our REST API uses /v2/ prefix and JWT auth — applies to all new endpoints" |
 | **`procedural`** | How-to recipes, repeatable procedures, runbooks | "How-to: rotate the database password: 1) stop service 2) update secret 3) restart" |
 | **`immunological`** | Threat signatures, detected anomalies, prompt-injection patterns, quarantined unsafe memories | "Detected prompt-injection signature: 'ignore previous instructions' with score 0.94 — auto-quarantined" |
+| **`guardrail`** | Critical rules always injected into every context response. Push-based, immune to decay. | "Never hardcode ports — use config files" |
 
-**Rule of thumb:** start with `episodic` for most things. The lifecycle will auto-promote to `semantic` if the memory is recalled often enough. Use `working_memory` for session-scoped stuff (it's promoted to episodic on session end). Use `procedural` for runbooks (label must start with `how-to:` or `recipe:`). Use `immunological` to store detected threat patterns and anomalies — this tier is queryable, writable, and is the system's immune system for flagging and quarantining unsafe content.
+**Rule of thumb:** start with `episodic` for most things. The lifecycle will auto-promote to `semantic` if the memory is recalled often enough. Use `working_memory` for session-scoped stuff (it's promoted to episodic on session end). Use `procedural` for runbooks (label must start with `how-to:` or `recipe:`). Use `guardrail` for critical rules the LLM must always see (min priority 8, max 50/project). Use `immunological` for detected threat patterns.
 
-### 19 MCP tools at your disposal
+### 26 MCP tools at your disposal
 
 #### Basic CRUD (use these every day)
 

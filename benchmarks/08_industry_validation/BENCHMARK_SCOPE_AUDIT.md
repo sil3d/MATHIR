@@ -51,7 +51,7 @@ not by design — they were just not implemented):
 -  Auto-promote based on access frequency
 -  get_links BFS with decay weighting
 -  incoming_links (reverse graph)
--  All the 25 MCP tools registered on the FastMCP server
+-  All the 26 MCP tools registered on the FastMCP server
 
 Net effect: previous scores measured the
 embedding_model × hybrid_search_RRF combination in isolation, not

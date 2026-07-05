@@ -17,14 +17,14 @@
 
 <br/>
 
-> **🆕 v8.8.0** — **GOD MODE** — multi-agent orchestration via shared memory. Agents self-identify, orchestrator assigns tasks by strength. [God Mode docs](docs/GOD_MODE.md) · [CHANGELOG](mathir_mcp/CHANGELOG.md)
+> **🆕 v8.9.0** — **GUARDRAIL TIER** — 6th tier, push-based always-active rules. Critical corrections auto-injected into every context response. [God Mode](docs/GOD_MODE.md) · [CHANGELOG](mathir_mcp/CHANGELOG.md)
 
 <br/>
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://www.python.org)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org)
 [![MIT](https://img.shields.io/badge/License-MIT-22c55e)](LICENSE)
-[![v8.8.0](https://img.shields.io/badge/Version-8.8.0-6366f1)](mathir_mcp/CHANGELOG.md)
+[![v8.9.0](https://img.shields.io/badge/Version-8.9.0-6366f1)](mathir_mcp/CHANGELOG.md)
 [![98 tests](https://img.shields.io/badge/Tests-98%20passed-22c55e)](#-tests--benchmarks)
 
 </div>
@@ -42,7 +42,7 @@ git clone https://github.com/sil3d/MATHIR.git
 cd MATHIR/mathir_mcp
 pip install -e .
 mathir-server &
-# Add mathir to your MCP config — 25 tools available.
+# Add mathir to your MCP config — 26 tools available.
 ```
 
 Full install: [mathir_mcp/README.md](mathir_mcp/README.md) · Cross-platform installer: `python mathir_mcp/INSTALL_FOR_DEV/install_smart.py` (see [🛠️ Install Scripts](#-install-scripts) below)
@@ -127,7 +127,7 @@ Full guide: **[docs/GOD_MODE.md](docs/GOD_MODE.md)**
 
 ## 🆕 Latest: v8.6.0 (2026-07-03)
 
-25 MCP tools. 22 algorithms. INT8 quantization. Cross-encoder reranking. Multi-agent benchmark.
+26 MCP tools. 22 algorithms. INT8 quantization. Cross-encoder reranking. Multi-agent benchmark.
 
 **INT8 quantization** — embedding storage reduced 4x (float32 → int8), zero recall loss. 410 DBs migrated: 1.9 GB → 825 MB.
 **Cross-encoder reranking** — `ms-marco-MiniLM-L-6-v2` second-pass scoring: +20pp hit@10 on natural-language queries.
@@ -212,7 +212,7 @@ A car following pre-programmed rules in a perfect simulation isn't intelligent �
 
 That's where MATHIR started. An AI can't be intelligent if it can't **remember** — every session starts from zero, that's amnesia, not intelligence.
 
-**Next step:** MATHIR has been validated in software (25 MCP tools, 5-tier architecture, plug-and-play MCP). The next step is to **build a 3D-printed RC car** and test MATHIR as its actual memory layer in a real autonomous-driving scenario.
+**Next step:** MATHIR has been validated in software (26 MCP tools, 6-tier architecture, plug-and-play MCP). The next step is to **build a 3D-printed RC car** and test MATHIR as its actual memory layer in a real autonomous-driving scenario.
 
 ---
 
@@ -230,7 +230,7 @@ That's where MATHIR started. An AI can't be intelligent if it can't **remember**
 
 ## 🧠 What is MATHIR?
 
-A plug-and-play **5-tier cognitive memory** layer for any LLM:
+A plug-and-play **6-tier cognitive memory** layer for any LLM:
 
 | Tier | Role | Example |
 |---|---|---|
@@ -292,7 +292,7 @@ Add MATHIR to your AI agent (OpenCode, Claude Code, Cursor, MiMo, etc.):
 }
 ```
 
-**That's it.** 25 tools (`memory_save`, `memory_recall`, `mathir_god_orchestre`, `mathir_god_agent`, etc.) — all your agents.
+**That's it.** 26 tools (`memory_save`, `memory_recall`, `mathir_god_orchestre`, `mathir_god_agent`, etc.) — all your agents.
 
 Full MCP config: [mathir_mcp/INSTALL_FOR_AGENT/AGENT.md](mathir_mcp/INSTALL_FOR_AGENT/AGENT.md) (50+ agents).
 
@@ -300,7 +300,7 @@ Full MCP config: [mathir_mcp/INSTALL_FOR_AGENT/AGENT.md](mathir_mcp/INSTALL_FOR_
 
 | Command | What it does |
 |---|---|
-| `mathir-mcp` | MCP stdio server (25 tools, 2 prompts) |
+| `mathir-mcp` | MCP stdio server (26 tools, 2 prompts) |
 | `mathir-server` | HTTP unified server (port 7338) |
 | `mathir-client` | CLI client: `mathir-client recall "my query"` |
 | `mathir-dashboard` | Stats dashboard (port 7420) |
@@ -315,7 +315,7 @@ Install: `pip install -e ./mathir_mcp`
 
 | Doc | Purpose |
 |---|---|
-| **[mathir_mcp/README.md](mathir_mcp/README.md)** | Install, MCP setup, all 25 tools |
+| **[mathir_mcp/README.md](mathir_mcp/README.md)** | Install, MCP setup, all 26 tools |
 | **[mathir_mcp/INSTALL_FOR_AGENT/AGENT.md](mathir_mcp/INSTALL_FOR_AGENT/AGENT.md)** | Per-agent MCP config (50+ agents) |
 | **[mathir_mcp/docs/DAEMON.md](mathir_mcp/docs/DAEMON.md)** | Daemon HTTP API + JSON-RPC protocol |
 | **[mathir_mcp/docs/DIMENSIONS.md](mathir_mcp/docs/DIMENSIONS.md)** | Embedding model selection |
@@ -397,9 +397,9 @@ Full report: [benchmarks/06_results/current/README.md](benchmarks/06_results/cur
 │  MATHIR Daemon (port 7338)        │
 │  Flask+Waitress · FastMCP 3.4.2  │
 │  HybridSearch + CrossEncoder rerank│
-│  5 tiers · INT8 · Ebbinghaus      │
+│  6 tiers · INT8 · Ebbinghaus      │
 │                                    │
-│  GOD MODE (v8.8.0)                 │
+│  GOD MODE (v8.8.0) + GUARDRAIL     │
 │  /api/god/poll · /api/god/agents   │
 │  Cross-process multi-agent         │
 │  orchestration via shared memory   │
@@ -418,7 +418,7 @@ Full architecture: [docs/BRAIN_ARCHITECTURE.md](docs/BRAIN_ARCHITECTURE.md)
 
 ```
 MATHIR/
-├── mathir_mcp/         ← Install this (v8.8.0, 25 MCP tools, God Mode)
+├── mathir_mcp/         ← Install this (v8.9.0, 26 MCP tools, God Mode + Guardrails)
 ├── benchmarks/         ← Reproducible benchmarks
 ├── docs/                ← Doctoral paper, QA, architecture
 ├── examples/            ← Usage examples
@@ -449,6 +449,7 @@ MATHIR/
 ✅ **V8.6.0** INT8 quantization + cross-encoder rerank + multi-agent benchmark
 ✅ **V8.7.0** 3-layer auto-cache (L1 embedding, L2 recall, L3 session)
 ✅ **V8.8.0** God Mode — cross-process multi-agent orchestration
+✅ **V8.9.0** Guardrail tier — push-based always-active rules (6th tier)
 
 ### 🔜 Next: 4 validation stages
 
