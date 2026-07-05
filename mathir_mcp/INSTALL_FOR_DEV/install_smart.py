@@ -748,9 +748,18 @@ def _copy_mathir_to_agent(agent_config_dir: Path) -> Path:
         '__pycache__', '*.pyc', '*.pyo', '.git', '*.egg-info', 'dev', 'tests'
     ))
     
-    # Write VERSION file
+    # Write VERSION file (read from source package)
     version_file = target_dir / "VERSION"
-    version_file.write_text("8.4.0")
+    try:
+        init_file = target_dir / "mathir_lib" / "__init__.py"
+        if init_file.exists():
+            import re as _re
+            _m = _re.search(r'__version__\s*=\s*"([^"]+)"', init_file.read_text())
+            version_file.write_text(_m.group(1) if _m else "0.0.0")
+        else:
+            version_file.write_text("0.0.0")
+    except Exception:
+        version_file.write_text("0.0.0")
     
     print(f"  {C.GREEN}Copied mathir_mcp to: {target_dir}{C.RESET}")
     return target_dir
@@ -1154,7 +1163,7 @@ def _setup_autostart_macos(bin_dir: Path, dry_run: bool = False) -> Tuple[bool, 
     # Render: substitute /Users/USERNAME placeholder with actual $HOME.
     python_path = "/usr/bin/python3"
     # Try to discover a venv python first (more user-friendly)
-    venv_python = home / ".config" / "opencode" / "bin" / ".venv" / "bin" / "python3"
+    venv_python = home / ".config" / "MATHIR" / "mathir_mcp" / ".venv" / "bin" / "python3"
     if venv_python.exists():
         python_path = str(venv_python)
 

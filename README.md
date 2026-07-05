@@ -239,8 +239,9 @@ A plug-and-play **6-tier cognitive memory** layer for any LLM:
 | 🟩 **Semantic** | Stable facts | "Water boils at 100°C" |
 | 🟨 **Procedural** | How-to / recipes | "How to deploy: pytest → docker build → aws ecs" |
 | 🟥 **Immunological** | Anomaly detection | "Prompt injection detected" |
+| 🛡️ **Guardrail** | Always-active rules (immune to decay) | "NEVER call _get_project_db() from agent code" |
 
-Memories **decay** when unused (Ebbinghaus), **promote** when recalled, **consolidate** with duplicates, **link** to related concepts. **Same memory** works across Claude / GPT / Gemini / Ollama / any LLM.
+Memories **decay** when unused (Ebbinghaus), **promote** when recalled, **consolidate** with duplicates, **link** to related concepts. **Guardrails** are push-based: auto-injected into every `memory_context` response, immune to decay, min priority 8, max 50 per project. **Same memory** works across Claude / GPT / Gemini / Ollama / any LLM.
 
 ![MATHIR Brain Architecture](docs/assets/memory_that_think.png)
 

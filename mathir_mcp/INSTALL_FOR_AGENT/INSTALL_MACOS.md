@@ -32,8 +32,8 @@ Apple Silicon (M1/M2/M3) note: Homebrew's `python3` lives at `/opt/homebrew/bin/
 ## 1. Choose the install path
 
 ```bash
-# Resolved by OpenCode at runtime — same string works on macOS, Linux, WSL.
-CONFIG=~/.config/opencode
+# Canonical MATHIR install path (since v8.6.1)
+CONFIG=~/.config/MATHIR/mathir_mcp
 BIN=$CONFIG/bin
 DATA=$CONFIG/data
 CONFIGDIR=$CONFIG/config

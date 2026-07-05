@@ -3,10 +3,10 @@
 **Audience:** developers running OpenCode on a modern Linux desktop or server.
 **Tested on:** Ubuntu 22.04+, Debian 12+, Fedora 39+, Arch (current), Raspberry Pi OS Bookworm.
 **Time:** ~5 minutes.
-**Result:** `mathir_server.py` running on `127.0.0.1:7338`, auto-started at login via **user systemd** (`~/.config/systemd/user/`), and registered as an MCP server in `opencode.json`.
+**Result:** `mathir_server.py` running on `127.0.0.1:7338`, auto-started at login via **user systemd** (`~/.config/systemd/user/`), and registered as an MCP server in your agent's config.
 
 > **Why user systemd, not system systemd?**
-> The daemon holds a per-user database (`~/.config/opencode/data/.mathir/`). A user unit runs as you, has your `$HOME`, doesn't need `sudo`, and starts at *your* login (not at boot). On a headless server, just `loginctl enable-linger <user>` to make user services survive logout.
+> The daemon holds per-project databases (`.mathir/mathir.db` in each project root, managed via `~/.config/MATHIR/`). A user unit runs as you, has your `$HOME`, doesn't need `sudo`, and starts at *your* login (not at boot). On a headless server, just `loginctl enable-linger <user>` to make user services survive logout.
 
 ---
 
@@ -39,8 +39,8 @@ sudo pacman -S --needed python python-pip
 ## 1. Choose the install path
 
 ```bash
-# Resolved by OpenCode at runtime — same string works on every Unix.
-CONFIG=~/.config/opencode
+# Canonical MATHIR install path (since v8.6.1)
+CONFIG=~/.config/MATHIR/mathir_mcp
 BIN=$CONFIG/bin
 DATA=$CONFIG/data
 CONFIGDIR=$CONFIG/config

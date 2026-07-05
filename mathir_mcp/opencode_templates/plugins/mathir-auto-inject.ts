@@ -20,7 +20,7 @@ import * as path from "path";
 const HOME = os.homedir();
 const MATHIR_URL = process.env.MATHIR_URL || "http://127.0.0.1:7338";
 const MATHIR_SERVER = process.env.MATHIR_SERVER ||
-  path.join(HOME, ".config", "opencode", "bin", "mathir_server.py");
+  path.join(HOME, ".config", "MATHIR", "mathir_mcp", "mathir_lib", "mathir_server.py");
 const MATHIR_WORKDIR = process.env.MATHIR_WORKDIR || HOME;
 const DEBUG = process.env.MATHIR_PLUGIN_DEBUG === "1";
 

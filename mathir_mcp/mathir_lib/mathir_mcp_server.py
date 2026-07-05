@@ -524,7 +524,10 @@ def memory_save(
         return json.dumps({"error": f"invalid block_type '{block_type}'. Valid: {sorted(_CLIENT_BLOCK_TYPES)} or 'auto'"})
 
     if block_type == "guardrail":
-        from . import GUARDRAIL_MIN_PRIORITY
+        try:
+            from . import GUARDRAIL_MIN_PRIORITY
+        except ImportError:
+            GUARDRAIL_MIN_PRIORITY = 8
         priority = max(priority, GUARDRAIL_MIN_PRIORITY)
 
     if block_type == "auto":
