@@ -98,7 +98,12 @@ class TestModuleTree:
 
 def test_get_tools_info_returns_24_tools():
     """get_tools_info() must enumerate every @mcp.tool()-registered tool,
-    including memory_audit_immunological (added for the anomaly detector)."""
+    including memory_audit_immunological (anomaly detector) and the v8.8+
+    god-mode tools (mathir_god_agent, mathir_god_orchestre) added in v8.9.x.
+
+    v8.9.2 canonical count: 27 MCP tools (2 auto-inject + 10 basic + 7 lifecycle
+    + 3 advanced + 1 guardrail + 1 immunological + 1 health + 2 god mode).
+    """
     try:
         from mathir_lib import mathir_mcp_server
     except ImportError:
@@ -106,7 +111,7 @@ def test_get_tools_info_returns_24_tools():
 
     tools = mathir_mcp_server.get_tools_info()
     assert isinstance(tools, list)
-    assert len(tools) == 24
+    assert len(tools) == 27
     assert all(isinstance(t, dict) and "name" in t and "description" in t for t in tools)
     names = {t["name"] for t in tools}
     assert "memory_save" in names
