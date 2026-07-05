@@ -407,7 +407,7 @@ def api_stats():
     except Exception:
         has_block_type_col = False
         has_agent_col = False
-    tiers = {"working": 0, "episodic": 0, "semantic": 0, "procedural": 0, "immunological": 0, "unknown": 0}
+    tiers = {"working": 0, "episodic": 0, "semantic": 0, "procedural": 0, "immunological": 0, "guardrail": 0, "unknown": 0}
     agents = {}
     total = 0
     for row in rows:
@@ -538,12 +538,15 @@ def api_context():
         project = request.args.get("project")
     if not task:
         return jsonify({"error": "task parameter required"}), 400
+    _cwd = (request.args.get("cwd") if request.method == "GET"
+            else (request.get_json(silent=True) or {}).get("cwd"))
+    vec_mem = None
     try:
         cached_results = session_cache.get(project or "", task)
         if cached_results is not None:
             results = cached_results
         else:
-            vec_mem, db_path, embedder = _resolve_db(project=project, cwd=request.args.get("cwd") if request.method == "GET" else (request.get_json(silent=True) or {}).get("cwd"))
+            vec_mem, db_path, embedder = _resolve_db(project=project, cwd=_cwd)
             query_vec = _encode_query(embedder, task)
             results = vec_mem.search(query_vec, k=k)
             session_cache.put(project or "", results)
@@ -571,10 +574,22 @@ def api_context():
             normalized.append(d)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    # Group by tier
+    # ── Load guardrails (ALWAYS, regardless of search results) ──
+    guardrails = []
+    try:
+        if vec_mem is None:
+            vec_mem, _, _ = _resolve_db(project=project, cwd=_cwd)
+        guardrails = vec_mem.list_guardrails(project=project, k=50)
+    except Exception:
+        pass
+
+    # Group search results by tier (exclude guardrails from search results
+    # since they're shown in their own section)
     tiers: dict[str, list] = {}
     for r in normalized:
         tier = r.get("block_type", "unknown")
+        if tier == "guardrail":
+            continue
         if tier not in tiers:
             tiers[tier] = []
         tiers[tier].append({
@@ -585,7 +600,20 @@ def api_context():
         })
     # Format as injection text (sanitize every field so a stored memory cannot
     # break out of the block or smuggle prompt-instruction tokens).
-    lines = [f"## MATHIR Auto-Context — {len(normalized)} memories for: {_sanitize_for_prompt(task)[:100]}"]
+    lines = []
+
+    # ── Guardrails section: ALWAYS FIRST, always visible ──
+    if guardrails:
+        lines.append(f"## GUARDRAILS ({len(guardrails)} rules — always active)")
+        lines.append("These rules MUST be followed at ALL times. They override defaults.\n")
+        for g in guardrails:
+            ct = _sanitize_for_prompt(g.get("content", ""))[:300]
+            lb = _sanitize_for_prompt(g.get("label", ""))
+            lines.append(f"  * [{lb}] {ct}")
+        lines.append("")
+
+    # ── Context memories section ──
+    lines.append(f"## MATHIR Auto-Context — {len(normalized)} memories for: {_sanitize_for_prompt(task)[:100]}")
     for tier, items in tiers.items():
         lines.append(f"\n### {_sanitize_for_prompt(tier).upper()} ({len(items)})")
         for item in items:
@@ -596,6 +624,8 @@ def api_context():
     return jsonify({
         "context": "\n".join(lines),
         "tiers": {t: len(v) for t, v in tiers.items()},
+        "guardrails_count": len(guardrails),
+        "guardrails": [{"label": g.get("label", ""), "content": g.get("content", "")[:300]} for g in guardrails],
         "total": len(normalized),
         "task": task[:200],
     })
@@ -757,6 +787,18 @@ def memory_save():
         memory_id = f"mem_{uuid.uuid4().hex}"
 
         block_type = params.get('block_type', 'episodic')
+        # Guardrail tier: enforce min priority and per-project limit
+        if block_type == 'guardrail':
+            params['priority'] = max(int(params.get('priority', 8)), 8)
+            from . import GUARDRAIL_MAX_PER_PROJECT
+            count = vec_mem.count_guardrails(project=params.get('project'))
+            if count >= GUARDRAIL_MAX_PER_PROJECT:
+                return jsonify({
+                    'error': f'guardrail limit reached ({GUARDRAIL_MAX_PER_PROJECT} per project). '
+                             f'Delete old guardrails before adding new ones.',
+                    'current_count': count,
+                    'max': GUARDRAIL_MAX_PER_PROJECT,
+                }), 400
         tier_override = None
         try:
             anomaly_result = vec_mem.check_and_update_anomaly(
@@ -781,7 +823,9 @@ def memory_save():
             'project': params.get('project') or get_project_name(),
             'risk_warnings': risk_warnings if risk_warnings else None,
         }
-        if tier_override:
+        if block_type == 'guardrail':
+            metadata['tier'] = 'guardrail'
+        elif tier_override:
             metadata['tier'] = tier_override
             metadata['anomaly_score'] = float(anomaly_result['score'])
         vec_mem.store(memory_id, emb_np, metadata)
@@ -803,6 +847,19 @@ def memory_audit_immunological():
         return jsonify({"results": results, "total": len(results)})
     except Exception as e:
         return jsonify({'error': _sanitize_error(e, 'memory_audit_immunological')}), 500
+
+
+@app.route("/api/memory/guardrails", methods=["GET", "POST"])
+def memory_guardrails():
+    """List all guardrail memories for a project."""
+    params = _get_params()
+    try:
+        vec_mem, _db_path, _embedder = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
+        k = min(params.get('k', 50), 50)
+        results = vec_mem.list_guardrails(project=params.get('project'), k=k)
+        return jsonify({"guardrails": results, "total": len(results)})
+    except Exception as e:
+        return jsonify({'error': _sanitize_error(e, 'memory_guardrails')}), 500
 
 
 @app.route("/api/memory/reset_anomaly_state", methods=["POST"])

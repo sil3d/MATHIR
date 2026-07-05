@@ -18,19 +18,19 @@ Or, when importing from outside the mathir_mcp/ directory (e.g. via
 from pathlib import Path
 import os
 
-__version__ = "8.4.2"
+__version__ = "8.9.0"
 
 # Tier taxonomy - SINGLE SOURCE OF TRUTH. Matches the enum in
 # mathir_mcp_server.py (memory_save tool schema) and the JSON schema in TOOLS.
 #
-# MATHIR has 5 tiers total:
+# MATHIR has 6 tiers total:
 #   - 4 user-facing storage tiers that follow the lifecycle promotion chain
 #     (working_memory -> episodic -> semantic -> procedural)
 #   - 1 detection tier (immunological) for anomaly storage: prompt injections,
-#     threat signatures, suspicious patterns. It is first-class: queryable,
-#     consolidatable, and linkable, but does NOT participate in the standard
-#     promotion chain (it is terminal, like procedural).
-TIERS = ("working_memory", "episodic", "semantic", "procedural", "immunological")  # all 5 tiers
+#     threat signatures, suspicious patterns.
+#   - 1 guardrail tier: critical rules always injected into every context
+#     response. Push-based (not pull). Immune to decay. Terminal.
+TIERS = ("working_memory", "episodic", "semantic", "procedural", "immunological", "guardrail")
 
 # Subset of TIERS that participate in the user-facing promotion chain.
 # Use this for: argparse choices, TIER_ORDER in mathir_vec, lifecycle tests.
@@ -39,6 +39,13 @@ TIERS_STORAGE = ("working_memory", "episodic", "semantic", "procedural")
 # Anomaly-detection tier. Use this for: threat-signature storage, prompt-
 # injection quarantine, immune-response pattern matching.
 TIERS_DETECTION = ("immunological",)
+
+# Guardrail tier: always-active rules auto-injected into every /api/context,
+# memory_session_start, and memory_context response. Immune to decay and
+# promotion. Push-based — the LLM sees these without needing to recall.
+TIERS_GUARDRAIL = ("guardrail",)
+GUARDRAIL_MIN_PRIORITY = 8
+GUARDRAIL_MAX_PER_PROJECT = 50
 
 BLOCK_TYPES = TIERS
 
@@ -52,6 +59,9 @@ __all__ = [
     "TIERS",
     "TIERS_STORAGE",
     "TIERS_DETECTION",
+    "TIERS_GUARDRAIL",
+    "GUARDRAIL_MIN_PRIORITY",
+    "GUARDRAIL_MAX_PER_PROJECT",
     "TIER_NAMES",
     "BLOCK_TYPES",
     "get_lib_dir",

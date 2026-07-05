@@ -51,16 +51,19 @@ def test_tier_taxonomy_canonical():
     print("[OK] test_tier_taxonomy_canonical")
 
 def test_tier_split_constants():
-    """Verify mathir_lib exports TIERS (5), TIERS_STORAGE (4), TIERS_DETECTION (1)."""
+    """Verify mathir_lib exports TIERS (6), TIERS_STORAGE (4), TIERS_DETECTION (1), TIERS_GUARDRAIL (1)."""
     # mathir_lib is a subpackage of mathir_mcp, so we import it via the
     # fully-qualified name with the parent (mathir_mcp) on sys.path.
     sys.path.insert(0, str(Path(__file__).parent.parent))
     from mathir_mcp.mathir_lib import (
-        TIERS, TIERS_STORAGE, TIERS_DETECTION, TIER_NAMES, BLOCK_TYPES
+        TIERS, TIERS_STORAGE, TIERS_DETECTION, TIERS_GUARDRAIL,
+        TIER_NAMES, BLOCK_TYPES,
+        GUARDRAIL_MIN_PRIORITY, GUARDRAIL_MAX_PER_PROJECT,
     )
-    EXPECTED_ALL = {"working_memory", "episodic", "semantic", "procedural", "immunological"}
+    EXPECTED_ALL = {"working_memory", "episodic", "semantic", "procedural", "immunological", "guardrail"}
     EXPECTED_STORAGE = {"working_memory", "episodic", "semantic", "procedural"}
     EXPECTED_DETECTION = {"immunological"}
+    EXPECTED_GUARDRAIL = {"guardrail"}
     assert set(TIERS) == EXPECTED_ALL, (
         f"TIERS mismatch: got {set(TIERS)}, want {EXPECTED_ALL}"
     )
@@ -70,10 +73,18 @@ def test_tier_split_constants():
     assert set(TIERS_DETECTION) == EXPECTED_DETECTION, (
         f"TIERS_DETECTION mismatch: got {set(TIERS_DETECTION)}, want {EXPECTED_DETECTION}"
     )
-    # immunological must be in TIERS but NOT in TIERS_STORAGE
+    assert set(TIERS_GUARDRAIL) == EXPECTED_GUARDRAIL, (
+        f"TIERS_GUARDRAIL mismatch: got {set(TIERS_GUARDRAIL)}, want {EXPECTED_GUARDRAIL}"
+    )
+    # immunological and guardrail must be in TIERS but NOT in TIERS_STORAGE
     assert "immunological" in TIERS
     assert "immunological" not in TIERS_STORAGE
-    # Backward-compat aliases must also return the 5-tier set
+    assert "guardrail" in TIERS
+    assert "guardrail" not in TIERS_STORAGE
+    # Guardrail constraints
+    assert GUARDRAIL_MIN_PRIORITY == 8
+    assert GUARDRAIL_MAX_PER_PROJECT == 50
+    # Backward-compat aliases must also return the 6-tier set
     assert set(BLOCK_TYPES) == EXPECTED_ALL
     assert set(TIER_NAMES) == EXPECTED_ALL
     print("[OK] test_tier_split_constants")

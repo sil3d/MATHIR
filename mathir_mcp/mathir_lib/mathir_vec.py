@@ -89,9 +89,10 @@ class VecMemory:
 
     # Tier promotion order — must match mathir_lib.TIERS_STORAGE exactly.
     # This is the 4 user-facing storage tiers (working -> episodic -> semantic -> procedural).
-    # 'immunological' is the 5th tier (TIERS_DETECTION) but is TERMINAL — it does NOT
-    # participate in this promotion chain. Anomaly memories stay in immunological forever.
+    # 'immunological' (5th) and 'guardrail' (6th) are TERMINAL — they do NOT
+    # participate in this promotion chain.
     TIER_ORDER = ("working_memory", "episodic", "semantic", "procedural")
+    TERMINAL_TIERS = ("immunological", "guardrail")
 
     def _schema_kind(self) -> str:
         """Detect which memories-table schema this DB uses.
@@ -626,6 +627,53 @@ class VecMemory:
                 "anomaly_score": meta.get("anomaly_score"),
             })
         return results
+
+    def list_guardrails(self, project: Optional[str] = None, k: int = 50) -> List[Dict[str, Any]]:
+        """List all guardrail memories for a project, highest priority first."""
+        with self._db_lock:
+            conn = self._get_conn()
+            if project:
+                cursor = conn.execute(
+                    "SELECT memory_id, content, agent, label, priority, created_at "
+                    "FROM memories WHERE tier = 'guardrail' AND project = ? "
+                    "ORDER BY priority DESC, created_at DESC LIMIT ?",
+                    (project, k),
+                )
+            else:
+                cursor = conn.execute(
+                    "SELECT memory_id, content, agent, label, priority, created_at "
+                    "FROM memories WHERE tier = 'guardrail' "
+                    "ORDER BY priority DESC, created_at DESC LIMIT ?",
+                    (k,),
+                )
+            rows = cursor.fetchall()
+
+        return [
+            {
+                "memory_id": row["memory_id"],
+                "content": (row["content"] or "")[:500],
+                "agent": row["agent"],
+                "label": row["label"],
+                "priority": row["priority"],
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        ]
+
+    def count_guardrails(self, project: Optional[str] = None) -> int:
+        """Count guardrail memories for limit enforcement."""
+        with self._db_lock:
+            conn = self._get_conn()
+            if project:
+                row = conn.execute(
+                    "SELECT COUNT(*) AS c FROM memories WHERE tier = 'guardrail' AND project = ?",
+                    (project,),
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    "SELECT COUNT(*) AS c FROM memories WHERE tier = 'guardrail'"
+                ).fetchone()
+            return int(row["c"]) if row else 0
 
     def search(self, query_embedding: np.ndarray, k: int = 5,
                agent_filter: str = None, block_type_filter: str = None,
@@ -1579,7 +1627,7 @@ class VecMemory:
                        COALESCE(NULLIF(last_recalled_at, 0), {ts_col}, 0)
                            AS effective_recall_ts
                 FROM memories
-                WHERE tier != 'archived'
+                WHERE tier NOT IN ('archived', 'guardrail')
                   AND COALESCE(NULLIF(last_recalled_at, 0), {ts_col}, 0) > 0
                   AND COALESCE(NULLIF(last_recalled_at, 0), {ts_col}, 0) < ?
                 ORDER BY effective_recall_ts ASC
@@ -1754,6 +1802,15 @@ class VecMemory:
                 }
 
             old_tier = row["tier"] or "episodic"
+            if old_tier in self.TERMINAL_TIERS:
+                return {
+                    "memory_id": memory_id,
+                    "found": True,
+                    "promoted": False,
+                    "old_tier": old_tier,
+                    "new_tier": old_tier,
+                    "reason": f"tier {old_tier!r} is terminal (not promotable)",
+                }
             if old_tier not in self.TIER_ORDER:
                 return {
                     "memory_id": memory_id,

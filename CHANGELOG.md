@@ -8,6 +8,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [8.9.0] — 2026-07-05 — GUARDRAIL TIER — PUSH-BASED ALWAYS-ACTIVE RULES
+
+**6th memory tier: `guardrail`.** Critical rules that are auto-injected into every context response — the LLM sees them without needing to recall. Push-based, not pull-based.
+
+### New features
+- **`guardrail` tier** — 6th tier, always auto-injected into `/api/context`, `memory_session_start`, and `memory_context` responses, before all other memories
+- **Decay immunity** — guardrail memories never decay or get archived
+- **Promotion immunity** — guardrails are terminal (like immunological), cannot be promoted
+- **Priority floor** — guardrails enforce minimum priority of 8
+- **Per-project limit** — max 50 guardrails per project to prevent context inflation
+- **`memory_list_guardrails`** MCP tool — list all active guardrails for the current project
+- **`/api/memory/guardrails`** daemon route — GET/POST, list guardrails with priority ordering
+- **`list_guardrails()` / `count_guardrails()`** — VecMemory methods for guardrail queries
+
+### Why
+LLMs recall at session start but forget mid-task. They repeat mistakes they were corrected on minutes earlier. The guardrail tier solves this by making critical rules always visible — the LLM doesn't choose to see them, they are always there.
+
+---
+
 ## [8.8.0] — 2026-07-04 — GOD MODE — MULTI-AGENT ORCHESTRATION
 
 **Cross-process multi-agent orchestration via MATHIR shared memory.** Agents self-identify, orchestrator assigns tasks by strength. Two new MCP tools, two daemon routes, one new module.

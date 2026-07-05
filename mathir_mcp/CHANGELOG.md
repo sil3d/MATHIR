@@ -1,5 +1,21 @@
 # MATHIR Changelog
 
+## [8.9.0] — 2026-07-05 — GUARDRAIL TIER
+
+### Added
+- **`guardrail` tier** — 6th memory tier, push-based. Always auto-injected into every `/api/context`, `memory_session_start`, `memory_context` response.
+- **`memory_list_guardrails`** MCP tool — list all active guardrails
+- **`/api/memory/guardrails`** daemon route — GET/POST guardrail listing
+- **`list_guardrails()` / `count_guardrails()`** methods in VecMemory
+- Guardrails are immune to decay and promotion (terminal tier)
+- Minimum priority enforced at 8, max 50 per project
+
+### Changed
+- Total MCP tools: 26 (was 25)
+- Total tiers: 6 (was 5)
+
+---
+
 ## [8.8.0] — 2026-07-04 — GOD MODE — MULTI-AGENT ORCHESTRATION
 
 ### Added

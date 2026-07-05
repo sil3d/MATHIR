@@ -38,7 +38,7 @@ MAX_AGENT_LENGTH = 100
 
 # Block types a client may write. "immunological" is reserved for the internal
 # anomaly detector and is rejected on the save path.
-_CLIENT_BLOCK_TYPES = {"working_memory", "episodic", "semantic", "procedural"}
+_CLIENT_BLOCK_TYPES = {"working_memory", "episodic", "semantic", "procedural", "guardrail"}
 
 try:
     from .mathir_paths import CONFIG_PATH as _P_CONFIG, PROJECTS_DIR as _P_PROJECTS
@@ -266,6 +266,7 @@ def _call_daemon_raw(method: str, params: dict = None) -> dict:
         "memory_stats": "/api/memory/stats",
         "memory_audit": "/api/memory/audit",
         "memory_audit_immunological": "/api/memory/audit_immunological",
+        "memory_guardrails": "/api/memory/guardrails",
         "memory_export": "/api/memory/export",
         "memory_sessions": "/api/memory/sessions",
         "memory_promote": "/api/memory/promote",
@@ -497,11 +498,16 @@ def memory_save(
     priority: int = 5,
     project: str = None,
 ) -> str:
-    """Save a memory. Block types: working_memory, episodic, semantic, procedural.
+    """Save a memory. Block types: working_memory, episodic, semantic, procedural, guardrail.
 
     Pass block_type="auto" to let MATHIR classify the content based on simple
     heuristics (commands/how-tos → procedural, bugs/decisions → episodic,
     facts/general knowledge → semantic, scratchpad → working_memory).
+
+    block_type="guardrail" saves a critical rule that is ALWAYS auto-injected
+    into every /api/context, memory_session_start, and memory_context response.
+    Guardrails are immune to decay, cannot be promoted, and have a minimum
+    priority of 8. Max 50 guardrails per project.
     """
     log.info(
         f"memory_save called: content_len={len(content)} "
@@ -516,6 +522,10 @@ def memory_save(
         return json.dumps({"error": "block_type 'immunological' is reserved for the internal anomaly detector and cannot be written by clients"})
     if block_type not in _CLIENT_BLOCK_TYPES and block_type != "auto":
         return json.dumps({"error": f"invalid block_type '{block_type}'. Valid: {sorted(_CLIENT_BLOCK_TYPES)} or 'auto'"})
+
+    if block_type == "guardrail":
+        from . import GUARDRAIL_MIN_PRIORITY
+        priority = max(priority, GUARDRAIL_MIN_PRIORITY)
 
     if block_type == "auto":
         block_type = _auto_classify_block_type(content, label)
@@ -907,6 +917,22 @@ def memory_audit_immunological(project: str = None, k: int = 20) -> str:
     result = _call_daemon("memory_audit_immunological", {
         "project": project,
         "k": k,
+    })
+    return json.dumps(result) if isinstance(result, dict) else str(result)
+
+
+@mcp.tool()
+def memory_list_guardrails(project: str = None) -> str:
+    """List all guardrail memories for the current project.
+
+    Guardrails are critical rules that are ALWAYS auto-injected into every
+    context response (session_start, memory_context, /api/context). They are
+    immune to decay and cannot be promoted. Use memory_save with
+    block_type="guardrail" to create new guardrails.
+    """
+    result = _call_daemon("memory_guardrails", {
+        "project": project,
+        "k": 50,
     })
     return json.dumps(result) if isinstance(result, dict) else str(result)
 
