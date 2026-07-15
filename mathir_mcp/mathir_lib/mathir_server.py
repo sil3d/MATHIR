@@ -30,6 +30,20 @@ from typing import Optional
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
+# Disable tqdm/HF progress bars BEFORE transformers/sentence-transformers are
+# ever imported. When this process is launched detached (auto_start.bat's
+# `start "" /B`, or any launcher with no console), sys.stderr can be a handle
+# that accepts writes but not the flush() tqdm issues on every refresh --
+# that raises OSError: [Errno 22] Invalid argument from deep inside model
+# loading (transformers.core_model_loading -> tqdm.std.status_printer) and
+# was surfacing as a generic 500 on every memory endpoint that touches the
+# embedder. Progress bars are useless on a headless daemon anyway.
+# ---------------------------------------------------------------------------
+os.environ.setdefault("HF_HUB_DISABLE_PROGRESS_BARS", "1")
+os.environ.setdefault("TRANSFORMERS_NO_ADVISORY_WARNINGS", "1")
+os.environ.setdefault("TQDM_DISABLE", "1")
+
+# ---------------------------------------------------------------------------
 # Bootstrap path
 # ---------------------------------------------------------------------------
 _HERE = Path(__file__).resolve().parent
@@ -573,6 +587,7 @@ def api_context():
                 d["agent"] = r["agent"]
             normalized.append(d)
     except Exception as e:
+        log.error(f"api_context failed: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
     # ── Load guardrails (ALWAYS, regardless of search results) ──
     guardrails = []
