@@ -4,7 +4,13 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 %h/.config/MATHIR/mathir_mcp/bin/mathir_daemon.py
+# systemd user services run with a minimal PATH, so /usr/bin/python3 was
+# hardcoded here historically — but it doesn't exist on every distro/setup
+# (conda-only, custom venvs, some minimal containers). Resolve python3 via
+# PATH at start time instead, with common install locations appended so
+# `command -v` still finds it even under systemd's stripped-down env.
+Environment=PATH=%h/.local/bin:%h/miniconda3/bin:%h/anaconda3/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/bin/sh -c 'exec "$(command -v python3 || command -v python)" %h/.config/MATHIR/mathir_mcp/bin/mathir_daemon.py'
 Restart=on-failure
 RestartSec=5
 

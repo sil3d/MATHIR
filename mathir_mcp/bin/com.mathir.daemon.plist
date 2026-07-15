@@ -4,11 +4,28 @@
 <dict>
     <key>Label</key>
     <string>com.mathir.daemon</string>
+    <!--
+      This is a template: /Users/USERNAME and the python interpreter must be
+      substituted before install (see INSTALL_FOR_AGENT/INSTALL_MACOS.md
+      step 5, or install_smart.py which renders this programmatically).
+      Default interpreter is `/usr/bin/env python3` rather than a hardcoded
+      /usr/bin/python3 — Apple removed the system python3 on newer macOS, and
+      Homebrew/conda installs never lived there anyway. `env` resolves via
+      PATH at launch time, which still needs launchd's PATH to include your
+      interpreter (see the Apple Silicon / Homebrew section in the install
+      doc if it doesn't).
+    -->
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/bin/python3</string>
+        <string>/usr/bin/env</string>
+        <string>python3</string>
         <string>/Users/USERNAME/.config/MATHIR/mathir_mcp/bin/mathir_daemon.py</string>
     </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>

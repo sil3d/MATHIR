@@ -21,15 +21,43 @@ REM ---- Configuration ---------------------------------------------------------
 REM Resolved from %USERPROFILE% so the script is portable across usernames
 REM and matches the actual ~/.config/MATHIR install location.
 set "BIN_DIR=%USERPROFILE%\.config\MATHIR\mathir_mcp\mathir_lib"
-set "PYTHON_PATH=%USERPROFILE%\AppData\Local\Programs\Python\Python311\python.exe"
 set "DAEMON_PATH=%BIN_DIR%\mathir_server.py"
 set "LOG_PATH=%USERPROFILE%\.config\MATHIR\logs\mathir_daemon.log"
 set "PORT=7338"
 
+REM ---- Resolve Python dynamically (cmd-only, no hardcoded install path) -----
+REM Priority: PATH (`where python`) > py launcher > common install locations
+REM (miniconda/anaconda, WindowsApps, Programs\PythonXXX). This avoids the
+REM historical bug where a hardcoded Python311 path silently broke auto-start
+REM on machines using a different Python (e.g. Miniconda).
+set "PYTHON_PATH="
+
+for /f "delims=" %%P in ('where python 2^>nul') do (
+    if not defined PYTHON_PATH set "PYTHON_PATH=%%P"
+)
+
+if not defined PYTHON_PATH (
+    where py >nul 2>nul
+    if not errorlevel 1 set "PYTHON_PATH=py"
+)
+
+if not defined PYTHON_PATH (
+    for %%D in (
+        "%USERPROFILE%\miniconda3\python.exe"
+        "%USERPROFILE%\anaconda3\python.exe"
+        "%USERPROFILE%\AppData\Local\Microsoft\WindowsApps\python.exe"
+        "%USERPROFILE%\AppData\Local\Programs\Python\Python312\python.exe"
+        "%USERPROFILE%\AppData\Local\Programs\Python\Python311\python.exe"
+        "%USERPROFILE%\AppData\Local\Programs\Python\Python310\python.exe"
+    ) do (
+        if not defined PYTHON_PATH if exist %%D set "PYTHON_PATH=%%~D"
+    )
+)
+
 REM ---- Sanity checks (cmd-only — no PowerShell -Command embedded) -----------
-if not exist "%PYTHON_PATH%" (
-    echo [FATAL] Python not found at: "%PYTHON_PATH%"
-    echo         Update PYTHON_PATH in auto_start.bat
+if not defined PYTHON_PATH (
+    echo [FATAL] No Python interpreter found ^(checked PATH, py launcher, common install dirs^)
+    echo         Set PYTHON_PATH manually as an environment variable to override.
     endlocal & exit /b 2
 )
 if not exist "%DAEMON_PATH%" (

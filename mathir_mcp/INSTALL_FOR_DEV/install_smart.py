@@ -1161,11 +1161,23 @@ def _setup_autostart_macos(bin_dir: Path, dry_run: bool = False) -> Tuple[bool, 
         return False, f"Cannot create {launch_agents}: {e}"
 
     # Render: substitute /Users/USERNAME placeholder with actual $HOME.
-    python_path = "/usr/bin/python3"
-    # Try to discover a venv python first (more user-friendly)
+    # Resolution order: venv python (most reliable, user-managed) > `python3`
+    # found on the *installer's own* PATH (covers Homebrew/conda/pyenv,
+    # not just the system install) > `/usr/bin/env python3` as a last-resort
+    # fallback that re-resolves PATH at launchd start time. We deliberately
+    # do not default to a hardcoded /usr/bin/python3: Apple removed the
+    # system python3 on newer macOS, and Homebrew/conda never installed
+    # there, so that default silently broke auto-start for most users.
     venv_python = home / ".config" / "MATHIR" / "mathir_mcp" / ".venv" / "bin" / "python3"
+    which_python3 = shutil.which("python3")
     if venv_python.exists():
-        python_path = str(venv_python)
+        python_args = [str(venv_python)]
+    elif which_python3:
+        python_args = [which_python3]
+    else:
+        python_args = ["/usr/bin/env", "python3"]
+
+    python_arg_xml = "".join(f'        <string>{p}</string>\n' for p in python_args)
 
     rendered = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -1176,7 +1188,7 @@ def _setup_autostart_macos(bin_dir: Path, dry_run: bool = False) -> Tuple[bool, 
         '    <string>com.mathir.daemon</string>\n'
         '    <key>ProgramArguments</key>\n'
         '    <array>\n'
-        f'        <string>{python_path}</string>\n'
+        f'{python_arg_xml}'
         f'        <string>{home}/.config/MATHIR/mathir_mcp/bin/mathir_daemon.py</string>\n'
         '    </array>\n'
         '    <key>RunAtLoad</key>\n'

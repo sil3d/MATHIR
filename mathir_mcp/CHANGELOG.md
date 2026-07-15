@@ -1,5 +1,18 @@
 # MATHIR Changelog
 
+## [Unreleased] — 2026-07-15 — CROSS-PLATFORM AUTO-START FIX (hardcoded Python paths)
+
+### Fixed
+- **`bin/auto_start.bat` (Windows)** — was hardcoded to `%USERPROFILE%\AppData\Local\Programs\Python\Python311\python.exe`, which silently failed the daemon launch on any machine using a different Python (e.g. Miniconda — the case that surfaced this bug). Now resolves dynamically: `where python` on PATH → `py` launcher → common install locations (Miniconda, Anaconda, WindowsApps, `Programs\PythonXXX`).
+- **`bin/mathir-daemon.service` (Linux/systemd)** — `ExecStart` hardcoded `/usr/bin/python3`, which doesn't exist on conda-only or minimal setups. Now resolves `python3`/`python` via `PATH` at start time (`ExecStart=/bin/sh -c 'exec "$(command -v python3 || command -v python)" ...'`), with a fallback `PATH` covering `~/.local/bin`, `~/miniconda3/bin`, `~/anaconda3/bin`.
+- **`bin/com.mathir.daemon.plist` (macOS/launchd)** — default interpreter changed from hardcoded `/usr/bin/python3` (removed on newer macOS, never used by Homebrew/conda) to `/usr/bin/env python3` (PATH resolution at launch), with a documented `PATH` fallback covering `/opt/homebrew/bin`.
+- **`INSTALL_FOR_DEV/install_smart.py`** (`_setup_autostart_macos`) — the actual code path that renders the deployed plist. Resolution order changed to: venv python (unchanged) → `shutil.which("python3")` on the installer's own PATH (new — covers Homebrew/conda/pyenv) → `/usr/bin/env python3` fallback (new). Previously defaulted straight to the hardcoded `/usr/bin/python3` if no venv was found.
+- `auto_start.sh` (Linux/macOS) and `bin/mathir_daemon.py` (the HTTP-shim launcher) were already correct — no change needed there.
+
+Synced to `~/.config/MATHIR/mathir_mcp/` (verified byte-identical post-sync).
+
+---
+
 ## [8.9.2] — 2026-07-05 — GOD-MODE CLIENT BRIDGE
 
 ### Added
