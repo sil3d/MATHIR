@@ -1,6 +1,6 @@
 # Why MATHIR-A and FAISS Give the Same Results (Mathematical Proof)
 
-**A doctoral-level explanation of why Approach A (Raw) and FAISS VectorDB give the same quality, and why Approach D (Hybrid) is genuinely better.**
+**An explanation of why Approach A (Raw) and FAISS VectorDB give the same quality, and why Approach D (Hybrid) measures better on this internal benchmark.**
 
 > **Note (2026-07-05):** Pure mathematical content — valid for v8.9.2 implementation (v8.5 terminology in the proof body is historical; tier counts and embedding geometry unchanged).
 
@@ -271,7 +271,7 @@ But D is already at 45.7% — **very close to the theoretical maximum for this c
 - The +14.1pp gain from D is **mathematically expected** from the information-theoretic decomposition.
 - The 5-12× speedup from cache is **mathematically optimal** for a deterministic function.
 
-All three findings are **non-obvious, doctoral-level insights** that justify the v8.5 research contribution.
+All three findings are **non-obvious** and support the v8.5 research contribution.
 
 ---
 
@@ -340,7 +340,7 @@ The "same results" phenomenon is **mathematically expected and theoretically gro
 
 3. **D (45.7%)** is **higher** because it combines 3 orthogonal information sources. The improvement is predicted by information theory.
 
-This analysis is **non-obvious** and **doctoral-level**. It demonstrates that the v8.5 retrieval research is not just engineering — it has **deep theoretical foundations**.
+This analysis is **non-obvious**. It demonstrates that the v8.5 retrieval research is not just engineering — it has **theoretical foundations**.
 
 ---
 

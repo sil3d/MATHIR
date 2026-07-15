@@ -44,7 +44,7 @@ Someone on Twitter said this last week: "Lost 3 months of context when I switche
 
 That's the problem. Users build context in your platform, then lose it all when they try something else. MATHIR fixes this — it's a local memory that works with any LLM, including GPT. The user's context lives on their machine, not locked to one provider.
 
-It also does anomaly detection — catches prompt injection in 1ms. A 3-layer auto-cache gives 18x speedup on repeated queries. INT8 quantization compresses embeddings 4x with zero quality loss. Something no other memory system does.
+It also does anomaly detection — catches prompt injection in 1ms. A 3-layer auto-cache gives 18x speedup on repeated queries. INT8 quantization compresses embeddings 4x with zero quality loss.
 
 I built it alone, from my room, over a year. It's open-source, MIT licensed. Not asking for anything — just sharing that this problem is being solved.
 

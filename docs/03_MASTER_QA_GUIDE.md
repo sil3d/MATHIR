@@ -372,22 +372,19 @@ HybridSearch Auto-Select
 
 sqlite-vec is 30× slower than numpy for vector search — use it only for metadata queries, never for embeddings.
 
-### Q9.1: How does MATHIR compare to FAISS?
-**A:** In a real stress test (White's Fluid Mechanics, 200 chunks, 50 queries):
+### Q9.1: How does raw retrieval speed/quality compare to plain FAISS?
+**A:** Internal stress test (White's Fluid Mechanics, 200 chunks, 50 queries), reported honestly — real BEIR benchmarks (SciFact/ArguAna/NFCorpus, see `benchmarks/06_results/current/`) currently show plain FAISS dense retrieval *outperforming* MATHIR's hybrid pipeline, so treat the numbers below as a single-corpus internal result, not a general claim:
 | System | Quality | QPS (warm) | Latency (warm) |
 |--------|---------|------------|----------------|
 | FAISS | 31.6% | 20,392 | 0.05ms |
 | MATHIR D (cold) | 45.7% | 2 | 494ms |
 | **MATHIR D + Cache (warm)** | **45.7%** | **5+** | **3-220ms** |
 
-### Q9.2: Can MATHIR beat a real vector database?
-**A:** **YES**, in three ways:
-- **Quality**: +14.1pp via Approach D
-- **Speed (warm)**: comparable to FAISS with cache
-- **Capabilities**: FAISS cannot do online learning or anomaly detection
+### Q9.2: What does MATHIR add that a plain vector index doesn't attempt?
+**A:** A vector index (FAISS, Qdrant, Chroma) is a static similarity search — no tiering, no decay, no anomaly signal, no cross-process sharing. MATHIR adds those as first-class, self-maintaining behavior: online prototype updates, Mahalanobis anomaly scoring, Ebbinghaus decay/promotion, and multi-agent shared memory (God Mode). This is a different problem than "faster/better top-k," which is why a raw quality comparison against FAISS (Q9.1) isn't the right lens.
 
-### Q9.3: Should I replace my vector database with MATHIR?
-**A:** **NO** — use a **cascade**:
+### Q9.3: Is MATHIR meant to replace a vector database?
+**A:** No — for large static corpora with a sub-10ms SLA, a vector index alone is the right tool, and a common pattern is FAISS as a fast L1 filter feeding MATHIR as an L2 layer for reranking, learning, and anomaly detection:
 ```
 User Query
     ↓
@@ -398,16 +395,15 @@ MATHIR D + Cache (L2, re-rank, top 5 in 220ms warm)
 LLM
 ```
 
-This gives you the best of both worlds.
-
-### Q9.4: What can MATHIR do that VectorDB CANNOT?
+### Q9.4: What capabilities does MATHIR provide beyond similarity search?
 **A:**
 1. **Online learning** (adapts during use)
-2. **Anomaly detection** (Mahalanobis, NP-optimal)
-3. **Hierarchical memory** (5 temporal tiers)
+2. **Anomaly detection** (Mahalanobis, NP-optimal under Gaussian assumptions)
+3. **Hierarchical memory** (6 tiers with decay/promotion)
 4. **Spaced repetition** (Ebbinghaus)
-5. **9.3× compression** (vs no compression in FAISS)
+5. **9.3× compression** (internal memory footprint)
 6. **Multi-modal** (text + image, via separate encoders)
+7. **Multi-agent, cross-process, local-first sharing** (God Mode — not present in typical vector-DB setups)
 
 ---
 
@@ -421,8 +417,8 @@ This gives you the best of both worlds.
 - Compresses conversation history (9.3×)
 
 ### Q10.2: What metrics improve with MATHIR in chat?
-**A:**
-| Metric | VectorDB | MATHIR |
+**A:** Internal measurements, not yet externally validated:
+| Metric | Baseline (no memory tiering) | MATHIR |
 |--------|----------|--------|
 | Personalization accuracy | 45% | **87%** (+93%) |
 | Anomaly detection | 0% | **92%** (NEW) |
@@ -454,45 +450,10 @@ User message → Embedding → MATHIR (6 tiers) → Enhanced context → LLM →
 
 ## 11. Autonomous Driving Use Case {#11-driving}
 
-### Q11.1: How does MATHIR help in autonomous driving?
-**A:** MATHIR acts as the **memory layer between perception and decision**:
-```
-Camera + Lidar + IMU
-    ↓
-Perception (EfficientNet + YOLO)
-    ↓
-MATHIR Plugin (6 tiers)
-    ├─ Working: last 64 frames
-    ├─ Episodic: past 1000 experiences
-    ├─ Semantic: 256 driving prototypes
-    ├─ Immune: 100 normal patterns (anomaly!)
-    └─ Guardrail: always-active rules (immune to decay)
-    ↓
-LLM/VLM Decision (Qwen-VL, GPT-4V, etc.)
-    ↓
-Steering, throttle, brake
-```
-
-### Q11.2: Why does this matter for driving?
-**A:**
-- **Recall**: "Have I seen this intersection before?"
-- **Anomaly**: "This pedestrian trajectory is unusual → danger!"
-- **Adaptation**: "This road is icy → reduce speed by 20%"
-- **Edge deployment**: 9.3× compression enables Jetson (bge-large, GPU) / Raspberry Pi (MiniLM 384d, CPU fallback)
-
-### Q11.3: What metrics improve with MATHIR in driving?
-**A:**
-| Metric | VectorDB | MATHIR |
-|--------|----------|--------|
-| Novel hazard detection | 0% | **87%** (NEW) |
-| Rare situation recall | 12% | 64% (+433%) |
-| Edge deployment | ⚠️ Tight | ✅ Fits |
-
-### Q11.4: Does MATHIR replace the LLM/VLM?
-**A:** **NO.** MATHIR provides the **memory context** to the LLM/VLM. The VLM does the visual reasoning, MATHIR provides the historical context.
+**This section has moved.** The autonomous-driving research direction — including the sensor-dropout/place-memory hypothesis, its relationship to the sensor-fusion-robustness literature (Grace-BEV, MetaBEV, UniBEV), the latency argument, and honest limits — now lives in **[docs/MATHIR_FOR_ROBOTICS.md](MATHIR_FOR_ROBOTICS.md)**. What remains true and worth keeping here: MATHIR never replaces perception (camera/LiDAR/VLM) or the low-level controller (PID/MPC) — it is a memory layer that sits between perception and decision, informing high-level choices, not executing the control loop itself.
 
 ### Q11.5: Can MATHIR run on Jetson/Raspberry Pi?
-**A:** **YES** — V7's 9.3× compression puts the internal memory footprint at ~60KB. On Jetson, use bge-large (1024d) with GPU support; on Raspberry Pi, fall back to MiniLM (384d) on CPU. With cache, latency is 3-220ms on CPU, fast enough for edge.
+**A:** **YES** — V7's 9.3× compression puts the internal memory footprint at ~60KB. On Jetson, use bge-large (1024d) with GPU support; on Raspberry Pi, fall back to MiniLM (384d) on CPU. With cache, latency is 3-220ms on CPU, fast enough for edge. Note: this has been validated on consumer hardware, not automotive-grade embedded hardware — see limits in MATHIR_FOR_ROBOTICS.md.
 
 ### Q11.6: What are the deployment options?
 **A:** Three tiers, each optimized for different hardware:

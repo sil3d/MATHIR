@@ -8,6 +8,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased] — 2026-07-15 — DOC REPOSITIONING + ROBOTICS TRACK SPUN OFF
+
+### Changed
+- **README + docs reframed away from head-to-head comparisons** (Mem0/Zep/Letta/FAISS). The "vs Alternatives" table is replaced with an honest "Positioning (2026)" section acknowledging the current landscape (native memory in Claude/ChatGPT/Gemini, funded agent-memory ecosystem) and stating what MATHIR actually validates: self-maintaining tiered memory, cross-process/cross-provider local-first multi-agent sharing (God Mode).
+- `docs/03_MASTER_QA_GUIDE.md` §9/§10/§11 — "VectorDB \| MATHIR" scorecards reworded to describe what each layer is for instead of claiming a win.
+- `docs/07_MATHIR_VS_VECTORDB_USE_CASES.md` — retitled, framing note added; the autonomous-driving section (§4) collapsed into a `<details>` block, superseded by the new robotics doc.
+- Dropped inflated "doctoral-level" language across `docs/01_MASTER_RESEARCH_PAPER.md`, `docs/08_WHY_SAME_RESULTS.md`, `docs/07_MATHIR_VS_VECTORDB_USE_CASES.md`, `README.md` — this is a **master's** research project, not a doctoral one.
+- `docs/OUTREACH.md` — removed an unverifiable "no other memory system does this" claim.
+
+### Added
+- **`docs/MATHIR_FOR_ROBOTICS.md`** — seed document for a planned separate MATHIR FOR ROBOTICS track/repo focused on autonomous-driving research (Isaac Sim simulation, then RC car). States the hypothesis (place-based episodic memory as a fallback signal when sensor-fusion confidence collapses), grounds it against the actual literature (sensor-dropout robustness: Grace-BEV/MetaBEV/UniBEV; place memory: Mobileye REM/Tesla fleet learning; LLM-in-the-loop latency: LLM4AD), and is explicit about what is/isn't validated yet.
+
+---
+
 ## [8.9.0] — 2026-07-05 — GUARDRAIL TIER — PUSH-BASED ALWAYS-ACTIVE RULES
 
 **6th memory tier: `guardrail`.** Critical rules that are auto-injected into every context response — the LLM sees them without needing to recall. Push-based, not pull-based.
@@ -620,7 +634,7 @@ python ~/.config/opencode/mcp/mathir_lib/mathir_client.py push "" --json 2>&1 | 
 
 ## [7.0.0] — 2026-06-06
 
-### Doctoral-Grade Memory
+### Research-Grade Memory
 
 - 8 new algorithms (Ebbinghaus, SparseCoding, Variational, CrossAttention, Hyperbolic, InfoNCE, NeuralODE, Mahalanobis)
 - 6 novel theorems with full proofs

@@ -212,7 +212,7 @@ A car following pre-programmed rules in a perfect simulation isn't intelligent �
 
 That's where MATHIR started. An AI can't be intelligent if it can't **remember** — every session starts from zero, that's amnesia, not intelligence.
 
-**Next step:** MATHIR has been validated in software (26 MCP tools, 6-tier architecture, plug-and-play MCP). The next step is to **build a 3D-printed RC car** and test MATHIR as its actual memory layer in a real autonomous-driving scenario.
+**Next step:** MATHIR has been validated in software (26 MCP tools, 6-tier architecture, plug-and-play MCP). The autonomous-driving research direction — testing whether place-based episodic memory can complement (not replace) sensor-fusion robustness when sensors degrade — is being developed as its own track: **[docs/MATHIR_FOR_ROBOTICS.md](docs/MATHIR_FOR_ROBOTICS.md)**.
 
 ---
 
@@ -245,7 +245,7 @@ Memories **decay** when unused (Ebbinghaus), **promote** when recalled, **consol
 
 ![MATHIR Brain Architecture](docs/assets/memory_that_think.png)
 
-Why? See the **[doctoral research paper](docs/01_MASTER_RESEARCH_PAPER.md)** (6 theorems) and the **[vs Alternatives](docs/07_MATHIR_VS_VECTORDB_USE_CASES.md)** doc.
+Why? See the **[research paper](docs/01_MASTER_RESEARCH_PAPER.md)** (6 theorems) and the **[architecture rationale](docs/07_MATHIR_VS_VECTORDB_USE_CASES.md)** doc.
 
 ---
 
@@ -323,9 +323,10 @@ Install: `pip install -e ./mathir_mcp`
 | **[mathir_mcp/docs/DASHBOARD_GUIDE.md](mathir_mcp/docs/DASHBOARD_GUIDE.md)** | Stats dashboard setup |
 | **[docs/GOD_MODE.md](docs/GOD_MODE.md)** | God Mode — multi-agent orchestration guide |
 | **[mathir_mcp/docs/GPU_SETUP.md](mathir_mcp/docs/GPU_SETUP.md)** | GPU/ONNX acceleration |
-| **[docs/01_MASTER_RESEARCH_PAPER.md](docs/01_MASTER_RESEARCH_PAPER.md)** | Doctoral research paper (6 theorems) |
+| **[docs/01_MASTER_RESEARCH_PAPER.md](docs/01_MASTER_RESEARCH_PAPER.md)** | Master's research paper (6 theorems) |
 | **[docs/03_MASTER_QA_GUIDE.md](docs/03_MASTER_QA_GUIDE.md)** | 63 Q&A for defense / evaluation |
-| **[docs/07_MATHIR_VS_VECTORDB_USE_CASES.md](docs/07_MATHIR_VS_VECTORDB_USE_CASES.md)** | MATHIR vs FAISS / vector DBs |
+| **[docs/07_MATHIR_VS_VECTORDB_USE_CASES.md](docs/07_MATHIR_VS_VECTORDB_USE_CASES.md)** | Where MATHIR vs. a plain vector index each fit (chat use case, cascade architecture) |
+| **[docs/MATHIR_FOR_ROBOTICS.md](docs/MATHIR_FOR_ROBOTICS.md)** | Autonomous-driving research track: place-memory hypothesis, honest positioning vs. sensor-fusion-robustness literature |
 | **[CHANGELOG.md](CHANGELOG.md)** | Full version history |
 | **[mathir_mcp/GLOBAL_INSTRUCTIONS.md](mathir_mcp/GLOBAL_INSTRUCTIONS.md)** | Universal AI agent instructions |
 
@@ -339,19 +340,15 @@ Manual: see [INSTALL_FOR_AGENT/INSTALL_WINDOWS.md](mathir_mcp/INSTALL_FOR_AGENT/
 
 ---
 
-## 🆚 vs Alternatives (2026)
+## 📍 Positioning (2026)
 
-| Product | OSS? | LLM-agnostic? | Edge? | Anomaly detection | Cost |
-|---|:---:|:---:|:---:|:---:|---|
-| **🧠 MATHIR** | ✅ MIT | ✅ Any | ✅ ~500MB GPU | ✅ MCP server: live Mahalanobis detector, AUC-ROC=0.8533 | **Free** |
-| Mem0 | ⚠️ SDK | ✅ | ❌ | ❌ | Free → $249/mo |
-| Letta | ✅ Apache 2.0 | ✅ | ⚠️ Heavy | ❌ | Free |
-| Zep | ⚠️ | ✅ | ❌ | ❌ | $1,250/yr |
-| Cognee | ✅ Apache 2.0 | ✅ | ⚠️ Heavy | ❌ | $35/mo |
-| LangMem | ✅ MIT | ✅ | ⚠️ DIY | ❌ | Free |
-| GraphRAG | ✅ MIT | ✅ | ⚠️ DIY | ❌ | Free |
-| ChatGPT Memory | ❌ | ❌ OpenAI | ❌ | ❌ | $20/mo+ |
-| Claude Projects | ❌ | ❌ Anthropic | ❌ | ❌ | $20/mo+ |
+By mid-2026 the "LLM has no memory" gap is being closed from two directions at once: model vendors ship native memory (Claude, ChatGPT, Gemini all added cross-session recall in 2026), and a funded agent-memory ecosystem exists (Mem0, Zep/Graphiti, Letta, Cognee, LangMem — hybrid retrieval, temporal graphs, published LongMemEval/LoCoMo numbers). MATHIR doesn't try to out-benchmark that ecosystem on retrieval quality — that's a well-covered, well-funded problem now. What MATHIR set out to test, and what the experiments in this repo actually validate, is narrower and different:
+
+- **Structured tiering that self-maintains** — 6 memory tiers (working/episodic/semantic/procedural/immunological/guardrail) with decay, promotion, and consolidation running automatically, not just a flat store with a similarity search.
+- **Cross-process, cross-provider, fully local** — the same memory is shared by multiple agents (Claude, Codex, OpenCode, MiMo, ...) running in separate processes on one machine, coordinating through shared memory with no cloud dependency and no vendor lock-in. This multi-agent "god mode" orchestration is tested and working (see below) — it's not a common feature in the products above.
+- **Runs on modest hardware** — validated on consumer laptops/CPUs, not a managed cloud service; the edge-deployment path (Pi, Jetson) is an explicit next step, not a marketing claim.
+
+Honest gaps: MATHIR has no external benchmark citations, no peer review, and no third-party adoption yet — the numbers below are internal and should be read as such. If you need a battle-tested, funded, widely-adopted memory backend today, Mem0/Zep/Letta are reasonable choices. MATHIR is a research project testing a specific architectural bet (structured, self-maintaining, local-first, multi-agent memory), documented openly including where it falls short.
 
 > **Anomaly detection status:** the MCP server/daemon (`mathir_lib/`, what coding agents connect to) now wires its `immunological` tier to a real, live Mahalanobis-distance detector: `/api/memory/save` scores every incoming embedding against a running per-project baseline and can write `tier='immunological'` when it flags an outlier. On a realistic prompt-injection corpus (`mathir_mcp/tests/data/anomaly_eval/`), the honest result is **AUC-ROC=0.8533** for normal-vs-injection separation — good, not perfect. There is no clean separation between "malicious" and "merely unusual" using distance alone: benign-but-unusual text can also score above the threshold and get flagged. Because of this, flagged content is **not** auto-blocked or silently deleted — it lands in the `immunological` tier for review via `memory_audit_immunological`. A separate, simpler (non-Mahalanobis) detector also exists in `mathir_dropin/` (the standalone embeddable library for non-MCP apps, see [docs/05_SHIPPING_GUIDE.md](docs/05_SHIPPING_GUIDE.md)) — it is a different implementation and its numbers are not the ones quoted above.
 >
@@ -421,7 +418,7 @@ Full architecture: [docs/BRAIN_ARCHITECTURE.md](docs/BRAIN_ARCHITECTURE.md)
 MATHIR/
 ├── mathir_mcp/         ← Install this (v8.9.0, 26 MCP tools, God Mode + Guardrails)
 ├── benchmarks/         ← Reproducible benchmarks
-├── docs/                ← Doctoral paper, QA, architecture
+├── docs/                ← Research paper, QA, architecture
 ├── examples/            ← Usage examples
 ├── stress_test/         ← Stress test web UI
 ├── vision_testing/      ← Vision/audio testing

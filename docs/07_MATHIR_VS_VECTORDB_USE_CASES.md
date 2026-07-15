@@ -1,4 +1,6 @@
-# MATHIR vs Vector Database — A Use-Case Centric Comparison for Chat and Autonomous Driving
+# MATHIR and Vector Databases — Where Each Fits (Chat Use Case)
+
+> **Framing note (2026):** this document originally compared MATHIR head-to-head against FAISS across chat and driving use cases. It's kept as internal benchmark data, not as a "we beat them" claim — plain FAISS actually wins on raw retrieval quality in real BEIR benchmarks (see the honest self-audit linked from the root README). The useful takeaway is architectural: a static vector index and a self-maintaining, tiered, learning memory layer solve different problems and compose well as L1/L2. The driving-specific content has moved to [MATHIR_FOR_ROBOTICS.md](MATHIR_FOR_ROBOTICS.md).
 
 **Author:** Prince Gildas Mbama Kombila
 **Affiliation:** MATHIR Project, Independent Master's Research
@@ -164,6 +166,13 @@ The **median** user-perceived latency is therefore 6 ms — within the budget of
 
 ---
 
+## 4. Use Case 2 — Conduite Autonome (moved)
+
+**This section has moved to [docs/MATHIR_FOR_ROBOTICS.md](MATHIR_FOR_ROBOTICS.md).** The autonomous-driving research direction is now developed as its own track — it makes a different, unvalidated hypothesis (place-based episodic memory as a fallback when sensor confidence collapses) that deserves its own honest framing rather than being folded into a general "MATHIR vs VectorDB" comparison. The historical latency/anomaly numbers below (§4, original) are retained in that document with full context on what is/isn't validated.
+
+<details>
+<summary>Original section 4 content (kept for reference, superseded by MATHIR_FOR_ROBOTICS.md)</summary>
+
 ## 4. Use Case 2 — Conduite Autonome
 
 An autonomous-driving stack — typically a vision-language model (Qwen3-VL, LLaVA-1.6) or a perception-CNN + RL-policy head — must (a) retrieve past situations similar to the current scene, (b) update the memory in real time as the car drives, (c) flag novel situations (a pedestrian on the highway, a mattress in the fast lane) that the policy has never seen, and (d) run at 10–50 Hz with deterministic latency. This is the **safety-critical** use case: a missed anomaly is a fatality.
@@ -218,6 +227,8 @@ This is the single most important distinction. Consider the input: an embedding 
 | **Total** | **~7.51 GB** | **86–580 ms** |
 
 A FAISS index of 1 M 384-dim vectors (PQ16) takes 2 GB VRAM and 50 ms per query — incompatible with a ~500 MB budget or a 20 ms sub-frame SLA. MATHIR's 60 KB hard-capped memory budget (Theorem 1) is the only option for on-car deployment.
+
+</details>
 
 ---
 
@@ -374,7 +385,7 @@ Four concrete examples that illustrate when to reach for MATHIR versus when a ve
 
 ---
 
-## 9. Doctoral Verdict — The "What" of the Value
+## 9. Verdict — The "What" of the Value
 
 A master's defense panel will ask: *"What does MATHIR bring that a vector database does not, and is it worth the engineering complexity?"* The answer has three layers.
 
@@ -439,7 +450,7 @@ pytest tests/test_approach_d_hybrid.py
 
 | File | Purpose |
 |---|---|
-| `docs/MASTER_RESEARCH_PAPER.md` | Doctoral-level v8.5 paper with 6 theorem proofs |
+| `docs/MASTER_RESEARCH_PAPER.md` | Master's v8.5 paper with 6 theorem proofs |
 | `docs/THEORY_V7.md` | Mathematical foundations (58 KB) |
 | `docs/BENCHMARK_V6_VS_V7.md` | V6 vs V7 benchmark + 5-system v8.5 comparison |
 | `docs/MATHIR_VS_RAG_COMPARISON.md` | V6 RAG / VectorDB comparison (single-fact recall) |
@@ -454,4 +465,4 @@ pytest tests/test_approach_d_hybrid.py
 
 ---
 
-*Generated: 2026-06-02 — MATHIR V8.4.1 Master's defense document. Comments and corrections should be directed to the MATHIR maintainers. The companion doctoral paper is `docs/MASTER_RESEARCH_PAPER.md` (with full theorem proofs and 50-entry bibliography). The companion retrieval-research report is `docs/RETRIEVAL_RESEARCH_REPORT.md`.*
+*Generated: 2026-06-02 — MATHIR V8.4.1 Master's defense document. Comments and corrections should be directed to the MATHIR maintainers. The companion paper is `docs/MASTER_RESEARCH_PAPER.md` (with full theorem proofs and 50-entry bibliography). The companion retrieval-research report is `docs/RETRIEVAL_RESEARCH_REPORT.md`.*
