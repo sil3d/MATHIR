@@ -1491,6 +1491,52 @@ def api_god_poll():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/god/ack", methods=["POST"])
+def api_god_ack():
+    """Mark a god:task as delivered so /api/god/poll stops returning it and
+    surfaces the next queued task instead.
+
+    Without this, /api/god/poll always returns the single oldest still-
+    pending task for an agent -- a caller that reads it but never changes
+    its status (e.g. a passive relay that only wants to *notify*, not run
+    the full worker execute-then-report flow) blocks every task behind it
+    in the queue forever. This route exists specifically for that passive-
+    relay case (see claude_code_hook.py's God Mode relay). Workers running
+    the full task protocol should still report real results via the normal
+    mathir_god_agent flow, not this endpoint.
+    """
+    try:
+        params = _get_params()
+        memory_id = params.get("memory_id", "")
+        new_status = params.get("status", "delivered")
+        if not memory_id:
+            return jsonify({"error": "memory_id is required"}), 400
+
+        vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
+        conn = vec_mem._get_conn()
+        cursor = conn.execute(
+            "SELECT label FROM memories WHERE memory_id = ?", (memory_id,)
+        )
+        row = cursor.fetchone()
+        if not row or not row["label"]:
+            return jsonify({"error": "memory not found"}), 404
+
+        parts = row["label"].split(":")
+        if len(parts) != 5 or parts[0] != "god":
+            return jsonify({"error": "not a god:task label"}), 400
+        parts[4] = new_status
+        new_label = ":".join(parts)
+
+        conn.execute(
+            "UPDATE memories SET label = ? WHERE memory_id = ?",
+            (new_label, memory_id),
+        )
+        conn.commit()
+        return jsonify({"memory_id": memory_id, "label": new_label, "acked": True})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route("/api/god/agents", methods=["GET", "POST"])
 def api_god_agents():
     """List all registered god workers."""
