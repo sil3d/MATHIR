@@ -25,8 +25,13 @@
 [CmdletBinding()]
 param(
     [switch]$SkipTaskScheduler,
-    [switch]$InstallHealthcheck
+    [switch]$SkipHealthcheck
 )
+
+# Healthcheck is installed by default: without it, a daemon that dies
+# mid-session (crash, sleep/resume) stays dead until the next logon, since
+# the registry Run key / Startup folder .vbs only fire once per logon.
+$InstallHealthcheck = -not $SkipHealthcheck
 
 $ErrorActionPreference = 'Stop'
 
@@ -126,25 +131,22 @@ if ($SkipTaskScheduler) {
 if ($InstallHealthcheck) {
     Write-Status '' 'White'
     Write-Status '[opt] Installing healthcheck (every 5 minutes)...' 'Yellow'
-    $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
-        [Security.Principal.WindowsBuiltInRole]::Administrator)
-    if (-not $isAdmin) {
-        Write-Status '  SKIPPED (not running as Administrator)' 'Gray'
-        Write-Status "  To enable manually run this command as admin:" 'Gray'
-        Write-Status "    Register-ScheduledTask -TaskName MATHIR_Daemon_Healthcheck -Action (New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-NoProfile -ExecutionPolicy Bypass -File `"$HealthcheckPath`" -Quiet' -WorkingDirectory '$BinDir') -Trigger (New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Days 3650)) -Settings (New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable) -Principal (New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest)" 'Gray'
-    } else {
-        try {
-            $hcName = 'MATHIR_Daemon_Healthcheck'
-            Unregister-ScheduledTask -TaskName $hcName -Confirm:$false -ErrorAction SilentlyContinue
-            $hcAction  = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$HealthcheckPath`" -Quiet" -WorkingDirectory $BinDir
-            $hcTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Days 3650)
-            $hcSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
-            $hcPrincipal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest
-            Register-ScheduledTask -TaskName $hcName -Action $hcAction -Trigger $hcTrigger -Settings $hcSettings -Principal $hcPrincipal -Description 'MATHIR daemon healthcheck -- restarts daemon if port 7338 is not responding' | Out-Null
-            Write-Status "  OK: Task '$hcName' registered (every 5 minutes)" 'Green'
-        } catch {
-            Write-Status "  FAILED: $_" 'Red'
-        }
+    # Note: unlike the logon auto-start task above, this does NOT need
+    # -RunLevel Highest (the daemon and healthcheck run at user privilege,
+    # not elevated), so registration works fine without Administrator.
+    # Requiring admin here previously left most installs with no self-heal:
+    # the daemon could die mid-session (crash, sleep/resume, OOM) and nothing
+    # would bring it back until the next logon.
+    try {
+        $hcName = 'MATHIR_Daemon_Healthcheck'
+        Unregister-ScheduledTask -TaskName $hcName -Confirm:$false -ErrorAction SilentlyContinue
+        $hcAction  = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$HealthcheckPath`" -Quiet" -WorkingDirectory $BinDir
+        $hcTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Days 3650)
+        $hcSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
+        Register-ScheduledTask -TaskName $hcName -Action $hcAction -Trigger $hcTrigger -Settings $hcSettings -Description 'MATHIR daemon healthcheck -- restarts daemon if port 7338 is not responding' | Out-Null
+        Write-Status "  OK: Task '$hcName' registered (every 5 minutes, no admin required)" 'Green'
+    } catch {
+        Write-Status "  FAILED: $_" 'Red'
     }
 }
 
