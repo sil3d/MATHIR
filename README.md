@@ -31,6 +31,24 @@
 
 <br/>
 
+## 🧠 What is MATHIR, in one paragraph?
+
+MATHIR is a **local, 6-tier memory layer** any LLM/coding agent plugs into over MCP or HTTP. It runs as **one process** (Flask daemon + SQLite/sqlite-vec, no external database), holds memories that **decay, promote, consolidate, and link themselves** (Ebbinghaus-style, not a flat similarity store), and lets **multiple agents on the same machine share it** — Claude, Codex, OpenCode, and a local model can read/write the same memory with zero cloud dependency. As of v8.9.4, a universal proxy also injects that memory into any tool's LLM traffic automatically — no per-tool integration code.
+
+### MATHIR vs. the managed alternatives (Mem0, Zep, Letta)
+
+|  | **MATHIR** | **Mem0 / Zep / Letta (typical)** |
+|---|---|---|
+| **Where it runs** | 100% local — one Python process | Self-host *or* managed cloud API |
+| **Infrastructure** | Single daemon + SQLite (`sqlite-vec`) — zero external services | Orchestrates external services (e.g. Mem0 self-hosted = Qdrant + Postgres + Mem0 itself) |
+| **Cost** | Free, no tier — there is no cloud version to pay for | Free self-hosted; cloud plans from free (10K memories) → $19–249+/mo → custom Enterprise |
+| **Data residency** | Always on your disk | Yours if self-hosted; on their servers if you use the cloud API |
+| **Multi-agent sharing** | Native (God Mode — same local daemon, any agent) | Not a core feature |
+| **License** | MIT | Apache-2.0 (Mem0) |
+| **Retrieval benchmarks** | None published externally yet (internal only, see [Positioning](#-positioning-2026)) | Published LongMemEval / LoCoMo numbers, funded, wider adoption |
+
+**Read this as:** MATHIR trades external validation and managed convenience for zero infrastructure, zero cost, and full local control. If you want a battle-tested hosted memory API today, Mem0/Zep are reasonable choices — see [full honest comparison](#-positioning-2026).
+
 ![MATHIR Architecture](docs/assets/Mathir_architecture.png)
 
 ---
@@ -203,7 +221,10 @@ Routing is fixed in v8.5.1: `mathir_mcp_server.py` injects `project` + `cwd` int
 
 ---
 
-## 🧭 Project Origin — 2 years, 1 question
+<details>
+<summary><b>🧭 Project origin & the problem it solves</b> — click to expand (optional read, 2-min story)</summary>
+
+### Project Origin — 2 years, 1 question
 
 This is the story behind MATHIR. It's also my end-of-study project.
 
@@ -216,6 +237,36 @@ A car following pre-programmed rules in a perfect simulation isn't intelligent �
 That's where MATHIR started. An AI can't be intelligent if it can't **remember** — every session starts from zero, that's amnesia, not intelligence.
 
 **Next step:** MATHIR has been validated in software (27 MCP tools, 6-tier architecture, plug-and-play MCP). The autonomous-driving research direction — testing whether place-based episodic memory can complement (not replace) sensor-fusion robustness when sensors degrade — is being developed as its own track: **[docs/MATHIR_FOR_ROBOTICS.md](docs/MATHIR_FOR_ROBOTICS.md)**.
+
+### The story that hurts
+
+![MATHIR Story](docs/assets/mathir_story.png)
+
+> Monday morning. You open Claude. You tell it: *"My name is Thomas, I'm building a RAG with Python, FastAPI + Postgres."* Claude says: *"Got it, I'll remember that."*
+>
+> 3 months later. You switch to Cursor + Llama 3.1. **Llama: "Hi! Who are you?"**
+> Everything Claude "remembered"? Gone. Vendor-locked.
+>
+> 6 months of memory. **Wiped in 3 seconds.** Because your memory doesn't belong to you.
+
+And the autonomous vehicle:
+
+> 2:32 PM. The Tesla learns that a yellow pedestrian marker at a crosswalk = slow down. Pattern stored.
+> 2:33 PM. OTA restart. Memory is wiped. **Next time, it won't slow down.**
+> 2:35 PM. 80 km/h. Zero detection. Zero alerts. Zero memory.
+>
+> **A car that doesn't remember = a car that doesn't understand.**
+
+What MATHIR changes:
+
+![MATHIR Story 2 — The Solution](docs/assets/mathir_story2.png)
+
+✅ Memory that follows you everywhere — SQLite local, MIT, zero vendor lock-in.
+✅ Memory that improves — +37.8% online learning, not static facts.
+✅ Anomaly detected in <1ms — immunological tier, AUC = 1.0.
+✅ Runs on edge — 240 MB VRAM, Jetson Orin ✅, Raspberry Pi ⚠️, zero cloud.
+
+</details>
 
 ---
 
@@ -231,9 +282,7 @@ That's where MATHIR started. An AI can't be intelligent if it can't **remember**
 
 ---
 
-## 🧠 What is MATHIR?
-
-A plug-and-play **6-tier cognitive memory** layer for any LLM:
+## 🍰 The 6 Memory Tiers
 
 | Tier | Role | Example |
 |---|---|---|
@@ -296,7 +345,7 @@ Add MATHIR to your AI agent (OpenCode, Claude Code, Cursor, MiMo, etc.):
 }
 ```
 
-**That's it.** 26 tools (`memory_save`, `memory_recall`, `mathir_god_orchestre`, `mathir_god_agent`, etc.) — all your agents.
+**That's it.** 27 tools (`memory_save`, `memory_recall`, `mathir_god_orchestre`, `mathir_god_agent`, etc.) — all your agents.
 
 Full MCP config: [mathir_mcp/INSTALL_FOR_AGENT/AGENT.md](mathir_mcp/INSTALL_FOR_AGENT/AGENT.md) (50+ agents).
 
@@ -304,7 +353,7 @@ Full MCP config: [mathir_mcp/INSTALL_FOR_AGENT/AGENT.md](mathir_mcp/INSTALL_FOR_
 
 | Command | What it does |
 |---|---|
-| `mathir-mcp` | MCP stdio server (26 tools, 2 prompts) |
+| `mathir-mcp` | MCP stdio server (27 tools, 2 prompts) |
 | `mathir-server` | HTTP unified server (port 7338) |
 | `mathir-client` | CLI client: `mathir-client recall "my query"` |
 | `mathir-dashboard` | Stats dashboard (port 7420) |
@@ -319,7 +368,7 @@ Install: `pip install -e ./mathir_mcp`
 
 | Doc | Purpose |
 |---|---|
-| **[mathir_mcp/README.md](mathir_mcp/README.md)** | Install, MCP setup, all 26 tools |
+| **[mathir_mcp/README.md](mathir_mcp/README.md)** | Install, MCP setup, all 27 tools |
 | **[mathir_mcp/INSTALL_FOR_AGENT/AGENT.md](mathir_mcp/INSTALL_FOR_AGENT/AGENT.md)** | Per-agent MCP config (50+ agents) |
 | **[mathir_mcp/docs/DAEMON.md](mathir_mcp/docs/DAEMON.md)** | Daemon HTTP API + JSON-RPC protocol |
 | **[mathir_mcp/docs/DIMENSIONS.md](mathir_mcp/docs/DIMENSIONS.md)** | Embedding model selection |
