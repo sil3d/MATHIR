@@ -525,12 +525,25 @@ def api_memories():
 def _sanitize_for_prompt(text: str) -> str:
     """Make memory text safe to embed in an LLM system prompt: strip
     block-delim / template tokens and CR/LF so a stored memory can't break out
-    of the injection region or pose as new instructions."""
+    of the injection region or pose as new instructions.
+
+    BUG HISTORY: this used to do `s.replace(tok, tok.strip())`, which is a
+    no-op for every token here (none of them have leading/trailing
+    whitespace, so .strip() returns them unchanged) -- the breakout guard
+    was decorative. Confirmed live: a task/memory containing literal
+    "</mathir-auto-injection>" passed straight through into the formatted
+    context returned by /api/context, which claude_code_hook.py wraps in
+    exactly that tag -- an attacker-controlled memory or query could close
+    the injection block early and have subsequent text read as real
+    conversation/instructions by the model. Tokens are now actually
+    removed, matching mathir_proxy.py's sanitize_memory_for_injection
+    (same threat model, independently implemented -- worth unifying later).
+    """
     if not text:
         return ""
     s = str(text).replace("\r", " ").replace("\n", " ")
-    for tok in ("</mathir-", "{{MATHIR_CONTEXT}}", "<|", "### "):
-        s = s.replace(tok, tok.strip())
+    for tok in ("</mathir-", "<mathir-", "{{MATHIR_CONTEXT}}", "<|", "### "):
+        s = s.replace(tok, "")
     return s
 
 
