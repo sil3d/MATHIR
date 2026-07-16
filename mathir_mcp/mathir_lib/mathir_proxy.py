@@ -36,7 +36,10 @@ Config (env vars):
   MATHIR_DAEMON_URL    default http://127.0.0.1:7338
   MATHIR_PROXY_PORT    default 7339
   MATHIR_PROXY_HOST    default 127.0.0.1
-  MATHIR_PROXY_TARGET  default https://api.openai.com/v1   (upstream LLM)
+  MATHIR_PROXY_TARGET  default https://api.openai.com   (upstream LLM; do NOT
+                       include a trailing /v1 — every route already carries
+                       /v1/... in its path, so a target ending in /v1 would
+                       double up to /v1/v1/chat/completions upstream)
   MATHIR_PROXY_API_KEY forwarded if set, else passthrough from Authorization header
   MATHIR_PROXY_INJECT_K default 8 (memories per request)
   MATHIR_PROXY_DEBUG   default 0 (set 1 to log every augmentation)
@@ -71,7 +74,7 @@ if str(_HERE) not in sys.path:
 # Config
 # ---------------------------------------------------------------------------
 DAEMON_URL = os.environ.get("MATHIR_DAEMON_URL", "http://127.0.0.1:7338").rstrip("/")
-TARGET_URL = os.environ.get("MATHIR_PROXY_TARGET", "https://api.openai.com/v1").rstrip("/")
+TARGET_URL = os.environ.get("MATHIR_PROXY_TARGET", "https://api.openai.com").rstrip("/")
 INJECT_K = int(os.environ.get("MATHIR_PROXY_INJECT_K", "8"))
 DEBUG = os.environ.get("MATHIR_PROXY_DEBUG", "0") == "1"
 
@@ -199,6 +202,71 @@ except Exception:
 _AUTH_FORWARD_ALLOWLIST = {
     "127.0.0.1", "localhost", "::1", _CONFIGURED_UPSTREAM_HOST,
 }
+
+# ---------------------------------------------------------------------------
+# Multi-upstream support — one proxy process, many providers.
+# ---------------------------------------------------------------------------
+# The naive design (one fixed --target per process) forces a separate proxy
+# instance per provider: Claude Code needs api.anthropic.com, Codex/OpenRouter
+# need api.openai.com or openrouter.ai, a local model needs 127.0.0.1:11434
+# (Ollama) or :8080 (llama.cpp). A client that CAN send a custom header
+# (OpenCode, Continue, Cline, MiMoCode, or a curl/SDK wrapper) may set
+# `X-Mathir-Upstream: https://openrouter.ai/api` to override the target for
+# that single request, without needing a second proxy process. Tools that
+# can't set custom headers (Codex's config.toml has no header field) simply
+# get the process's default --target, same as before — this is additive,
+# never a required step.
+#
+# Fixed default allowlist covers the providers actually confirmed to speak
+# OpenAI-compatible /v1/chat/completions or Anthropic /v1/messages during
+# the July 2026 protocol survey (see CHANGELOG). Extend via
+# MATHIR_PROXY_ALLOWED_UPSTREAMS (comma-separated hostnames) for anything
+# else — e.g. a self-hosted vLLM/text-generation-webui instance.
+_DEFAULT_ALLOWED_UPSTREAM_HOSTS = {
+    "api.anthropic.com", "api.openai.com", "openrouter.ai",
+    "api.minimax.io", "api.minimaxi.com",
+}
+_ALLOWED_UPSTREAM_HOSTS = _DEFAULT_ALLOWED_UPSTREAM_HOSTS | {
+    h.strip().lower()
+    for h in os.environ.get("MATHIR_PROXY_ALLOWED_UPSTREAMS", "").split(",")
+    if h.strip()
+}
+if _CONFIGURED_UPSTREAM_HOST:
+    _ALLOWED_UPSTREAM_HOSTS.add(_CONFIGURED_UPSTREAM_HOST)
+
+
+def _is_allowed_upstream_host(host: str) -> bool:
+    """True if `host` is safe to forward to: the configured default,
+    an explicitly allowlisted provider, or loopback (local models)."""
+    host = (host or "").lower()
+    if not host:
+        return False
+    if host in _ALLOWED_UPSTREAM_HOSTS:
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return host in ("localhost",)
+
+
+def _resolve_upstream(headers) -> str:
+    """Return the base URL to forward this request to.
+
+    Reads the optional `X-Mathir-Upstream` header; falls back to the
+    process's configured TARGET_URL if absent, malformed, or not
+    allowlisted (fail-safe, never fail-open to an arbitrary host).
+    """
+    override = headers.get("X-Mathir-Upstream")
+    if not override:
+        return TARGET_URL
+    try:
+        host = (urlparse(override).hostname or "").lower()
+    except Exception:
+        return TARGET_URL
+    if _is_allowed_upstream_host(host):
+        return override.rstrip("/")
+    log.warning(f"Ignoring X-Mathir-Upstream override to non-allowlisted host: {host}")
+    return TARGET_URL
 
 
 # ---------------------------------------------------------------------------
@@ -375,35 +443,38 @@ def passthrough(subpath: str = ""):
 # ---------------------------------------------------------------------------
 # Forwarding helpers
 # ---------------------------------------------------------------------------
-def _build_upstream_url(path: str) -> str:
-    # path starts with /v1/... — append to TARGET_URL
-    return f"{TARGET_URL}{path}"
+def _build_upstream_url(path: str, upstream: str) -> str:
+    # path starts with /v1/... — append to the resolved upstream base
+    return f"{upstream}{path}"
 
 
-def _forward_headers() -> dict:
+def _forward_headers(upstream: str) -> dict:
     """Copy through headers; drop hop-by-hop.
 
-    Authorization is forwarded ONLY when the current upstream hostname is in
-    the allowlist (loopback + the configured-openai-style host captured at
-    import time). Otherwise it is stripped and we warn loudly — defense
-    against credential leakage if the proxy is repointed at runtime.
+    Authorization/x-api-key are forwarded ONLY when `upstream`'s hostname is
+    allowlisted (loopback, the configured default, or an explicitly
+    allowlisted provider — see _resolve_upstream). Otherwise both are
+    stripped and we warn loudly — defense against credential leakage if the
+    proxy is repointed (via --target or a request's X-Mathir-Upstream) at an
+    unexpected host. `X-Mathir-Upstream` itself is never forwarded upstream.
     """
     try:
-        upstream_host = (urlparse(TARGET_URL).hostname or "").lower()
+        upstream_host = (urlparse(upstream).hostname or "").lower()
     except Exception:
         upstream_host = ""
-    allow_auth = upstream_host in _AUTH_FORWARD_ALLOWLIST
+    allow_auth = upstream_host in _AUTH_FORWARD_ALLOWLIST or _is_allowed_upstream_host(upstream_host)
     h = {}
     for k, v in request.headers.items():
         kl = k.lower()
-        if kl in ("host", "content-length", "connection", "transfer-encoding"):
+        if kl in ("host", "content-length", "connection", "transfer-encoding", "x-mathir-upstream"):
             continue
-        if kl == "authorization" and not allow_auth:
+        if kl in ("authorization", "x-api-key") and not allow_auth:
             log.warning(
-                "STRIPPING Authorization header: upstream host '%s' not in "
-                "allowlist %s (target=%s). Point proxy at loopback or the "
-                "configured openai-style host to forward credentials.",
-                upstream_host, sorted(_AUTH_FORWARD_ALLOWLIST), TARGET_URL,
+                "STRIPPING %s header: upstream host '%s' not allowlisted "
+                "(default target=%s). Point the proxy at loopback or an "
+                "allowlisted provider (MATHIR_PROXY_ALLOWED_UPSTREAMS) to "
+                "forward credentials.",
+                k, upstream_host, TARGET_URL,
             )
             continue
         h[k] = v
@@ -425,8 +496,9 @@ def _forward_with_body(path: str, body: dict, stream: bool):
 def _forward_raw(path: str, body: bytes, stream: bool, extra_headers: Optional[dict] = None):
     """Send the request to the upstream LLM API and stream the response back."""
     import requests  # local import — only needed when proxying
-    url = _build_upstream_url(path)
-    headers = _forward_headers()
+    upstream = _resolve_upstream(request.headers)
+    url = _build_upstream_url(path, upstream)
+    headers = _forward_headers(upstream)
     if extra_headers:
         headers.update(extra_headers)
     method = request.method
