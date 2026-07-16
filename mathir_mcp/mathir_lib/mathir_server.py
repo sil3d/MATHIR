@@ -48,6 +48,14 @@ os.environ.setdefault("TQDM_DISABLE", "1")
 # ---------------------------------------------------------------------------
 _HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(_HERE))
+# Also expose the parent dir so `mathir_lib` (the package, e.g. its
+# __init__.py constants like GUARDRAIL_MAX_PER_PROJECT) is importable by
+# name even in script mode -- `from . import X` fails outright when this
+# file is run directly (no parent package), and a same-directory sibling
+# import can't reach __init__.py either since __init__ isn't importable
+# by that name. This line is what makes a `from mathir_lib import X`
+# fallback actually work, in both script and package launch modes.
+sys.path.insert(0, str(_HERE.parent))
 
 # ---------------------------------------------------------------------------
 # Logging — stderr + rotating file (independent of launcher pipe redirection
@@ -810,7 +818,10 @@ def memory_save():
         # Guardrail tier: enforce min priority and per-project limit
         if block_type == 'guardrail':
             params['priority'] = max(int(params.get('priority', 8)), 8)
-            from . import GUARDRAIL_MAX_PER_PROJECT
+            try:
+                from . import GUARDRAIL_MAX_PER_PROJECT
+            except ImportError:
+                from mathir_lib import GUARDRAIL_MAX_PER_PROJECT
             count = vec_mem.count_guardrails(project=params.get('project'))
             if count >= GUARDRAIL_MAX_PER_PROJECT:
                 return jsonify({
