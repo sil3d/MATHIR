@@ -560,3 +560,4 @@ Full paper: [docs/MATHIR_Research_Paper.tex](docs/MATHIR_Research_Paper.tex)
 ## 📜 License
 
 [MIT](LICENSE) — free for commercial and research use.
+
