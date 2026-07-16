@@ -219,10 +219,10 @@ Your memory is **alive**. It has **6 tiers** and a full lifecycle (Ebbinghaus fo
 | **`episodic`** | Events that happened: bugs fixed, decisions made, sessions completed | "On 2026-06-15 we hit a connection pool exhaustion bug and fixed it by increasing pool size to 50" |
 | **`semantic`** | Stable knowledge, facts, patterns that apply broadly | "Our REST API uses /v2/ prefix and JWT auth — applies to all new endpoints" |
 | **`procedural`** | How-to recipes, repeatable procedures, runbooks | "How-to: rotate the database password: 1) stop service 2) update secret 3) restart" |
-| **`guardrail`** | Critical rules always injected into every context response. Push-based, immune to decay. | "Never hardcode ports — use config files" |
 | **`immunological`** | Threat signatures, detected anomalies, prompt-injection patterns, quarantined unsafe memories | "Detected prompt-injection signature: 'ignore previous instructions' with score 0.94 — auto-quarantined" |
+| **`guardrail`** | Critical rules always injected into every context response. Push-based, immune to decay. | "Never hardcode ports — use config files" |
 
-**Rule of thumb:** start with `episodic` for most things. The lifecycle will auto-promote to `semantic` if the memory is recalled often enough. Use `working_memory` for session-scoped stuff (it's promoted to episodic on session end). Use `procedural` for runbooks (label must start with `how-to:` or `recipe:`). Use `immunological` to store detected threat patterns and anomalies — this tier is queryable, writable, and is the system's immune system for flagging and quarantining unsafe content.
+**Rule of thumb:** start with `episodic` for most things. The lifecycle will auto-promote to `semantic` if the memory is recalled often enough. Use `working_memory` for session-scoped stuff (it's promoted to episodic on session end). Use `procedural` for runbooks (label must start with `how-to:` or `recipe:`). Use `guardrail` for critical rules the LLM must always see (min priority 8, max 50/project). Use `immunological` for detected threat patterns.
 
 ### 27 MCP tools at your disposal
 
