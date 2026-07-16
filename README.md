@@ -200,20 +200,13 @@ MATHIR has **2 long-running processes** + **1 cross-tool instruction file**:
 | **B — Instructions + MCP** | MCP server registered + `GLOBAL_INSTRUCTIONS.md` injected. Agent must follow the advisory instruction to call `memory_session_start` — **or upgrade to the proxy below for a hard guarantee (v8.9.4+)** | claude-code, cursor, cline, zcode, codex, etc. (14 agents) | SOFT — agent must comply, unless proxied |
 | **C — Universal proxy** | Point `ANTHROPIC_BASE_URL` or `OPENAI_BASE_URL` at the proxy (port 7339) — no MCP, no agent cooperation, works identically for every tool pointed at it | Any tool with a custom-base-URL setting: windsurf, gemini-cli, kilo, qwen, kiro-ide, warp, trae, crush, claude-code, codex, local models (Ollama/llama.cpp), etc. | HARD — set `ANTHROPIC_BASE_URL=http://127.0.0.1:7339` for Anthropic-native tools (no `/v1` — matches the Anthropic SDK's own base-URL convention), or `OPENAI_BASE_URL=http://127.0.0.1:7339/v1` for OpenAI-compatible tools (`/v1` required — matches the OpenAI SDK's default) |
 
-**Universal escape hatches** (escape from tier C → true auto-inject):
-
-1. **`mathir-proxy` on port 7339** — OpenAI-compatible LLM proxy. Intercepts every `/v1/chat/completions`, queries daemon `/api/context`, prepends `<mathir-auto-injection>` block to system prompt. **Works for ANY agent that redirects its baseUrl**.
-   ```bash
-   export OPENAI_BASE_URL=http://127.0.0.1:7339/v1
-   ```
-
-2. **`AGENTS.md` at repo root** — read automatically by 26+ agents (Aider, Amp, Claude Code, Codex, Cursor, Devin, Factory, Goose, JetBrains Junie, Jules, OpenCode, VS Code Copilot, Warp, Zed, etc. — see [agents.md](https://agents.md)). Instructs the agent to call `memory_session_start` on first turn + `memory_context` before each task.
-   ```bash
-   cp mathir_mcp/opencode_templates/AGENTS.md /path/to/your/project/AGENTS.md
-   ```
+**Additional escape hatch — `AGENTS.md` at your project root:** read automatically by 26+ agents (Aider, Amp, Claude Code, Codex, Cursor, Devin, Factory, Goose, JetBrains Junie, Jules, OpenCode, VS Code Copilot, Warp, Zed, etc. — real open standard, [agents.md](https://agents.md), 60,000+ projects as of Dec 2025). Instructs the agent to call `memory_session_start` on first turn + `memory_context` before each task — a soft guarantee like tier B, but works even for agents not in the tier table above.
+```bash
+cp mathir_mcp/opencode_templates/AGENTS.md /path/to/your/project/AGENTS.md
+```
 
 **Per-project DB routing** — each project gets its own `.mathir/mathir.db`:
-- Mycerise_V2_Taur → `Mycerise_V2_Taur/.mathir/mathir.db`
+- `your-project/` → `your-project/.mathir/mathir.db`
 - mathir_mcp (installer) → `~/.config/MATHIR/mathir_mcp/.mathir/mathir.db`
 - Future projects → `<project>/.mathir/mathir.db` (auto-created on first save)
 
