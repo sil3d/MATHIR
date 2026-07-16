@@ -136,9 +136,9 @@ MATHIR is the **Architecture + Framework** — like "Transformer + HuggingFace" 
 
 ---
 
-## 4. Memory Tiers (5-Tier Hierarchical) {#4-memory-tiers}
+## 4. Memory Tiers (6-Tier Hierarchical) {#4-memory-tiers}
 
-### Q4.1: What are the 5 memory tiers in MATHIR?
+### Q4.1: What are the 6 memory tiers in MATHIR?
 **A:**
 | Tier | Capacity | Function | Update Rate |
 |------|----------|----------|-------------|
@@ -147,17 +147,23 @@ MATHIR is the **Architecture + Framework** — like "Transformer + HuggingFace" 
 | **semantic** | 256 prototypes | Learned concepts (online k-means) | Every 100 steps |
 | **procedural** | 128 slots | Skills and how-to patterns | On event |
 | **immunological** | 100 slots | Anomaly detection via Mahalanobis distance | On event |
+| **guardrail** | 50/project | Critical rules, always auto-injected | Manual (`memory_save` with `block_type=guardrail`), immune to decay |
+
+The first five are the original V6/V7 architecture. **guardrail** was added in v8.9.0 as a 6th tier — see Q4.2a for why it's architecturally different from the other five.
 
 ### Q4.2: Why is this inspired by the brain?
-**A:** The 5 canonical tiers mirror the **Complementary Learning Systems (CLS)** theory of McClelland, McNaughton, and O'Reilly (1995):
+**A:** The original 5 tiers mirror the **Complementary Learning Systems (CLS)** theory of McClelland, McNaughton, and O'Reilly (1995):
 - working_memory ↔ Prefrontal cortex
 - episodic ↔ Hippocampus
 - semantic ↔ Neocortex
 - procedural ↔ Basal ganglia (skills, habits)
 - immunological ↔ Amygdala (threat detection)
 
+### Q4.2a: Where does guardrail fit in the CLS mapping?
+**A:** It doesn't, deliberately. guardrail isn't a natural-memory analogue like the other five — it's an engineering addition for a problem CLS theory doesn't address: rules that must be seen every time, not rules that compete for recall. The closest loose analogy is a reflex arc (bypasses deliberation entirely) rather than any of the five learning/consolidation systems above; treat that as an intuition pump, not a formal claim. See Q4.3 for how this changes the routing story.
+
 ### Q4.3: How does the router decide which tier to use?
-**A:** A **KL-constrained softmax** over 5 weights. A trust-region penalty prevents collapse to a single tier (always using one memory type).
+**A:** A **KL-constrained softmax** over the 5 adaptive tiers (working_memory, episodic, semantic, procedural, immunological) — a trust-region penalty prevents collapse to a single tier. **guardrail bypasses the router entirely**: it's push-based, not selected — every active guardrail for the project is injected into `/api/context` / `memory_context` on every call, unconditionally, before any router-selected memories.
 
 ### Q4.4: Can I customize the capacities?
 **A:** **YES** — all capacities are config-driven:
