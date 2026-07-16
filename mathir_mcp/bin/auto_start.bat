@@ -24,6 +24,12 @@ set "BIN_DIR=%USERPROFILE%\.config\MATHIR\mathir_mcp\mathir_lib"
 set "DAEMON_PATH=%BIN_DIR%\mathir_server.py"
 set "LOG_PATH=%USERPROFILE%\.config\MATHIR\logs\mathir_daemon.log"
 set "PORT=7338"
+REM Universal proxy (see mathir_proxy.py) — same lifecycle as the daemon so
+REM it never sits dead while the daemon is healthy. Starting it is harmless
+REM even if no tool is pointed at it yet: it just listens on 7339 idle.
+set "PROXY_PATH=%BIN_DIR%\mathir_proxy.py"
+set "PROXY_LOG_PATH=%USERPROFILE%\.config\MATHIR\logs\mathir_proxy.log"
+set "PROXY_PORT=7339"
 
 REM ---- Resolve Python dynamically (cmd-only, no hardcoded install path) -----
 REM Priority: PATH (`where python`) > py launcher > common install locations
@@ -80,5 +86,13 @@ echo [%date% %time%] Daemon launched (see log for startup progress) >> "%LOG_PAT
 echo [%date% %time%] Use auto_start_helpers.ps1 to verify port %PORT% is open.
 echo Daemon launch requested. PID will appear in mathir_daemon.log.
 echo Log: "%LOG_PATH%"
+
+REM ---- Launch universal proxy detached (best-effort, non-fatal) -------------
+REM Missing script or missing flask/waitress must never block the daemon
+REM launch above — this section only ever adds capability, never breaks it.
+if exist "%PROXY_PATH%" (
+    start "MATHIR_PROXY" /B "%PYTHON_PATH%" "%PROXY_PATH%" --port %PROXY_PORT% --target https://api.anthropic.com >> "%PROXY_LOG_PATH%" 2>&1
+    echo [%date% %time%] Proxy launch requested (port %PROXY_PORT%, see mathir_proxy.log) >> "%LOG_PATH%"
+)
 
 endlocal & exit /b 0

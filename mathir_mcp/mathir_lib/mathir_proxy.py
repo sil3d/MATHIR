@@ -318,6 +318,52 @@ def completions():
     return _forward_with_body(request.path, body, stream=bool(isinstance(body, dict) and body.get("stream")))
 
 
+def _augment_anthropic_system(body: dict, context: str) -> dict:
+    """Inject MATHIR context into an Anthropic Messages API request.
+
+    Anthropic's `system` field is already top-level (string or list of
+    {"type": "text", ...} blocks) — unlike OpenAI, there's no need to hunt
+    through `messages` for a system role.
+    """
+    safe_context = sanitize_memory_for_injection(context)
+    block = {"type": "text", "text": f"<mathir-auto-injection>\n{safe_context}\n</mathir-auto-injection>"}
+    system = body.get("system")
+    if system is None:
+        body["system"] = [block]
+    elif isinstance(system, str):
+        body["system"] = [{"type": "text", "text": system}, block] if system else [block]
+    elif isinstance(system, list):
+        body["system"] = system + [block]
+    return body
+
+
+@app.route("/v1/messages", methods=["POST"])
+def anthropic_messages():
+    """Augment system prompt with MATHIR context, Anthropic Messages API.
+
+    This is the endpoint Claude Code (and anything else speaking Anthropic's
+    native protocol, not the OpenAI-compatible one) actually calls — without
+    this route, pointing ANTHROPIC_BASE_URL here would silently fall through
+    to plain passthrough with zero injection.
+    """
+    body = request.get_json(force=True, silent=True) or {}
+    messages = body.get("messages") if isinstance(body, dict) else None
+    if not isinstance(messages, list):
+        return _forward(request.path, stream=bool(isinstance(body, dict) and body.get("stream")))
+
+    task = _extract_last_user_message(messages)
+    context = _fetch_context(task)
+    if context:
+        body = _augment_anthropic_system(body, context)
+        if DEBUG:
+            log.info(f"augmented anthropic request (task='{task[:60]}...', +{len(context)} chars context)")
+    elif DEBUG:
+        log.info(f"no context for anthropic task='{(task[:60] + '...') if task else '(empty)'}'")
+
+    stream = bool(body.get("stream"))
+    return _forward_with_body(request.path, body, stream=stream)
+
+
 @app.route("/v1/embeddings", methods=["POST"])
 @app.route("/v1/models", methods=["GET"])
 @app.route("/v1/<path:subpath>", methods=["GET", "POST", "PUT", "DELETE"])

@@ -23,6 +23,9 @@ $ErrorActionPreference = 'Stop'
 
 # ---- Configuration ---------------------------------------------------------
 $Port          = 7338
+$ProxyPort     = 7339  # universal injection proxy (mathir_proxy.py) — same
+                       # lifecycle as the daemon, checked here too so it
+                       # doesn't sit dead while the daemon is healthy.
 $BinDir        = Join-Path $env:USERPROFILE '.config\MATHIR\mathir_mcp\bin'
 $LogPath       = Join-Path $BinDir 'mathir_healthcheck.log'
 $AutoStartBat  = Join-Path $BinDir 'auto_start.bat'
@@ -71,12 +74,23 @@ function Test-DaemonPort {
 # ---- Main ------------------------------------------------------------------
 Write-HealthLog 'INFO' "Healthcheck started (PID $PID, user $env:USERNAME)"
 
-if (Test-DaemonPort -PortToTest $Port) {
+$daemonUp = Test-DaemonPort -PortToTest $Port
+$proxyUp  = Test-DaemonPort -PortToTest $ProxyPort
+
+if ($daemonUp) {
     Write-HealthLog 'OK' "Daemon is healthy (port $Port open)"
-    exit 0
+} else {
+    Write-HealthLog 'WARN' "Port $Port is NOT open -- daemon is down or starting up."
+}
+if ($proxyUp) {
+    Write-HealthLog 'OK' "Proxy is healthy (port $ProxyPort open)"
+} else {
+    Write-HealthLog 'WARN' "Port $ProxyPort is NOT open -- universal proxy is down or starting up."
 }
 
-Write-HealthLog 'WARN' "Port $Port is NOT open -- daemon is down or starting up."
+if ($daemonUp -and $proxyUp) {
+    exit 0
+}
 
 if ($CheckOnly) {
     Write-HealthLog 'WARN' '-CheckOnly specified, not starting daemon.'
@@ -110,11 +124,18 @@ try {
 
 Write-HealthLog 'INFO' "auto_start.bat exited with code $exitCode"
 
-# Final verification
-if (Test-DaemonPort -PortToTest $Port) {
+# Final verification (daemon is required; proxy is best-effort/optional --
+# it's only load-bearing once a tool is actually pointed at it)
+$daemonOk = Test-DaemonPort -PortToTest $Port
+$proxyOk  = Test-DaemonPort -PortToTest $ProxyPort
+if ($daemonOk) {
     Write-HealthLog 'OK' "Daemon is healthy after restart (port $Port open)"
-    exit 0
 } else {
     Write-HealthLog 'ERROR' "Daemon STILL not listening on port $Port after restart attempt"
-    exit 1
 }
+if ($proxyOk) {
+    Write-HealthLog 'OK' "Proxy is healthy after restart (port $ProxyPort open)"
+} else {
+    Write-HealthLog 'WARN' "Proxy still not listening on port $ProxyPort after restart attempt"
+}
+if ($daemonOk) { exit 0 } else { exit 1 }

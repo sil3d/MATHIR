@@ -1,0 +1,14 @@
+[Unit]
+Description=MATHIR Universal LLM Injection Proxy
+After=network.target mathir-daemon.service
+Wants=mathir-daemon.service
+
+[Service]
+Type=simple
+Environment=PATH=%h/.local/bin:%h/miniconda3/bin:%h/anaconda3/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/bin/sh -c 'exec "$(command -v python3 || command -v python)" %h/.config/MATHIR/mathir_mcp/mathir_lib/mathir_proxy.py --port 7339 --target https://api.anthropic.com'
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
