@@ -21,7 +21,6 @@ SAFE BY DEFAULT
 WHAT GETS SYNCED (source -> destination)
 ========================================
   mathir_lib/*.py          ->  bin/*.py       (MCP server, daemon, vec, etc.)
-  brain/*.py               ->  bin/*.py       (brain subsystem)
   config/*.json            ->  config/*.json  (JSON configs)
   docs/*.md                ->  docs/*.md      (documentation)
   GLOBAL_INSTRUCTIONS.md   ->  GLOBAL_INSTRUCTIONS.md
@@ -84,9 +83,11 @@ from pathlib import Path
 # What to sync from source -> destination
 # (source_subpath, dest_subpath, file_pattern, description)
 SYNC_PLAN = [
-    # Python modules: mathir_lib/ + brain/ -> bin/
+    # Python modules: mathir_lib/ -> bin/
+    # (the old "brain/" subsystem was removed: it was a stale, unimported
+    # fork of mathir_lib/mathir_brain.py + friends, confirmed superseded by
+    # diff+mtime and already flagged "legacy" in tests/test_module_tree.py)
     ("mathir_lib", "bin", "*.py", "Python modules (mathir_lib)"),
-    ("brain", "bin", "*.py", "Brain subsystem (brain/)"),
     # Configs
     ("config", "config", "*.json", "JSON configs"),
     # Docs
