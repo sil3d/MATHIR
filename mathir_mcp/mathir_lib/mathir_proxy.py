@@ -217,15 +217,45 @@ _AUTH_FORWARD_ALLOWLIST = {
 # get the process's default --target, same as before — this is additive,
 # never a required step.
 #
-# Fixed default allowlist covers the providers actually confirmed to speak
-# OpenAI-compatible /v1/chat/completions or Anthropic /v1/messages during
-# the July 2026 protocol survey (see CHANGELOG). Extend via
+# Fixed default allowlist covers the providers a July 2026 survey of ~100+
+# coding-agent backends (Claude Code, Codex, OpenCode [75+ endpoints out of
+# the box], Cline [30+ providers], Aider, Continue, Zed, Windsurf, Cursor,
+# Kilo, MiMoCode, ...) actually resolve to. Two wire formats dominate
+# (OpenAI-compatible /v1/chat/completions, Anthropic /v1/messages) but the
+# *hostnames* behind them are numerous — this list is the practical ceiling
+# of "providers with a stable, well-known hostname". Extend via
 # MATHIR_PROXY_ALLOWED_UPSTREAMS (comma-separated hostnames) for anything
-# else — e.g. a self-hosted vLLM/text-generation-webui instance.
+# self-hosted or newer than this list (vLLM, text-generation-webui, a
+# freshly-launched provider, an enterprise gateway).
 _DEFAULT_ALLOWED_UPSTREAM_HOSTS = {
-    "api.anthropic.com", "api.openai.com", "openrouter.ai",
-    "api.minimax.io", "api.minimaxi.com",
+    # Frontier labs — native or OpenAI/Anthropic-compatible endpoints
+    "api.anthropic.com", "api.openai.com", "api.x.ai",
+    "generativelanguage.googleapis.com",
+    # Universal routers / aggregators (each one alone re-exports dozens of
+    # models under a single hostname — highest coverage-per-entry)
+    "openrouter.ai", "api.together.xyz", "api.together.ai",
+    "api.fireworks.ai", "api.groq.com", "api.cerebras.ai",
+    "api.deepinfra.com", "api.novita.ai", "api.hyperbolic.xyz",
+    "api.siliconflow.com", "api.siliconflow.cn", "api.anyscale.com",
+    "api.octoai.cloud", "api.lepton.ai", "api.perplexity.ai",
+    "api.replicate.com",
+    # Direct model-provider APIs frequently targeted by coding agents
+    "api.mistral.ai", "api.deepseek.com", "api.moonshot.cn",
+    "api.moonshot.ai", "api.z.ai", "api.minimax.io", "api.minimaxi.com",
+    "dashscope.aliyuncs.com", "api.01.ai", "api.lingyiwanwu.com",
+    "api.cohere.com", "api.cohere.ai", "api.baichuan-ai.com",
+    "api.zhipuai.cn",
+    # Inference-hosting platforms coding agents commonly proxy through
+    "api-inference.huggingface.co", "api.huggingface.co",
 }
+
+# Providers whose real hostname is a per-account/per-region subdomain
+# (Azure OpenAI, AWS Bedrock) can't be exact-matched — allowlist by suffix.
+_DEFAULT_ALLOWED_UPSTREAM_SUFFIXES = (
+    ".openai.azure.com",          # Azure OpenAI: <resource>.openai.azure.com
+    ".bedrock-runtime.amazonaws.com",  # AWS Bedrock: bedrock-runtime.<region>.amazonaws.com
+)
+
 _ALLOWED_UPSTREAM_HOSTS = _DEFAULT_ALLOWED_UPSTREAM_HOSTS | {
     h.strip().lower()
     for h in os.environ.get("MATHIR_PROXY_ALLOWED_UPSTREAMS", "").split(",")
@@ -237,11 +267,16 @@ if _CONFIGURED_UPSTREAM_HOST:
 
 def _is_allowed_upstream_host(host: str) -> bool:
     """True if `host` is safe to forward to: the configured default,
-    an explicitly allowlisted provider, or loopback (local models)."""
+    an explicitly allowlisted provider (exact host or known dynamic-
+    subdomain suffix like Azure/Bedrock), or loopback (local models:
+    Ollama, llama.cpp, LM Studio, vLLM, text-generation-webui, ..., all
+    of which run on 127.0.0.1 regardless of port)."""
     host = (host or "").lower()
     if not host:
         return False
     if host in _ALLOWED_UPSTREAM_HOSTS:
+        return True
+    if any(host.endswith(suffix) for suffix in _DEFAULT_ALLOWED_UPSTREAM_SUFFIXES):
         return True
     try:
         return ipaddress.ip_address(host).is_loopback
