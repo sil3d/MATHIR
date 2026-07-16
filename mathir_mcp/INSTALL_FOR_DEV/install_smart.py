@@ -873,6 +873,38 @@ def write_config(path: Path, data: Dict):
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 
+def _install_claude_code_hook(config_dir: Path) -> str:
+    """Wire MATHIR's UserPromptSubmit hook into ~/.claude/settings.json.
+
+    Without this, MATHIR only reaches the model when it decides to call an
+    MCP tool -- an on-demand, pull-based path the agent can simply forget to
+    use (or skip because it "thinks" it doesn't need memory this turn). The
+    hook makes injection push-based and unconditional: MATHIR queries its
+    own daemon and prepends relevant memories/guardrails to every single
+    user message BEFORE the model sees it, via claude_code_hook.py (already
+    shipped in bin/, previously dead code because nothing wired it in).
+    """
+    settings_path = _home() / ".claude" / "settings.json"
+    hook_script = config_dir / "bin" / "claude_code_hook.py"
+    if not hook_script.exists():
+        return f"skipped (hook script not found: {hook_script})"
+
+    settings = read_config(settings_path)
+    hook_cmd = f'python "{hook_script}"'
+    hooks = settings.setdefault("hooks", {})
+    ups = hooks.setdefault("UserPromptSubmit", [])
+    already = any(
+        h.get("command") == hook_cmd
+        for entry in ups
+        for h in entry.get("hooks", [])
+    )
+    if already:
+        return "already wired"
+    ups.append({"hooks": [{"type": "command", "command": hook_cmd}]})
+    write_config(settings_path, settings)
+    return f"wired into {settings_path}"
+
+
 def inject_mcp_config(agent: Dict) -> Tuple[bool, str]:
     config_path = agent["config_path"]
     config_key = agent["config_key"]
@@ -928,6 +960,16 @@ def inject_mcp_config(agent: Dict) -> Tuple[bool, str]:
             config[config_key] = {}
         config[config_key]["mathir"] = entry
     write_config(config_path, config)
+
+    # Step 2b: Claude Code specifically gets the push-based injection hook
+    # (see _install_claude_code_hook docstring for why this matters).
+    if agent.get("name") == "Claude Code":
+        try:
+            hook_msg = _install_claude_code_hook(config_dir)
+            print(f"  {C.CYAN}Auto-injection hook: {hook_msg}{C.RESET}")
+        except Exception as e:
+            print(f"  {C.YELLOW}Auto-injection hook skipped: {e}{C.RESET}")
+
     # Also create .kilocode/mcp.json for VS Code extension (only if in a project)
     if agent.get("vscode_config"):
         vscode_key = agent["vscode_config"]["config_key"]
@@ -1130,6 +1172,36 @@ def _setup_autostart_windows(bin_dir: Path, dry_run: bool = False) -> Tuple[bool
                 placed.append("Task Scheduler skipped (not admin — Startup folder launcher is active)")
         except Exception as e:
             placed.append(f"Task Scheduler probe failed ({e})")
+
+    # 4) Healthcheck watchdog (every 5 min) — does NOT require admin, unlike
+    #    step 3. Without this, a daemon that dies mid-session (crash,
+    #    sleep/resume, OOM) never comes back until the next logon, because
+    #    the Startup-folder .bat/.vbs and the AtLogOn task above only fire
+    #    once per logon. Registering a plain (non-elevated) scheduled task
+    #    is enough to self-heal within 5 minutes regardless of admin rights.
+    healthcheck_ps1 = bin_dir / "auto_start_healthcheck.ps1"
+    if healthcheck_ps1.exists():
+        try:
+            hc_cmd = (
+                f"Unregister-ScheduledTask -TaskName 'MATHIR_Daemon_Healthcheck' -Confirm:$false -ErrorAction SilentlyContinue; "
+                f"$a = New-ScheduledTaskAction -Execute 'powershell.exe' "
+                f"-Argument '-NoProfile -ExecutionPolicy Bypass -File \"{healthcheck_ps1}\" -Quiet' -WorkingDirectory '{bin_dir}'; "
+                f"$t = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Days 3650); "
+                f"$s = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable; "
+                f"Register-ScheduledTask -TaskName 'MATHIR_Daemon_Healthcheck' -Action $a -Trigger $t -Settings $s "
+                f"-Description 'MATHIR daemon healthcheck -- restarts daemon if port 7338 is not responding' | Out-Null; "
+                f"Write-Output 'HEALTHCHECK_REGISTERED'"
+            )
+            hc = subprocess.run(
+                ["powershell", "-NoProfile", "-Command", hc_cmd],
+                capture_output=True, text=True, timeout=30,
+            )
+            if "HEALTHCHECK_REGISTERED" in (hc.stdout or ""):
+                placed.append("registered healthcheck watchdog: 'MATHIR_Daemon_Healthcheck' (every 5 min, no admin required)")
+            else:
+                placed.append(f"Healthcheck watchdog registration failed (output: {(hc.stdout or hc.stderr or '').strip()[:150]})")
+        except Exception as e:
+            placed.append(f"Healthcheck watchdog registration failed ({e})")
 
     return True, "; ".join(placed)
 

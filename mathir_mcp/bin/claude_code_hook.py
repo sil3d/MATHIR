@@ -39,7 +39,10 @@ def main():
     except Exception:
         hook_input = {}
 
-    user_message = hook_input.get("message", "")
+    # Claude Code sends the field as "prompt"; keep "message" as a fallback
+    # for other harnesses (Codex, OpenClaude) that may wire this same script
+    # into their own UserPromptSubmit-equivalent hook with a different key.
+    user_message = hook_input.get("prompt") or hook_input.get("message", "")
     if not user_message:
         return
 
