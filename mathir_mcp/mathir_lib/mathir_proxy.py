@@ -109,40 +109,22 @@ except OSError:
 # ---------------------------------------------------------------------------
 # Security helpers — shared sanitizer + SSRF redirect guard + auth allowlist
 # ---------------------------------------------------------------------------
-# Max bytes of sanitized memory text we'll inject into a system prompt.
-INJECT_MAX_BYTES = 8 * 1024
-
-# Substrings that must never appear verbatim in injected memory text —
-# they'd let a malicious memory break out of the injection block, recurse
-# into the placeholder, or inject chat-template control tokens.
-_FORBIDDEN_SUBSTRINGS = (
-    "</mathir-",          # break out of <mathir-...> injection block
-    "{{MATHIR_CONTEXT}}", # recurse into the placeholder in inject_proxy
-    "<|",                 # chat-template tokens: <|im_start|>, <|endoftext|>, ...
-)
+try:
+    from .mathir_sanitize import sanitize_block as _sanitize_block, DEFAULT_MAX_BYTES as INJECT_MAX_BYTES
+except ImportError:
+    from mathir_sanitize import sanitize_block as _sanitize_block, DEFAULT_MAX_BYTES as INJECT_MAX_BYTES
 
 
 def sanitize_memory_for_injection(text, max_bytes: int = INJECT_MAX_BYTES) -> str:
     """Sanitize recalled memory text before it enters an LLM system prompt.
 
-    Defense against stored prompt-injection from recalled memory content:
-      1. Strip substrings that could break out of the injection block or
-         masquerade as chat-template control tokens.
-      2. Prefix every line with ``> `` so the model treats recalled memory
-         as quoted data, not as fresh instructions from the operator.
-      3. Cap total size so a runaway recall cannot drown the prompt.
+    Thin wrapper kept for backward compatibility (mathir_inject_proxy.py
+    imports this name directly) -- the real implementation lives in
+    mathir_sanitize.py, shared with mathir_server.py's /api/context so the
+    two injection paths can't drift out of sync the way they did before
+    (see mathir_sanitize.py's module docstring for the history).
     """
-    if not text:
-        return ""
-    cleaned = text
-    for bad in _FORBIDDEN_SUBSTRINGS:
-        cleaned = cleaned.replace(bad, "")
-    lines = cleaned.splitlines() or [""]
-    quoted = "\n".join(f"> {ln}" if ln else ">" for ln in lines)
-    encoded = quoted.encode("utf-8", errors="ignore")
-    if len(encoded) > max_bytes:
-        quoted = encoded[:max_bytes].decode("utf-8", errors="ignore")
-    return quoted
+    return _sanitize_block(text, max_bytes=max_bytes)
 
 
 def _is_loopback_url(url: str) -> bool:
