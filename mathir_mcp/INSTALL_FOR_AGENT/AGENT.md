@@ -33,18 +33,26 @@ MATHIR is supposed to be universal. Here is the **honest** breakdown of what eac
 
 ### The escape hatch for Tier C: **MATHIR proxy on port 7339**
 
-Any OpenAI-compatible agent (which includes ~all of them: Claude Code via `OPENAI_BASE_URL`, Cursor, Cline, Continue, Codex) can point its baseUrl at `http://127.0.0.1:7339/v1`. The proxy intercepts every LLM call, queries the MATHIR daemon for relevant memories, and **prepends them to the system prompt** as a `<mathir-auto-injection>` block — silently, on every call, regardless of whether the agent cooperates.
+As of v8.9.4 the proxy speaks **both** wire formats, so this isn't just an
+OpenAI-compatible escape hatch anymore — it covers Claude Code natively
+too: Anthropic's `/v1/messages` (Claude Code, Claude Desktop, anything on
+the real Anthropic SDK) **and** OpenAI-compatible `/v1/chat/completions`
+(Cursor, Cline, Continue, Codex, OpenRouter, local models via
+Ollama/llama.cpp, ~30 allowlisted providers — see
+`docs/BRAIN_ARCHITECTURE.md`). The proxy intercepts every LLM call,
+queries the MATHIR daemon for relevant memories, and **prepends them to
+the system prompt** as a `<mathir-auto-injection>` block — silently, on
+every call, regardless of whether the agent cooperates.
 
-This is the **true universal coverage**. It is shipped with MATHIR (script at `~/.config/MATHIR/mathir_mcp/mathir_lib/mathir_proxy.py`) and auto-started alongside the daemon on Windows login (see `mathir_daemon_startup.bat` in the Startup folder).
+This is the **true universal coverage**. It is shipped with MATHIR (script at `~/.config/MATHIR/mathir_mcp/mathir_lib/mathir_proxy.py`), self-heals on all 3 OSes (systemd/launchd native restart, Windows Task Scheduler healthcheck every 5 min — no admin required as of v8.9.4), and auto-started alongside the daemon on Windows login (see `mathir_daemon_startup.bat` in the Startup folder).
 
 ```bash
 # Start the proxy (daemon must already be running on 7338)
-python -m mathir_mcp.mathir_lib.mathir_proxy     # port 7339
-# OR:
-python ~/.config/MATHIR/mathir_mcp/mathir_lib/mathir_proxy.py --port 7339
+python ~/.config/MATHIR/mathir_mcp/mathir_lib/mathir_proxy.py --port 7339 --target https://api.anthropic.com
 
-# Then in your agent:
-export OPENAI_BASE_URL=http://127.0.0.1:7339/v1
+# Then in your agent -- pick the one matching your tool's wire format:
+export ANTHROPIC_BASE_URL=http://127.0.0.1:7339        # Claude Code etc. -- no /v1 (Anthropic SDK convention)
+export OPENAI_BASE_URL=http://127.0.0.1:7339/v1         # OpenAI-compatible tools -- /v1 required (OpenAI SDK convention)
 # Done. Every LLM call now has memory auto-injected.
 ```
 

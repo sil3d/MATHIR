@@ -1567,7 +1567,8 @@ def main():
     print(f"  identically for every tool pointed at it, self-healing on all 3 OSes.")
     print(f"    1. Start it:  python ~/.config/MATHIR/mathir_mcp/mathir_lib/mathir_proxy.py --port 7339 --target https://api.anthropic.com")
     print(f"       (OpenAI-compatible tools/local models: --target https://api.openai.com, or your provider/Ollama/llama.cpp)")
-    print(f"    2. Point your agent's ANTHROPIC_BASE_URL or OPENAI_BASE_URL at http://127.0.0.1:7339")
+    print(f"    2. Point your agent's ANTHROPIC_BASE_URL at http://127.0.0.1:7339 (no /v1 -- Anthropic SDK convention)")
+    print(f"       or OPENAI_BASE_URL at http://127.0.0.1:7339/v1 (/v1 required -- OpenAI SDK convention)")
     print(f"  See GLOBAL_INSTRUCTIONS.md and mathir_lib/mathir_proxy.py's module docstring for details.{C.RESET}\n")
     if needs_manual_instructions:
         print(f"{C.YELLOW}── ACTION REQUIRED for: {', '.join(needs_manual_instructions)} ──{C.RESET}")

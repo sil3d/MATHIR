@@ -738,9 +738,10 @@ memories = plugin.recall(query, k=5)
 
 **Escape hatch 1 — MATHIR proxy on port 7339 (`mathir_proxy.py`):**
 ```bash
-export OPENAI_BASE_URL=http://127.0.0.1:7339/v1
+export ANTHROPIC_BASE_URL=http://127.0.0.1:7339        # Claude Code etc. -- no /v1
+export OPENAI_BASE_URL=http://127.0.0.1:7339/v1         # OpenAI-compatible tools -- /v1 required
 ```
-The proxy is OpenAI-compatible. It intercepts every `/v1/chat/completions`, queries the daemon at `/api/context`, and prepends `<mathir-auto-injection>` to the system prompt on every call. Works for any agent that redirects its baseUrl (Claude Code via `OPENAI_BASE_URL`, Cursor, Cline, Continue, Codex, Gemini via `OPENAI_BASE_URL`, etc.).
+As of v8.9.4 the proxy speaks both Anthropic's native `/v1/messages` and OpenAI-compatible `/v1/chat/completions` (~30 allowlisted providers + any local model, see `docs/BRAIN_ARCHITECTURE.md`). It intercepts every call, queries the daemon at `/api/context`, and prepends `<mathir-auto-injection>` to the system prompt — silently, on every call. Works for any agent that redirects its baseUrl (Claude Code, Cursor, Cline, Continue, Codex, Gemini, etc.).
 
 **Escape hatch 2 — `AGENTS.md` at repo root:**
 26+ agents (Aider, Amp, Claude Code, Codex, Cursor, Devin, Factory, Goose, JetBrains Junie, Jules, OpenCode, VS Code Copilot, Warp, Zed, etc. — see [agents.md](https://agents.md)) auto-read `AGENTS.md` at the project root. MATHIR ships a template at `mathir_mcp/opencode_templates/AGENTS.md` that instructs the agent to call `memory_session_start` on first turn + `memory_context` before each task. Copy it to your project:

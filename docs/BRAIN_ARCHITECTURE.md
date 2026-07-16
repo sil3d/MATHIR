@@ -27,9 +27,10 @@ User message → Proxy (port 7339) → Inject memories → Real LLM API → Resp
 
 **Usage:**
 ```bash
-python mathir_mcp/mathir_lib/mathir_proxy.py --port 7339
-# Then in your agent:
-export OPENAI_BASE_URL=http://127.0.0.1:7339/v1
+python mathir_mcp/mathir_lib/mathir_proxy.py --port 7339 --target https://api.anthropic.com
+# Then in your agent -- pick the one matching your tool's wire format:
+export ANTHROPIC_BASE_URL=http://127.0.0.1:7339        # Claude Code etc. -- no /v1
+export OPENAI_BASE_URL=http://127.0.0.1:7339/v1         # OpenAI-compatible tools -- /v1 required
 ```
 
 For opencode/mimocode (which have their own plugin), you don't need the proxy — they auto-inject via `mathir-auto-inject.ts` (TypeScript plugin that hooks `session.started` + `experimental.chat.system.transform`).

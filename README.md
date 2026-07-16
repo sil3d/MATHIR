@@ -17,14 +17,14 @@
 
 <br/>
 
-> **🆕 v8.9.1** — **GUARDRAIL TIER** — 6th tier, push-based always-active rules. Critical corrections auto-injected into every context response. [God Mode](docs/GOD_MODE.md) · [Client Bridge](mathir_mcp/bin/god/PROTOCOL.md) · [CHANGELOG](mathir_mcp/CHANGELOG.md)
+> **🆕 v8.9.4** — **Self-healing daemon + universal LLM injection proxy.** One proxy (port 7339) in front of Anthropic's API or any OpenAI-compatible provider (~30 allowlisted, incl. local models) injects live memory into every request — no per-tool config edits. Daemon + proxy now self-heal on all 3 OSes. [God Mode](docs/GOD_MODE.md) · [Client Bridge](mathir_mcp/bin/god/PROTOCOL.md) · [CHANGELOG](mathir_mcp/CHANGELOG.md)
 
 <br/>
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://www.python.org)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org)
 [![MIT](https://img.shields.io/badge/License-MIT-22c55e)](LICENSE)
-[![v8.9.1](https://img.shields.io/badge/Version-v8.9.1-6366f1)](mathir_mcp/CHANGELOG.md)
+[![v8.9.4](https://img.shields.io/badge/Version-v8.9.4-6366f1)](mathir_mcp/CHANGELOG.md)
 [![98 tests](https://img.shields.io/badge/Tests-98%20passed-22c55e)](#-tests--benchmarks)
 
 </div>
@@ -125,9 +125,9 @@ Full guide: **[docs/GOD_MODE.md](docs/GOD_MODE.md)**
 
 ---
 
-## 🆕 Latest: v8.6.0 (2026-07-03)
+## 🆕 Recent Highlights (v8.6.0 → v8.9.4)
 
-26 MCP tools. 22 algorithms. INT8 quantization. Cross-encoder reranking. Multi-agent benchmark.
+27 MCP tools. 22 algorithms. INT8 quantization. Cross-encoder reranking. Multi-agent benchmark. Self-healing daemon + universal injection proxy (see banner above for the latest, v8.9.4).
 
 **INT8 quantization** — embedding storage reduced 4x (float32 → int8), zero recall loss. 410 DBs migrated: 1.9 GB → 825 MB.
 **Cross-encoder reranking** — `ms-marco-MiniLM-L-6-v2` second-pass scoring: +20pp hit@10 on natural-language queries.
@@ -159,15 +159,18 @@ MATHIR has **2 long-running processes** + **1 cross-tool instruction file**:
 └─────────────────┘ └──────────────────┘ │ Cursor / etc.     │
                                           └──────────────────┘
                                                     ▲
-                                                    │ baseUrl
+                                                    │ ANTHROPIC_BASE_URL or
+                                                    │ OPENAI_BASE_URL
                                           ┌──────────────────┐
                                           │ PROXY (port 7339) │
                                           │ mathir-proxy      │
-                                          │ Universal OpenAI- │
-                                          │ compatible injec- │
-                                          │ tion (works for   │
-                                          │ ANY agent that    │
-                                          │ redirects baseUrl)│
+                                          │ Universal injection│
+                                          │ — Anthropic native │
+                                          │ /v1/messages AND   │
+                                          │ OpenAI-compatible  │
+                                          │ /v1/chat/completions│
+                                          │ (~30 providers,    │
+                                          │ multi-upstream)     │
                                           └──────────────────┘
 ```
 
@@ -176,8 +179,8 @@ MATHIR has **2 long-running processes** + **1 cross-tool instruction file**:
 | Tier | Mechanism | Agents | Coverage |
 |---|---|---|---|
 | **A — Plugin auto-inject** | `mathir-auto-inject.ts` hooks `session.started` + `experimental.chat.system.transform` — no agent cooperation needed | opencode, mimocode | TRUE auto-inject |
-| **B — Instructions + MCP** | MCP server registered + `GLOBAL_INSTRUCTIONS.md` injected. Agent must follow the advisory instruction to call `memory_session_start` | claude-code, cursor, cline, zcode, codex, etc. (14 agents) | SOFT — agent must comply |
-| **C — MCP only** | MCP server registered, no behavioral prompt | windsurf, gemini-cli, kilo, qwen, kiro-ide, warp, trae, crush, etc. (34 agents) | NONE — set `OPENAI_BASE_URL=http://127.0.0.1:7339/v1` |
+| **B — Instructions + MCP** | MCP server registered + `GLOBAL_INSTRUCTIONS.md` injected. Agent must follow the advisory instruction to call `memory_session_start` — **or upgrade to the proxy below for a hard guarantee (v8.9.4+)** | claude-code, cursor, cline, zcode, codex, etc. (14 agents) | SOFT — agent must comply, unless proxied |
+| **C — Universal proxy** | Point `ANTHROPIC_BASE_URL` or `OPENAI_BASE_URL` at the proxy (port 7339) — no MCP, no agent cooperation, works identically for every tool pointed at it | Any tool with a custom-base-URL setting: windsurf, gemini-cli, kilo, qwen, kiro-ide, warp, trae, crush, claude-code, codex, local models (Ollama/llama.cpp), etc. | HARD — set `ANTHROPIC_BASE_URL=http://127.0.0.1:7339` for Anthropic-native tools (no `/v1` — matches the Anthropic SDK's own base-URL convention), or `OPENAI_BASE_URL=http://127.0.0.1:7339/v1` for OpenAI-compatible tools (`/v1` required — matches the OpenAI SDK's default) |
 
 **Universal escape hatches** (escape from tier C → true auto-inject):
 
@@ -212,7 +215,7 @@ A car following pre-programmed rules in a perfect simulation isn't intelligent �
 
 That's where MATHIR started. An AI can't be intelligent if it can't **remember** — every session starts from zero, that's amnesia, not intelligence.
 
-**Next step:** MATHIR has been validated in software (26 MCP tools, 6-tier architecture, plug-and-play MCP). The autonomous-driving research direction — testing whether place-based episodic memory can complement (not replace) sensor-fusion robustness when sensors degrade — is being developed as its own track: **[docs/MATHIR_FOR_ROBOTICS.md](docs/MATHIR_FOR_ROBOTICS.md)**.
+**Next step:** MATHIR has been validated in software (27 MCP tools, 6-tier architecture, plug-and-play MCP). The autonomous-driving research direction — testing whether place-based episodic memory can complement (not replace) sensor-fusion robustness when sensors degrade — is being developed as its own track: **[docs/MATHIR_FOR_ROBOTICS.md](docs/MATHIR_FOR_ROBOTICS.md)**.
 
 ---
 
@@ -416,7 +419,7 @@ Full architecture: [docs/BRAIN_ARCHITECTURE.md](docs/BRAIN_ARCHITECTURE.md)
 
 ```
 MATHIR/
-├── mathir_mcp/         ← Install this (v8.9.0, 26 MCP tools, God Mode + Guardrails)
+├── mathir_mcp/         ← Install this (v8.9.4, 27 MCP tools, God Mode + Guardrails + universal proxy)
 ├── benchmarks/         ← Reproducible benchmarks
 ├── docs/                ← Research paper, QA, architecture
 ├── examples/            ← Usage examples

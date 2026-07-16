@@ -8,7 +8,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
-## [Unreleased] — 2026-07-15 — DOC REPOSITIONING + ROBOTICS TRACK SPUN OFF
+## [8.9.4] — 2026-07-16 — SELF-HEALING DAEMON + UNIVERSAL INJECTION PROXY
+
+**mathir_mcp package work — full detail in [mathir_mcp/CHANGELOG.md](mathir_mcp/CHANGELOG.md#894--2026-07-16--self-healing-daemon--universal-injection-proxy).**
+
+### Fixed
+- Windows daemon healthcheck watchdog required admin rights and so silently never installed on most machines — a daemon that died mid-session stayed dead until next logon. Now installed by default, no admin required.
+- The Claude Code auto-injection hook (`claude_code_hook.py`) existed but was never wired into any `settings.json`, and had a wrong field name that made it a no-op even when invoked manually. Fixed and wired in automatically by the installer.
+- A daemon-side prompt-injection sanitizer was a no-op due to a `.strip()` bug — confirmed live and exploitable, now fixed and unified with the proxy's (correct) implementation into one shared module.
+- The universal proxy's default OpenAI-route target had a double-`/v1` bug that would 404 every real request.
+
+### Added
+- `mathir_proxy.py` now speaks Anthropic's native `/v1/messages` (previously OpenAI-compatible only) — the endpoint Claude Code itself calls.
+- Multi-upstream routing (`X-Mathir-Upstream` header) lets one proxy process serve ~30 allowlisted providers (Anthropic, OpenAI, OpenRouter, Groq, Mistral, DeepSeek, Z.ai, MiniMax, Azure/Bedrock via suffix match, any local model server, ...) instead of one process per provider.
+- `mathir-proxy.service` (systemd) / `com.mathir.proxy.plist` (launchd) so the proxy self-heals on Linux/macOS the same way the daemon does; Windows healthcheck now covers both.
+
+### Removed
+- `mathir_mcp/brain/` — a stale, unimported fork superseded by `mathir_lib/`.
+
+---
+
+## [8.9.3] — 2026-07-15 — DOC REPOSITIONING + ROBOTICS TRACK SPUN OFF + CROSS-PLATFORM AUTOSTART FIX
 
 ### Changed
 - **README + docs reframed away from head-to-head comparisons** (Mem0/Zep/Letta/FAISS). The "vs Alternatives" table is replaced with an honest "Positioning (2026)" section acknowledging the current landscape (native memory in Claude/ChatGPT/Gemini, funded agent-memory ecosystem) and stating what MATHIR actually validates: self-maintaining tiered memory, cross-process/cross-provider local-first multi-agent sharing (God Mode).
@@ -19,6 +39,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 - **`docs/MATHIR_FOR_ROBOTICS.md`** — seed document for a planned separate MATHIR FOR ROBOTICS track/repo focused on autonomous-driving research (Isaac Sim simulation, then RC car). States the hypothesis (place-based episodic memory as a fallback signal when sensor-fusion confidence collapses), grounds it against the actual literature (sensor-dropout robustness: Grace-BEV/MetaBEV/UniBEV; place memory: Mobileye REM/Tesla fleet learning; LLM-in-the-loop latency: LLM4AD), and is explicit about what is/isn't validated yet.
+
+### Fixed
+- **Cross-platform autostart hardcoded Python paths** — `bin/auto_start.bat` (Windows), `bin/mathir-daemon.service` (systemd), `bin/com.mathir.daemon.plist` (launchd), and `install_smart.py`'s macOS path all previously hardcoded a specific Python interpreter path (`Python311`, `/usr/bin/python3`) that silently doesn't exist on Miniconda/Anaconda/Homebrew/pyenv setups. All four now resolve the interpreter dynamically via `PATH` at start time. Full detail in [mathir_mcp/CHANGELOG.md](mathir_mcp/CHANGELOG.md#893--2026-07-15--cross-platform-auto-start-fix-hardcoded-python-paths).
+
+---
+
+## [8.9.2] — 2026-07-05 — GOD-MODE CLIENT BRIDGE
+
+`bin/god/god_bridge.py` — cross-platform polling daemon for god-mode (worker / orchestrator / observer modes), stdlib-only. Plus `god_poll.ps1`/`.sh` one-shot pollers and `PROTOCOL.md`. Full detail in [mathir_mcp/CHANGELOG.md](mathir_mcp/CHANGELOG.md#892--2026-07-05--god-mode-client-bridge).
+
+---
+
+## [8.9.1] — 2026-07-05 — DOC CORRECTION (27 tools canonical)
+
+**Canonical tool count corrected: 26 → 27** — the `audit_immunological` tool was missing from the v8.9.0 count. All docs, templates, READMEs now consistently say 27 MCP tools (2 auto-injection + 10 basic + 7 lifecycle + 3 advanced + 1 guardrail + 1 immunological + 1 health + 2 god mode). Full detail in [mathir_mcp/CHANGELOG.md](mathir_mcp/CHANGELOG.md#891--2026-07-05--doc-correction-27-tools-canonical).
 
 ---
 
