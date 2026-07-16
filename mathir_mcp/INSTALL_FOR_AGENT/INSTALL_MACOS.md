@@ -90,7 +90,7 @@ You should see:
 
 Leave it running and open a second terminal.
 
-**Verify with curl** (TCP connect — the daemon doesn't speak HTTP, only a tiny JSON-RPC protocol):
+**Verify with curl** (the daemon speaks HTTP since v8.5.0 — `curl http://127.0.0.1:7338/health` is the direct check; the TCP-connect probe below still works as a lighter-weight port check):
 
 ```bash
 # 1. Port is bound
@@ -101,9 +101,10 @@ lsof -nP -iTCP:7338 -sTCP:LISTEN
 curl -v telnet://127.0.0.1:7338 --max-time 2 2>&1 | grep -E "(Connected|Connection refused)"
 # expected: Connected to 127.0.0.1 (127.0.0.1) port 7338
 
-# 3. JSON-RPC ping (proves the protocol is live, not just the socket)
-printf '{"jsonrpc":"2.0","id":1,"method":"ping","params":{}}' | nc -G1 127.0.0.1 7338
-# expected: {"jsonrpc":"2.0","id":1,"result":{"ok":true}}
+# 3. HTTP health check (the daemon has been HTTP/Flask since v8.5.0,
+#    not raw TCP JSON-RPC; the old nc-based ping no longer works)
+curl -s http://127.0.0.1:7338/health
+# expected: {"status":"ok","model":"...","version":"8.9.4",...}
 ```
 
 Stop the foreground daemon with `Ctrl+C` before continuing.
@@ -140,6 +141,28 @@ launchctl load -w "$PLIST_DST"
 ```
 
 > **Why edit the plist at install time?** The plist format doesn't support `~` or `$HOME` — strings are literal. So we render once with `sed` and write the result. This is the macOS-idiomatic pattern (e.g. Homebrew does the same with its cask plists).
+
+### 5b. Optional: the universal injection proxy (v8.9.4+)
+
+`mathir_proxy.py` (port 7339) injects live MATHIR context into any tool's
+LLM traffic — point `ANTHROPIC_BASE_URL` or `OPENAI_BASE_URL` at it, no
+per-tool config-file edits needed. Same `KeepAlive` self-healing pattern
+as the daemon LaunchAgent above, using `bin/com.mathir.proxy.plist`:
+
+```bash
+PLIST_SRC=/path/to/mathir_mcp/bin/com.mathir.proxy.plist
+PLIST_DST=~/Library/LaunchAgents/com.mathir.proxy.plist
+sed -e "s|/Users/USERNAME|$REAL_HOME|g" \
+    -e "s|<string>python3</string>|<string>$REAL_PY</string>|" \
+    "$PLIST_SRC" > "$PLIST_DST"
+plutil -lint "$PLIST_DST"
+launchctl load -w "$PLIST_DST"
+```
+
+Defaults to `--target https://api.anthropic.com`; edit the plist's
+`<array>` args (or set `MATHIR_PROXY_TARGET`) for an OpenAI-compatible
+provider or a local model server instead. See
+`docs/BRAIN_ARCHITECTURE.md` for the full picture.
 
 **Verify the agent is loaded:**
 
@@ -246,9 +269,10 @@ Restart OpenCode so it picks up the new MCP server.
 curl -s telnet://127.0.0.1:7338 --max-time 2 </dev/null
 # expected: "Connected to 127.0.0.1 (127.0.0.1) port 7338"
 
-# 2. JSON-RPC round-trip
-printf '{"jsonrpc":"2.0","id":1,"method":"ping","params":{}}' | nc -G1 127.0.0.1 7338
-# expected: {"jsonrpc":"2.0","id":1,"result":...}
+# 2. HTTP health check (the daemon is HTTP/Flask since v8.5.0 -- the old
+#    nc-based JSON-RPC round-trip that used to live here no longer works)
+curl -s http://127.0.0.1:7338/health
+# expected: {"status":"ok",...}
 
 # 3. LaunchAgent is loaded
 launchctl print gui/$(id -u)/com.mathir.daemon 2>/dev/null | head -20

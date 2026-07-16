@@ -1,4 +1,4 @@
-# MATHIR — Outreach Email Templates v8.9.2
+# MATHIR — Outreach Email Templates v8.9.4
 
 Each email has:
 1. Same proven narrative arc (Anthropic email structure)
@@ -6,7 +6,7 @@ Each email has:
 3. A SPECIFIC reason why THIS provider matters
 4. GitHub link
 
-**Latest numbers (v8.9.2):** **27 MCP tools** (incl. God Mode + client bridge `bin/god/`), 18x cache speedup (37ms→2ms), 4x INT8 compression, +20pp cross-encoder reranking, 6-tier memory (incl. guardrail), 162 tests passing.
+**Latest numbers (v8.9.4):** **27 MCP tools** (incl. God Mode + client bridge `bin/god/`), 18x cache speedup (37ms→2ms), 4x INT8 compression, +20pp cross-encoder reranking, 6-tier memory (incl. guardrail), 162 tests passing.
 
 ---
 

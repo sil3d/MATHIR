@@ -188,6 +188,38 @@ Expected: `State = Ready` and `Test-NetConnection` returns `True`.
 Unregister-ScheduledTask -TaskName "MATHIR Daemon" -Confirm:$false
 ```
 
+**Important caveat (fixed in v8.9.4):** the task above uses `-RunLevel
+Highest`, which requires Administrator, and its `-RestartCount`/
+`-RestartInterval` settings only cover crashes Task Scheduler itself
+observes at that trigger — a daemon killed mid-session (sleep/resume, a
+stray `taskkill`, OOM) can sit dead for the rest of the login session with
+no supervisor watching. `bin/setup-autostart.ps1 -InstallHealthcheck`
+(now the **default**, not opt-in — pass `-SkipHealthcheck` to disable)
+registers a second, non-elevated scheduled task that polls port 7338
+every 5 minutes and relaunches via `auto_start.bat` if it's down. It does
+**not** need Administrator — unlike the task above, so it's worth running
+even if you skip Option A/B entirely:
+
+```powershell
+& "$env:USERPROFILE\.config\MATHIR\mathir_mcp\bin\setup-autostart.ps1"
+```
+
+### 5a. Optional: the universal injection proxy (v8.9.4+)
+
+`mathir_proxy.py` (port 7339) injects live MATHIR context into any tool's
+LLM traffic — point `ANTHROPIC_BASE_URL` or `OPENAI_BASE_URL` at it, no
+per-tool config-file edits needed. `setup-autostart.ps1`'s healthcheck
+(above) already polls port 7339 too and relaunches both processes
+together via `auto_start.bat`. To start it manually right now:
+
+```powershell
+python "$env:USERPROFILE\.config\MATHIR\mathir_mcp\mathir_lib\mathir_proxy.py" --port 7339 --target https://api.anthropic.com
+```
+
+Use `--target https://api.openai.com` (or your provider/Ollama/llama.cpp
+URL) for OpenAI-compatible tools instead. See `docs/BRAIN_ARCHITECTURE.md`
+for the full picture.
+
 ---
 
 ## 6. Manual start: `mathir.bat` (no auto-start)
@@ -262,12 +294,11 @@ try {
 Test-NetConnection -ComputerName localhost -Port 7338 -InformationLevel Quiet
 # expected: True
 
-# 2. JSON-RPC ping (the daemon speaks a tiny TCP protocol, not HTTP,
-#    so this only confirms the port is bound; the real test is via OpenCode)
-$client = New-Object System.Net.Sockets.TcpClient
-$client.Connect("127.0.0.1", 7338)
-Write-Output "Connected: $($client.Connected)"
-$client.Close()
+# 2. HTTP health check (the daemon has been HTTP/Flask since v8.5.0, not
+#    raw TCP JSON-RPC -- the old TcpClient-only probe that used to live
+#    here only confirmed the port was bound, not that the server answered)
+Invoke-RestMethod -Uri "http://127.0.0.1:7338/health"
+# expected: status : ok ... version : 8.9.4 ...
 
 # 3. OpenCode picks it up — open the OpenCode TUI and ask the agent:
 #    "Recall what you know about my last session."

@@ -101,7 +101,7 @@ You should see logs like:
 
 Leave it running and open a second terminal.
 
-**Verify with curl** (TCP connect — the daemon doesn't speak HTTP, only a tiny JSON-RPC protocol):
+**Verify with curl** (the daemon speaks HTTP since v8.5.0 — `curl http://127.0.0.1:7338/health` is the direct check; the TCP-connect probe below still works as a lighter-weight port check):
 
 ```bash
 # 1. Port is bound
@@ -114,9 +114,11 @@ exec 3<>/dev/tcp/127.0.0.1/7338 && echo "TCP OK" && exec 3<&- 3>&-
 curl -v telnet://127.0.0.1:7338 --max-time 2 2>&1 | grep -E "(Connected|Failed)"
 # expected: "Connected to 127.0.0.1 (127.0.0.1) port 7338"
 
-# 3. JSON-RPC ping (proves the protocol is live, not just the socket)
-printf '{"jsonrpc":"2.0","id":1,"method":"ping","params":{}}' | nc -q1 127.0.0.1 7338
-# expected: {"jsonrpc":"2.0","id":1,"result":{"ok":true}}   (or similar)
+# 3. HTTP health check (proves the protocol is live, not just the socket —
+#    the daemon has been HTTP/Flask since v8.5.0, not raw TCP JSON-RPC;
+#    the old `nc`-based JSON-RPC ping below this line no longer works)
+curl -s http://127.0.0.1:7338/health
+# expected: {"status":"ok","model":"...","version":"8.9.4",...}
 ```
 
 If port 7338 is taken:
@@ -166,6 +168,28 @@ systemctl --user status mathir-daemon.service
 # Recent logs (last 30 lines, follow with -f)
 journalctl --user -u mathir-daemon.service -n 30 --no-pager
 ```
+
+### 5b. Optional: the universal injection proxy (v8.9.4+)
+
+`mathir_proxy.py` (port 7339) is a reverse proxy that injects live MATHIR
+context into any tool's LLM traffic — point `ANTHROPIC_BASE_URL` or
+`OPENAI_BASE_URL` at it and get automatic context on every request, no
+per-tool config-file edits. Same self-healing pattern as the daemon unit
+above:
+
+```bash
+UNIT_SRC=/path/to/mathir_mcp/bin/mathir-proxy.service
+UNIT_DST=~/.config/systemd/user/mathir-proxy.service
+cp "$UNIT_SRC" "$UNIT_DST"
+systemctl --user daemon-reload
+systemctl --user enable --now mathir-proxy.service
+systemctl --user status mathir-proxy.service
+```
+
+The unit's `ExecStart` defaults to `--target https://api.anthropic.com`;
+edit it (or export `MATHIR_PROXY_TARGET`) for an OpenAI-compatible
+provider or a local model server instead. See
+`docs/BRAIN_ARCHITECTURE.md` for the full picture.
 
 **Verify the port from curl:**
 
@@ -230,10 +254,10 @@ Restart OpenCode so it picks up the new MCP server.
 curl -s telnet://127.0.0.1:7338 --max-time 2 </dev/null
 # expected: "Connected to 127.0.0.1 (127.0.0.1) port 7338"
 
-# 2. JSON-RPC round-trip
-printf '{"jsonrpc":"2.0","id":1,"method":"ping","params":{}}' \
-  | nc -q1 127.0.0.1 7338
-# expected: {"jsonrpc":"2.0","id":1,"result":...}
+# 2. HTTP health check (the daemon is HTTP/Flask since v8.5.0 -- the old
+#    nc-based JSON-RPC round-trip that used to live here no longer works)
+curl -s http://127.0.0.1:7338/health
+# expected: {"status":"ok",...}
 
 # 3. systemd unit is healthy
 systemctl --user is-active mathir-daemon

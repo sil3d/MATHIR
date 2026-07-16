@@ -1,4 +1,4 @@
-# MATHIR — Quick Start Guide (v8.9.2)
+# MATHIR — Quick Start Guide (v8.9.4)
 
 **Get MATHIR running in 3 minutes.**
 

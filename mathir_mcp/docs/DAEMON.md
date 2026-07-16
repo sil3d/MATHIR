@@ -1,4 +1,27 @@
-# Daemon Architecture (v8.7.0)
+# Daemon Architecture (v8.9.4)
+
+> **⚠ Protocol section below is stale (pre-v8.5.0).** The daemon has been
+> **HTTP (Flask + Waitress), not raw TCP JSON-RPC**, since the v8.5.0
+> rewrite — `mathir_lib/mathir_server.py` is the canonical server; the TCP
+> daemon was retired because raw sockets were fragile (pipe-buffer
+> crashes, no error framing) and every client (MCP bridge, hooks, the
+> universal proxy) speaks HTTP. The JSON-RPC examples below describe a
+> protocol that no longer runs — kept for historical reference pending a
+> full rewrite, not as a current API reference. For the real HTTP surface,
+> read `mathir_server.py`'s Flask routes directly (`/api/context`,
+> `/api/memory/*`, `/health`, etc.) or `mathir_client.py`, which already
+> targets HTTP.
+>
+> Also as of v8.9.4: there's a second server-side component,
+> `mathir_lib/mathir_proxy.py` (port 7339) — a reverse proxy that sits in
+> front of the real LLM API (Anthropic or any OpenAI-compatible provider)
+> and injects live MATHIR context into every request before forwarding.
+> It's the recommended way to give any tool MATHIR context (point
+> `ANTHROPIC_BASE_URL`/`OPENAI_BASE_URL` at it) — see
+> `docs/BRAIN_ARCHITECTURE.md` and the proxy's own module docstring.
+> Both the daemon and the proxy are self-healing on all 3 OSes as of
+> v8.9.4 (systemd/launchd native restart, Windows Task Scheduler
+> healthcheck every 5 min).
 
 ## What the Daemon Does
 
@@ -6,18 +29,18 @@ The MATHIR daemon is a **persistent background process** that:
 
 1. Loads the embedding model once at startup (SentenceTransformer + CUDA)
 2. Keeps the model in RAM/VRAM for instant access
-3. Serves requests via TCP socket (JSON-RPC)
+3. Serves requests via HTTP (Flask + Waitress) — see the stale-protocol note above
 4. Manages the SQLite database with vec0 vector index
-5. Handles 5-tier cognitive memory routing
+5. Handles 6-tier cognitive memory routing (working_memory, episodic, semantic, procedural, immunological, guardrail)
 
 Without daemon: each embedding request loads the model (~2-5s)
 With daemon: model stays loaded, requests complete in ~20ms
 With cache (v8.7.0): repeated queries complete in <1ms (L1 embedding + L2 recall cache)
 
-## Protocol
+## Protocol (stale — see banner above)
 
-**Transport**: TCP socket on `127.0.0.1:7338`
-**Format**: JSON-RPC 2.0 (newline-delimited)
+**Transport**: TCP socket on `127.0.0.1:7338` — **retired since v8.5.0; the daemon is HTTP now.**
+**Format**: JSON-RPC 2.0 (newline-delimited) — **describes the retired protocol, not the current HTTP API.**
 
 ### Request Format
 

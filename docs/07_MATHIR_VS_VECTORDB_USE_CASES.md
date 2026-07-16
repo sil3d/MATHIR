@@ -6,10 +6,10 @@
 **Affiliation:** MATHIR Project, Independent Master's Research
 **Original analysis:** June 2, 2026
 **Project Version (original):** MATHIR V8.4.1 (HybridSearch + full integration)
-**Current implementation:** MATHIR v8.9.2 (6 memory tiers + guardrail tier + God Mode orchestration; see CHANGELOG)
+**Current implementation:** MATHIR v8.9.4 (6 memory tiers + guardrail tier + God Mode orchestration; see CHANGELOG)
 **Domain:** Memory-Augmented LLM Systems, Edge Deployment, Safety-Critical AI
 
-> **Note (2026-07-05):** The theorems, benchmarks, and architectural arguments below remain valid for the current v8.9.2 implementation. The tier count has been corrected from "seven" to **six** (working_memory, episodic, semantic, procedural, immunological, guardrail — see [06_MULTIMODAL_MEMORY_GUIDE.md](../06_MULTIMODAL_MEMORY_GUIDE.md#1-tldr)). The underlying hybrid retrieval (FAISS L1 + MATHIR L2 reranker) is unchanged.
+> **Note (2026-07-05):** The theorems, benchmarks, and architectural arguments below remain valid for the current v8.9.4 implementation. The tier count has been corrected from "seven" to **six** (working_memory, episodic, semantic, procedural, immunological, guardrail — see [06_MULTIMODAL_MEMORY_GUIDE.md](../06_MULTIMODAL_MEMORY_GUIDE.md#1-tldr)). The underlying hybrid retrieval (FAISS L1 + MATHIR L2 reranker) is unchanged.
 
 ---
 
