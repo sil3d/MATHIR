@@ -4,13 +4,23 @@ MATHIR Brain Stack — All-in-One Launcher
 Starts:
 1. The daemon (if not running)
 2. The watchdog (monitors daemon, restarts on crash)
-3. The inject proxy (auto-injects memories into LLM calls)
+3. The universal injection proxy (auto-injects memories into LLM calls)
 4. (Optional) The pre-cognitive priming file watcher
 
 Usage:
     python mathir_brain.py start    # Start all services
     python mathir_brain.py stop     # Stop all services
     python mathir_brain.py status   # Show status
+
+v8.9.4: switched from mathir_inject_proxy.py to mathir_proxy.py. The old
+script spoke to the daemon over raw TCP JSON-RPC (`_fast_call`, a direct
+socket connection expecting newline-delimited JSON), a protocol retired
+in the v8.5.0 HTTP/Flask rewrite -- every injection attempt through it
+was silently failing (falls back to "no memories found" rather than
+crashing, so this went unnoticed). mathir_proxy.py speaks HTTP to the
+daemon like everything else, supports both Anthropic's native
+/v1/messages and OpenAI-compatible /v1/chat/completions, and is the
+actively maintained, security-reviewed implementation.
 """
 import sys
 import os
@@ -23,15 +33,18 @@ from pathlib import Path
 
 HOST = '127.0.0.1'
 DAEMON_PORT = int(os.environ.get("MATHIR_PORT", "7338"))
-PROXY_PORT = int(os.environ.get("MATHIR_PROXY_PORT", "8182"))
+PROXY_PORT = int(os.environ.get("MATHIR_PROXY_PORT", "7339"))
 
 # Portable script resolution: all scripts live next to this file.
 _HERE = Path(__file__).parent.resolve()
 DAEMON_SCRIPT = _HERE / "mathir_daemon.py"
 WATCHDOG_SCRIPT = _HERE / "mathir_watchdog.py"
-PROXY_SCRIPT = _HERE / "mathir_inject_proxy.py"
+PROXY_SCRIPT = _HERE / "mathir_proxy.py"
 
-LLM_TARGET = "http://localhost:8181"  # Default llama-server / OpenAI compatible
+# Anthropic by default (matches Claude Code, the most common client for
+# this launcher); override with MATHIR_PROXY_TARGET for an OpenAI-
+# compatible provider or a local model server (Ollama/llama.cpp/etc).
+LLM_TARGET = os.environ.get("MATHIR_PROXY_TARGET", "https://api.anthropic.com")
 
 
 def is_port_listening(port: int, timeout: float = 1.0) -> bool:
@@ -129,8 +142,9 @@ def start_all():
     print(f"  Daemon (port {DAEMON_PORT}): {'ALIVE' if is_server_alive() else 'DOWN'}")
     print(f"  Proxy (port {PROXY_PORT}): {'ALIVE' if is_port_listening(PROXY_PORT) else 'DOWN'}")
     print()
-    print("Point your LLM client (OpenCode, MiMo) to:")
-    print(f"  baseUrl: http://127.0.0.1:{PROXY_PORT}")
+    print("Point your LLM client at the proxy (pick the one matching its wire format):")
+    print(f"  ANTHROPIC_BASE_URL=http://127.0.0.1:{PROXY_PORT}       (Claude Code etc. -- no /v1)")
+    print(f"  OPENAI_BASE_URL=http://127.0.0.1:{PROXY_PORT}/v1        (OpenAI-compatible tools -- /v1 required)")
     print()
 
 
@@ -138,7 +152,7 @@ def stop_all():
     print("=== Stopping MATHIR Brain Stack ===")
     
     import psutil
-    targets = ['mathir_daemon.py', 'mathir_watchdog.py', 'mathir_inject_proxy.py']
+    targets = ['mathir_daemon.py', 'mathir_watchdog.py', 'mathir_proxy.py']
     
     for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
         try:

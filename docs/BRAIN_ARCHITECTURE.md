@@ -175,12 +175,14 @@ After this, every LLM call gets `<mathir-auto-injection>` block prepended to the
 
 ## Files
 
-- `mathir_mcp/mathir_lib/mathir_proxy.py` — Phase 1 (v8.5.0+): universal auto-inject proxy on port 7339
-- `mathir_mcp/brain/mathir_inject_proxy.py` — Phase 1 (legacy): auto-inject proxy on port 8182 (kept for backward compat)
-- `mathir_mcp/brain/mathir_watchdog.py` — Phase 2: daemon watchdog
-- `mathir_mcp/brain/mathir_spread.py` — Phase 3: spreading activation
-- `mathir_mcp/brain/mathir_consolidate.py` — Phase 4: sleep consolidation
-- `mathir_mcp/brain/mathir_prime.py` — Phase 5: pre-cognitive priming
+All brain-phase scripts live in `mathir_mcp/mathir_lib/` (the old `mathir_mcp/brain/` fork was a stale, unimported duplicate, removed in v8.9.4 -- see CHANGELOG).
+
+- `mathir_mcp/mathir_lib/mathir_proxy.py` — Phase 1 (v8.5.0+, current): universal auto-inject proxy on port 7339, Anthropic + OpenAI-compatible. `mathir-brain` launches this.
+- `mathir_mcp/mathir_lib/mathir_inject_proxy.py` — Phase 1 (legacy, unused): the original auto-inject proxy on port 8182. Speaks the raw TCP JSON-RPC protocol the daemon dropped in the v8.5.0 HTTP rewrite, so its injection has been silently non-functional since then. No longer launched by `mathir_brain.py` as of v8.9.4 (was, previously, by mistake). Kept in the tree for now; not recommended.
+- `mathir_mcp/mathir_lib/mathir_watchdog.py` — Phase 2: daemon watchdog
+- `mathir_mcp/mathir_lib/mathir_spread.py` — Phase 3: spreading activation
+- `mathir_mcp/mathir_lib/mathir_consolidate.py` — Phase 4: sleep consolidation
+- `mathir_mcp/mathir_lib/mathir_prime.py` — Phase 5: pre-cognitive priming
 - `mathir_mcp/mathir_lib/mathir_god.py` — Phase 6 (v8.8.0+): god-mode server logic (`GodProtocol`, `TaskGraph`, `WorkerRegistry`, `WorktreeManager`)
 - `mathir_mcp/bin/god/god_bridge.py` — Phase 6 (v8.9.2+): god-mode client polling daemon (3 modes)
 - `mathir_mcp/bin/god/god_poll.{ps1,sh}` — Phase 6: lightweight cross-platform pollers

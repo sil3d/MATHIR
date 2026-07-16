@@ -209,9 +209,10 @@ It will read `INSTALL_FOR_AGENT/AGENT.md` and configure MATHIR automatically.
 │   │   ├── mathir_search.py         ← HybridSearch (vector + BM25 + RRF)
 │   │   ├── memory_risks.py          ← Risk mitigation
 │   │   └── requirements.txt         ← Dependencies
-│   ├── brain/                       ← Brain architecture
+│   ├── (brain scripts live in mathir_lib/ itself, not a separate brain/ dir --
+│   │    the old brain/ fork was removed in v8.9.4, see CHANGELOG)
 │   │   ├── mathir_brain.py          ← Master controller
-│   │   ├── mathir_inject_proxy.py   ← Auto-injection proxy (port 8182)
+│   │   ├── mathir_proxy.py          ← Universal auto-injection proxy (port 7339)
 │   │   ├── mathir_watchdog.py       ← Daemon watchdog
 │   │   ├── mathir_spread.py         ← Spreading activation
 │   │   ├── mathir_consolidate.py    ← Nightly consolidation
@@ -437,7 +438,7 @@ Canonical list — matches `mathir_lib/mathir_mcp_server.py` TOOLS array.
 
 | Phase | Script | Purpose |
 |---|---|---|
-| 1 | `mathir_inject_proxy.py` | Optional auto-inject proxy (port 8182) — only for agents that proxy LLM traffic |
+| 1 | `mathir_proxy.py` | Universal auto-inject proxy (port 7339) — Anthropic `/v1/messages` + OpenAI-compatible `/v1/chat/completions`, ~30 allowlisted providers + any local model. `mathir-brain` launches this (v8.9.4+; previously launched the now-retired `mathir_inject_proxy.py`, which spoke a TCP protocol the daemon dropped in v8.5.0 and was silently non-functional) |
 | 2 | `mathir_watchdog.py` | Auto-restart daemon on crash (7s recovery) |
 | 3 | `mathir_spread.py` | Spreading activation (related memories via link graph) |
 | 4 | `mathir_consolidate.py` | Nightly: merge duplicates, decay unused, archive dead |
@@ -453,15 +454,15 @@ The agent calls `memory_recall(query, k=5)` directly. Each call:
 - Returns top-k relevant memories
 - <100ms latency
 
-**Path B — Inject proxy (port 8182, optional):**
-For agents that can't call MCP tools directly:
-1. Proxy listens on port 8182
-2. Takes last user message from LLM request
-3. Calls `daemon.recall(k=3)` in <300ms
-4. Injects memories as `{{MATHIR_CONTEXT}}` in system prompt
-5. Forwards to your real LLM (8181)
+**Path B — Universal proxy (port 7339, optional):**
+For agents that can't call MCP tools directly, or as a hard guarantee for ones that can but might not cooperate:
+1. Proxy listens on port 7339, speaking both Anthropic and OpenAI-compatible wire formats
+2. Takes last user message from the request
+3. Calls the daemon's `/api/context` for relevant memories
+4. Prepends a `<mathir-auto-injection>` block to the system prompt
+5. Forwards to the real upstream (`--target`, e.g. `https://api.anthropic.com`, `https://api.openai.com`, OpenRouter, a local model, ...) and streams the response back
 
-> **Note:** OpenCode doesn't support `baseUrl` configuration, so Path A (direct MCP tools) is the only working path. Other agents (Claude Code, Cursor, MiMo) can use either path.
+> **Note:** OpenCode doesn't support `baseUrl` configuration, so Path A (direct MCP tools) is the only working path. Other agents (Claude Code, Cursor, MiMo, Codex) can use either path — see `docs/BRAIN_ARCHITECTURE.md` for setup.
 
 **In both paths, the agent has 27 tools (2 auto-injection + 10 basic + 7 lifecycle + 3 advanced + 1 guardrail + 1 immunological + 1 health + 2 god mode) at its disposal — no manual `memory_recall` is strictly required if instructions are properly loaded.**
 
@@ -506,8 +507,10 @@ mode: subagent
 
 <!-- MATHIR_INJECTED -->
 # MATHIR MEMORY — AUTO-INJECTION BLOCK
-# The {{MATHIR_CONTEXT}} placeholder is filled at RUNTIME by mathir_inject_proxy.py
-# with the 3 most relevant memories based on the user's last message.
+# The {{MATHIR_CONTEXT}} placeholder is filled at RUNTIME by the
+# mathir-auto-inject.ts plugin (Tier A, opencode/mimocode-plugins/) --
+# NOT by any Python proxy script -- with the top relevant memories based
+# on the user's last message.
 
 ## YOUR MEMORY IS ALWAYS ACTIVE
 ... (see GLOBAL_INSTRUCTIONS.md for full block)
