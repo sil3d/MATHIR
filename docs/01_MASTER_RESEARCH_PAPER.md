@@ -340,7 +340,7 @@ MATHIR evolved through eight major versions (V1–V8.7.0), each addressing a spe
 | V8.1 | Multimodal support | Multimodal support (text, image, audio, video) | ✓ |
 | V8.2 | Daemon + per-project DBs | Daemon push API + per-project databases | ✓ |
 | V8.3 | Thread safety | HybridSearch thread safety + bug fixes | ✓ |
-| v8.5.0 | Living memory | Living memory — Ebbinghaus lifecycle, 6 tiers, link graph, 26 MCP tools (20 in v8.5.0, 23 in v8.5.1, 25 in v8.8.0, 26 in v8.9.0) | ✓ (this paper) |
+| v8.5.0 | Living memory | Living memory — Ebbinghaus lifecycle, 6 tiers, link graph, 27 MCP tools (20 in v8.5.0, 23 in v8.5.1, 25 in v8.8.0, 26 in v8.9.0, 27 in v8.9.1) | ✓ (this paper) |
 | v8.6.0 | INT8 + reranking | INT8 scalar quantization (4x compression, 0% loss), cross-encoder reranking (+20pp), multi-agent benchmark (0% → 53%), 22 algorithms, 122 tests | ✓ (this paper) |
 | V8.6.1 | 2026-07-03 | Portable paths fix | Eliminated all hardcoded paths, cross-platform install, DB routing backward-compat | ✓ |
 | V8.7.0 | 2026-07-03 | 3-layer auto-cache | L1 embedding LRU (1024), L2 recall TTL (256, 60s), L3 session pre-warm (top-20, 5min), 122 tests | ✓ (this paper) |
@@ -372,7 +372,7 @@ A KL-constrained router $R_t : \mathcal{X} \to \Delta_5$ (a **five-way** probabi
 
 ### 3.3 MCP Tool Surface (V8.5.1)
 
-MATHIR v8.9.0 exposes 26 tools via the Model Context Protocol (MCP), enabling any LLM to interact with the memory system. The tools are organized into four groups:
+MATHIR v8.9.4 exposes 27 tools via the Model Context Protocol (MCP), enabling any LLM to interact with the memory system. The tools are organized into four groups:
 
 | Group | Tools | Purpose |
 |-------|-------|---------|

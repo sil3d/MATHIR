@@ -97,7 +97,7 @@ MATHIR is the **Architecture + Framework** — like "Transformer + HuggingFace" 
 
 ---
 
-## 3. Version Evolution (V1 → V8.7.0) {#3-versions}
+## 3. Version Evolution (V1 → V8.9.4) {#3-versions}
 
 ### Q3.1: What is the history of MATHIR versions?
 **A:**
@@ -117,7 +117,9 @@ MATHIR is the **Architecture + Framework** — like "Transformer + HuggingFace" 
 | V8.5.1 | 23 MCP tools (memory_by_path, recall_quality, incoming_links) | Supported |
 | V8.6.0 | INT8 quantization (4x compression), cross-encoder reranking (+20pp), 22 algorithms | Supported |
 | V8.6.1 | Portable paths, cross-platform install, DB routing backward-compat | Supported |
-| **V8.7.0** | **3-layer auto-cache (L1 embedding LRU + L2 recall TTL + L3 session pre-warm), 122 tests** | **Current latest** |
+| **V8.7.0** | **3-layer auto-cache (L1 embedding LRU + L2 recall TTL + L3 session pre-warm), 122 tests** | Supported |
+| **V8.9.0** | **Guardrail tier (6th tier, push-based always-active rules)** | Supported |
+| **V8.9.4** | **Self-healing daemon + universal injection proxy (Anthropic + OpenAI-compatible, ~30 providers)** | **Current latest** |
 
 ### Q3.2: What's the difference between V6 and V7?
 **A:** V7 adds:
@@ -792,7 +794,7 @@ So the agent sees the warning on every interaction without having to read daemon
 
 ### Q17.6: How many MCP tools does MATHIR have?
 
-**A:** **26 MCP tools** as of v8.9.0. The count has grown over time: 20 in v8.5.0, 23 in v8.5.1 (added `memory_by_path`, `memory_recall_quality`, `memory_incoming_links`), 25 in v8.8.0 (added `mathir_god_orchestre`, `mathir_god_agent`), 26 in v8.9.0 (added `memory_list_guardrails`).
+**A:** **27 MCP tools** as of v8.9.1+ (current: v8.9.4). The count has grown over time: 20 in v8.5.0, 23 in v8.5.1 (added `memory_by_path`, `memory_recall_quality`, `memory_incoming_links`), 25 in v8.8.0 (added `mathir_god_orchestre`, `mathir_god_agent`), 26 in v8.9.0 (added `memory_list_guardrails`), 27 in v8.9.1 (`audit_immunological` had been missing from the count).
 
 ### Q17.7: How is MATHIR's HTTP daemon different from raw TCP?
 
