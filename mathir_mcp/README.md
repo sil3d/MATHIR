@@ -2,7 +2,7 @@
 
 **6-tier cognitive memory for 50 AI coding agents. Install once, use everywhere.**
 
-> **v8.9.0** — **God Mode** (multi-agent orchestration), 27 MCP tools, 3-layer auto-cache, INT8 quantization, cross-encoder reranking. See [CHANGELOG.md](CHANGELOG.md).
+> **v8.9.4** — Self-healing daemon + universal LLM injection proxy (Anthropic + OpenAI-compatible, ~30 providers), unified prompt-injection sanitizer, God Mode, 27 MCP tools. See [CHANGELOG.md](CHANGELOG.md).
 
 ---
 

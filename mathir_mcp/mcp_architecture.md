@@ -1,4 +1,4 @@
-# MATHIR Architecture (v8.9.0 — 3-Layer Auto-Cache + INT8 + Cross-Encoder)
+# MATHIR Architecture (v8.9.4 — 3-Layer Auto-Cache + INT8 + Cross-Encoder)
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐

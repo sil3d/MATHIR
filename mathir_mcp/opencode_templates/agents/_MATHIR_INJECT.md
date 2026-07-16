@@ -207,7 +207,7 @@ When you need to reference MATHIR files, use these paths:
 
 ---
 
-## MATHIR v8.9.0 — LIVING MEMORY (6 TIERS)
+## MATHIR v8.9.4 — LIVING MEMORY (6 TIERS)
 
 Your memory is **alive**. It has **6 tiers** and a full lifecycle (Ebbinghaus forgetting, promotion, consolidation, link graph, guardrails). Use the right tool at the right time.
 

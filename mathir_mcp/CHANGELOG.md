@@ -1,6 +1,22 @@
 # MATHIR Changelog
 
-## [Unreleased] — 2026-07-15 — CROSS-PLATFORM AUTO-START FIX (hardcoded Python paths)
+## [8.9.4] — 2026-07-16 — SELF-HEALING DAEMON + UNIVERSAL INJECTION PROXY
+
+### Fixed
+- **Windows healthcheck watchdog required admin, so it silently never installed.** `setup-autostart.ps1`'s 5-minute self-heal task needed `-InstallHealthcheck` + `-RunLevel Highest`, which most non-admin installs don't have — a daemon that died mid-session (crash, sleep/resume) stayed dead until next logon. The healthcheck doesn't actually need elevation; it's installed by default now (`-SkipHealthcheck` to opt out), and `install_smart.py`'s Windows autostart path registers it automatically.
+- **`claude_code_hook.py` (UserPromptSubmit auto-injection hook) existed but was dead code** — never wired into any `settings.json`, and even when invoked manually it read `hook_input["message"]` while Claude Code's real payload field is `"prompt"`, so it silently injected nothing. Fixed the field name and wired it into `~/.claude/settings.json`; `install_smart.py` now does this automatically for Claude Code installs.
+- **Daemon-side prompt-injection sanitizer (`_sanitize_for_prompt`) was a no-op.** `s.replace(tok, tok.strip())` does nothing when `tok` has no surrounding whitespace — true for every token in the list (`</mathir-`, `{{MATHIR_CONTEXT}}`, `<|`, `### `). Confirmed live: a query/memory containing `</mathir-auto-injection>` passed through unstripped into `/api/context`'s response, which the hook wraps in exactly that tag — a stored-memory or query-based prompt-injection breakout, live in production since the hook above was wired up. Fixed, then unified with `mathir_proxy.py`'s (correct) independent copy into one shared `mathir_sanitize.py` so the two can't drift apart again.
+- **`mathir_proxy.py`'s OpenAI-route default target had a double-`/v1` bug** (`https://api.openai.com/v1` + route path `/v1/chat/completions` → `.../v1/v1/chat/completions`) — would have 404'd on every real OpenAI-format request the proxy ever forwarded. Never caught because the proxy had never been run end-to-end before this session. Default target is now `https://api.openai.com`.
+
+### Added
+- **`mathir_proxy.py` now speaks Anthropic's native `/v1/messages`** (previously OpenAI-compatible `/v1/chat/completions` only), augmenting the top-level `system` field — this is the endpoint Claude Code itself calls, so without this route the proxy could not help the tool most people actually use.
+- **Multi-upstream routing**: an optional `X-Mathir-Upstream` request header lets one proxy process serve requests bound for different providers (Anthropic, OpenAI, OpenRouter, a local model, ...) instead of needing one process per upstream. Validated against an allowlist (~30 known providers + `*.openai.azure.com` / `*.bedrock-runtime.amazonaws.com` suffix matching + loopback for any local model server) — falls back to the process's configured default on any unlisted host, never fails open.
+- **`mathir-proxy.service` (systemd) and `com.mathir.proxy.plist` (launchd)**, mirroring the existing daemon units, so the proxy gets the same `Restart=on-failure` / `KeepAlive` self-healing on Linux/macOS. Windows healthcheck now checks both port 7338 (daemon) and 7339 (proxy).
+
+### Removed
+- **`mathir_mcp/brain/`** — a stale, unimported fork of `mathir_watchdog.py`, `mathir_prime.py`, `mathir_inject_proxy.py`, and `mathir_brain.py`, superseded by the `mathir_lib/` versions (confirmed by diff + mtime) and already flagged as legacy dead weight in `tests/test_module_tree.py`. Removed the now-stale `brain -> bin` entry from `mathir_sync.py`'s sync manifest.
+
+## [8.9.3] — 2026-07-15 — CROSS-PLATFORM AUTO-START FIX (hardcoded Python paths)
 
 ### Fixed
 - **`bin/auto_start.bat` (Windows)** — was hardcoded to `%USERPROFILE%\AppData\Local\Programs\Python\Python311\python.exe`, which silently failed the daemon launch on any machine using a different Python (e.g. Miniconda — the case that surfaced this bug). Now resolves dynamically: `where python` on PATH → `py` launcher → common install locations (Miniconda, Anaconda, WindowsApps, `Programs\PythonXXX`).

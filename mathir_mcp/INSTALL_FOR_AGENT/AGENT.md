@@ -1,4 +1,4 @@
-# MATHIR — Agent Deployment Guide (v8.9.0)
+# MATHIR — Agent Deployment Guide (v8.9.4)
 
 **Universal install: one folder, 50+ agents, zero config.**
 
