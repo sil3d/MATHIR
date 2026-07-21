@@ -1,4 +1,4 @@
-# MATHIR Architecture (v8.9.4 — 3-Layer Auto-Cache + INT8 + Cross-Encoder)
+# MATHIR Architecture (v8.9.5 — 3-Layer Auto-Cache + INT8 + Cross-Encoder + Autonomous Maintenance)
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -100,6 +100,23 @@ CACHING (v8.9.0):
 LIFECYCLE:
   Ebbinghaus decay:  -5% stability / 30 days no recall
   Consolidate:       cosine > 0.95 → merge duplicates
-  Link graph:        cosine > 0.7 → weighted edges
+  Link graph:        cosine > 0.88 → weighted edges (raised from 0.7: against the
+                      real e5-small embedding model, 0.7 produced an almost-complete
+                      graph — 442,890 links from 666 memories — useless as a signal)
   Anomaly:           Mahalanobis distance (threshold=25.0, immunological tier)
+                      Guardrail saves are exempt — new guardrails describe novel
+                      problems by nature, which the detector is tuned to flag
+
+AUTONOMOUS MAINTENANCE (background thread in mathir_server.py):
+  Runs decay/promote/dedupe/link-build on every DB currently cached in
+  _vec_cache, on a timer — no human or agent has to call run_maintenance()
+  manually for lifecycle transitions to actually happen.
+
+  Config (mathir.json):
+    "maintenance": {
+      "enabled": true, "interval_hours": 6,
+      "do_decay": true, "do_promote": true,
+      "do_dedupe": true, "do_links": true
+    }
+  Env overrides: MATHIR_MAINTENANCE_ENABLED, MATHIR_MAINTENANCE_INTERVAL_HOURS
 ```

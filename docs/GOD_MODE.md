@@ -161,7 +161,8 @@ Two HTTP endpoints added to the MATHIR daemon:
 
 | Route | Method | Purpose |
 |---|---|---|
-| `/api/god/poll` | POST | Query pending tasks for a specific worker |
+| `/api/god/poll` | POST | Query pending tasks for a specific worker. Atomically claims the task (`BEGIN IMMEDIATE` around the SELECT+UPDATE) so two pollers sharing a name can't double-claim it. |
+| `/api/god/ack` | POST | Flip a claimed task's label in place (`pending`→`running`→`completed`/`failed`) instead of creating a duplicate memory per state change |
 | `/api/god/agents` | GET/POST | List registered workers with profiles |
 
 ---
@@ -194,7 +195,7 @@ The MCP tools above are designed for single-turn agent sessions — they return 
 python bin/god/god_bridge.py --mode worker --name mimo-code --interval 5
 
 # Orchestrator terminal (separate)
-python bin/god/god_bridge.py --mode orchestrator --interval 5 --project Mycerise_V2_Taur
+python bin/god/god_bridge.py --mode orchestrator --interval 5 --project <your-project>
 
 # Observer
 python bin/god/god_bridge.py --mode observer --interval 10
@@ -213,10 +214,24 @@ Env vars (override per machine, no hardcoded paths):
 | Var | Default | Purpose |
 |---|---|---|
 | `MATHIR_DAEMON_URL` | `http://localhost:7338` | Daemon URL |
-| `MYCERISE_STATE_DIR` | `$XDG_CONFIG_HOME/mycerise` | State + log dir |
-| `MYCERISE_LOG_FILE` | derived from `MYCERISE_STATE_DIR` | Log file path |
+| `MATHIR_STATE_DIR` | `$XDG_CONFIG_HOME/mathir` | State + log dir |
+| `MATHIR_LOG_FILE` | derived from `MATHIR_STATE_DIR` | Log file path |
 
 Full spec: [`bin/god/PROTOCOL.md`](../mathir_mcp/bin/god/PROTOCOL.md) · Usage: [`bin/god/README.md`](../mathir_mcp/bin/god/README.md).
+
+### Headless, unattended workers (`god_mode_start.py` / `god_worker_daemon.py`)
+
+`god_bridge.py` only notifies — a human still has to see the beep and drive the agent. For fully unattended execution, `god_mode_start.py --launch <tool> --name <n> --cwd <path>` spawns a detached `god_worker_daemon.py` process that does the whole loop itself: poll `/api/god/poll` → `ack` to `running` → spawn the target CLI headlessly with its documented flags (e.g. `opencode run --auto`, `claude -p --dangerously-skip-permissions`, `codex exec --sandbox workspace-write`) → stream output live to a log file → retry on a silent no-op (process exits 0 but never called `memory_save`) or a hang past its timeout → `ack` `completed`/`failed`. Stop it with `god_mode_stop.py --name <n>` or `--all`.
+
+Because relying on the orchestrator LLM's own memory to relay every worker's result across a long dispatch has failed in practice, pull results deterministically instead:
+
+```bash
+python bin/god/god_mode_report.py --cwd <project-path>
+```
+
+This reads the project's SQLite DB directly and groups records by task, correctly handling multi-target fan-out. **Orchestrators should run this after every dispatch round**, not rely on their own recollection of what workers reported.
+
+Full usage, env vars, and troubleshooting: [`bin/god/README.md`](../mathir_mcp/bin/god/README.md).
 
 ---
 

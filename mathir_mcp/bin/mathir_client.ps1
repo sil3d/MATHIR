@@ -1,6 +1,6 @@
 # MATHIR Daemon Direct Socket (PowerShell, no Python)
 # Usage: . ./mathir_daemon.ps1
-#   Search-Mathir "Mycerise" -K 5
+#   Search-Mathir "auth bug" -K 5
 #   Get-MathirStats
 #   Save-Mathir "hello world" -Label "greeting"
 #

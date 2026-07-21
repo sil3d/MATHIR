@@ -13,8 +13,8 @@ MODE="${1:-observer}"
 NAME="${2:-}"
 INTERVAL="${3:-5}"
 DAEMON="${DAEMON_URL:-http://localhost:7338}"
-STATE_FILE="${HOME}/.config/mycerise/god_bridge_state.json"
-LOG_FILE="${HOME}/.config/mycerise/god_bridge.log"
+STATE_FILE="${HOME}/.config/mathir/god_bridge_state.json"
+LOG_FILE="${HOME}/.config/mathir/god_bridge.log"
 
 mkdir -p "$(dirname "$LOG_FILE")"
 

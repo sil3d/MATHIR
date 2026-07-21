@@ -26,6 +26,7 @@ import logging
 import logging.handlers
 import argparse
 import traceback
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 from pathlib import Path
 
@@ -64,11 +65,11 @@ sys.path.insert(0, str(_HERE.parent))
 try:
     from .mathir_paths import LOG_DIR as _P_LOG, PROJECTS_DIR as _P_PROJECTS
     from .mathir_paths import LEGACY_DB_PATH as _P_DB, CONFIG_PATH as _P_CONFIG
-    from .mathir_paths import REGISTRY_PATH as _P_REGISTRY
+    from .mathir_paths import REGISTRY_PATH as _P_REGISTRY, DATA_DIR as _P_DATA
 except ImportError:
     from mathir_paths import LOG_DIR as _P_LOG, PROJECTS_DIR as _P_PROJECTS
     from mathir_paths import LEGACY_DB_PATH as _P_DB, CONFIG_PATH as _P_CONFIG
-    from mathir_paths import REGISTRY_PATH as _P_REGISTRY
+    from mathir_paths import REGISTRY_PATH as _P_REGISTRY, DATA_DIR as _P_DATA
 
 try:
     from .mathir_sanitize import sanitize_line as _sanitize_line
@@ -831,19 +832,30 @@ def memory_save():
                     'max': GUARDRAIL_MAX_PER_PROJECT,
                 }), 400
         tier_override = None
-        try:
-            anomaly_result = vec_mem.check_and_update_anomaly(
-                emb_np, threshold=_ANOMALY_THRESHOLD, warmup_count=_ANOMALY_WARMUP,
-            )
-            if anomaly_result["is_anomaly"]:
-                tier_override = "immunological"
-                block_type = "immunological"
-                risk_warnings.append(f"anomaly_score={anomaly_result['score']:.2f}")
-        except Exception:
-            # Anomaly detection is best-effort — never block a save because
-            # of it (e.g. corrupt persisted state, dimension mismatch on an
-            # old DB). Falls through with tier_override=None.
-            pass
+        # Guardrails are explicit, permanent, user-intentional rules -- they
+        # must never be silently reclassified by the anomaly detector. A new
+        # guardrail almost always describes a genuinely novel problem (that's
+        # why it's being added), which is exactly the content the anomaly
+        # detector is tuned to flag -- so without this guard, EVERY newly
+        # saved guardrail would get bumped to tier=immunological instead of
+        # tier=guardrail and silently drop out of the always-injected
+        # guardrail list. Verified live, 2026-07-21: this exact bug fired on
+        # a guardrail save (anomaly_score=37.05 -> saved as immunological,
+        # never appeared in the always-on GUARDRAILS block).
+        if block_type != 'guardrail':
+            try:
+                anomaly_result = vec_mem.check_and_update_anomaly(
+                    emb_np, threshold=_ANOMALY_THRESHOLD, warmup_count=_ANOMALY_WARMUP,
+                )
+                if anomaly_result["is_anomaly"]:
+                    tier_override = "immunological"
+                    block_type = "immunological"
+                    risk_warnings.append(f"anomaly_score={anomaly_result['score']:.2f}")
+            except Exception:
+                # Anomaly detection is best-effort — never block a save because
+                # of it (e.g. corrupt persisted state, dimension mismatch on an
+                # old DB). Falls through with tier_override=None.
+                pass
 
         metadata = {
             'agent': params.get('agent', 'unknown'),
@@ -853,6 +865,12 @@ def memory_save():
             'content': content,
             'project': params.get('project') or get_project_name(),
             'risk_warnings': risk_warnings if risk_warnings else None,
+            # memory_by_path documents filtering on this field, but nothing
+            # ever populated it -- verified live, 2026-07-21: every saved
+            # memory had file_path="" so the tool silently fell back to raw
+            # content text search only. Populate it from an explicit caller
+            # param when given.
+            'file_path': params.get('file_path', ''),
         }
         if block_type == 'guardrail':
             metadata['tier'] = 'guardrail'
@@ -958,6 +976,123 @@ def memory_stats():
         return jsonify(vec_mem.stats())
     except Exception as e:
         return jsonify({'error': _sanitize_error(e, 'memory_stats')}), 500
+
+
+@app.route("/api/memory/by_path", methods=["POST"])
+def memory_by_path():
+    """Search memories by real file_path SQL filter (not embedding recall).
+
+    The MCP-layer memory_by_path previously ran a semantic memory_recall for
+    the path string, then post-filtered that candidate pool for path/content
+    matches -- so a memory with metadata.file_path correctly populated but
+    whose CONTENT doesn't embed close to the path string (e.g. a short "test
+    save" note) never entered the recall pool in the first place, and never
+    surfaced. Verified live, 2026-07-21: a memory saved with an explicit
+    file_path still didn't appear in the top results for that exact path.
+    Query the file_path column directly instead -- it's a structured filter,
+    it should use SQL, not embedding similarity as a proxy for it.
+    """
+    params = _get_params()
+    try:
+        vec_mem, _db_path, _embedder = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
+        file_path = params.get('file_path', '')
+        if not file_path:
+            return jsonify({'error': 'file_path is required'}), 400
+        k = min(int(params.get('k', 10)), 200)
+
+        conn = vec_mem._get_conn()
+        path_norm = file_path.replace("\\", "/")
+        bare_name = path_norm.rsplit("/", 1)[-1] if "/" in path_norm else path_norm
+        like_path = f"%{path_norm}%"
+        like_name = f"%{bare_name}%"
+
+        rows = conn.execute(
+            "SELECT memory_id, content, metadata, tier, agent, created_at FROM memories "
+            "WHERE tier != 'archived' AND ("
+            "   json_extract(metadata, '$.file_path') LIKE ? "
+            "   OR json_extract(metadata, '$.file_path') LIKE ? "
+            "   OR content LIKE ? OR content LIKE ?) "
+            "ORDER BY "
+            "  (json_extract(metadata, '$.file_path') LIKE ? OR json_extract(metadata, '$.file_path') LIKE ?) DESC, "
+            "  created_at DESC "
+            "LIMIT ?",
+            (like_path, like_name, like_path, like_name, like_path, like_name, k),
+        ).fetchall()
+
+        out = []
+        for r in rows:
+            try:
+                meta = json.loads(r["metadata"]) if r["metadata"] else {}
+            except (json.JSONDecodeError, TypeError):
+                meta = {}
+            out.append({
+                "memory_id": r["memory_id"],
+                "label": meta.get("label", ""),
+                "file_path": meta.get("file_path", ""),
+                "content_snippet": (r["content"] or "")[:200],
+                "agent": r["agent"],
+                "tier": r["tier"],
+                "created_at": r["created_at"],
+                "matched_structured_field": bool(meta.get("file_path")) and (
+                    path_norm.lower() in str(meta.get("file_path", "")).lower()
+                    or bare_name.lower() in str(meta.get("file_path", "")).lower()
+                ),
+            })
+        return jsonify({"file_path": file_path, "total": len(out), "results": out})
+    except Exception as e:
+        return jsonify({'error': _sanitize_error(e, 'memory_by_path')}), 500
+
+
+@app.route("/api/memory/dashboard", methods=["POST", "GET"])
+def memory_dashboard():
+    """Dashboard-level view: recent activity, guardrail roster, save trend.
+
+    Distinct from /api/memory/stats (compact tier/agent counts only) --
+    memory_dashboard's MCP tool used to just proxy memory_stats verbatim
+    (`_call_daemon("memory_stats", {})`, ignoring its own `action` param),
+    so the two tools returned byte-for-byte identical JSON with no added
+    value from having both. This route adds the genuinely distinct,
+    slightly heavier info a dashboard view is for -- not repeated on every
+    stats call, since /api/context calls memory_stats-shaped data far more
+    often than a human opens a dashboard.
+    """
+    try:
+        params = _get_params() if request.method == "POST" else {}
+        vec_mem, _db_path, _embedder = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
+        stats = vec_mem.stats()
+        conn = vec_mem._get_conn()
+
+        recent_rows = conn.execute(
+            "SELECT memory_id, label, agent, tier, created_at FROM memories "
+            "ORDER BY created_at DESC LIMIT 10"
+        ).fetchall()
+        recent_activity = [dict(r) for r in recent_rows]
+
+        guardrail_rows = conn.execute(
+            "SELECT memory_id, label, priority FROM memories WHERE block_type = 'guardrail' "
+            "ORDER BY priority DESC"
+        ).fetchall()
+        guardrails = [dict(r) for r in guardrail_rows]
+
+        now = datetime.now(timezone.utc)
+        today_start = now.date().isoformat()
+        week_ago = (now - timedelta(days=7)).isoformat()
+        created_today = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM memories WHERE created_at >= ?", (today_start,)
+        ).fetchone()["cnt"]
+        created_this_week = conn.execute(
+            "SELECT COUNT(*) AS cnt FROM memories WHERE created_at >= ?", (week_ago,)
+        ).fetchone()["cnt"]
+
+        return jsonify({
+            "total": stats.get("total"),
+            "by_block_type": stats.get("by_block_type"),
+            "recent_activity": recent_activity,
+            "guardrails": {"count": len(guardrails), "items": guardrails},
+            "trend": {"created_today": created_today, "created_this_week": created_this_week},
+        })
+    except Exception as e:
+        return jsonify({'error': _sanitize_error(e, 'memory_dashboard')}), 500
 
 
 @app.route("/api/memory/delete", methods=["POST"])
@@ -1266,6 +1401,7 @@ def memory_consolidate():
         result = vec_mem.consolidate_all(
             threshold=params.get('threshold', 0.95),
             limit=params.get('limit', 100),
+            max_results=params.get('max_results', 50),
             dry_run=params.get('dry_run', True),
         )
         if not params.get('dry_run', True):
@@ -1342,7 +1478,7 @@ def memory_build_links():
         out = {}
         if mode in ("cosine", "both"):
             out["cosine"] = vec_mem.build_links_all(
-                threshold=params.get('threshold', 0.7), limit=limit,
+                threshold=params.get('threshold', 0.88), limit=limit,
             )
         if mode in ("entity", "both"):
             out["entity"] = vec_mem.build_entity_links_all(limit=limit)
@@ -1381,7 +1517,18 @@ def memory_audit():
 
 @app.route("/api/memory/export", methods=["POST", "GET"])
 def memory_export():
-    """Export all memories as JSON."""
+    """Export all memories as JSON, written to a file rather than inlined.
+
+    A full export is meant to be complete, not truncated -- silently
+    dropping rows to fit a response size limit would make it a lie (a
+    partial export presented as if it were a real backup). Verified live,
+    2026-07-21: with 755 memories this route's inline JSON response hit
+    137,102 characters, blowing past the caller's context/token limit even
+    though each row only carries 5 skinny fields (no content). The fix is
+    the same shape used elsewhere for oversized responses -- write the full
+    data to a file server-side and return its path + a count, instead of
+    inlining a payload that structurally cannot stay small as the DB grows.
+    """
     params = _get_params()
     try:
         vec_mem, _, _ = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
@@ -1403,7 +1550,21 @@ def memory_export():
                 "FROM memories ORDER BY rowid"
             ).fetchall()
         memories = [dict(r) for r in rows] if rows else []
-        return jsonify({"memories": memories, "total": len(memories)})
+
+        export_dir = _P_DATA / "exports"
+        export_dir.mkdir(parents=True, exist_ok=True)
+        project_slug = str(params.get("project") or get_project_name() or "default")
+        project_slug = "".join(c if c.isalnum() or c in "-_" else "_" for c in project_slug)
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        export_path = export_dir / f"export_{project_slug}_{ts}.json"
+        with open(export_path, "w", encoding="utf-8") as f:
+            json.dump({"memories": memories, "total": len(memories)}, f, ensure_ascii=False)
+
+        return jsonify({
+            "file_path": str(export_path),
+            "total": len(memories),
+            "note": "Full export written to disk (too large to inline safely). Read the file directly.",
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -1452,7 +1613,19 @@ def push_cache_stats():
 
 @app.route("/api/god/poll", methods=["POST"])
 def api_god_poll():
-    """Optimized task polling for god workers."""
+    """Optimized task polling for god workers.
+
+    When status == "pending" (the normal consume case), the matching row is
+    claimed atomically in the same transaction as the SELECT, flipping its
+    label to "...:claimed" before returning it. This matters once the same
+    agent NAME is shared by many parallel instances of the same tool (e.g.
+    100 OpenCode terminals all polling as "opencode" -- see the god-mode
+    scaling discussion: a fixed per-tool name only works as a shared *pool*,
+    not a unique identity, if two instances can race to read the same still-
+    "pending" row before either writes back). Without the atomic claim here,
+    two pollers could both read the same pending task and both execute it.
+    Polls for any other status (monitoring/inspection) remain a plain read.
+    """
     try:
         params = _get_params()
         agent = params.get("agent", "")
@@ -1465,24 +1638,56 @@ def api_god_poll():
         safe_agent = agent.replace("%", r"\%").replace("_", r"\_")
         safe_status = status.replace("%", r"\%").replace("_", r"\_")
         suffix = f":{safe_agent}:{safe_status}"
-        cursor = conn.execute(
+        select_sql = (
             """SELECT memory_id, metadata, label
                FROM memories
                WHERE label LIKE 'god:task:%'
                  AND label LIKE ? ESCAPE '\\'
+                 AND tier != 'archived'
                ORDER BY priority DESC, created_at ASC
-               LIMIT 1""",
-            (f"%{suffix}",),
+               LIMIT 1"""
         )
-        row = cursor.fetchone()
-        if not row:
-            return jsonify({"task": None})
+
+        if status != "pending":
+            row = conn.execute(select_sql, (f"%{suffix}",)).fetchone()
+            if not row:
+                return jsonify({"task": None})
+            meta = json.loads(row["metadata"]) if row["metadata"] else {}
+            return jsonify({
+                "task": {
+                    "memory_id": row["memory_id"],
+                    "label": row["label"],
+                    "content": meta.get("content", ""),
+                    "priority": meta.get("priority", 5),
+                }
+            })
+
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            row = conn.execute(select_sql, (f"%{suffix}",)).fetchone()
+            if not row:
+                conn.rollback()
+                return jsonify({"task": None})
+
+            parts = row["label"].split(":")
+            claimed_label = f"god:{parts[1]}:{parts[2]}:{safe_agent}:claimed"
+            res = conn.execute(
+                "UPDATE memories SET label = ? WHERE memory_id = ? AND label = ?",
+                (claimed_label, row["memory_id"], row["label"]),
+            )
+            if res.rowcount == 0:
+                conn.rollback()
+                return jsonify({"task": None})  # lost the race -- another poller claimed it first
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
 
         meta = json.loads(row["metadata"]) if row["metadata"] else {}
         return jsonify({
             "task": {
                 "memory_id": row["memory_id"],
-                "label": row["label"],
+                "label": claimed_label,
                 "content": meta.get("content", ""),
                 "priority": meta.get("priority", 5),
             }
@@ -1652,6 +1857,80 @@ def _warmup():
             log.warning(f"vec index rebuild check failed: {e}")
     except Exception as e:
         log.warning(f"DB warmup failed: {e}")
+
+
+# ---------------------------------------------------------------------------
+# Autonomous maintenance ("sleep") — periodic decay/promote/dedupe/link-build
+# ---------------------------------------------------------------------------
+# Without this, run_maintenance() in mathir_vec.py existed but nothing ever
+# called it -- confirmed live, 2026-07-21: no scheduler/cron/background
+# thread anywhere in the codebase, so decay/promotion/link-building only
+# happened if an agent remembered to call the MCP tools by hand. MATHIR was
+# documented as "a brain that dreams" but was purely reactive. This thread
+# makes it actually autonomous: it periodically runs full maintenance on
+# every DB currently open in this daemon (i.e. every project actively in
+# use), so memory naturally decays/consolidates/promotes without any agent
+# intervention -- the daemon does not go scanning the filesystem for
+# unrelated project DBs it hasn't touched.
+#
+# Config source of truth is config['maintenance'] in the real runtime config
+# (~/.config/MATHIR/config/mathir.json, per guardrail-real-runtime-config-path)
+# -- NOT hardcoded here -- so the interval survives daemon restarts and is
+# visible/editable in one place instead of an invisible env var default.
+# MATHIR_MAINTENANCE_* env vars, if set, override the config file (same
+# precedence as every other env-var override in this file).
+def _maintenance_config():
+    cfg = load_config().get("maintenance", {})
+    enabled = os.environ.get("MATHIR_MAINTENANCE_ENABLED")
+    enabled = (enabled not in ("0", "false", "False")) if enabled is not None else cfg.get("enabled", True)
+    interval_hours = float(os.environ.get(
+        "MATHIR_MAINTENANCE_INTERVAL_HOURS", cfg.get("interval_hours", 6)
+    ))
+    return {
+        "enabled": enabled,
+        "interval_hours": interval_hours,
+        "do_decay": cfg.get("do_decay", True),
+        "do_promote": cfg.get("do_promote", True),
+        "do_dedupe": cfg.get("do_dedupe", True),
+        "do_links": cfg.get("do_links", True),
+    }
+
+
+def _maintenance_loop():
+    """Background thread: run_maintenance() on every cached DB, every N hours."""
+    cfg = _maintenance_config()
+    if not cfg["enabled"]:
+        log.info("Autonomous maintenance disabled (config['maintenance']['enabled']=false)")
+        return
+    interval_s = max(cfg["interval_hours"], 0.1) * 3600
+    log.info(f"Autonomous maintenance thread started (every {cfg['interval_hours']}h, cfg={cfg})")
+    # Let warmup finish and give the daemon a moment to settle before the
+    # first sweep, rather than racing warmup for the DB lock at t=0.
+    _SHUTTING_DOWN.wait(timeout=120)
+    while not _SHUTTING_DOWN.is_set():
+        # Re-read each cycle so editing mathir.json takes effect on the next
+        # sweep without requiring a daemon restart.
+        cfg = _maintenance_config()
+        if not cfg["enabled"]:
+            log.info("Autonomous maintenance disabled mid-run, stopping loop")
+            return
+        with _vec_cache_lock:
+            targets = list(_vec_cache.items())
+        for (db_path, _dim), vec_mem in targets:
+            if _SHUTTING_DOWN.is_set():
+                break
+            try:
+                result = vec_mem.run_maintenance(
+                    do_decay=cfg["do_decay"],
+                    do_promote=cfg["do_promote"],
+                    do_dedupe=cfg["do_dedupe"],
+                    do_links=cfg["do_links"],
+                )
+                log.info(f"Autonomous maintenance for {Path(db_path).name}: {result}")
+            except Exception as e:
+                log.warning(f"Autonomous maintenance failed for {db_path}: {e}")
+        interval_s = max(cfg["interval_hours"], 0.1) * 3600
+        _SHUTTING_DOWN.wait(timeout=interval_s)
 
 
 # ---------------------------------------------------------------------------
@@ -1827,6 +2106,10 @@ def main():
     # Warm up in background
     t = threading.Thread(target=_warmup, daemon=True)
     t.start()
+
+    # Autonomous maintenance ("sleep") — decay/promote/dedupe/link-build
+    mt = threading.Thread(target=_maintenance_loop, daemon=True, name="mathir-maintenance")
+    mt.start()
 
     try:
         from waitress import serve

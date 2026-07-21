@@ -2,7 +2,7 @@
 
 **6-tier cognitive memory for 50 AI coding agents. Install once, use everywhere.**
 
-> **v8.9.4** — Self-healing daemon + universal LLM injection proxy (Anthropic + OpenAI-compatible, ~30 providers), unified prompt-injection sanitizer, God Mode, 27 MCP tools. See [CHANGELOG.md](CHANGELOG.md).
+> **v8.9.5** — Autonomous memory maintenance thread (decay/promote/dedup/link-build on a timer) + headless, on-demand God Mode workers. Self-healing daemon + universal LLM injection proxy (Anthropic + OpenAI-compatible, ~30 providers), 27 MCP tools. See [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -98,13 +98,16 @@ MATHIR ships god-mode for **multi-terminal multi-agent coordination**. The `math
 
 | File | What it does |
 |---|---|
-| `god/god_bridge.py` | Cross-platform polling daemon — 3 modes: `worker` / `orchestrator` / `observer`. Stdlib only. |
+| `god/god_bridge.py` | Cross-platform polling daemon — 3 modes: `worker` / `orchestrator` / `observer`. Stdlib only. Notifies, doesn't execute — a human still triggers each worker. |
 | `god/god_poll.ps1` | PowerShell one-shot poller (Windows, faster boot) |
 | `god/god_poll.sh` | Bash one-shot poller (POSIX) |
+| `god/god_mode_start.py` / `god_mode_stop.py` | On-demand launcher/killer for **headless** workers — spawns the target agent CLI as a detached background process, human-triggered only, never autostarted |
+| `god/god_worker_daemon.py` | The headless execution loop: polls, claims, runs the target CLI unattended, retries on silent no-op/timeout, acks the result |
+| `god/god_mode_report.py` | Deterministic text report read straight from the SQLite DB, for when the orchestrator's own memory of a dispatch round can't be trusted |
 | `god/PROTOCOL.md` | Full label taxonomy (`god:task:...`, `god:result:...`) + message flow |
 | `god/README.md` | Usage, env vars, troubleshooting |
 
-**Worker quick start:**
+**Worker quick start (notify-only bridge):**
 ```bash
 python god/god_bridge.py --mode worker --name <my-worker-name> --interval 5
 ```
@@ -112,6 +115,12 @@ python god/god_bridge.py --mode worker --name <my-worker-name> --interval 5
 **Orchestrator quick start (separate terminal):**
 ```bash
 python god/god_bridge.py --mode orchestrator --interval 5 --project <project>
+```
+
+**Headless, unattended worker (no human per terminal):**
+```bash
+python god/god_mode_start.py --launch opencode --name <my-worker-name> --cwd <path> --project <project>
+python god/god_mode_report.py --cwd <path>
 ```
 
 Cross-platform by design: no hardcoded paths, portable XDG state dir, env vars override per machine.

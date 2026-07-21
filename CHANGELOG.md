@@ -8,6 +8,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [8.9.5] — 2026-07-21 — AUTONOMOUS MAINTENANCE + HEADLESS GOD-MODE WORKERS
+
+**mathir_mcp package work — full detail in [mathir_mcp/CHANGELOG.md](mathir_mcp/CHANGELOG.md#895--2026-07-21--autonomous-maintenance--headless-god-mode-workers).**
+
+### Added
+- An autonomous background maintenance thread now runs memory decay/promotion/dedup/link-building on a timer, config-driven via `mathir.json`'s new `"maintenance"` block — previously this lifecycle logic existed but nothing ever triggered it automatically.
+- Headless, on-demand god-mode workers (`god_mode_start.py`/`god_mode_stop.py`/`god_worker_daemon.py`) — an orchestrator can now launch a real coding-agent CLI in the background that polls, claims, executes, and reports on a task with no human watching its terminal, closing the gap where the existing notify-only bridge still needed a human to drive execution.
+- A deterministic (non-LLM) god-mode report tool (`god_mode_report.py`) reads results straight from the SQLite DB, after a real incident where an orchestrator's own relay of worker results failed to reach the human.
+- Atomic task claiming and a new `/api/god/ack` route close a race/staleness bug in god-mode's task-polling protocol.
+
+### Fixed
+- A memory decay-eligibility bug that permanently excluded every never-recalled memory from ever decaying.
+- Guardrail memories were silently getting reclassified away from the always-injected guardrail tier by the anomaly detector — guardrail saves are now exempt.
+
+### Changed
+- The memory-link-graph similarity threshold was raised (0.7 → 0.88) after the lower value produced an almost-complete, unusable link graph against the real embedding model.
+- `god_bridge.py`'s env vars renamed `MYCERISE_STATE_DIR`/`MYCERISE_LOG_FILE` → `MATHIR_STATE_DIR`/`MATHIR_LOG_FILE` (leftover naming from before MATHIR was extracted into its own standalone project — no functional behavior change, defaults still resolve under `$XDG_CONFIG_HOME`).
+
+---
+
 ## [8.9.4] — 2026-07-16 — SELF-HEALING DAEMON + UNIVERSAL INJECTION PROXY
 
 **mathir_mcp package work — full detail in [mathir_mcp/CHANGELOG.md](mathir_mcp/CHANGELOG.md#894--2026-07-16--self-healing-daemon--universal-injection-proxy).**

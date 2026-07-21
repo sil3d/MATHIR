@@ -17,7 +17,7 @@ Usage:
 
 Cross-platform: Windows (winsound beep) + Linux/Mac (terminal bell + paplay optional).
 
-Author: opencode-glm52 (god orchestrator, Mycerise V2 Tauri)
+Author: opencode-glm52 (god orchestrator)
 """
 
 import argparse
@@ -33,9 +33,9 @@ from pathlib import Path
 DEFAULT_DAEMON = os.environ.get("MATHIR_DAEMON_URL", "http://localhost:7338")
 
 _DEFAULT_CONFIG_DIR = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
-_STATE_DIR = Path(os.environ.get("MYCERISE_STATE_DIR", _DEFAULT_CONFIG_DIR / "mycerise"))
+_STATE_DIR = Path(os.environ.get("MATHIR_STATE_DIR", _DEFAULT_CONFIG_DIR / "mathir"))
 DEFAULT_DB_STATE_FILE = _STATE_DIR / "god_bridge_state.json"
-LOG_FILE = Path(os.environ.get("MYCERISE_LOG_FILE", _STATE_DIR / "god_bridge.log"))
+LOG_FILE = Path(os.environ.get("MATHIR_LOG_FILE", _STATE_DIR / "god_bridge.log"))
 
 
 def load_state(path: Path) -> dict:
@@ -110,7 +110,7 @@ def poll_worker(name: str, daemon: str) -> list[dict]:
     return [task] if task else []
 
 
-def poll_memories_by_label(daemon: str, agent: str | None, label_prefix: str, last_seen_ids: set[str], project: str = "Mycerise_V2_Taur") -> list[dict]:
+def poll_memories_by_label(daemon: str, agent: str | None, label_prefix: str, last_seen_ids: set[str], project: str = "default") -> list[dict]:
     """Fetch recent memories, return those matching label_prefix that are new since last_seen_ids.
 
     Uses /api/memories which returns label inside metadata.
@@ -206,7 +206,7 @@ def main() -> int:
     p.add_argument("--daemon", default=DEFAULT_DAEMON, help=f"MATHIR daemon URL (default: {DEFAULT_DAEMON})")
     p.add_argument("--interval", type=int, default=5, help="Poll interval in seconds (default: 5)")
     p.add_argument("--state-file", default=str(DEFAULT_DB_STATE_FILE), help="State file for last-seen tracking")
-    p.add_argument("--project", default="Mycerise_V2_Taur", help="MATHIR project name (for orchestrator/observer modes)")
+    p.add_argument("--project", default="default", help="MATHIR project name (for orchestrator/observer modes)")
     args = p.parse_args()
 
     if args.mode == "worker" and not args.name:

@@ -8,6 +8,7 @@ Keeps get_embedder/get_project_db_path/get_project_name for daemon compatibility
 
 import hashlib
 import json
+import re
 import os
 import sys
 import logging
@@ -281,6 +282,7 @@ def _call_daemon_raw(method: str, params: dict = None) -> dict:
         "memory_session_start": "/api/context",
         "god_poll": "/api/god/poll",
         "god_agents": "/api/god/agents",
+        "god_ack": "/api/god/ack",
     }
 
     endpoint = endpoint_map.get(method, f"/api/memory/{method.replace('memory_', '')}")
@@ -497,6 +499,7 @@ def memory_save(
     label: str = "",
     priority: int = 5,
     project: str = None,
+    file_path: str = "",
 ) -> str:
     """Save a memory. Block types: working_memory, episodic, semantic, procedural, guardrail.
 
@@ -508,6 +511,10 @@ def memory_save(
     into every /api/context, memory_session_start, and memory_context response.
     Guardrails are immune to decay, cannot be promoted, and have a minimum
     priority of 8. Max 50 guardrails per project.
+
+    file_path: optional source file this memory is about (e.g.
+    "mathir_lib/mathir_vec.py"). Enables memory_by_path to actually filter on
+    a real structured field instead of falling back to content text search.
     """
     log.info(
         f"memory_save called: content_len={len(content)} "
@@ -543,6 +550,8 @@ def memory_save(
     }
     if project:
         params["project"] = project
+    if file_path:
+        params["file_path"] = file_path
     
     log.info(f"memory_save forwarding to daemon: {params.keys()}")
     result = _call_daemon("memory_save", params)
@@ -682,8 +691,12 @@ def memory_sessions(limit: int = 10) -> str:
 
 @mcp.tool()
 def memory_dashboard(action: str = "status") -> str:
-    """Dashboard info."""
-    result = _call_daemon("memory_stats", {})
+    """Dashboard view: recent activity, guardrail roster, save trend.
+
+    Distinct from memory_stats (compact tier/agent counts) -- this used to
+    silently proxy memory_stats verbatim, returning identical output.
+    """
+    result = _call_daemon("memory_dashboard", {})
     return json.dumps(result) if isinstance(result, dict) else str(result)
 
 
@@ -734,13 +747,19 @@ def memory_decay(threshold_days: int = 30, archive_floor: float = 0.05) -> str:
 def memory_consolidate(
     threshold: float = 0.95,
     dry_run: bool = False,
-    limit: int = 1000,
+    limit: int = 100,
+    max_results: int = 50,
 ) -> str:
-    """Merge near-duplicate memories."""
+    """Merge near-duplicate memories.
+
+    dry_run=True returns a compact preview (capped at max_results pair
+    previews with ~100-char snippets) instead of the full per-pair report.
+    """
     result = _call_daemon("memory_consolidate", {
         "threshold": threshold,
         "dry_run": dry_run,
         "limit": limit,
+        "max_results": max_results,
     })
     return json.dumps(result) if isinstance(result, dict) else str(result)
 
@@ -776,8 +795,13 @@ def memory_get_links(
 
 
 @mcp.tool()
-def memory_build_links(threshold: float = 0.7, limit: int = 1000) -> str:
-    """Build link graph from cosine similarities."""
+def memory_build_links(threshold: float = 0.88, limit: int = 1000) -> str:
+    """Build link graph from cosine similarities.
+
+    threshold default raised from 0.7 to 0.88 -- 0.7 produced an almost-
+    complete graph (442,890 links from 666 memories) against this project's
+    real embedding model, useless as a "related memories" signal.
+    """
     result = _call_daemon("memory_build_links", {
         "threshold": threshold,
         "limit": limit,
@@ -797,42 +821,21 @@ def memory_build_links(threshold: float = 0.7, limit: int = 1000) -> str:
 def memory_by_path(file_path: str, k: int = 10) -> str:
     """Search memories that reference a specific file path.
 
-    Filters on metadata.file_path OR content matches against the path string.
+    Filters on the real metadata.file_path SQL field OR content text match
+    against the path string.
+
     Use case: "show me what I know about mathir_vec.py:142" → returns all memories
     whose content or metadata mentions that file or location.
     """
     try:
-        # Recall with the path as query, then post-filter
-        recall = _call_daemon("memory_recall", {"query": file_path, "k": max(k * 3, 30)})
-        if not isinstance(recall, dict) or "error" in recall:
-            return json.dumps(recall if isinstance(recall, dict) else {"error": "recall failed"})
-
-        results = recall.get("results", []) or []
-        # Filter: keep only memories whose content/metadata contains the path
-        # (either exact match, fuzzy substring, or .ext key)
-        path_norm = file_path.replace("\\", "/").lower()
-        bare_name = path_norm.rsplit("/", 1)[-1] if "/" in path_norm else path_norm
-        out = []
-        for r in results:
-            meta = r.get("metadata") or {}
-            content = str(meta.get("content", "") or r.get("content", ""))
-            meta_path = str(meta.get("file_path", "") or meta.get("path", ""))
-            cands = (content.lower(), meta_path.lower())
-            if any(path_norm in c or bare_name in c for c in cands):
-                out.append({
-                    "memory_id": r.get("memory_id"),
-                    "score": round(float(r.get("score", 0.0)), 3),
-                    "label": meta.get("label", r.get("label", "")),
-                    "block_type": meta.get("block_type", r.get("block_type", "")),
-                    "file_path": meta_path,
-                    "content_snippet": content[:200],
-                    "agent": meta.get("agent", r.get("agent", "")),
-                    "project": meta.get("project", r.get("project", "")),
-                    "created_at": meta.get("created_at", ""),
-                })
-                if len(out) >= k:
-                    break
-        return json.dumps({"file_path": file_path, "total": len(out), "results": out})
+        # Direct SQL filter on file_path -- fixed 2026-07-21 from an earlier
+        # version that ran a semantic memory_recall for the path string and
+        # post-filtered that pool, which silently missed memories whose
+        # metadata.file_path was correctly set but whose content didn't
+        # embed close to the path string (a structured field deserves a SQL
+        # filter, not embedding similarity as a proxy for it).
+        result = _call_daemon("memory_by_path", {"file_path": file_path, "k": k})
+        return json.dumps(result) if isinstance(result, dict) else str(result)
     except Exception as e:
         return json.dumps({"error": _sanitize_error(e, "memory_by_path")})
 
@@ -862,9 +865,32 @@ def memory_recall_quality(query: str, k: int = 5, min_score: float = 0.4) -> str
             })
 
         top1 = float(results[0].get("score", 0.0))
-        if top1 >= 0.7:
+        top1_meta = results[0].get("metadata") or {}
+        top1_text = " ".join(str(x) for x in (
+            top1_meta.get("content", ""), results[0].get("content", ""),
+            top1_meta.get("label", ""), results[0].get("label", ""),
+        )).lower()
+        # Cosine similarity alone is unreliable at the top end -- verified
+        # live, 2026-07-21: a deliberately nonsensical out-of-domain query
+        # ("completely nonsense gibberish query xyz123") still scored 0.839
+        # ("high") purely from embedding-space coincidence, with zero actual
+        # word overlap with the matched memory. Require at least one >=4-char
+        # query token to literally appear in the top result before trusting
+        # "high" -- a real match should share vocabulary, not just land in a
+        # similar region of embedding space.
+        query_tokens = set(re.findall(r"[a-z0-9]{4,}", query.lower()))
+        lexically_grounded = any(tok in top1_text for tok in query_tokens)
+
+        if top1 >= 0.7 and lexically_grounded:
             quality = "high"
             suggestion = "Strong match — top result is highly relevant."
+        elif top1 >= 0.7:
+            quality = "medium"
+            suggestion = (
+                f"Top-1 score {top1:.2f} looks strong but shares no vocabulary with the "
+                "query -- likely an embedding-space coincidence, not a real match. Review "
+                "before trusting."
+            )
         elif top1 >= min_score:
             quality = "medium"
             suggestion = "Partial match — review top results for relevance."
@@ -1109,14 +1135,26 @@ def mathir_god_agent(
 
     description = task_info.get("description", task_content)
 
-    # Accept task — mark as running
-    _call_daemon_raw("memory_save", {
-        "content": "accepted",
-        "agent": name,
-        "block_type": "working_memory",
-        "label": f"god:task:{task_id}:{name}:running",
-        "priority": 7,
-    })
+    # Accept task — flip the ORIGINAL pending memory's label in place via
+    # god_ack. god_poll always returns the oldest still-"pending" row for
+    # this agent; merely memory_save-ing a *new* "...:running" label (the
+    # old behavior) left the original "...:pending" row untouched, so every
+    # subsequent poll kept re-matching and re-serving the same stale task
+    # forever instead of advancing to the next one.
+    task_memory_id = task.get("memory_id", "")
+    if task_memory_id:
+        _call_daemon_raw("god_ack", {
+            "memory_id": task_memory_id,
+            "status": "running",
+        })
+    else:
+        _call_daemon_raw("memory_save", {
+            "content": "accepted",
+            "agent": name,
+            "block_type": "working_memory",
+            "label": f"god:task:{task_id}:{name}:running",
+            "priority": 7,
+        })
     _call_daemon_raw("memory_save", {
         "content": reg_content,
         "agent": name,
@@ -1196,10 +1234,44 @@ def mathir_god_orchestre(
                 "  • 'I am fast but shallow' → give them mechanical/bulk tasks\n"
                 "  • 'I have web access' → give them research tasks\n"
                 "  • 'I am weak at testing' → don't give them test tasks\n\n"
-                "--- MONITOR & VERIFY ---\n\n"
-                "9. Check results:  memory_smart_search(query='god:result orchestrator')\n"
+                "--- MONITOR & VERIFY (MANDATORY, applies to EVERY orchestrating model) ---\n\n"
+                "9. Run the deterministic report, don't just search memory from your own "
+                "judgment: `python <repo>/mathir_mcp/bin/god/god_mode_report.py --cwd <cwd>` "
+                "via your shell/bash tool. Do this after every dispatch round, not only if you "
+                "remember to. Reason: relying purely on your own memory/judgment to relay "
+                "worker output to the human is NOT reliable across different orchestrating "
+                "models -- verified live, 2026-07-21, a human asked 3 workers a question and "
+                "never saw any answer because that step depended entirely on the orchestrator "
+                "choosing to look and report. This tool has no LLM in the loop; it always shows "
+                "every worker's real response, per-target, even when several workers share one "
+                "task_id (a single directive fanned out to N workers).\n"
                 "10. Review each result before dispatching dependent tasks\n"
                 "11. If quality is poor, reassign to a stronger worker\n\n"
+                "--- WORKER SILENCE ---\n\n"
+                "A worker can go quiet: crashed, timed out, or (observed in practice) exited "
+                "cleanly without ever finishing the task. If a dispatched task's label is stuck "
+                "on 'claimed'/'running'/'failed' for longer than you'd expect given its size, "
+                "with no matching 'god:result:{task_id}:orchestrator:completed', DO NOT keep "
+                "waiting indefinitely. Either reassign it to a different idle worker, or -- if "
+                "no other worker is suitable or available -- do the task yourself. A stalled "
+                "task blocking the whole directive is worse than the orchestrator doing "
+                "hands-on work for one task.\n\n"
+                "--- SELF-HEALING (MANDATORY) ---\n\n"
+                "If you hit a bug that blocks progress -- in MATHIR's own code, in the god-mode "
+                "daemon, or anywhere else in this repo -- you have 27+ MCP tools plus full file/"
+                "shell access: FIND A FIX and apply it yourself, don't just report the blocker "
+                "and stop. Verify the real root cause first (never guess), fix it, then: "
+                "(a) if you touched mathir_server.py or mathir_mcp_server.py, copy the fix to "
+                "~/.config/MATHIR/mathir_mcp/mathir_lib/ AND restart that daemon process -- an "
+                "unsynced fix is not a fix (see guardrail-sync-deployed-daemon); "
+                "(b) if the bug reveals a new god-mode-specific failure pattern other agents "
+                "will hit again, save it as a GUARDRAIL (memory_save block_type='guardrail'), "
+                "not just an episodic note, so every future agent inherits the lesson "
+                "automatically instead of rediscovering it. Only if the bug is in a THIRD-PARTY "
+                "external tool (opencode, openclaude, codex, etc -- not MATHIR's own code) and "
+                "you cannot fix it yourself: propose to the human that you file an issue on that "
+                "tool's official GitHub repo -- do not file it yourself without their explicit "
+                "go-ahead, filing a public issue is an external-facing action.\n\n"
                 "--- SHUTDOWN ---\n\n"
                 "   memory_save(content='shutdown', label='god:task:00000000:{name}:shutdown',\n"
                 "               block_type='working_memory', priority=9)\n\n"

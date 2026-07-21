@@ -1,4 +1,4 @@
-# GOD MODE PROTOCOL — Mycerise V2 Tauri
+# GOD MODE PROTOCOL — MATHIR
 
 > Communication contract between **Orchestrator** (opencode-glm52) and **Workers** (mimo-code, others).
 > Version: 1.0.0 (2026-07-05)
@@ -60,14 +60,14 @@ All paths **MUST** be resolved via env vars or POSIX conventions — **NEVER har
 |-----|---------|---------|
 | `MATHIR_DAEMON_URL` | `http://localhost:7338` | Daemon endpoint |
 | `XDG_CONFIG_HOME` | `$HOME/.config` | POSIX config base (Linux/Mac) |
-| `MYCERISE_STATE_DIR` | `$XDG_CONFIG_HOME/mycerise` | Where bridge writes state + logs |
+| `MATHIR_STATE_DIR` | `$XDG_CONFIG_HOME/mathir` | Where bridge writes state + logs |
 
 On **Windows** the defaults resolve to:
-- `C:\Users\<USER>\.config\mycerise\` (if using Git-Bash/MSYS style)
-- Or `%APPDATA%\mycerise\` if you symlink — set `MYCERISE_STATE_DIR` env var
+- `C:\Users\<USER>\.config\mathir\` (if using Git-Bash/MSYS style)
+- Or `%APPDATA%\mathir\` if you symlink — set `MATHIR_STATE_DIR` env var
 
 On **Linux/Mac**:
-- `~/.config/mycerise/`
+- `~/.config/mathir/`
 
 The bridge auto-detects. **NEVER** hardcode `/Users/...`, `C:\Users\...`, `D:\...`, or any machine path.
 
@@ -83,12 +83,12 @@ The bridge auto-detects. **NEVER** hardcode `/Users/...`, `C:\Users\...`, `D:\..
 
 **Démarrage recommandé par worker terminal** :
 ```bash
-python scripts/god-mode/god_bridge.py --mode worker --name mimo-code --interval 5
+python bin/god/god_bridge.py --mode worker --name mimo-code --interval 5
 ```
 
 **Démarrage recommandé orchestrator terminal** :
 ```bash
-python scripts/god-mode/god_bridge.py --mode orchestrator --interval 5 --project Mycerise_V2_Taur
+python bin/god/god_bridge.py --mode orchestrator --interval 5 --project <your-project>
 ```
 
 ---
@@ -131,6 +131,6 @@ memory_save(
 )
 
 # ORCHESTRATOR lit (works cross-platform, no hardcoded paths)
-r = requests.get(f"{os.environ['MATHIR_DAEMON_URL']}/api/memories", params={"project":"Mycerise_V2_Taur","limit":50})
+r = requests.get(f"{os.environ['MATHIR_DAEMON_URL']}/api/memories", params={"project":"<your-project>","limit":50})
 god_results = [m for m in r.json()["memories"] if m["metadata"]["label"].startswith("god:result:")]
 ```

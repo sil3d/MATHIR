@@ -11,11 +11,11 @@ param(
     [string]$Name = "",
     [string]$Daemon = "http://localhost:7338",
     [int]$Interval = 5,
-    [string]$StateFile = "$HOME\.config\mycerise\god_bridge_state.json"
+    [string]$StateFile = "$HOME\.config\mathir\god_bridge_state.json"
 )
 
 $ErrorActionPreference = "Continue"
-$LogFile = "$HOME\.config\mycerise\god_bridge.log"
+$LogFile = "$HOME\.config\mathir\god_bridge.log"
 $null = New-Item -ItemType Directory -Path (Split-Path $LogFile -Parent) -Force
 
 function Write-Log {

@@ -1,5 +1,30 @@
 # MATHIR Changelog
 
+## [8.9.5] — 2026-07-21 — AUTONOMOUS MAINTENANCE + HEADLESS GOD-MODE WORKERS
+
+### Added
+- **Autonomous "sleep" maintenance thread** (`_maintenance_loop` in `mathir_server.py`) — a background daemon thread that periodically runs `run_maintenance()` (decay/promote/dedupe/link-build) on every DB currently cached in `_vec_cache`. Previously `run_maintenance()` existed but nothing ever invoked it automatically — lifecycle transitions only happened if a human or agent explicitly called it. Config-driven via a new `"maintenance"` block in `mathir.json` (`enabled`, `interval_hours`, `do_decay`, `do_promote`, `do_dedupe`, `do_links`), with `MATHIR_MAINTENANCE_ENABLED`/`MATHIR_MAINTENANCE_INTERVAL_HOURS` env overrides.
+- **Headless, on-demand god-mode workers** — `bin/god/god_mode_start.py` / `god_mode_stop.py` launch/kill a headless coding-agent CLI (opencode, mimo, claude, openclaude, codex, gemini, aider, cursor-agent, copilot) as a detached background process, human-triggered only, never autostarted. `bin/god/god_worker_daemon.py` is the actual execution loop: polls `/api/god/poll`, claims a task, spawns the target CLI with its documented headless flags, streams output live, retries on a silent no-op (process exits 0 but never called `memory_save`) or a hang past its timeout, then acks the result. Closes the gap where `god_bridge.py` only notified and needed a human to manually drive execution.
+- **`bin/god/god_mode_report.py`** — deterministic, LLM-independent text report that reads a project's SQLite DB directly (bypassing `/api/memories`'s project-resolution quirks) and groups results by task, correctly handling multi-target fan-out. Following a real incident (2026-07-21: 3 workers' answers never reached the human because the orchestrator's own relay failed), `mathir_god_orchestre()`'s built-in prompt guidance now mandates running this after every dispatch round instead of relying on the orchestrator LLM's memory.
+- **`/api/god/ack` daemon route** — flips a claimed task's label in place (`pending`→`running`→`completed`/`failed`) instead of creating a duplicate memory per state change, fixing `god_poll` re-serving the same stale pending task forever.
+- **Atomic task claiming** — `/api/god/poll` now wraps its SELECT+UPDATE in `BEGIN IMMEDIATE`/commit, preventing two parallel pollers sharing an agent name from double-claiming the same task.
+- **`memory_save` `file_path` param** — persisted into `metadata.file_path`; new `/api/memory/by_path` route does a real `json_extract(metadata, '$.file_path') LIKE ?` SQL filter (replacing the old semantic-recall-then-post-filter approach, which silently missed structurally-tagged-but-not-semantically-similar memories).
+- **`memory_dashboard`** now calls a genuinely distinct `/api/memory/dashboard` route (recent activity, guardrail roster, save trend) instead of secretly proxying `/api/memory/stats` verbatim.
+- **Self-healing + worker-silence guidance for orchestrators** — new prompt sections requiring `mathir_god_orchestre()` to fix bugs it hits in MATHIR's own code directly (syncing to the deployed daemon path and restarting it, per the existing sync guardrail), with third-party tool bugs only proposed as GitHub issues pending explicit human approval.
+
+### Fixed
+- **`created_at_unix` decay-eligibility bug** — was hardcoded to literal SQL `NULL`, which via `COALESCE(last_recalled_at, created_at_unix, 0)` permanently excluded every never-recalled memory from decay eligibility. Fixed to `CAST(strftime('%s', created_at) AS REAL)`.
+- **Guardrail saves no longer misfire the anomaly detector** — `memory_save`'s anomaly check is now skipped for `block_type == 'guardrail'` saves, since new guardrails almost always describe novel problems (exactly what the Mahalanobis detector is tuned to flag), which previously caused real guardrail saves to get silently reclassified to `tier=immunological` and vanish from the always-injected GUARDRAILS block.
+- **`memory_recall_quality` lexical grounding check** — added a requirement that at least one ≥4-char query token literally appear in the top result's text before trusting a "high" (≥0.7 cosine) quality verdict, after a verified case where a nonsense query scored 0.839 purely from embedding-space coincidence.
+
+### Changed
+- **`build_links_all` threshold raised 0.7 → 0.88** — 0.7 against the real `multilingual-e5-small` embedding model produced an almost-complete graph (442,890 links from 666 memories), useless as a "related memories" signal.
+- **`god_bridge.py` env vars renamed** `MYCERISE_STATE_DIR`/`MYCERISE_LOG_FILE` → `MATHIR_STATE_DIR`/`MATHIR_LOG_FILE` — leftover naming from before MATHIR was extracted into its own standalone project; defaults still resolve under `$XDG_CONFIG_HOME`, no functional behavior change beyond the var name itself.
+- **`memory_consolidate(dry_run=True)` output bounded** — new `max_results` param (default 50) caps preview events to a compact `{memory_id_a, memory_id_b, snippet_a, snippet_b, similarity}` shape (100-char snippet cap), replacing the old verbose per-pair shape that hit 228K+ chars on ~700 memories.
+- **`/api/memory/export` is now file-based** — writes the full export to `<DATA_DIR>/exports/export_{project_slug}_{timestamp}.json` on disk and returns just the file path + count, instead of inlining potentially huge JSON (previously hit 137,102 chars at 755 memories).
+
+---
+
 ## [8.9.4] — 2026-07-16 — SELF-HEALING DAEMON + UNIVERSAL INJECTION PROXY
 
 ### Fixed

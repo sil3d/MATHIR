@@ -776,7 +776,7 @@ Both are auto-started together by `mathir_daemon_startup.bat` in the Windows Sta
 
 | Project | DB path |
 |---|---|
-| `Mycerise_V2_Taur/` | `Mycerise_V2_Taur/.mathir/mathir.db` |
+| `my-project/` (example) | `my-project/.mathir/mathir.db` |
 | `mathir_mcp/` (installer) | `~/.config/MATHIR/mathir_mcp/.mathir/mathir.db` |
 | Future project | `<project>/.mathir/mathir.db` (auto-created) |
 

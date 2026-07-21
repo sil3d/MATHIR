@@ -141,7 +141,7 @@ for r in results:
 
 ```powershell
 # ❌ This is NOT a PowerShell command — will fail
-memory_recall --query "Mycerise" --k 5
+memory_recall --query "auth bug" --k 5
 ```
 
 ```powershell

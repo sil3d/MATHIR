@@ -47,26 +47,37 @@ Uses the daemon's `/api/god/poll` and `/api/god/agents` endpoints (defined in `m
 
 | File | What it does |
 |---|---|
-| **`god/god_bridge.py`** | Cross-platform polling daemon — 3 modes: `worker` / `orchestrator` / `observer`. Stdlib only. Beeps + logs when new god-events detected. |
+| **`god/god_bridge.py`** | Cross-platform polling daemon — 3 modes: `worker` / `orchestrator` / `observer`. Stdlib only. Beeps + logs when new god-events detected. A human still has to act on the notification. |
 | **`god/god_poll.ps1`** | PowerShell one-shot poller (Windows, faster boot) |
 | **`god/god_poll.sh`** | Bash one-shot poller (POSIX) |
+| **`god/god_mode_start.py`** | On-demand launcher — detects installed agent CLIs (`--detect`) and spawns a headless `god_worker_daemon.py` as a detached background process (`--launch <tool> --name <n> --cwd <path>`). Never autostarted — human-triggered only. |
+| **`god/god_mode_stop.py`** | Kills headless workers started by `god_mode_start.py`, by `--name` or `--all`. |
+| **`god/god_worker_daemon.py`** | The actual headless execution loop: polls `/api/god/poll`, claims a task, spawns the target CLI (opencode/claude/codex/gemini/aider/cursor-agent/copilot/...) with its documented headless flags, streams output live, retries on silent no-op or timeout, then acks `completed`/`failed`. No human needed once launched. |
+| **`god/god_mode_report.py`** | Deterministic (LLM-independent) text report — reads the SQLite DB directly and groups results by task, for when the orchestrator's own memory of a dispatch round can't be trusted. |
 | **`god/PROTOCOL.md`** | Full label taxonomy (`god:task:…`, `god:result:…`, etc.) + message flow |
-| **`god/README.md`** | Usage, env vars, troubleshooting |
+| **`god/README.md`** | Usage, env vars, troubleshooting for both the notify-only bridge and the headless workers |
 
-**Quick start (worker terminal):**
+**Quick start (notify-only bridge, worker terminal):**
 ```bash
 python god/god_bridge.py --mode worker --name mimo-code --interval 5
 ```
 
-**Quick start (orchestrator terminal):**
+**Quick start (notify-only bridge, orchestrator terminal):**
 ```bash
-python god/god_bridge.py --mode orchestrator --interval 5 --project Mycerise_V2_Taur
+python god/god_bridge.py --mode orchestrator --interval 5 --project <your-project>
+```
+
+**Quick start (headless, unattended worker):**
+```bash
+python god/god_mode_start.py --launch opencode --name mimo-code --cwd <path> --project <your-project>
+python god/god_mode_report.py --cwd <path>   # after dispatching tasks
 ```
 
 **Env vars** (override per machine):
 - `MATHIR_DAEMON_URL` (default `http://localhost:7338`)
-- `MYCERISE_STATE_DIR` (state + log dir, default `$XDG_CONFIG_HOME/mycerise`)
-- `MYCERISE_LOG_FILE` (default `$MYCERISE_STATE_DIR/god_bridge.log`)
+- `MATHIR_HOME` (base config/state dir for headless workers, default `~/.config/MATHIR`)
+- `MATHIR_STATE_DIR` (bridge-mode state + log dir, default `$XDG_CONFIG_HOME/mathir`)
+- `MATHIR_LOG_FILE` (default `$MATHIR_STATE_DIR/god_bridge.log`)
 
 > Cross-platform by design: no hardcoded paths, no env pollution, portable XDG state dir.
 
@@ -97,6 +108,8 @@ python god/god_bridge.py --mode orchestrator --interval 5 --project Mycerise_V2_
 | Sync source to deployed | `python mathir_sync.py` (dry-run) then `--force` |
 | Start god-mode bridge (orchestrator) | `python god/god_bridge.py --mode orchestrator --interval 5` |
 | Start god-mode bridge (worker)    | `python god/god_bridge.py --mode worker --name <my-name> --interval 5` |
+| Launch a headless god-mode worker | `python god/god_mode_start.py --launch <tool> --name <my-name> --cwd <path>` |
+| Get a deterministic god-mode report | `python god/god_mode_report.py --cwd <path>` |
 | View dashboard | http://localhost:7420 (after starting stats server) |
 
 ## Dependencies

@@ -25,5 +25,13 @@
   "embedding": {
     "model": "intfloat/multilingual-e5-small",
     "device": "cuda"
+  },
+  "maintenance": {
+    "enabled": true,
+    "interval_hours": 6,
+    "do_decay": true,
+    "do_promote": true,
+    "do_dedupe": true,
+    "do_links": true
   }
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # MATHIR Daemon Direct Socket (bash, no Python)
 # Usage: source ./mathir_daemon.sh
-#   mathir_recall "Mycerise" 5
+#   mathir_recall "auth bug" 5
 #   mathir_stats
 #   mathir_save "hello world" "label" agent-name
 #

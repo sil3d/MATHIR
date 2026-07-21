@@ -24,6 +24,23 @@ def _tighten_perms(p: Path) -> None:
     except (OSError, AttributeError):
         pass
 
+
+def _snippet(text: Any, n: int = 100) -> str:
+    """Compact a string to a single-line snippet of at most ``n`` chars.
+
+    Used by ``consolidate_all(dry_run=True)`` so each candidate-pair preview
+    stays small (the prior dry_run returned 228K+ chars on ~700 memories
+    because every pair emitted full content). Collapses internal whitespace
+    and appends '...' when truncated.
+    """
+    if text is None:
+        return ""
+    s = " ".join(str(text).split())
+    if len(s) <= n:
+        return s
+    return s[:n] + "..."
+
+
 log = logging.getLogger("mathir-vec")
 
 # Try to import sqlite-vec
@@ -121,7 +138,19 @@ class VecMemory:
                 "last_recalled_at": "COALESCE(last_recalled_at, 0)",
                 "created_at_raw": "created_at",
                 "created_at_iso": "created_at",
-                "created_at_unix": "NULL",
+                # Was hardcoded to the literal SQL "NULL" -- verified live,
+                # 2026-07-21: get_decay_candidates() falls back to this field
+                # via COALESCE(last_recalled_at, created_at_unix, 0) for
+                # memories that were saved but never explicitly recalled
+                # (last_recalled_at=0). With this as NULL, that COALESCE
+                # collapsed straight to 0, so effective_recall_ts=0 and the
+                # "> 0" eligibility filter permanently excluded every
+                # never-recalled memory from decay, no matter how old --
+                # the exact common case Ebbinghaus decay exists for. SQLite's
+                # strftime('%s', ...) accepts both created_at formats found
+                # in this table ("YYYY-MM-DD HH:MM:SS" and ISO-with-'T'-and-
+                # microseconds), confirmed live against real rows of each.
+                "created_at_unix": "CAST(strftime('%s', created_at) AS REAL)",
                 "label": "label",
                 "priority": "COALESCE(priority, 5)",
             }
@@ -994,14 +1023,25 @@ class VecMemory:
             results.sort(key=lambda r: (-r["cumulative_weight"], r["distance"], r["memory_id"]))
             return results
 
-    def build_links_all(self, threshold: float = 0.7, limit: int = 1000) -> Dict[str, int]:
+    def build_links_all(self, threshold: float = 0.88, limit: int = 1000) -> Dict[str, int]:
         """Build the link graph for all stored memories.
 
         For every pair (A, B) with cosine > threshold, two directed links are
         created (A→B and B→A) so BFS traversal works in both directions.
 
         Args:
-            threshold: minimum cosine similarity to create a link (default 0.7)
+            threshold: minimum cosine similarity to create a link. Raised from
+                0.7 to 0.88 -- verified live, 2026-07-21: 0.7 against this
+                project's real embedding model (multilingual-e5-small)
+                produced 442,890 links from only 666 memories (~665 links per
+                memory), an almost-complete graph that carries no "these are
+                actually related" signal. This model's cosine scores run hot
+                even for weakly-related text (memory_recall_quality separately
+                found a nonsense query scoring 0.839 against an unrelated
+                memory) -- 0.7 is well inside that noise band. 0.88 sits just
+                below the near-duplicate threshold (0.95 in consolidate_all)
+                so links capture "related" without capturing "basically the
+                same content".
             limit: maximum number of memories to scan (default 1000). Use this
                 to keep one-shot runs bounded; memory grows O(N) so 1000 is a
                 reasonable cap.
@@ -2374,6 +2414,7 @@ class VecMemory:
         threshold: float = 0.95,
         dry_run: bool = True,
         limit: int = 100,
+        max_results: int = 50,
     ) -> Dict[str, Any]:
         """Find and merge all near-duplicate pairs above `threshold`.
 
@@ -2384,7 +2425,13 @@ class VecMemory:
         dry_run : bool
             If True, return what WOULD be merged without modifying any rows.
         limit : int
-            Maximum number of pairs to consider.
+            Maximum number of candidate pairs to consider (caps the scan).
+        max_results : int
+            For dry_run only: cap on the number of compact preview events
+            returned in ``events``. Candidates beyond this cap are counted
+            in ``candidates`` / ``returned`` / ``truncated`` but not emitted,
+            keeping the response small (the previous shape returned 228K+
+            chars on ~700 memories). Ignored when ``dry_run=False``.
 
         Returns
         -------
@@ -2392,11 +2439,16 @@ class VecMemory:
             {
               "dry_run"     : bool,
               "threshold"   : float,
-              "merged"      : int,        # count of pairs actually merged
-              "candidates"  : int,        # total pairs found
+              "merged"      : int,        # count of pairs actually merged (0 in dry_run)
+              "candidates"  : int,        # total candidate pairs found (post-``limit``)
+              "returned"    : int,        # events actually included in the response
+              "truncated"   : bool,       # True iff candidates > returned (dry_run only)
               "by_tier"     : dict,       # tier distribution after the operation
-              "events"      : list[dict]  # per-pair consolidation event
+              "events"      : list[dict]  # dry_run: compact pair previews; live: rich per-merge events
             }
+
+        Dry_run event shape (compact, NEW in v8.7.1):
+            {memory_id_a, memory_id_b, snippet_a, snippet_b, similarity}
         """
         with self._db_lock:
             candidates = self.find_duplicates(threshold=threshold, limit=limit)
@@ -2433,19 +2485,15 @@ class VecMemory:
                 weak_id = weak["memory_id"]
 
                 if dry_run:
+                    # Compact preview: ids + ~100-char snippets + similarity only.
+                    # Full content / would_set details are intentionally omitted
+                    # to keep the response bounded (see max_results docstring).
                     events.append({
-                        "canonical_id": strong_id,
-                        "merged_from": weak_id,
+                        "memory_id_a": id_a,
+                        "memory_id_b": id_b,
+                        "snippet_a": _snippet(a.get("content", ""), 100),
+                        "snippet_b": _snippet(b.get("content", ""), 100),
                         "similarity": sim,
-                        "would_set": {
-                            "new_recall_count": int(strong.get("recall_count", 0))
-                            + int(weak.get("recall_count", 0)),
-                            "new_stability": max(
-                                float(strong.get("stability", 1.0)),
-                                float(weak.get("stability", 1.0)),
-                            ),
-                        },
-                        "applied": False,
                     })
                 else:
                     result = self.consolidate_pair(strong_id, weak_id)
@@ -2461,13 +2509,28 @@ class VecMemory:
                 ).fetchall()
                 by_tier = {r["tier"] or "(none)": int(r["cnt"]) for r in tier_rows}
 
+            total_candidates = len(candidates)
+            if dry_run:
+                # Cap the preview so the response stays small regardless of
+                # how large `limit` was. Caller still sees `candidates` (total)
+                # and `truncated` to know whether to narrow `threshold`.
+                returned = min(max_results, len(events))
+                truncated = len(events) > max_results
+                events_out = events[:max_results]
+            else:
+                returned = len(events)
+                truncated = False
+                events_out = events
+
             return {
                 "dry_run": dry_run,
                 "threshold": threshold,
                 "merged": merged_count,
-                "candidates": len(candidates),
+                "candidates": total_candidates,
+                "returned": returned,
+                "truncated": truncated,
                 "by_tier": by_tier,
-                "events": events,
+                "events": events_out,
             }
 
     def run_maintenance(

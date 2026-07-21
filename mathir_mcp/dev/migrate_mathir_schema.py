@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-MATHIR Database Schema Migration - Standardize all DBs to Mycerise V2 schema.
+MATHIR Database Schema Migration - Standardize all DBs to the canonical MATHIR schema.
 
 Idempotent: safe to run multiple times.
 
-Target schema (from Mycerise V2):
+Target schema:
   - memories: memory_id, modality, embedding, embedding_dim, metadata, modality_text, timestamp, tier, stability, recall_count, provider, model
   - memories_fts: FTS5 on (memory_id UNINDEXED, modality_text)
   - memory_embeddings: id, memory_id, provider, model, embedding, embedding_dim, created_at
@@ -442,7 +442,7 @@ def verify_all_databases():
 
 if __name__ == "__main__":
     print("MATHIR Database Schema Migration")
-    print(f"Target: standardize all DBs to match Mycerise V2 schema")
+    print(f"Target: standardize all DBs to the canonical MATHIR schema")
     print(f"Target vec dimension: {TARGET_VEC_DIM}")
     print(f"Timestamp: {datetime.now().isoformat()}")
     

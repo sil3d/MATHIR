@@ -552,6 +552,7 @@ def _handle_memory_consolidate(params):
     return vec_mem.consolidate_all(
         threshold=params.get('threshold', 0.95),
         limit=params.get('limit', 100),
+        max_results=params.get('max_results', 50),
         dry_run=params.get('dry_run', True),
     )
 

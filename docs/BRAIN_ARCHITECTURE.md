@@ -87,7 +87,7 @@ Senses environmental context BEFORE the user even asks:
 
 This is added to the recall query so the LLM gets project-relevant memories, not just literal text matches.
 
-**Effect:** When working in Mycerise_V2_Taur, the query becomes "fix the bug" + "project:Mycerise_V2_Taur" + "branch:main" → retrieves project-specific memories.
+**Effect:** When working in `my-project`, the query becomes "fix the bug" + "project:my-project" + "branch:main" → retrieves project-specific memories.
 
 ### Phase 6 — Multi-Agent Orchestration Bridge (`bin/god/`)
 

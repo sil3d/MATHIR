@@ -17,14 +17,14 @@
 
 <br/>
 
-> **🆕 v8.9.4** — **Self-healing daemon + universal LLM injection proxy.** One proxy (port 7339) in front of Anthropic's API or any OpenAI-compatible provider (~30 allowlisted, incl. local models) injects live memory into every request — no per-tool config edits. Daemon + proxy now self-heal on all 3 OSes. [God Mode](docs/GOD_MODE.md) · [Client Bridge](mathir_mcp/bin/god/PROTOCOL.md) · [CHANGELOG](mathir_mcp/CHANGELOG.md)
+> **🆕 v8.9.5** — **Autonomous memory maintenance + headless god-mode workers.** Memory decay/promotion/dedup/link-building now runs on its own background timer — no manual trigger needed. God Mode workers can now run fully unattended (`god_mode_start.py`), executing tasks headlessly with no human watching the terminal. [God Mode](docs/GOD_MODE.md) · [Client Bridge](mathir_mcp/bin/god/PROTOCOL.md) · [CHANGELOG](mathir_mcp/CHANGELOG.md)
 
 <br/>
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://www.python.org)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org)
 [![MIT](https://img.shields.io/badge/License-MIT-22c55e)](LICENSE)
-[![v8.9.4](https://img.shields.io/badge/Version-v8.9.4-6366f1)](mathir_mcp/CHANGELOG.md)
+[![v8.9.5](https://img.shields.io/badge/Version-v8.9.5-6366f1)](mathir_mcp/CHANGELOG.md)
 [![98 tests](https://img.shields.io/badge/Tests-98%20passed-22c55e)](#-tests--benchmarks)
 
 </div>
@@ -139,13 +139,15 @@ mindmap
 - **Dependency-aware** — tasks dispatched only when prerequisites complete
 - **Cycle detection** — circular dependencies caught at creation time
 
+**Fully unattended, too:** the flow above still needs a human to poll each worker terminal. For hands-off execution, `bin/god/god_mode_start.py --launch <tool> --name <n> --cwd <path>` spawns the target agent CLI headlessly in the background — it polls, claims tasks, executes, and reports on its own. `bin/god/god_mode_report.py --cwd <path>` gives a deterministic (non-LLM) readout of what every worker actually did.
+
 Full guide: **[docs/GOD_MODE.md](docs/GOD_MODE.md)**
 
 ---
 
-## 🆕 Recent Highlights (v8.6.0 → v8.9.4)
+## 🆕 Recent Highlights (v8.6.0 → v8.9.5)
 
-27 MCP tools. 22 algorithms. INT8 quantization. Cross-encoder reranking. Multi-agent benchmark. Self-healing daemon + universal injection proxy (see banner above for the latest, v8.9.4).
+27 MCP tools. 22 algorithms. INT8 quantization. Cross-encoder reranking. Multi-agent benchmark. Self-healing daemon + universal injection proxy. Autonomous memory maintenance + headless god-mode workers (see banner above for the latest, v8.9.5).
 
 **INT8 quantization** — embedding storage reduced 4x (float32 → int8), zero recall loss. 410 DBs migrated: 1.9 GB → 825 MB.
 **Cross-encoder reranking** — `ms-marco-MiniLM-L-6-v2` second-pass scoring: +20pp hit@10 on natural-language queries.
@@ -286,7 +288,7 @@ What MATHIR changes:
 | 🟥 **Immunological** | Anomaly detection | "Prompt injection detected" |
 | 🛡️ **Guardrail** | Always-active rules (immune to decay) | "NEVER call _get_project_db() from agent code" |
 
-Memories **decay** when unused (Ebbinghaus), **promote** when recalled, **consolidate** with duplicates, **link** to related concepts. **Guardrails** are push-based: auto-injected into every `memory_context` response, immune to decay, min priority 8, max 50 per project. **Same memory** works across Claude / GPT / Gemini / Ollama / any LLM.
+Memories **decay** when unused (Ebbinghaus), **promote** when recalled, **consolidate** with duplicates, **link** to related concepts. This runs on its own — a background maintenance thread in the daemon periodically applies decay/promote/dedupe/link-build to every active project DB (config-driven interval, `mathir.json`'s `"maintenance"` block), no manual trigger required. **Guardrails** are push-based: auto-injected into every `memory_context` response, immune to decay, min priority 8, max 50 per project. **Same memory** works across Claude / GPT / Gemini / Ollama / any LLM.
 
 ![MATHIR Brain Architecture](docs/assets/memory_that_think.png)
 
@@ -461,7 +463,7 @@ Full architecture: [docs/BRAIN_ARCHITECTURE.md](docs/BRAIN_ARCHITECTURE.md)
 
 ```
 MATHIR/
-├── mathir_mcp/         ← Install this (v8.9.4, 27 MCP tools, God Mode + Guardrails + universal proxy)
+├── mathir_mcp/         ← Install this (v8.9.5, 27 MCP tools, God Mode + Guardrails + universal proxy)
 ├── benchmarks/         ← Reproducible benchmarks
 ├── docs/                ← Research paper, QA, architecture
 ├── examples/            ← Usage examples

@@ -1,4 +1,4 @@
-# MATHIR — Global Instructions (v8.9.4)
+# MATHIR — Global Instructions (v8.9.5)
 
 > **This file is the fallback path, not the primary one.** As of v8.9.4,
 > the recommended way to give any coding tool MATHIR context is the

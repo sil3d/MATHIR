@@ -1,5 +1,5 @@
 {
-  "version": "8.9.4",
+  "version": "8.9.5",
   "memory": {
     "embedding_dim": 384,
     "internal_dim": 512,
@@ -38,5 +38,13 @@
       },
       "enabled": true
     }
+  },
+  "maintenance": {
+    "enabled": true,
+    "interval_hours": 6,
+    "do_decay": true,
+    "do_promote": true,
+    "do_dedupe": true,
+    "do_links": true
   }
 }

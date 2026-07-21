@@ -4,7 +4,7 @@ Setup source files: copy reference Rust/JS source from any source directory.
 NO HARDCODED PATHS. User provides source via CLI argument.
 
 Usage:
-  python setup_sources.py /path/to/secret_project/Mycerise_V2_Taur
+  python setup_sources.py /path/to/secret_project/my-project
   SECRET_PROJECT=/path/to/secret/project python setup_sources.py
 
 v8.5.0 MIGRATION: Removed LlamaSetupModal.jsx + wizardModels_llamacpp.json
@@ -87,7 +87,7 @@ def main():
         epilog="""
 Examples:
   # Provide source root as CLI argument
-  python setup_sources.py /path/to/Mycerise_V2_Taur
+  python setup_sources.py /path/to/my-project
 
   # Use environment variable
   SECRET_PROJECT=/path/to/secret python setup_sources.py
@@ -96,7 +96,7 @@ Examples:
   python setup_sources.py --source /path/to/project_root
         """,
     )
-    parser.add_argument("source", nargs="?", help="Path to source project root (e.g., Mycerise_V2_Taur)")
+    parser.add_argument("source", nargs="?", help="Path to source project root (e.g., my-project)")
     parser.add_argument("--source", dest="source2", help="Alternative way to specify source")
     parser.add_argument("--only", help="Only copy specific file (by source_rel)")
 
