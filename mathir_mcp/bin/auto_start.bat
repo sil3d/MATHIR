@@ -91,8 +91,8 @@ REM ---- Launch universal proxy detached (best-effort, non-fatal) -------------
 REM Missing script or missing flask/waitress must never block the daemon
 REM launch above — this section only ever adds capability, never breaks it.
 if exist "%PROXY_PATH%" (
-    start "MATHIR_PROXY" /B "%PYTHON_PATH%" "%PROXY_PATH%" --port %PROXY_PORT% --target https://api.anthropic.com >> "%PROXY_LOG_PATH%" 2>&1
-    echo [%date% %time%] Proxy launch requested (port %PROXY_PORT%, see mathir_proxy.log) >> "%LOG_PATH%"
+    start "MATHIR_PROXY" /B "%PYTHON_PATH%" "%PROXY_PATH%" --port %PROXY_PORT% --target https://api.openai.com >> "%PROXY_LOG_PATH%" 2>&1
+    echo [%date% %time%] Proxy launch requested (port %PROXY_PORT%, target=api.openai.com, see mathir_proxy.log) >> "%LOG_PATH%"
 )
 
 endlocal & exit /b 0

@@ -78,9 +78,21 @@ daemon_*.txt
 # MiMoCode local state (plans, node_modules)
 .mimocode/
 
+# Codex local settings (contains machine-specific python paths + hook commands).
+# Use mathir_mcp/codex_templates/ for the shareable templates instead.
+.codex/
+/hooks.json
+
+# OpenCode plugin / config (machine-specific)
+# (already covered via .claude/ pattern elsewhere if needed)
+
 # Superpowers (agent scratch dirs)
 .superpowers/
 superpowers/
+
+# Windows PowerShell `> nul` artifact (reserved device name)
+nul
+NUL
 
 # Editor
 .vscode/

@@ -1,0 +1,57 @@
+# ============================================================================
+# Codex MCP + auto-inject + proxy configuration for MATHIR
+# ----------------------------------------------------------------------------
+# This is a TEMPLATE — every line that needs a per-user substitution uses the
+# placeholder `<YOU>` (Windows) or `<USER>` (macOS/Linux).
+#
+# How to use this on a fresh box:
+#   1. Find your Python interpreter:
+#        Windows : `where.exe python`
+#        macOS   : `which python3` (or use a venv interpreter)
+#      Then replace `<ABS_PYTHON>` below with that absolute path.
+#   2. Replace every `<YOU>` / `<USER>` with your username.
+#   3. Merge this into your existing `~/.codex/config.toml` (do not overwrite).
+#   4. Quit Codex fully (not just close the chat) and relaunch.
+#   5. Verify by asking Codex "liste tes outils MCP" — you should see
+#      mcp__mathir__memory_recall, mcp__mathir__memory_save, etc.
+#
+# Troubleshooting: see ../../../docs/CODEX_INTEGRATION.md
+#                  and troubleshooting/codex-mcp-tools-invisible-three-layers.md
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+# Layer A — MCP server (the 27 tools)
+# ---------------------------------------------------------------------------
+[mcp_servers.mathir]
+# IMPORTANT: use ABSOLUTE python path. Codex (Electron) does not always
+# inherit your shell's PATH for MCP child processes, so `command = "python"`
+# silently resolves to nothing and 0 tools show up.
+command = "<ABS_PYTHON>"
+args = ["<HOME>\\.config\\MATHIR\\mathir_mcp\\mathir_lib\\mathir_mcp_server.py"]
+startup_timeout_sec = 30
+
+[mcp_servers.mathir.env]
+MATHIR_EMBEDDING_DIM = "384"
+MATHIR_PORT = "7338"
+MATHIR_DAEMON_URL = "http://127.0.0.1:7338"
+# IMPORTANT: absolute paths in env vars, NOT `~/.config/...`. Codex does NOT
+# shell-expand `~` in MCP env vars before passing them to Python. If you use
+# `~`, `from mathir_paths import CONFIG_PATH` crashes silently and you get 0 tools.
+MATHIR_CONFIG = "<HOME>\\.config\\MATHIR\\config\\mathir.json"
+PYTHONPATH = "<HOME>\\.config\\MATHIR\\mathir_mcp\\mathir_lib"
+
+# ---------------------------------------------------------------------------
+# Layer B — auto-inject hook (prompt-time context)
+# ---------------------------------------------------------------------------
+# Drop hooks.json from this same directory into `~/.codex/hooks.json` (full
+# template also provided). No TOML changes needed for this.
+
+# ---------------------------------------------------------------------------
+# Layer C — transparent OpenAI proxy (optional)
+# ---------------------------------------------------------------------------
+# Adds `OPENAI_BASE_URL` to Codex's env forwarding. `/v1` is mandatory:
+# OpenAI SDK adds `/chat/completions` to your base_url, and its default
+# already includes `/v1` (per guardrail-base-url-v1-convention).
+[shell_environment_policy.set]
+OPENAI_BASE_URL = "http://127.0.0.1:7339/v1"
+MATHIR_PROXY_PORT = "7339"

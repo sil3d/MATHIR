@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"C:\\Users\\<YOU>\\.config\\MATHIR\\mathir_mcp\\bin\\claude_code_hook.py\""
+          }
+        ]
+      }
+    ]
+  }
+}

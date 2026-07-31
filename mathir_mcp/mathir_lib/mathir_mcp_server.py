@@ -1487,7 +1487,7 @@ def main() -> None:
     log.info(f"MATHIR MCP Server v3.1.0 (thin proxy to daemon at {DAEMON_URL})")
     log.info("No embedder loaded — daemon handles all embedding.")
     log.info("Prompts capability enabled: mathir_session_start, mathir_recall")
-    mcp.run()
+    mcp.run(show_banner=False)
 
 
 if __name__ == "__main__":

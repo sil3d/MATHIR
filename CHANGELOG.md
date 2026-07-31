@@ -8,6 +8,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [8.9.6] — 2026-07-31 — CODEX MCP INTEGRATION + STDIO BANNER FIX
+
+### Fixed
+- **Codex MCP stdio banner crash** — `mathir_mcp/mathir_lib/mathir_mcp_server.py:1490`: `mcp.run()` → `mcp.run(show_banner=False)`. FastMCP 3.4.4 prints a large colored ASCII banner to **stdout** at startup; MCP-over-stdio uses stdout for JSON-RPC, so the banner corrupted the framing and Codex silently registered zero tools from this server. Full 3-layer failure walk-through in [`mathir_mcp/docs/troubleshooting/codex-mcp-tools-invisible-three-layers.md`](mathir_mcp/docs/troubleshooting/codex-mcp-tools-invisible-three-layers.md). See also [`docs/CODEX_INTEGRATION.md`](docs/CODEX_INTEGRATION.md) for the full Codex↔MATHIR setup guide (config + proxy + hook + autostart).
+
+### Added
+- **Codex integration guide** — [`docs/CODEX_INTEGRATION.md`](docs/CODEX_INTEGRATION.md): how to install, configure `~/.codex/config.toml` (MCP server + `OPENAI_BASE_URL` proxy + `[shell_environment_policy.set]` forwarding), wire the auto-inject hook, survive reboots via the scheduler tasks, and what to do when `mcp__mathir__*` tools don't appear.
+
+---
+
 ## [8.9.5] — 2026-07-21 — AUTONOMOUS MAINTENANCE + HEADLESS GOD-MODE WORKERS
 
 **mathir_mcp package work — full detail in [mathir_mcp/CHANGELOG.md](mathir_mcp/CHANGELOG.md#895--2026-07-21--autonomous-maintenance--headless-god-mode-workers).**

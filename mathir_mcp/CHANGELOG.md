@@ -1,5 +1,16 @@
 # MATHIR Changelog
 
+## [8.9.6] — 2026-07-31 — CODEX MCP STDIO BANNER FIX + INTEGRATION GUIDE
+
+### Fixed
+- **`mathir_mcp_server.py:1490`** — `mcp.run()` → `mcp.run(show_banner=False)`. FastMCP 3.4.4 prints a large colored ASCII banner to **stdout** at startup; for MCP-over-stdio this corrupts JSON-RPC framing and any MCP host reading JSON-RPC straight off stdout silently fails to register any tool (Codex, in particular). stderr is unaffected, so daemon `logging` and 3-layer cache logs still appear. First symptom reported live: "MCP server `mathir` is configured but `mcp__mathir__*` tools never appear in Codex's tool list." Discovered and patched by Codex's own session, then propagated to source repo per `guardrail-sync-deployed-daemon`.
+
+### Notes
+- This is the **third** layer of three separate MCP-server-for-Codex failures
+  encountered on 2026-07-31 (the other two were `~` not expanded in MCP env
+  vars, and Codex's child process not inheriting `python` on PATH).
+- Documentation: `docs/troubleshooting/codex-mcp-tools-invisible-three-layers.md`.
+
 ## [8.9.5] — 2026-07-21 — AUTONOMOUS MAINTENANCE + HEADLESS GOD-MODE WORKERS
 
 ### Added
