@@ -31,10 +31,25 @@ $LogPath       = Join-Path $BinDir 'mathir_healthcheck.log'
 $AutoStartBat  = Join-Path $BinDir 'auto_start.bat'
 
 # ---- Logging ---------------------------------------------------------------
+# Rotate the healthcheck log so it cannot grow unbounded (it runs every 5 min
+# forever): once above $MaxLogBytes, the current file becomes .old (overwrite)
+# and a fresh one starts. Kept inline -- no external deps.
+$MaxLogBytes = 1MB
+
 function Write-HealthLog {
     param([string]$Level, [string]$Message)
     $ts = (Get-Date).ToString('yyyy-MM-dd HH:mm:ss')
     $line = "[$ts] [$Level] $Message"
+    try {
+        if (Test-Path -LiteralPath $LogPath) {
+            $size = (Get-Item -LiteralPath $LogPath).Length
+            if ($size -gt $MaxLogBytes) {
+                Move-Item -LiteralPath $LogPath -Destination "$LogPath.old" -Force
+            }
+        }
+    } catch {
+        # rotation is best-effort -- never let it break the check
+    }
     Add-Content -LiteralPath $LogPath -Value $line -Encoding UTF8
     if (-not $Quiet) {
         switch ($Level) {

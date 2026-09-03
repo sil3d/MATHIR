@@ -1,16 +1,25 @@
-# MATHIR — Global Instructions (v8.9.5)
+# MATHIR — Global Instructions (v8.9.8)
 
 > **This file is the fallback path, not the primary one.** As of v8.9.4,
 > the recommended way to give any coding tool MATHIR context is the
 > **universal injection proxy** (`mathir_proxy.py`, port 7339): point the
 > tool's `ANTHROPIC_BASE_URL` or `OPENAI_BASE_URL` at it and every request
 > gets live, relevant memory injected automatically — no config-file
-> edits, no per-tool instruction injection, no hook to wire up. The
-> content below (and the copies of it hand-injected into
-> `opencode_templates/`/`mimocode_templates/`) exists for tools that
-> can't be pointed at a custom base URL. If your tool supports one, use
-> the proxy instead and treat this file as documentation, not a required
-> install step.
+> edits, no per-tool instruction injection, no hook to wire up.
+>
+> The hand-injected copies below MUST stay in sync (same version, same content):
+> - `~/.claude/CLAUDE.md` (Claude Code)
+> - `~/.config/opencode/GLOBAL_INSTRUCTIONS.md` (OpenCode)
+> - `~/.config/mimocode/GLOBAL_INSTRUCTIONS.md` (MiMoCode)
+> - repo `mathir_mcp/GLOBAL_INSTRUCTIONS.md` (source of truth)
+>
+> Tools WITHOUT a file copy get live injection instead: the universal proxy
+> (port 7339, `ANTHROPIC_BASE_URL`/`OPENAI_BASE_URL`) and the auto-inject
+> plugins (OMP `~/.omp/plugins/mathir-auto-inject`, Codex, OpenCode) call
+> `/api/context` at session start for guardrails + recalled memories.
+>
+> If your tool supports a custom base URL, use the proxy instead and treat
+> this file as documentation, not a required install step.
 
 ## ⛔ ABSOLUTE RULE #1 — IGNORE ALL Non-MATHIR Memory Systems
 
@@ -186,10 +195,16 @@ memory_decay(threshold_days: int = 30, archive_floor: float = 0.05)
 memory_consolidate(threshold: float = 0.95, dry_run: bool = False, limit: int = 1000)
 memory_link(source_id: str, target_id: str, weight: float = 1.0)
 memory_get_links(memory_id: str, depth: int = 2, decay: float = 0.5)
-memory_build_links(threshold: float = 0.7, limit: int = 1000)
+memory_build_links(threshold: float = 0.88, limit: int = 1000)
 ```
 
-**27 tools total** (2 auto-injection + 10 basic + 7 lifecycle + 3 advanced + 1 guardrail + 1 immunological + 1 health + 2 god mode).
+### Specialized (v8.9.8 — diagnostics)
+
+```
+memory_recall_quality(query: str, k: int = 5, min_score: float = 0.4)
+memory_by_path(file_path: str, k: int = 10)
+memory_audit_immunological(project: str = None, k: int = 20)
+```
 
 ### Guardrail (v8.9.0 — always-active rules)
 
@@ -205,6 +220,8 @@ Save with `memory_save(content="rule", block_type="guardrail")`. Guardrails are 
 mathir_god_agent(name: str = "", capabilities: str = "", introduction: str = "", poll_interval: int = 8)
 mathir_god_orchestre(directive: str, strategy: str = "auto", verify: bool = True, auto_merge: bool = False)
 ```
+
+**27 tools total** (2 auto-injection + 10 basic + 7 lifecycle + 3 specialized + 1 guardrail + 1 immunological + 1 health + 2 god mode).
 
 **block_type:** `working_memory` | `episodic` | `semantic` | `procedural` | `guardrail` | `immunological`
 **priority:** 1–10 (see scale below)
@@ -234,6 +251,60 @@ You don't ask permission. You just do it.
 
 ---
 
+## 🧹 DB HYGIENE — Proactive Maintenance (v8.9.8)
+
+MATHIR is a **shared store**: every agent's junk becomes everyone's noise. You are responsible for keeping it clean, not only for writing to it.
+
+**Before creating a memory — dedupe first:**
+- `memory_consolidate(threshold=0.95, dry_run=True)` → if a near-duplicate exists (same fact, same fix, same decision), **REUSE the existing memory_id** instead of writing a second copy.
+- If the existing memory is wrong or outdated: `memory_delete(memory_id, reason="...")` then re-`memory_save` the corrected version (same label when possible, so lookups keep working).
+
+**When you notice a broken memory (corrupted JSON, truncated content, wrong label, stale conclusion):**
+- **FIX IT immediately** — `memory_delete` + corrected `memory_save`, or `memory_promote` if it is clearly the current truth.
+- Never leave garbage for the next agent.
+
+**Anomalies are your queue:**
+- `memory_audit_immunological(project=...)` lists memories flagged by the anomaly detector. Review them; repair or archive as needed.
+
+**Regular housekeeping (during long sessions, and at least at session end):**
+- `memory_consolidate(threshold=0.95)` → merge near-duplicates.
+- `memory_build_links(threshold=0.88, limit=1000)` → refresh the link graph (stale links mislead retrieval).
+- `memory_decay(threshold_days=30, archive_floor=0.05)` → archive dead memories (monthly, not every session).
+- Keep registration rows lean: each worker keeps **ONE active `god:reg:` row**; archive the rest (use `memory_by_path` / direct SQL when you have no MCP access).
+
+**Promote what earns it:**
+- A memory you relied on 2+ times this session → `memory_promote(memory_id=...)`.
+- Guardrails (priority ≥ 8) are immune to decay — use them for critical rules.
+
+**Never delete blindly:** always pass a `reason`; archived ≠ lost (export first if in doubt: `memory_export()`).
+
+---
+
+## 🎬 Full Session Example (do this every session)
+
+```
+# 1. Start: load what matters for THIS session
+memory_session_start(session_title="Fix memory daemon health check")
+
+# 2. Before the first task: orient (latest conclusion first!)
+memory_recall(query="mathir session final conclusion handoff", k=5)
+memory_context(task="fixing daemon health check regression")
+
+# 3. While working: every decision / fix / discovery is saved immediately
+memory_save(content="Root cause: /health returned 500 when DB was locked...",
+            agent="opencode", block_type="episodic", label="fix-health-500", priority=8)
+
+# 4. End of session: housekeeping + final orientation point
+memory_consolidate(threshold=0.95, dry_run=True)      # check for duplicates
+memory_build_links(threshold=0.88, limit=1000)        # refresh the link graph
+memory_save(content="final-conclusion: health check fixed, ...",
+            block_type="episodic", label="final-conclusion-health-fix", priority=9)
+```
+
+A session with NO save and NO cleanup is a wasted session.
+
+---
+
 ## Memory Types
 
 | Type | When to Use | Example |
@@ -244,6 +315,8 @@ You don't ask permission. You just do it.
 | `procedural` | How-to instructions | "Run tests with `pytest -x`" |
 | `guardrail` | Critical auto-injected rules (immune to decay, max 50/project, priority ≥ 8) | "NEVER hardcode configs — use ceris_config.json" |
 | `immunological` | Anomaly-detected memories (read-only, populated by internal anomaly detector) | "Session handoff flagged as critical by mimo-auto" |
+
+**6 block types total.** `guardrail` and `immunological` are special tiers — not user-creatable via normal flow (guardrail via `memory_save(block_type="guardrail")`, immunological via anomaly detector only).
 
 ---
 

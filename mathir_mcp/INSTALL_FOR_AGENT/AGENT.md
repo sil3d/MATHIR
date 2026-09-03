@@ -1,8 +1,8 @@
-# MATHIR — Agent Deployment Guide (v8.9.4)
+# MATHIR — Agent Deployment Guide (v8.9.8)
 
 **Universal install: one folder, 50+ agents, zero config.**
 
-**v8.9.0 highlights**: **God Mode** (multi-agent orchestration), INT8 quantization (4x compression), cross-encoder reranking (+20pp), **27 MCP tools**, 22 algorithms, FastMCP 3.4.2, auto-injection plugin, unified HTTP daemon, **OpenAI-compatible proxy (port 7339)**. See [CHANGELOG.md](../../CHANGELOG.md) for details.
+**v8.9.5–v8.9.8 highlights**: guardrails always injected **first** in `/api/context`; autonomous maintenance thread (decay/promote/consolidate); **windowless Windows auto-start** (wscript wrappers — no more console flash every 5 min); agent-agnostic install prompts. v8.9.8: unified global instructions with enforced **DB hygiene** (dedupe before save, repair broken memories, end-of-session housekeeping) + OMP/Claude Code hooks completed with God Mode relay and the hygiene block. v8.9.0: **God Mode** (multi-agent orchestration), INT8 quantization (4x compression), cross-encoder reranking (+20pp), **27 MCP tools**, 22 algorithms, FastMCP 3.4.2, auto-injection plugin, unified HTTP daemon, **universal proxy (port 7339)**. See [CHANGELOG.md](../../CHANGELOG.md) for details.
 
 ---
 
@@ -44,7 +44,7 @@ queries the MATHIR daemon for relevant memories, and **prepends them to
 the system prompt** as a `<mathir-auto-injection>` block — silently, on
 every call, regardless of whether the agent cooperates.
 
-This is the **true universal coverage**. It is shipped with MATHIR (script at `~/.config/MATHIR/mathir_mcp/mathir_lib/mathir_proxy.py`), self-heals on all 3 OSes (systemd/launchd native restart, Windows Task Scheduler healthcheck every 5 min — no admin required as of v8.9.4), and auto-started alongside the daemon on Windows login (see `mathir_daemon_startup.bat` in the Startup folder).
+This is the **true universal coverage**. It is shipped with MATHIR (script at `~/.config/MATHIR/mathir_mcp/mathir_lib/mathir_proxy.py`), self-heals on all 3 OSes (systemd/launchd native restart, Windows Task Scheduler healthcheck every 5 min — no admin required), and auto-started alongside the daemon on Windows login. **Since v8.9.7 both Windows scheduled tasks are windowless**: they launch via `wscript.exe` (`bin/run_healthcheck_hidden.vbs` / `bin/mathir_daemon_hidden.vbs`) — wscript is a GUI-subsystem binary and can never flash a console (the old `mathir_daemon_startup.bat` Startup-folder shortcut was removed).
 
 ```bash
 # Start the proxy (daemon must already be running on 7338)
@@ -65,22 +65,6 @@ cp ~/.config/MATHIR/mathir_mcp/opencode_templates/AGENTS.md /path/to/your/projec
 ```
 
 The template instructs the agent to call `memory_session_start` on first turn + `memory_context` before each task. **Combined with the proxy, this gives 100% coverage for the agents that follow agents.md + 100% for OpenAI-compatible ones.**
-
----
-
-## TL;DR
-
-```
-You need 3 things:
-1. Install MATHIR: ~/.config/MATHIR/ (global, once) — see Step 1 for the EXACT layout
-2. Run installer:  python ~/.config/MATHIR/INSTALL_FOR_DEV/install_smart.py
-3. That's it.
-
-The installer auto-detects your coding agents and configures them.
-Each project gets its own database at .mathir/mathir.db.
-```
-
-**Universal install: one folder, 50 agents, zero config.**
 
 ---
 
@@ -132,7 +116,7 @@ If you have layout A, restructure first (see §"Restructuring After Clone" below
 chmod +x ~/.config/MATHIR/INSTALL_FOR_DEV/install.sh
 ~/.config/MATHIR/INSTALL_FOR_DEV/install.sh
 
-# Or directly (note: installer lives under INSTALL_FOR_AGENT/, not at the MATHIR root)
+# Or directly (note: installer lives under INSTALL_FOR_DEV/, not at the MATHIR root)
 python ~/.config/MATHIR/INSTALL_FOR_DEV/install_smart.py
 ```
 
@@ -203,7 +187,7 @@ It will read `INSTALL_FOR_AGENT/AGENT.md` and configure MATHIR automatically.
 │   ├── mathir_lib/                  ← Core library (imported as `mathir_mcp.mathir_lib`)
 │   │   ├── mathir_mcp_server.py     ← MCP stdio server entry point (line `from mathir_mcp.mathir_lib import mathir_mcp_server`)
 │   │   ├── mathir_server.py         ← Persistent HTTP daemon (Flask + Waitress)
-│   │   ├── mathir_daemon.py         ← Legacy raw-socket daemon (superseded by mathir_server.py)
+│   │   ├── mathir_daemon.py         ← Shim → mathir_server.py (main entry)
 │   │   ├── mathir_client.py         ← CLI client
 │   │   ├── mathir_vec.py            ← VecMemory (sqlite-vec)
 │   │   ├── mathir_search.py         ← HybridSearch (vector + BM25 + RRF)
@@ -223,21 +207,16 @@ It will read `INSTALL_FOR_AGENT/AGENT.md` and configure MATHIR automatically.
 │   ├── dev/                         ← Migration/dev scripts
 │   ├── tests/                       ← pytest suite
 │   └── ... (other package internals)
-├── INSTALL_FOR_AGENT/               ← Auto-installer for AI coding agents (smart installer scripts)
-│   ├── install_smart.py             ← The installer — 40+ agents auto-detected
-│   ├── install.bat                  ← Windows launcher
-│   └── install.sh                   ← Mac/Linux launcher
-├── INSTALL_FOR_DEV/                 ← Step-by-step guides for HUMAN developers
-│   ├── INSTALL_WINDOWS.md           ← Windows 10/11 walkthrough
-│   ├── INSTALL_LINUX.md             ← Linux walkthrough
-│   ├── INSTALL_MACOS.md             ← macOS walkthrough
-│   └── README.md
-│   ├── install_smart.py             ← Smart installer (50 agents)
-│   ├── install.bat                  ← Windows launcher
-│   ├── install.sh                   ← Mac/Linux launcher
-│   ├── INSTALL_WINDOWS.md           ← Windows install walkthrough
+├── INSTALL_FOR_AGENT/               ← Prompts + walkthroughs for CODING AGENTS (this file's home)
+│   ├── AGENT.md                     ← This file — universal agent prompt
+│   ├── INSTALL_WINDOWS.md           ← Windows walkthrough (any agent)
 │   ├── INSTALL_LINUX.md             ← Linux walkthrough
 │   └── INSTALL_MACOS.md             ← macOS walkthrough
+├── INSTALL_FOR_DEV/                 ← Auto-installer scripts + dev README
+│   ├── install_smart.py             ← The installer — 50+ agents auto-detected
+│   ├── install.bat                  ← Windows launcher
+│   ├── install.sh                   ← Mac/Linux launcher
+│   └── README.md
 ├── docs/                            ← Documentation (top-level — what users read first)
 │   ├── AGENT.md                     ← This file
 │   ├── GLOBAL_INSTRUCTIONS.md       ← Universal AI instructions
@@ -558,7 +537,7 @@ key is rejected by the current MiMo CLI with `Unrecognized key: "mcpServers"`.
       "command": ["python", "C:\\Users\\<YOU>\\.config\\mimocode\\tools\\mathir_mcp\\mathir_lib\\mathir_mcp_server.py"],
       "environment": {
         "MATHIR_EMBEDDING_DIM": "384",
-        "MATHIR_PORT": "7339",
+        "MATHIR_PORT": "7338",
         "PYTHONPATH": "C:\\Users\\<YOU>\\.config\\mimocode\\tools\\mathir_mcp\\mathir_lib"
       },
       "enabled": true
@@ -703,7 +682,7 @@ This restores from the most recent backup and re-verifies daemon health.
 | `~/.config/MATHIR/mathir_mcp/.git` exists | **git** | `git fetch + git checkout v<target>` (refuses if local mods) |
 | `~/.config/MATHIR/mathir_mcp/` only (pip install -e) | **bundle** | Downloads `mathir-bundle-<version>.zip` from GitHub Releases |
 
-Set `MATHIR_DAEMON_RESTART` env var to override the daemon-restart mechanism (otherwise Windows uses `mathir_daemon_startup.bat` from Startup folder).
+Set `MATHIR_DAEMON_RESTART` env var to override the daemon-restart mechanism (otherwise Windows uses the windowless scheduled task `MATHIR Daemon` — `wscript.exe bin\mathir_daemon_hidden.vbs`).
 
 ### Agent-copy sync
 
@@ -786,7 +765,7 @@ python install_smart.py
       "command": ["python", "C:\\Users\\<YOU>\\.config\\mimocode\\tools\\mathir_mcp\\mathir_lib\\mathir_mcp_server.py"],
       "environment": {
         "MATHIR_EMBEDDING_DIM": "384",
-        "MATHIR_PORT": "7339",
+        "MATHIR_PORT": "7338",
         "PYTHONPATH": "C:\\Users\\<YOU>\\.config\\mimocode\\tools\\mathir_mcp\\mathir_lib"
       },
       "enabled": true

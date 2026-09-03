@@ -31,7 +31,7 @@ Before your FIRST tool call in this conversation:
 
 ## Why this file exists
 
-MATHIR is a 5-tier cognitive memory layer for LLMs. Without explicit prompting,
+MATHIR is a 6-tier cognitive memory layer for LLMs. Without explicit prompting,
 most agents will forget prior sessions, repeat mistakes, and ignore your project
 context. This `AGENTS.md` is the **lowest-common-denominator injection** that
 works across all agents that follow the agents.md convention.

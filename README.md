@@ -17,14 +17,14 @@
 
 <br/>
 
-> **🆕 v8.9.5** — **Autonomous memory maintenance + headless god-mode workers.** Memory decay/promotion/dedup/link-building now runs on its own background timer — no manual trigger needed. God Mode workers can now run fully unattended (`god_mode_start.py`), executing tasks headlessly with no human watching the terminal. [God Mode](docs/GOD_MODE.md) · [Client Bridge](mathir_mcp/bin/god/PROTOCOL.md) · [CHANGELOG](mathir_mcp/CHANGELOG.md)
+> **🧠 v8.9.8** — **Unified global instructions + completed injection channels.** DB hygiene is now enforced in every injected prompt (dedupe before save, repair broken memories, end-of-session housekeeping); OMP and Claude Code hooks gained God Mode relay/registration + the hygiene block, matching OpenCode. [God Mode](docs/GOD_MODE.md) · [Client Bridge](mathir_mcp/bin/god/PROTOCOL.md) · [CHANGELOG](mathir_mcp/CHANGELOG.md)
 
 <br/>
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)](https://www.python.org)
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org)
 [![MIT](https://img.shields.io/badge/License-MIT-22c55e)](LICENSE)
-[![v8.9.5](https://img.shields.io/badge/Version-v8.9.5-6366f1)](mathir_mcp/CHANGELOG.md)
+[![v8.9.8](https://img.shields.io/badge/Version-v8.9.8-6366f1)](mathir_mcp/CHANGELOG.md)
 [![98 tests](https://img.shields.io/badge/Tests-98%20passed-22c55e)](#-tests--benchmarks)
 
 </div>
@@ -145,9 +145,9 @@ Full guide: **[docs/GOD_MODE.md](docs/GOD_MODE.md)**
 
 ---
 
-## 🆕 Recent Highlights (v8.6.0 → v8.9.5)
+## 🆕 Recent Highlights (v8.6.0 → v8.9.8)
 
-27 MCP tools. 22 algorithms. INT8 quantization. Cross-encoder reranking. Multi-agent benchmark. Self-healing daemon + universal injection proxy. Autonomous memory maintenance + headless god-mode workers (see banner above for the latest, v8.9.5).
+27 MCP tools. 22 algorithms. INT8 quantization. Cross-encoder reranking. Multi-agent benchmark. Self-healing daemon + universal injection proxy. Autonomous memory maintenance + headless god-mode workers (see banner above for the latest, v8.9.8). v8.9.8: unified global instructions with enforced DB hygiene (dedupe, repair, housekeeping) + OMP/Claude Code hooks completed with God Mode relay and the hygiene block.
 
 **INT8 quantization** — embedding storage reduced 4x (float32 → int8), zero recall loss. 410 DBs migrated: 1.9 GB → 825 MB.
 **Cross-encoder reranking** — `ms-marco-MiniLM-L-6-v2` second-pass scoring: +20pp hit@10 on natural-language queries.
@@ -463,7 +463,7 @@ Full architecture: [docs/BRAIN_ARCHITECTURE.md](docs/BRAIN_ARCHITECTURE.md)
 
 ```
 MATHIR/
-├── mathir_mcp/         ← Install this (v8.9.5, 27 MCP tools, God Mode + Guardrails + universal proxy)
+├── mathir_mcp/         ← Install this (v8.9.8, 27 MCP tools, God Mode + Guardrails + universal proxy)
 ├── benchmarks/         ← Reproducible benchmarks
 ├── docs/                ← Research paper, QA, architecture
 ├── examples/            ← Usage examples

@@ -42,6 +42,20 @@ except Exception:
 DAEMON = "http://127.0.0.1:7338"
 TIMEOUT = 3  # seconds — must be fast or Claude Code will skip it
 
+# MATHIR mini instructions block (v8.9.8): always emitted so the agent knows it
+# must maintain the shared memory DB. Mirrors the "DB Hygiene" section of
+# GLOBAL_INSTRUCTIONS.md and the OMP plugin's MATHIR_INSTRUCTIONS constant.
+MATHIR_INSTRUCTIONS_BLOCK = (
+    "<mathir-instructions>\n"
+    "MATHIR memory etiquette — keep the shared memory DB clean:\n"
+    "1. Save what you learn (memory_save via MCP tools if available).\n"
+    "2. Dedupe before saving (memory_consolidate dry_run) — reuse existing memory_ids.\n"
+    "3. Repair broken memories (memory_delete + corrected memory_save, or memory_promote).\n"
+    "4. Orient via the latest final-conclusion/handoff memories before trusting older findings.\n"
+    "5. Housekeep at session end (memory_consolidate + memory_build_links).\n"
+    "</mathir-instructions>"
+)
+
 # God Mode cross-agent relay (v8.9.4+): without this, a pending god:task
 # message only ever surfaces if the agent actively calls mathir_god_agent()
 # -- which nothing prompts it to do, so the human ends up manually copying
@@ -199,6 +213,14 @@ def _check_god_registration(project: str, cwd: str) -> str:
 
 
 def main():
+    # Codex's UserPromptSubmit hook contract requires JSON on stdout
+    # ({"hookSpecificOutput": {"additionalContext": [...]}}) -- raw text is
+    # silently dropped by Codex, which is why MATHIR memory never appeared in
+    # Codex prompts even though this same script was wired into ~/.codex.
+    # Claude Code accepts plain text. `--codex-json` selects the JSON
+    # envelope; without it, behavior is unchanged (raw blocks).
+    codex_json = "--codex-json" in sys.argv
+
     # Read the hook input from stdin
     try:
         raw = sys.stdin.read()
@@ -243,24 +265,39 @@ def main():
     context = data.get("context", "")
     total = data.get("total", 0)
 
-    # God Mode relay check runs independently of memory-context results --
-    # a pending cross-agent message should surface even on a turn where
-    # nothing matched semantically.
+    # Assemble all blocks (god relay, registration nudge, memory context),
+    # then emit in the harness-appropriate format.
+    blocks = [MATHIR_INSTRUCTIONS_BLOCK]
     god_block = _check_god_relay(project, cwd)
     if god_block:
-        print(god_block)
-
+        blocks.append(god_block)
     reg_block = _check_god_registration(project, cwd)
     if reg_block:
-        print(reg_block)
-
-    if total == 0 or not context:
+        blocks.append(reg_block)
+    if total and context:
+        blocks.append(
+            f'<mathir-auto-injection project="{project}" memories="{total}">\n'
+            f"{context}\n"
+            f"</mathir-auto-injection>"
+        )
+    if not blocks:
         return
 
-    # Print to stdout — Claude Code injects this into the conversation
-    print(f"<mathir-auto-injection project=\"{project}\" memories=\"{total}\">")
-    print(context)
-    print("</mathir-auto-injection>")
+    if codex_json:
+        # Codex UserPromptSubmit hook: JSON with hookSpecificOutput.additionalContext
+        # as an array of strings. Sanitize against breakout tokens.
+        payload = {
+            "hookSpecificOutput": {
+                "additionalContext": [
+                    _sanitize_god_block(b) for b in blocks
+                ]
+            }
+        }
+        print(json.dumps(payload))
+    else:
+        # Claude Code: raw blocks on stdout are wrapped into the conversation.
+        for block in blocks:
+            print(block)
 
 
 if __name__ == "__main__":

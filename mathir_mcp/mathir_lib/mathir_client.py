@@ -28,8 +28,17 @@ BASE_URL = f'http://{HOST}:{PORT}'
 
 
 # RPC method → (HTTP method, route)
+# FIX (2026-08-18): map was missing ~20 routes (god_reg/god_agents/god_poll/
+# god_ack, memory_audit, memory_export, memory_sessions, context, health, ...)
+# so those calls returned "unknown method" instead of hitting the daemon.
 _METHOD_MAP = {
     'ping':                  ('GET',  '/api/ping'),
+    'health':                ('GET',  '/health'),
+    'stats':                 ('GET',  '/api/stats'),
+    'memories':              ('GET',  '/api/memories'),
+    'projects':              ('GET',  '/api/projects'),
+    'cache_stats':           ('GET',  '/api/cache/stats'),
+    'context':               ('POST', '/api/context'),
     'memory_save':           ('POST', '/api/memory/save'),
     'memory_recall':         ('POST', '/api/memory/recall'),
     'memory_stats':          ('GET',  '/api/memory/stats'),
@@ -45,6 +54,25 @@ _METHOD_MAP = {
     'memory_link':           ('POST', '/api/memory/link'),
     'memory_get_links':      ('POST', '/api/memory/get_links'),
     'memory_build_links':    ('POST', '/api/memory/build_links'),
+    'memory_audit':          ('POST', '/api/memory/audit'),
+    'memory_audit_immunological': ('POST', '/api/memory/audit_immunological'),
+    'memory_guardrails':     ('POST', '/api/memory/guardrails'),
+    'memory_list_guardrails':('POST', '/api/memory/guardrails'),
+    'memory_reset_anomaly_state': ('POST', '/api/memory/reset_anomaly_state'),
+    'memory_by_path':        ('POST', '/api/memory/by_path'),
+    'memory_dashboard':      ('GET',  '/api/memory/dashboard'),
+    'memory_incoming_links': ('POST', '/api/memory/incoming_links'),
+    'memory_export':         ('GET',  '/api/memory/export'),
+    'memory_sessions':       ('GET',  '/api/memory/sessions'),
+    'memory_context':        ('POST', '/api/context'),
+    'memory_session_start':  ('POST', '/api/context'),
+    'memory_recall_quality': ('POST', '/api/memory/recall'),
+    'god_reg':               ('POST', '/api/god/reg'),
+    'god_agents':            ('GET',  '/api/god/agents'),
+    'god_poll':              ('POST', '/api/god/poll'),
+    'god_ack':               ('POST', '/api/god/ack'),
+    'god_agent':             ('POST', '/api/god/agent'),
+    'god_orchestre':         ('POST', '/api/god/orchestre'),
     'push_cache_stats':      ('GET',  '/api/push_cache_stats'),
 }
 

@@ -67,6 +67,22 @@ while true; do
                     log "NEW TASK: $label" "TASK"
                     echo "$resp" | head -c 300
                     echo
+                    # FIX (2026-08-18): god/poll atomically claims the task
+                    # (pending -> claimed). A notify-only poller that never
+                    # acks leaves every task stuck on "claimed", blocking the
+                    # whole queue (see /api/god/ack docstring). Mark it
+                    # delivered so the next task can surface.
+                    mid=$(echo "$resp" | python -c "import sys,json; d=json.load(sys.stdin); print(d['task'].get('memory_id',''))" 2>/dev/null)
+                    if [ -n "$mid" ]; then
+                        ack=$(curl -sf -m 5 -X POST -H "Content-Type: application/json" \
+                            -d "{\"memory_id\":\"$mid\",\"status\":\"delivered\"}" \
+                            "$DAEMON/api/god/ack" 2>/dev/null)
+                        if [ -n "$ack" ]; then
+                            log "ACK delivered: $mid" "TASK"
+                        else
+                            log "ACK FAILED for $mid" "WARN"
+                        fi
+                    fi
                     beep_notify
                 fi
             fi

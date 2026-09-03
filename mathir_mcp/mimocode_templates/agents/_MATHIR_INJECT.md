@@ -1,4 +1,4 @@
-# MATHIR MEMORY — v8.6.0 INJECTION BLOCK
+# MATHIR MEMORY — v8.9.8 INJECTION BLOCK
 # Injected at the top of every agent's system_prompt.
 # Use MCP tools directly — no proxy, no bash.
 
@@ -193,7 +193,7 @@ When you need to reference MATHIR files, use these paths:
 | Service (Linux) | `bin/mathir-daemon.service` (in source repo) |
 | Plist (macOS) | `bin/com.mathir.daemon.plist` (in source repo) |
 | Install guides | `mathir_mcp/INSTALL/INSTALL_{WINDOWS,LINUX,MACOS}.md` |
-| Templates | `mathir_mcp/opencode/{agents,commands,skills,docs}/` |
+| Templates | `mathir_mcp/opencode_templates/{agents,commands,skills,docs}/` |
 | Dashboard | `~/.config/MATHIR/mathir_mcp/mathir_dashboard.html` |
 | Logs | `~/.config/MATHIR/logs/mathir_daemon.log` |
 
@@ -207,7 +207,7 @@ When you need to reference MATHIR files, use these paths:
 
 ---
 
-## MATHIR v8.9.4 — LIVING MEMORY (6 TIERS)
+## MATHIR v8.9.8 — LIVING MEMORY (6 TIERS)
 
 Your memory is **alive**. It has **6 tiers** and a full lifecycle (Ebbinghaus forgetting, promotion, consolidation, link graph, guardrails). Use the right tool at the right time.
 
@@ -283,7 +283,9 @@ memory_get_links(memory_id, depth, decay)
 
 memory_build_links(threshold, limit)
   - Scans all memories and creates links between pairs with cosine > threshold
-  - threshold=0.7 catches broad associations
+  - threshold=0.88 catches strong associations (default; the old 0.7 produced
+    an almost-complete graph and is useless as a "related memories" signal)
+  - top_k=8: each memory links to its top-k neighbors only
   - Idempotent — safe to run multiple times
   - Run this after a batch of saves to build the graph
 ```
@@ -337,6 +339,17 @@ memory_save(content="CORRECTED: ...", agent="...", block_type="episodic", label=
 memory_delete(old_memory_id, reason="superseded")
 ```
 
+### DB hygiene — proactive maintenance (v8.9.8)
+
+MATHIR is a **shared store**: every agent's junk becomes everyone's noise. Keep it clean:
+
+- **Dedupe before saving:** `memory_consolidate(threshold=0.95, dry_run=true)` → if a near-duplicate exists, REUSE the existing memory_id — do not write a second copy.
+- **Broken memory (corrupted JSON, truncated content, wrong label)?** FIX it immediately: `memory_delete(memory_id, reason="...")` + corrected `memory_save` (same label when possible), or `memory_promote` if it's clearly the current truth. Never leave garbage for the next agent.
+- **Anomalies are your queue:** `memory_audit_immunological(project=...)` lists anomaly-flagged memories → review, repair or archive.
+- **Session end housekeeping:** `memory_consolidate(threshold=0.95)` + `memory_build_links(threshold=0.88, limit=1000)`; `memory_decay(threshold_days=30)` monthly.
+- **Promote what earns it:** a memory you relied on 2+ times this session → `memory_promote(memory_id=...)`.
+- **Never delete blindly:** always pass a `reason`; archived ≠ lost (export first: `memory_export()`).
+
 ### When you discover a relationship between 2 memories
 ```
 memory_link(source_id, target_id, weight=1.0)
@@ -348,7 +361,7 @@ Example: "this JWT bug" relates to "our auth middleware rewrite"
 memory_auto_promote()       # promote mature working_memory to episodic
 memory_decay(threshold_days=30)  # archive unused
 memory_consolidate(threshold=0.95, dry_run=false)  # merge dupes
-memory_build_links(threshold=0.7)  # build graph
+memory_build_links(threshold=0.88)  # build graph
 ```
 
 ### When recall quality seems bad
@@ -398,5 +411,5 @@ memory_smart_search(query="exact text", k=5)
 
 **Types:** working_memory, episodic, semantic, procedural, guardrail, immunological
 **Priority:** 1-10 (higher = more important)
-**Port:** 7338 (daemon) / 8182 (proxy) | **Database:** auto-detected (CWD-first, registry fallback, home ignored)
+**Port:** 7338 (daemon) / 7339 (proxy) | **Database:** auto-detected (CWD-first, registry fallback, home ignored)
 **Model:** intfloat/multilingual-e5-small (384d, multilingual, ~240MB VRAM fp16, retrieval-trained)

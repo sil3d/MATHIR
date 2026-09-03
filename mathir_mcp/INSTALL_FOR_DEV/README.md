@@ -1,16 +1,19 @@
 # MATHIR `INSTALL_FOR_DEV/` — File Reference
 
-This folder contains platform-specific install guides for **HUMAN DEVELOPERS**.
-The auto-installer for AI coding agents lives in the sibling `INSTALL_FOR_AGENT/`
-directory — that's what agents like OpenCode should be pointed at.
+This folder contains the **auto-installer** (`install_smart.py`) plus its
+launchers (`install.bat` / `install.sh`). The step-by-step walkthroughs live in
+the sibling `INSTALL_FOR_AGENT/` directory (`INSTALL_WINDOWS.md` /
+`INSTALL_LINUX.md` / `INSTALL_MACOS.md`) — that's what agents like OpenCode
+should be pointed at.
 
-If you are a human setting up MATHIR by hand, start here:
-- **Windows:** see `INSTALL_WINDOWS.md`
-- **Linux:** see `INSTALL_LINUX.md`
-- **macOS:** see `INSTALL_MACOS.md`
+If you are a human setting up MATHIR by hand, start here (guides in the
+sibling `../INSTALL_FOR_AGENT/` folder):
+- **Windows:** see `../INSTALL_FOR_AGENT/INSTALL_WINDOWS.md`
+- **Linux:** see `../INSTALL_FOR_AGENT/INSTALL_LINUX.md`
+- **macOS:** see `../INSTALL_FOR_AGENT/INSTALL_MACOS.md`
 
 If you (or your AI agent) want the **automatic** setup that detects all your
-agents and injects MATHIR config into them, run `../INSTALL_FOR_DEV/install_smart.py`
+agents and injects MATHIR config into them, run `install_smart.py` right here
 (or `install.bat` / `install.sh` on the corresponding platform) instead.
 
 ```bash
@@ -41,7 +44,7 @@ install.bat
    - Cursor, Windsurf, Kilo Code, Cline
    - MiMo Code, Zcode
    - GitHub Copilot, Continue.dev, Cody
-   - And ~30 more (see `mathir_mcp/INSTALL_FOR_AGENT/AGENT.md` for the full list)
+   - And ~30 more (see `../INSTALL_FOR_AGENT/AGENT.md` for the full list)
 3. **Injects** the MATHIR MCP server config into each agent's config
 4. **Injects** the `GLOBAL_INSTRUCTIONS.md` into the agent's system prompt
 5. **Installs** the daemon auto-start (Task Scheduler on Win, launchd on Mac, systemd on Linux)
@@ -49,11 +52,11 @@ install.bat
 
 ## Full install guides (markdown)
 
-| File | Platform | Length |
+| File (in `../INSTALL_FOR_AGENT/`) | Platform | Length |
 |---|---|---|
-| `INSTALL_WINDOWS.md` | Windows 10/11/Server | ~350 lines |
+| `INSTALL_WINDOWS.md` | Windows 10/11/Server | ~360 lines |
 | `INSTALL_LINUX.md` | Ubuntu/Debian/Fedora/Arch | ~330 lines |
-| `INSTALL_MACOS.md` | macOS 12+ (Intel + Apple Silicon) | ~360 lines |
+| `INSTALL_MACOS.md` | macOS 12+ (Intel + Apple Silicon) | ~350 lines |
 
 Each guide includes:
 - Prerequisites
@@ -75,7 +78,7 @@ Auto-detects your agents and configures everything.
 ### Path 2 — Manual (read the INSTALL_*.md)
 ```bash
 # Read the right guide
-cat INSTALL_FOR_AGENT/INSTALL_LINUX.md
+cat ../INSTALL_FOR_AGENT/INSTALL_LINUX.md
 # Follow step-by-step
 ```
 

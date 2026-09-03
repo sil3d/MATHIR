@@ -44,8 +44,13 @@ $RegPath         = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
 $RegName         = 'MATHIR_Daemon'
 $TaskName        = 'MATHIR_Daemon_AutoStart'
 $PythonPath      = (Get-Command python).Source
-$DaemonPath      = Join-Path $BinDir 'mathir_daemon.py'
-$HealthcheckPath = Join-Path $BinDir 'auto_start_healthcheck.ps1'
+$DaemonPath        = Join-Path $BinDir 'mathir_daemon.py'
+$HealthcheckPath   = Join-Path $BinDir 'auto_start_healthcheck.ps1'
+# v8.9.7: wscript.exe is a GUI-subsystem binary -- scheduled tasks that go
+# through these wrappers can never flash a console (Task Scheduler's
+# `powershell.exe -WindowStyle Hidden` still flashes on some Windows builds).
+$DaemonHiddenVbs   = Join-Path $BinDir 'mathir_daemon_hidden.vbs'
+$HealthcheckVbs    = Join-Path $BinDir 'run_healthcheck_hidden.vbs'
 
 function Write-Status {
     param([string]$Msg, [string]$Color = 'Cyan')
@@ -113,7 +118,7 @@ if ($SkipTaskScheduler) {
     } else {
         try {
             Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
-            $action  = New-ScheduledTaskAction -Execute $PythonPath -Argument "`"$DaemonPath`"" -WorkingDirectory $BinDir
+            $action  = New-ScheduledTaskAction -Execute 'wscript.exe' -Argument "`"$DaemonHiddenVbs`"" -WorkingDirectory $BinDir
             $trigger = New-ScheduledTaskTrigger -AtLogOn
             $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
             $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest
@@ -140,10 +145,13 @@ if ($InstallHealthcheck) {
     try {
         $hcName = 'MATHIR_Daemon_Healthcheck'
         Unregister-ScheduledTask -TaskName $hcName -Confirm:$false -ErrorAction SilentlyContinue
-        $hcAction  = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$HealthcheckPath`" -Quiet" -WorkingDirectory $BinDir
+        # v8.9.7+: go through wscript.exe so the every-5-min poll is windowless
+        # (a `powershell.exe -WindowStyle Hidden` action still flashes the
+        # console on some Windows builds -- that bug was reported live).
+        $hcAction  = New-ScheduledTaskAction -Execute 'wscript.exe' -Argument "`"$HealthcheckVbs`"" -WorkingDirectory $BinDir
         $hcTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date) -RepetitionInterval (New-TimeSpan -Minutes 5) -RepetitionDuration (New-TimeSpan -Days 3650)
         $hcSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
-        Register-ScheduledTask -TaskName $hcName -Action $hcAction -Trigger $hcTrigger -Settings $hcSettings -Description 'MATHIR daemon healthcheck -- restarts daemon if port 7338 is not responding' | Out-Null
+        Register-ScheduledTask -TaskName $hcName -Action $hcAction -Trigger $hcTrigger -Settings $hcSettings -Description 'MATHIR daemon + proxy healthcheck (ports 7338/7339) -- restarts via auto_start.bat if down; runs windowless via wscript' | Out-Null
         Write-Status "  OK: Task '$hcName' registered (every 5 minutes, no admin required)" 'Green'
     } catch {
         Write-Status "  FAILED: $_" 'Red'

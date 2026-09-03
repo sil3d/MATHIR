@@ -2,7 +2,7 @@
 
 **6-tier cognitive memory for 50 AI coding agents. Install once, use everywhere.**
 
-> **v8.9.5** — Autonomous memory maintenance thread (decay/promote/dedup/link-build on a timer) + headless, on-demand God Mode workers. Self-healing daemon + universal LLM injection proxy (Anthropic + OpenAI-compatible, ~30 providers), 27 MCP tools. See [CHANGELOG.md](CHANGELOG.md).
+> **v8.9.8** — Unified global instructions (DB Hygiene enforced in every injected prompt) + completed injection channels (OMP & Claude Code now match OpenCode: God Mode relay/registration + hygiene block). Self-healing daemon + universal LLM injection proxy, 27 MCP tools. See [CHANGELOG.md](CHANGELOG.md).
 
 ---
 

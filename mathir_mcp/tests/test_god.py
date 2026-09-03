@@ -307,6 +307,88 @@ class TestDaemonRoutes:
         assert len(mimo_pending) == 1
         assert mimo_pending[0]["id"] == "aaa11111"
 
+    def test_reg_label_idle_busy_offline(self):
+        # /api/god/reg status transitions use labels god:reg:{name}:{name}:{status}
+        for status in ("idle", "busy", "offline"):
+            label = GodProtocol.make_label("reg", "mimo", "mimo", status)
+            assert label == f"god:reg:mimo:mimo:{status}"
+            parsed = GodProtocol.parse_label(label)
+            assert parsed["type"] == "reg"
+            assert parsed["target"] == "mimo"
+            assert parsed["status"] == status
+
+    def test_reg_find_existing_row_name_boundary(self):
+        # /api/god/reg reuses the existing row via:
+        #   label LIKE 'god:reg:{name}:{name}:%' AND tier != 'archived'
+        # A name prefix ("mimo" vs "mimocode") must never collide.
+        labels = [
+            "god:reg:mimo:mimo:idle",
+            "god:reg:mimo:mimo:busy",
+            "god:reg:mimocode:mimocode:idle",  # name prefix, NOT a match
+            "god:reg:codex:codex:offline",
+        ]
+        pattern_prefix = "god:reg:mimo:mimo:"
+        matches = [l for l in labels if l.startswith(pattern_prefix)]
+        assert matches == ["god:reg:mimo:mimo:idle", "god:reg:mimo:mimo:busy"]
+        assert "god:reg:mimocode:mimocode:idle" not in matches
+
+    def test_reg_upsert_sql_semantics(self):
+        """The exact SQL /api/god/reg runs: repeated registrations for the
+        same name reuse the existing row instead of accumulating new ones
+        (the 419-duplicate god:reg bug, 2026-08-18)."""
+        import sqlite3
+        conn = sqlite3.connect(":memory:")
+        conn.execute(
+            "CREATE TABLE memories (memory_id TEXT PRIMARY KEY, label TEXT, "
+            "tier TEXT DEFAULT 'episodic', created_at TEXT)"
+        )
+        conn.execute(
+            "INSERT INTO memories VALUES ('mem_a', 'god:reg:mimo:mimo:idle', "
+            "'working_memory', '2026-07-16T22:31:25')"
+        )
+
+        def upsert(name: str, status: str) -> tuple[str, str]:
+            safe_name = name.replace("%", r"\%").replace("_", r"\_")
+            existing = conn.execute(
+                """SELECT memory_id FROM memories
+                   WHERE label LIKE ? ESCAPE '\\'
+                     AND tier != 'archived'
+                   ORDER BY created_at DESC LIMIT 1""",
+                (f"god:reg:{safe_name}:{safe_name}:%",),
+            ).fetchone()
+            label = f"god:reg:{name}:{name}:{status}"
+            if existing:
+                conn.execute(
+                    "UPDATE memories SET label = ? WHERE memory_id = ?",
+                    (label, existing[0]),
+                )
+                return existing[0], "updated"
+            conn.execute(
+                "INSERT INTO memories VALUES (?, ?, 'working_memory', ?)",
+                (f"mem_new_{len(conn.execute('SELECT 1 FROM memories').fetchall())}", label, "2026-08-18T00:00:00"),
+            )
+            return "mem_new", "created"
+
+        r1_id, r1_action = upsert("mimo", "busy")
+        r2_id, r2_action = upsert("mimo", "idle")
+        assert r1_id == "mem_a" and r1_action == "updated"
+        assert r2_id == "mem_a" and r2_action == "updated"
+        rows = conn.execute("SELECT * FROM memories").fetchall()
+        assert len(rows) == 1  # no accumulation
+
+        # A different name still inserts its own row (first registration).
+        r3_id, r3_action = upsert("codex", "idle")
+        assert r3_action == "created"
+        assert len(conn.execute("SELECT * FROM memories").fetchall()) == 2
+
+        # Archived registration rows are ignored (consolidated duplicates).
+        conn.execute(
+            "UPDATE memories SET tier = 'archived' WHERE memory_id = 'mem_a'"
+        )
+        r4_id, r4_action = upsert("mimo", "offline")
+        assert r4_action == "created"
+        assert r4_id != "mem_a"
+
 
 class TestIntegration:
     """End-to-end test of the god orchestration protocol (no daemon needed)."""

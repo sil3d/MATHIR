@@ -14,34 +14,28 @@ import time
 # Add this directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# Pre-load on first import
-from mathir_mcp_server import get_embedder, handle_memory_recall, handle_memory_save, handle_memory_stats
-
-# Pre-warm the embedder (one-time cost)
-_EMBEDDER_READY = False
-
-def ensure_embedder():
-    global _EMBEDDER_READY
-    if not _EMBEDDER_READY:
-        get_embedder()
-        _EMBEDDER_READY = True
+# FIX (2026-08-18): this module imported handle_memory_recall/save/stats and
+# handle_memory_smart_search from mathir_mcp_server, but those handlers were
+# removed when memory moved to the daemon (they no longer exist there) — so
+# any `import mathir_cli` crashed with ImportError. The CLI now talks to the
+# running daemon through mathir_client.call instead of holding its own model.
+from mathir_client import call
 
 
 def cmd_recall(args):
     """Recall memories by query."""
-    ensure_embedder()
     start = time.perf_counter()
-    result = handle_memory_recall({
+    result = call('memory_recall', {
         'query': args.query,
         'k': args.k,
         'agent': args.agent,
         'block_type': args.block_type
     })
     elapsed = (time.perf_counter() - start) * 1000
-    
+
     results = result.get('results', [])
     print(f"# Recall: {len(results)} results in {elapsed:.0f}ms", file=sys.stderr)
-    
+
     if args.json:
         print(json.dumps(result, indent=2, ensure_ascii=False))
     else:
@@ -55,9 +49,8 @@ def cmd_recall(args):
 
 def cmd_save(args):
     """Save a memory."""
-    ensure_embedder()
     start = time.perf_counter()
-    result = handle_memory_save({
+    result = call('memory_save', {
         'content': args.content,
         'agent': args.agent,
         'block_type': args.block_type,
@@ -65,21 +58,20 @@ def cmd_save(args):
         'priority': args.priority
     })
     elapsed = (time.perf_counter() - start) * 1000
-    
+
     print(f"# Saved in {elapsed:.0f}ms", file=sys.stderr)
     print(json.dumps(result, indent=2, ensure_ascii=False))
 
 
 def cmd_stats(args):
     """Get memory statistics."""
-    result = handle_memory_stats({})
+    result = call('memory_stats', {})
     print(json.dumps(result, indent=2, ensure_ascii=False))
 
 
 def cmd_search(args):
     """Fast text search (no embedding needed)."""
-    from mathir_mcp_server import handle_memory_smart_search
-    result = handle_memory_smart_search({
+    result = call('memory_smart_search', {
         'query': args.query,
         'k': args.k
     })

@@ -14,6 +14,6 @@ Canonical entry points:
 Console scripts (after ``pip install -e .``):
     mathir-daemon, mathir-mcp, mathir-client, mathir-watchdog
 """
-__version__ = "8.9.6"
+__version__ = "8.9.8"
 
 __all__ = ["__version__"]

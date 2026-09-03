@@ -63,6 +63,15 @@ try {
                     $preview = $resp.task.content.Substring(0, [Math]::Min(200, $resp.task.content.Length))
                     $msg2 = "  content: " + $preview
                     Write-Log -Msg $msg2 -Level TASK
+                    # FIX (2026-08-18): god/poll atomically claims the task
+                    # (pending -> claimed). A notify-only poller that never
+                    # acks leaves every task stuck on "claimed", blocking the
+                    # whole queue (see /api/god/ack docstring). Mark it
+                    # delivered so the next task can surface.
+                    if ($resp.task.memory_id) {
+                        $ack = Invoke-Poll "$Daemon/api/god/ack" @{ memory_id = $resp.task.memory_id; status = "delivered" }
+                        if ($ack) { Write-Log -Msg "ACK delivered: $($ack.label)" -Level TASK }
+                    }
                     Beep-Notify
                 }
             }

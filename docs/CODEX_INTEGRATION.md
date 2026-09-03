@@ -27,7 +27,7 @@ You can ship any subset. Layer A is mandatory for tools. Layer B is for prompt-c
 # Already done if you followed the global MATHIR install guide.
 # The daemon (port 7338) must be running and healthy.
 curl http://127.0.0.1:7338/health
-# Expect: {"status":"ok","version":"8.9.5",...}
+# Expect: {"status":"ok","version":"8.9.8",...}
 ```
 
 If the daemon is dead, run `~/.config/MATHIR/mathir_mcp/bin/auto_start.bat` (Windows) or the `mathir-daemon.service` systemd unit (Linux/macOS). See section 7 below.
@@ -287,7 +287,7 @@ If TOML fails to parse, restore from one of the `*.bak` files in `~/.codex/` or 
 | MATHIR | Codex | Notes |
 |---|---|---|
 | 8.9.4 | 26.721.81911 | First end-to-end success, 2026-07-31 |
-| 8.9.5+ | latest | Backward compatible (no API surface changes for Layer A/B/C) |
+| 8.9.8+ | latest | Backward compatible (no API surface changes for Layer A/B/C) |
 
 ---
 

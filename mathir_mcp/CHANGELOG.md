@@ -1,5 +1,96 @@
 # MATHIR Changelog
 
+## [8.9.8] — 2026-08-18 — GLOBAL INSTRUCTIONS v8.9.8 (DB HYGIENE + SYNC)
+
+### Changed
+- **Global instructions unified to v8.9.8** — single canonical content written to
+  all deployed copies (`~/.claude/CLAUDE.md`, `~/.config/opencode/GLOBAL_INSTRUCTIONS.md`,
+  `~/.config/mimocode/GLOBAL_INSTRUCTIONS.md`) + repo source
+  `mathir_mcp/GLOBAL_INSTRUCTIONS.md` (SHA-256 identical on all four).
+- **Header corrected** — removed the inaccurate claim that copies live in
+  `opencode_templates/`/`mimocode_templates/`; replaced with the real deployed list.
+  OMP documented as an auto-inject CONTENT channel (plugin `~/.omp/plugins/mathir-auto-inject`
+  → `/api/context` guardrails+memories), not an instructions copy target.
+- **OMP plugin** — completed to match the opencode plugin: added God Mode relay +
+  registration (`/api/god/poll` + ack + `/api/god/agents` on every
+  `before_agent_start`, in-memory dedup) and the mini hygiene instructions block,
+  which is injected even when the daemon is down (fail-open). Source of truth now
+  lives in `omp_templates/plugins/mathir-auto-inject/` (deployed copy mirrored).
+- **claude_code_hook.py** — always emits a `<mathir-instructions>` hygiene block
+  first (same 5-point etiquette as the OMP plugin), before god relay / registration
+  / memory context blocks. Deployed copies synced (MATHIR + mimicode).
+- **Plugins v2 (per-turn injection, 2026-08-18)** — OpenCode/MiMoCode plugin
+  rewritten: removed the `session.started`/`session.destroyed` hooks (not part
+  of the plugin API — silently ignored by the runtime), belt-and-braces injection
+  via `experimental.chat.system.transform` (system prompt; tolerant of
+  `string[]`/`string`/missing) + stable `chat.message` fallback (synthetic
+  TextPart) with a shared per-session 30s dedup so exactly one injection wins;
+  OMP plugin gains `before_provider_request` re-injection — context is re-fed
+  into **every** provider request (i.e. while the agent is thinking), with a 5s
+  post-`before_agent_start` cooldown (default, `MATHIR_PROVIDER_REINJECT_COOLDOWN_MS`)
+  to avoid doubling the visible custom message. Sources of truth:
+  `opencode_templates/`, `mimocode_templates/` (only the package import and the
+  default God agent name differ, by design), `omp_templates/` — live plugins,
+  repo and deployment copies byte-identical (SHA-256 verified, UTF-8 no-BOM).
+- **New section "DB Hygiene — Proactive Maintenance"** — dedupe before save
+  (`memory_consolidate(dry_run=true)` → reuse existing memory_id), fix broken
+  memories immediately (`memory_delete` + resave or `memory_promote`), anomalies
+  via `memory_audit_immunological`, end-of-session housekeeping
+  (consolidate + build_links; monthly decay), promote what you rely on 2+ times,
+  never delete without a `reason`.
+- **Full Session Example added** (session_start → orient → save while working →
+  end-of-session housekeeping + final-conclusion).
+- **Specialized tools listed** — `memory_recall_quality`, `memory_by_path`,
+  `memory_audit_immunological` were counted but missing from the signatures;
+  added (27 tools total now fully documented).
+- **Repo templates bumped v8.6.0/v8.9.4 → v8.9.8** — `opencode_templates/` +
+  `mimocode_templates/` (`docs/_MATHIR_INJECT.md` = full canonical copy;
+  `agents/` corrected: `memory_build_links` threshold 0.7 → **0.88** (+top_k=8),
+  legacy proxy port 8182 → **7339**, templates path
+  `mathir_mcp/opencode/` → `mathir_mcp/opencode_templates/`, hygiene block added;
+  `commands/`+`skills/`+`skills-global/` got version bump + compact hygiene line).
+  opencode/mimocode pairs verified byte-identical.
+
+## [8.9.7] — 2026-08-18 — WINDOWLESS AUTO-START + AGENT-AGNOSTIC PROMPTS
+
+### Fixed
+- **Windows console flash every ~5 min** — the healthcheck scheduled task launched
+  `powershell.exe -WindowStyle Hidden`, which Task Scheduler still flashes on some
+  Windows builds. Both scheduled tasks (`MATHIR_Daemon_Healthcheck` and the logon
+  `MATHIR Daemon` task) now launch through **`wscript.exe` + VBS wrappers**
+  (`bin/run_healthcheck_hidden.vbs`, `bin/mathir_daemon_hidden.vbs`) — wscript is a
+  GUI-subsystem binary and can never create a console. Verified live with a 7-minute
+  window watcher: zero new windows on the first post-fix healthcheck tick.
+- **Universal proxy silently dead since 2026-08-12** — `auto_start.bat` v2 removes
+  the `>> log` redirections on the `start` lines: when the daemon already holds
+  `mathir_daemon.log` open, cmd's redirection failed with "file in use by another
+  process" and **skipped the whole command**, so the proxy was never relaunched by
+  the healthcheck. Port checks are now done with `netstat` (idempotent — concurrent
+  invocations cannot spawn duplicates) and the offline probe uses a hidden PowerShell.
+- **`bin/setup-autostart.ps1`** now registers **both** Windows scheduled tasks through
+  the wscript wrappers (windowless by default), so installs done via the official
+  script never exhibit the console flash either.
+- **Codex auto-inject hook contract** — `bin/claude_code_hook.py` gains a
+  `--codex-json` flag emitting `hookSpecificOutput.additionalContext` (Codex's hook
+  response schema, sanitized) instead of the raw-text form; `codex_templates/hooks.json`
+  updated to pass the flag.
+- **Healthcheck log rotation** — `bin/auto_start_healthcheck.ps1` caps the
+  every-5-min log at 1 MB (rotate to `.old`, overwrite) so it cannot grow unbounded.
+
+### Changed
+- **Guardrails always injected first** in `/api/context` (GUARDRAILS section +
+  `guardrails_count`) — OMP/Codex/OpenCode auto-inject now report real guardrail
+  counts once the deployed daemon is in sync with the source repo. Applied 2026-08-18
+  via `mathir_lib` sync + daemon restart (deployed copy was ~530 lines behind).
+- **Agent-agnostic install prompts/docs** — `INSTALL_FOR_AGENT/AGENT.md` refreshed
+  to v8.9.7 (deduplicated TL;DR, corrected MiMo MCP example `MATHIR_PORT` 7339→7338,
+  startup/healthcheck now described via `auto_start.bat` v2 + wscript wrappers,
+  fixed global-install layout tree); `INSTALL_FOR_AGENT/INSTALL_WINDOWS.md` now
+  targets **any** coding agent (opencode/codex/mimocode/claude-code...) with hidden
+  scheduled tasks; `opencode_templates/AGENTS.md` tier count corrected.
+
+---
+
 ## [8.9.6] — 2026-07-31 — CODEX MCP STDIO BANNER FIX + INTEGRATION GUIDE
 
 ### Fixed

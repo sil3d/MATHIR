@@ -1,0 +1,12 @@
+{
+  "name": "mathir-auto-inject",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "omp": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "description": "MATHIR Tier-A auto-injection hook for OMP — calls /api/context on every before_agent_start and injects guardrails + recalled memories as a pre-agent message."
+}

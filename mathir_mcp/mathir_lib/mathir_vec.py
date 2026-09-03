@@ -1023,28 +1023,35 @@ class VecMemory:
             results.sort(key=lambda r: (-r["cumulative_weight"], r["distance"], r["memory_id"]))
             return results
 
-    def build_links_all(self, threshold: float = 0.88, limit: int = 1000) -> Dict[str, int]:
+    def build_links_all(self, threshold: float = 0.88, limit: int = 1000,
+                        top_k: int = 8) -> Dict[str, int]:
         """Build the link graph for all stored memories.
 
         For every pair (A, B) with cosine > threshold, two directed links are
         created (A→B and B→A) so BFS traversal works in both directions.
 
+        FIXES (2026-08-18):
+        - Archived memories and god:reg registration rows are EXCLUDED. Before
+          this, the graph was built from every stored row including 210
+          archived memories and hundreds of near-duplicate god:reg entries
+          (cos~1.0), which flooded the graph with meaningless edges.
+        - Per-memory top-K cap. This model's cosine scores run hot (a nonsense
+          query scored 0.839 against an unrelated memory), so even at 0.88 the
+          raw graph measured ~87% of all possible pairs on the live DB
+          (264,056 links / 781 memories) -- an almost-complete graph that
+          carries no "these are actually related" signal. Keeping only the
+          top-K neighbours per memory bounds the graph at ~N*top_k directed
+          edges while preserving the strongest relations.
+
         Args:
-            threshold: minimum cosine similarity to create a link. Raised from
-                0.7 to 0.88 -- verified live, 2026-07-21: 0.7 against this
-                project's real embedding model (multilingual-e5-small)
-                produced 442,890 links from only 666 memories (~665 links per
-                memory), an almost-complete graph that carries no "these are
-                actually related" signal. This model's cosine scores run hot
-                even for weakly-related text (memory_recall_quality separately
-                found a nonsense query scoring 0.839 against an unrelated
-                memory) -- 0.7 is well inside that noise band. 0.88 sits just
-                below the near-duplicate threshold (0.95 in consolidate_all)
-                so links capture "related" without capturing "basically the
-                same content".
+            threshold: minimum cosine similarity to create a link. 0.88 sits
+                just below the near-duplicate threshold (0.95 in
+                consolidate_all) so links capture "related" without capturing
+                "basically the same content".
             limit: maximum number of memories to scan (default 1000). Use this
                 to keep one-shot runs bounded; memory grows O(N) so 1000 is a
                 reasonable cap.
+            top_k: max neighbours kept per memory (default 8).
 
         Returns:
             {links_created: N, memories_scanned: M}
@@ -1058,12 +1065,15 @@ class VecMemory:
             conn = self._get_conn()
 
             # Pull up to `limit` memories with their embedding vectors.
+            # Skip archived rows and god:reg registration noise (see class
+            # docstring note) so the graph only reflects live knowledge.
             if HAS_VEC:
                 rows = conn.execute(
                     """
                     SELECT m.memory_id, v.embedding
                     FROM vec_memories v
                     JOIN memories m ON v.memory_id = m.memory_id
+                    WHERE m.tier != 'archived' AND m.label NOT LIKE 'god:reg:%'
                     LIMIT ?
                     """,
                     [limit],
@@ -1074,6 +1084,7 @@ class VecMemory:
                     SELECT m.memory_id, e.embedding
                     FROM embeddings_brute e
                     JOIN memories m ON e.memory_id = m.memory_id
+                    WHERE m.tier != 'archived' AND m.label NOT LIKE 'god:reg:%'
                     LIMIT ?
                     """,
                     [limit],
@@ -1105,14 +1116,21 @@ class VecMemory:
             unit = stack / norms[:, None]
             sim = unit @ unit.T  # shape (N, N)
 
-            # Build directed edges for every pair above threshold.
-            # Symmetric write avoids a second pass and keeps the graph consistent.
-            iu, ju = np.where(sim >= threshold)
-            # Drop self-loops.
-            mask = iu != ju
-            iu, ju = iu[mask], ju[mask]
-
-            edges = [(ids[i], ids[j], float(sim[i, j])) for i, j in zip(iu.tolist(), ju.tolist())]
+            # Build directed edges: for each memory keep only its top-`top_k`
+            # neighbours above `threshold`. Without the per-memory cap this
+            # model's hot cosine scores produce an almost-complete graph
+            # (~87% of all pairs at 0.88 on the live DB, 2026-08-18) that
+            # carries no "actually related" signal. Top-K per row bounds the
+            # graph at N * top_k candidate pairs.
+            np.fill_diagonal(sim, -1.0)
+            edges: List[tuple] = []
+            for i in range(sim.shape[0]):
+                row = sim[i]
+                cand = np.where(row >= threshold)[0]
+                if len(cand) > top_k:
+                    cand = cand[np.argsort(-row[cand])[:top_k]]
+                for j in cand:
+                    edges.append((ids[i], ids[j], float(row[j])))
 
             # Dedup just in case (cosine matrix is symmetric so each pair appears
             # twice with (i,j) and (j,i)). We write both directions deliberately,

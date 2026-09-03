@@ -1,6 +1,6 @@
 # MATHIR Install — macOS (launchd)
 
-**Audience:** developers running OpenCode on macOS 10.15+ (Intel or Apple Silicon).
+**Audience:** developers using **any** coding agent (OpenCode, Codex, MiMo Code, Claude Code, Cursor, ...) on macOS 10.15+ (Intel or Apple Silicon).
 **Time:** ~5 minutes.
 **Result:** `mathir_server.py` running on `127.0.0.1:7338`, auto-started at login via a **LaunchAgent** (`~/Library/LaunchAgents/`), and registered as an MCP server in `opencode.json`.
 
@@ -104,7 +104,7 @@ curl -v telnet://127.0.0.1:7338 --max-time 2 2>&1 | grep -E "(Connected|Connecti
 # 3. HTTP health check (the daemon has been HTTP/Flask since v8.5.0,
 #    not raw TCP JSON-RPC; the old nc-based ping no longer works)
 curl -s http://127.0.0.1:7338/health
-# expected: {"status":"ok","model":"...","version":"8.9.4",...}
+# expected: {"status":"ok","model":"...","version":"8.9.8",...}
 ```
 
 Stop the foreground daemon with `Ctrl+C` before continuing.
@@ -225,9 +225,14 @@ Or use a pyenv/shim — any `python3` on `launchd`'s `PATH` will work; just make
 
 ---
 
-## 7. Register the MCP server in `opencode.json`
+## 7. Register the MCP server in your agent's config
 
-The daemon is running; now teach OpenCode how to talk to it. Edit `~/.config/opencode/opencode.json` and add (or merge) this under the top-level `"mcp"` key:
+The daemon is running; now teach your agent how to talk to it. The exact file
+depends on the agent — **OpenCode/MiMo Code** (same schema): `~/.config/opencode/opencode.json`
+or `~/.config/mimocode/mimocode.json`; **Codex**: `~/.codex/config.toml` +
+`~/.codex/hooks.json` (see `mathir_mcp/codex_templates/`); **Claude Code / Cursor /
+Cline / Windsurf / Gemini / Zcode**: `"mcpServers"` in `~/.claude.json`, `~/.cursor/mcp.json`, etc.
+This example uses OpenCode — edit `~/.config/opencode/opencode.json` and add (or merge) this under the top-level `"mcp"` key:
 
 ```jsonc
 "mcp": {

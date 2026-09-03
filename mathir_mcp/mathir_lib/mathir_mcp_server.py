@@ -60,7 +60,8 @@ REGISTRY_PATH = Path(os.environ.get("MATHIR_REGISTRY", str(_P_REGISTRY)))
 # ---------------------------------------------------------------------------
 def load_config() -> dict:
     if CONFIG_PATH.exists():
-        with open(CONFIG_PATH) as f:
+        # Windows editors may write a UTF-8 BOM; accept it when parsing JSON.
+        with open(CONFIG_PATH, encoding="utf-8-sig") as f:
             return json.load(f)
     return {}
 
@@ -283,6 +284,7 @@ def _call_daemon_raw(method: str, params: dict = None) -> dict:
         "god_poll": "/api/god/poll",
         "god_agents": "/api/god/agents",
         "god_ack": "/api/god/ack",
+        "god_reg": "/api/god/reg",
     }
 
     endpoint = endpoint_map.get(method, f"/api/memory/{method.replace('memory_', '')}")
@@ -1072,17 +1074,19 @@ def mathir_god_agent(
         })
 
     caps = [c.strip() for c in capabilities.split(",") if c.strip()]
-    reg_content = json.dumps({
+    reg_payload = {
         "capabilities": caps,
         "introduction": introduction,
-    })
+    }
 
-    _call_daemon_raw("memory_save", {
-        "content": reg_content,
-        "agent": name,
-        "block_type": "working_memory",
-        "label": f"god:reg:{name}:{name}:idle",
-        "priority": 3,
+    # FIX (2026-08-18): registration is an UPSERT (god_reg), not a
+    # memory_save. memory_save inserted a NEW row per poll -> 419 near-
+    # duplicate god:reg rows for one worker name (observed live, archived
+    # via consolidate). god_reg reuses the same memory_id on every call.
+    _call_daemon_raw("god_reg", {
+        "name": name,
+        "status": "idle",
+        "content": reg_payload,
     })
 
     log.info(f"[God Worker] {name} registered with capabilities: {caps}")
@@ -1116,12 +1120,10 @@ def mathir_god_agent(
     from mathir_god import GodProtocol
     parsed = GodProtocol.parse_label(task_label)
     if parsed and parsed["status"] == "shutdown":
-        _call_daemon_raw("memory_save", {
-            "content": "shutdown",
-            "agent": name,
-            "block_type": "working_memory",
-            "label": f"god:reg:{name}:{name}:offline",
-            "priority": 3,
+        _call_daemon_raw("god_reg", {
+            "name": name,
+            "status": "offline",
+            "content": reg_payload,
         })
         result_lines.append(f"[God Worker] {name} received shutdown.")
         return json.dumps({"status": "shutdown", "log": result_lines})
@@ -1155,12 +1157,10 @@ def mathir_god_agent(
             "label": f"god:task:{task_id}:{name}:running",
             "priority": 7,
         })
-    _call_daemon_raw("memory_save", {
-        "content": reg_content,
-        "agent": name,
-        "block_type": "working_memory",
-        "label": f"god:reg:{name}:{name}:busy",
-        "priority": 3,
+    _call_daemon_raw("god_reg", {
+        "name": name,
+        "status": "busy",
+        "content": reg_payload,
     })
 
     result_lines.append(f"[God Worker] Accepted task {task_id}: {description[:80]}")

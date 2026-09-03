@@ -4,15 +4,22 @@ import * as os from "os";
 import * as path from "path";
 
 /**
- * MATHIR Auto-Injection Plugin — v8.5.0
+ * MATHIR Auto-Injection Plugin — v8.9.8
  *
- * Hooks into experimental.chat.system.transform to inject relevant memories
- * into the system prompt at session start and during the session.
+ * Belt-and-braces per-turn injection for OpenCode:
+ *  - Primary (experimental): experimental.chat.system.transform → push the
+ *    context into the system prompt (invisible, ideal).
+ *  - Fallback (stable): chat.message → push a synthetic TextPart onto the
+ *    user message, guaranteeing the context reaches the model even when the
+ *    experimental hook does not fire in a given runtime build.
+ *
+ * A shared per-session cooldown dedupes the two hooks so the context is
+ * injected at most once per 30s per session, regardless of hook order.
+ * God Mode relay + registration nudge run on every turn, no cooldown.
  *
  * Features:
- * - Health check on session start
- * - Auto-restart if server is down
- * - Retry logic with exponential backoff
+ * - Health check + auto-restart if server is down
+ * - Retry logic with backoff
  * - Graceful degradation if server unavailable
  * - Portable paths (resolves via $HOME, no hardcoded usernames)
  */
@@ -39,9 +46,8 @@ const GOD_AGENT_NAME = process.env.MATHIR_GOD_AGENT_NAME || "mimocode";
 const godSeenTasks = new Set<string>();
 let godRegistered = false;
 
-// Track which sessions already got the startup injection
-const startupInjected = new Set<string>();
-// Track last injection time per session to avoid re-injecting too often
+// Per-session injection dedup, shared by BOTH hooks so whichever fires
+// first wins and the other stays quiet for the cooldown window.
 const lastInjection = new Map<string, number>();
 const INJECTION_COOLDOWN_MS = 30_000; // 30s between injections
 
@@ -229,95 +235,102 @@ async function checkGodRegistration(project: string, cwd: string): Promise<strin
   }
 }
 
-async function fetchStats(): Promise<string | null> {
-  try {
-    const res = await fetchWithRetry(`${MATHIR_URL}/api/stats`);
-    if (!res) return null;
-    const data = await res.json() as { total_memories?: number; by_tier?: Record<string, number> };
-    if (!data.total_memories) return null;
-    const tiers = Object.entries(data.by_tier || {})
-      .map(([t, n]) => `${t}: ${n}`)
-      .join(", ");
-    return `MATHIR: ${data.total_memories} memories stored (${tiers})`;
-  } catch {
-    return null;
-  }
+// ── Build one combined injection payload: memories + god blocks ──
+async function buildInjection(task: string, k: number): Promise<{ context?: string; god?: string; reg?: string }> {
+  const cwd = projectPath || MATHIR_WORKDIR;
+  const project = path.basename(cwd);
+  const [context, godBlock, regBlock] = await Promise.all([
+    fetchContext(task, k),
+    checkGodRelay(project, cwd),
+    checkGodRegistration(project, cwd),
+  ]);
+  return {
+    context: context || undefined,
+    god: godBlock || undefined,
+    reg: regBlock || undefined,
+  };
+}
+
+// Append a block to the system prompt regardless of its shape
+// (string[], string, or missing — some runtimes hand us a string).
+function pushSystem(output: any, block: string): void {
+  if (Array.isArray(output.system)) output.system.push(block);
+  else if (typeof output.system === "string") output.system = `${output.system}\n\n${block}`;
+  else output.system = [block];
 }
 
 export default function mathirPlugin(): Plugin {
   return {
     name: "mathir-auto-inject",
     hooks: {
-      // ── session.started: health check + inject startup context ──
-      "session.started": async (input) => {
-        const sid = input.sessionID;
-        if (!sid) return;
-
-        // Store project path
-        if (input.projectPath) projectPath = input.projectPath;
-
-        // Health check on first session
-        if (!startupInjected.has(sid)) {
-          const healthy = await checkHealth();
-          if (!healthy && DEBUG) {
-            console.log("[mathir] Server not running on session start, attempting auto-start...");
-            startServer();
-          }
-        }
-
-        if (startupInjected.has(sid)) return;
-        startupInjected.add(sid);
-      },
-
-      // ── experimental.chat.system.transform: inject memories ──
+      // ── Primary: inject into the system prompt (experimental hook) ──
       "experimental.chat.system.transform": async (input, output) => {
-        const sid = input.sessionID;
-        if (!sid) return;
-        if (!Array.isArray(output.system)) return;
-
+        const sid = input.sessionID || "global";
         const now = Date.now();
-        const lastTime = lastInjection.get(sid) || 0;
-        const isFirstTurn = !startupInjected.has(sid);
+        if (now - (lastInjection.get(sid) || 0) < INJECTION_COOLDOWN_MS) return;
 
-        // Always inject on first turn, then respect cooldown
-        if (!isFirstTurn && (now - lastTime) < INJECTION_COOLDOWN_MS) return;
-        lastInjection.set(sid, now);
-
-        // Build the task description from user message
-        const userMessage = input.messages
+        // Build the task description from user messages (may be absent on
+        // some runtime builds -- fall back to a generic task).
+        const messages = (input as any).messages;
+        const userMessage = messages
           ?.filter((m: any) => m.role === "user")
           .map((m: any) => contentToString(m.content))
           .join(" ")
           .slice(0, 300) || "general context";
 
-        // Fetch relevant memories
-        const context = await fetchContext(userMessage, isFirstTurn ? 8 : 5);
-        if (context) {
-          output.system.push(`<mathir-auto-injection>\n${context}\n</mathir-auto-injection>`);
-          if (DEBUG) console.log(`[mathir] Injected ${context.length} chars for: ${userMessage.slice(0, 50)}`);
+        const inj = await buildInjection(userMessage, 8);
+        if (inj.context) {
+          pushSystem(output, `<mathir-auto-injection>\n${inj.context}\n</mathir-auto-injection>`);
+          lastInjection.set(sid, now);
+          if (DEBUG) console.log(`[mathir] [system.transform] injected ${inj.context.length} chars (sid=${sid})`);
         } else if (DEBUG) {
-          console.log(`[mathir] No context injected (server may be starting)`);
+          console.log(`[mathir] [system.transform] no context (server may be starting)`);
         }
 
-        // God Mode: relay pending cross-agent messages + registration nudge.
-        // Runs every turn regardless of the memory-injection cooldown above
-        // -- a waiting message or an unregistered agent should surface
-        // immediately, not wait up to 30s.
-        const cwd = projectPath || MATHIR_WORKDIR;
-        const project = path.basename(cwd);
-        const godBlock = await checkGodRelay(project, cwd);
-        if (godBlock) output.system.push(godBlock);
-        const regBlock = await checkGodRegistration(project, cwd);
-        if (regBlock) output.system.push(regBlock);
+        // God Mode: relay + registration nudge. Runs every turn regardless
+        // of the memory-injection cooldown above -- a waiting message or an
+        // unregistered agent should surface immediately.
+        if (inj.god) pushSystem(output, inj.god);
+        if (inj.reg) pushSystem(output, inj.reg);
       },
 
-      // ── session.destroyed: cleanup ──
-      "session.destroyed": async (input) => {
-        const sid = input.sessionID;
-        if (sid) {
-          startupInjected.delete(sid);
-          lastInjection.delete(sid);
+      // ── Fallback (stable hook): synthetic TextPart on the user message ──
+      // Guarantees the context reaches the model even when the experimental
+      // hook never fires in this runtime build. Deduped by the same
+      // lastInjection map, so if system.transform already ran, we stay quiet.
+      "chat.message": async (input, output) => {
+        const sid = input.sessionID || "global";
+        const now = Date.now();
+        if (now - (lastInjection.get(sid) || 0) < INJECTION_COOLDOWN_MS) return;
+
+        const userText = output.parts
+          .filter((p: any) => p.type === "text")
+          .map((p: any) => p.text)
+          .join(" ")
+          .slice(0, 300) || "general context";
+
+        const inj = await buildInjection(userText, 8);
+        if (!inj.context) {
+          if (DEBUG) console.log("[mathir] [chat.message] no context (server may be starting)");
+          return;
         }
+
+        const textPart = {
+          id: `mathir-${now}`,
+          sessionID: output.message.sessionID,
+          messageID: output.message.id,
+          type: "text",
+          text: `<mathir-auto-injection>\n${inj.context}\n</mathir-auto-injection>`,
+          synthetic: true,
+        } as any;
+        output.parts.push(textPart);
+        lastInjection.set(sid, now);
+        if (DEBUG) console.log(`[mathir] [chat.message] injected ${inj.context.length} chars (sid=${sid})`);
+
+        // God blocks can only go into the system prompt; when the
+        // experimental hook is dead, surface them as synthetic parts too.
+        if (inj.god) output.parts.push({ ...textPart, id: `mathir-god-${now}`, text: inj.god });
+        if (inj.reg) output.parts.push({ ...textPart, id: `mathir-reg-${now}`, text: inj.reg });
       },
     },
   };

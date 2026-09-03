@@ -8,6 +8,48 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [8.9.8] — 2026-08-18 — GLOBAL INSTRUCTIONS UNIFIED (DB HYGIENE) + COMPLETED INJECTION CHANNELS
+
+**mathir_mcp package work — full detail in [mathir_mcp/CHANGELOG.md](mathir_mcp/CHANGELOG.md#898--2026-08-18--global-instructions-v898-db-hygiene--sync).**
+
+### Changed
+- **Global instructions unified to v8.9.8** — new "DB Hygiene — Proactive Maintenance" section (dedupe before save, repair broken memories, anomaly handling, end-of-session housekeeping), full session example, all 27 MCP tools documented. Copies machine (Claude Code, OpenCode, MiMoCode) + repo byte-identical.
+- **OMP plugin completed** — God Mode relay + registration + mini hygiene block (injected even when daemon is down); source of truth now in `mathir_mcp/omp_templates/`.
+- **claude_code_hook.py** — always emits a `<mathir-instructions>` hygiene block first; deployed copies synced (MATHIR + mimicode).
+- **Templates bumped** — opencode/mimocode templates at v8.9.8, pairs byte-identical.
+- **Plugins v2 (per-turn injection)** — OpenCode plugin rewritten (removed the non-existent `session.*` hooks, belt-and-braces `system.transform` + `chat.message` fallback with shared 30s dedup); OMP plugin now re-injects context into every provider request, i.e. while the agent is thinking (5s post-agent-start cooldown). opencode/mimocode/omp templates synced byte-identical live = repo = deployment (SHA-256 verified); opencode vs mimocode differ only by package import + default God agent name, by design.
+
+---
+
+## [8.9.7] — 2026-08-18 — WINDOWLESS AUTO-START + AGENT-AGNOSTIC PROMPTS
+
+**mathir_mcp package work — full detail in [mathir_mcp/CHANGELOG.md](mathir_mcp/CHANGELOG.md#897--2026-08-18--windowless-auto-start--agent-agnostic-prompts).**
+
+### Fixed
+- **Windows console flash every ~5 min** — the healthcheck scheduled task ran
+  `powershell.exe -WindowStyle Hidden`, which Task Scheduler still flashes on some
+  Windows builds. Both scheduled tasks now launch via **`wscript.exe` + VBS wrappers**
+  (GUI subsystem — cannot create a console). Verified live with a window watcher:
+  zero windows on the first post-fix tick.
+- **Universal proxy silently dead since 2026-08-12** — `auto_start.bat` v2 removes
+  `>> log` redirections on the `start` lines (cmd "file in use" bug silently skipped
+  the proxy launch) and uses idempotent `netstat` port checks.
+- **Codex hook contract** — `claude_code_hook.py` gains `--codex-json`
+  (`hookSpecificOutput.additionalContext`); `codex_templates/hooks.json` updated.
+- **Healthcheck log rotation** (1 MB cap) so the every-5-min log cannot grow unbounded.
+
+### Changed
+- Guardrails are now always injected **first** in `/api/context` (`guardrails_count`),
+  applied 2026-08-18 via `mathir_lib` sync + daemon restart (deployed copy was ~530
+  lines behind the source repo — this also restores guardrail injection for OMP's
+  auto-inject plugin).
+- Agent-agnostic install prompts/docs refreshed: `AGENT.md` v8.9.7 (deduped, MiMo
+  `MATHIR_PORT` example corrected 7339→7338, startup described via wscript wrappers),
+  `INSTALL_WINDOWS.md` targets any coding agent with hidden scheduled tasks,
+  `opencode_templates/AGENTS.md` tier count fixed.
+
+---
+
 ## [8.9.6] — 2026-07-31 — CODEX MCP INTEGRATION + STDIO BANNER FIX
 
 ### Fixed

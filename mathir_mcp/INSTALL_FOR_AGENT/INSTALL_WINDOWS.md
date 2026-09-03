@@ -1,13 +1,13 @@
 # MATHIR Install — Windows 10 / 11 / Server 2019+
 
-**Audience:** developers running OpenCode on Windows.
+**Audience:** developers on Windows using **any** coding agent (OpenCode, Codex, MiMo Code, Claude Code, Cursor, Cline, ...).
 **Time:** ~10 minutes.
-**Result:** `mathir_server.py` running on `127.0.0.1:7338`, restarting on logon, and registered as an MCP server in `opencode.json`.
+**Result:** `mathir_server.py` running on `127.0.0.1:7338`, restarting on logon, and registered as an MCP server in your agent's config (`opencode.json`, `~/.codex/config.toml`, `~/.claude.json`, ...).
 
 > **What "install MATHIR" actually means here:**
 > 1. A long-running **daemon** holds the embedding model in RAM (port 7338) — *this* is what you auto-start.
-> 2. A short-lived **MCP server** (stdio JSON-RPC) is launched by OpenCode on demand — it just connects to the daemon.
-> 3. The MCP server's path is added to your `opencode.json` under `mcp.mathir.command`.
+> 2. A short-lived **MCP server** (stdio JSON-RPC) is launched by your agent on demand — it just connects to the daemon.
+> 3. The MCP server's path is added to your agent's MCP config (e.g. `opencode.json` under `mcp.mathir.command`).
 >
 > You are not "installing" the daemon's Python code per se — you're **copying the `mathir_lib/` package** to a stable location and registering it with the OS to start on logon.
 
@@ -136,9 +136,10 @@ Windows has no idiomatic user-level autostart for background daemons — Task Sc
 **Option A — one-liner (recommended):**
 
 ```powershell
+# v8.9.7+: launch via the wscript wrapper — GUI-subsystem binary, can never flash a console
 $action  = New-ScheduledTaskAction `
-  -Execute "python" `
-  -Argument "`"$env:USERPROFILE\.config\MATHIR\mathir_mcp\mathir_lib\mathir_server.py`""
+  -Execute "wscript.exe" `
+  -Argument "`"$env:USERPROFILE\.config\MATHIR\mathir_mcp\bin\mathir_daemon_hidden.vbs`""
 $trigger = New-ScheduledTaskTrigger -AtLogOn
 $settings = New-ScheduledTaskSettingsSet `
   -AllowStartIfOnBatteries `
@@ -162,8 +163,8 @@ Register-ScheduledTask `
 2. **General** tab → Name: `MATHIR Daemon` → "Run with highest privileges" ✓
 3. **Triggers** tab → New… → "At log on" → your username
 4. **Actions** tab → New… →
-   - Program: `python`
-   - Arguments: `"C:\Users\<YOU>\.config\MATHIR\mathir_mcp\mathir_lib\mathir_server.py"`
+   - Program: `wscript.exe`
+   - Arguments: `"C:\Users\<YOU>\.config\MATHIR\mathir_mcp\bin\mathir_daemon_hidden.vbs"`
 5. **Conditions** tab → uncheck "Start only if on AC power"
 6. **Settings** tab →
    - "Allow task to be run on demand" ✓
@@ -195,10 +196,13 @@ observes at that trigger — a daemon killed mid-session (sleep/resume, a
 stray `taskkill`, OOM) can sit dead for the rest of the login session with
 no supervisor watching. `bin/setup-autostart.ps1 -InstallHealthcheck`
 (now the **default**, not opt-in — pass `-SkipHealthcheck` to disable)
-registers a second, non-elevated scheduled task that polls port 7338
-every 5 minutes and relaunches via `auto_start.bat` if it's down. It does
-**not** need Administrator — unlike the task above, so it's worth running
-even if you skip Option A/B entirely:
+registers a second, non-elevated scheduled task that polls ports 7338/7339
+every 5 minutes and relaunches via `auto_start.bat` if they're down. It
+does **not** need Administrator — unlike the task above, so it's worth
+running even if you skip Option A/B entirely. Since v8.9.7 **both** tasks
+are registered windowless (`wscript.exe` + `bin/run_healthcheck_hidden.vbs`
+/ `bin/mathir_daemon_hidden.vbs`): wscript is a GUI-subsystem binary and
+cannot create a console, so nothing flashes every 5 minutes:
 
 ```powershell
 & "$env:USERPROFILE\.config\MATHIR\mathir_mcp\bin\setup-autostart.ps1"
@@ -243,9 +247,15 @@ Then `Win + R` → `mathir.bat` → keep the window open.
 
 ---
 
-## 7. Register the MCP server in `opencode.json`
+## 7. Register the MCP server in your agent's config
 
-The daemon is running, but OpenCode doesn't know about it yet. Edit `%USERPROFILE%\.config\opencode\opencode.json` and add (or merge) this block under the top-level `"mcp"` key:
+The daemon is running, but your agent doesn't know about it yet. The exact
+file depends on the agent — **OpenCode/MiMo Code** (same schema):
+`%USERPROFILE%\.config\opencode\opencode.json` or `~/.config/mimocode/mimocode.json`;
+**Codex**: `~/.codex/config.toml` + `~/.codex/hooks.json` (see `mathir_mcp/codex_templates/`);
+**Claude Code / Cursor / Cline / Windsurf / Gemini / Zcode**: `"mcpServers"` in
+`~/.claude.json`, `~/.cursor/mcp.json`, etc. This example uses OpenCode — edit
+`%USERPROFILE%\.config\opencode\opencode.json` and add (or merge) this block under the top-level `"mcp"` key:
 
 ```jsonc
 "mcp": {
@@ -298,7 +308,7 @@ Test-NetConnection -ComputerName localhost -Port 7338 -InformationLevel Quiet
 #    raw TCP JSON-RPC -- the old TcpClient-only probe that used to live
 #    here only confirmed the port was bound, not that the server answered)
 Invoke-RestMethod -Uri "http://127.0.0.1:7338/health"
-# expected: status : ok ... version : 8.9.4 ...
+# expected: status : ok ... version : 8.9.8 ...
 
 # 3. OpenCode picks it up — open the OpenCode TUI and ask the agent:
 #    "Recall what you know about my last session."
@@ -340,11 +350,14 @@ Copy-Item -Path "$repo\mathir_lib" -Destination $dest -Recurse -Force
 # 2. Deps
 python -m pip install -r "$dest\mathir_lib\requirements.txt"
 
-# 3. Scheduled task
-$action  = New-ScheduledTaskAction -Execute "python" -Argument "`"$dest\mathir_lib\mathir_server.py`""
+# 3. Scheduled task (v8.9.7+: windowless via wscript wrapper)
+$action  = New-ScheduledTaskAction -Execute "wscript.exe" -Argument "`"$dest\bin\mathir_daemon_hidden.vbs`""
 $trigger = New-ScheduledTaskTrigger -AtLogOn
 $settings = New-ScheduledTaskSettingsSet -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
 Register-ScheduledTask -TaskName "MATHIR Daemon" -Action $action -Trigger $trigger -Settings $settings -Force
+
+# 3b. Healthcheck task (no admin needed, windowless) -- see section 5
+& "$dest\bin\setup-autostart.ps1" -SkipTaskScheduler
 
 # 4. Smoke test
 Start-ScheduledTask -TaskName "MATHIR Daemon"

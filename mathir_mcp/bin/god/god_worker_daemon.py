@@ -161,6 +161,26 @@ def ack_task(daemon: str, memory_id: str, status: str, project: str, cwd: str) -
     })
 
 
+def reg_worker(daemon: str, name: str, status: str, project: str, cwd: str,
+               capabilities: list[str] | None = None, introduction: str = "") -> None:
+    """Upsert this worker's god:reg registration (idle|busy|offline).
+
+    FIX (2026-08-18): registration goes through /api/god/reg, which reuses
+    the same memory_id on every call instead of inserting a new row.
+    Previously headless workers never registered here at all (invisible to
+    god_agents, so an orchestrator had no way to know they existed), while
+    the interactive mathir_god_agent flow used memory_save per poll --
+    observed accumulating 419 duplicate god:reg rows for one worker name
+    (archived via consolidate). With this, a headless worker is a
+    FIRST-CLASS registered god agent the orchestrator can list and dispatch
+    to. Best-effort: a failed registration never crashes the poll loop.
+    """
+    payload: dict = {"name": name, "status": status, "project": project, "cwd": cwd}
+    if capabilities is not None:
+        payload["content"] = {"capabilities": capabilities, "introduction": introduction}
+    post_json(f"{daemon}/api/god/reg", payload)
+
+
 def build_prompt(task_content: str, task_id: str, name: str) -> str:
     try:
         info = json.loads(task_content)
@@ -369,6 +389,21 @@ TOOL_REGISTRY: dict[str, callable] = {
     "copilot": lambda prompt, model, agent_profile: _cmd_copilot(prompt, model),
 }
 
+# Default capability profile per tool when --capabilities is not given.
+# Honest, conservative profiles -- the orchestrator assigns tasks based on
+# these; overstating means getting tasks you'll do poorly.
+DEFAULT_CAPABILITIES: dict[str, list[str]] = {
+    "opencode": ["code", "test", "debug", "review", "docs", "refactor"],
+    "mimo": ["code", "test", "debug", "review", "docs", "refactor"],
+    "claude": ["code", "refactor", "debug", "architecture", "review"],
+    "openclaude": ["code", "refactor", "debug", "architecture", "review"],
+    "codex": ["code", "debug"],
+    "gemini": ["code", "analysis"],
+    "aider": ["code"],
+    "cursor-agent": ["code"],
+    "copilot": ["code", "docs"],
+}
+
 
 def _execute_with_retries(
     cmd: list[str], cwd: str, daemon: str, project: str, task_id: str,
@@ -413,15 +448,22 @@ def main() -> int:
     ap.add_argument("--interval", type=int, default=10, help="Seconds between empty polls")
     ap.add_argument("--model", default=None, help="Override this worker's default model (rarely needed -- see module docstring)")
     ap.add_argument("--agent-profile", default=None, help="--agent value for opencode-family tools (opencode/mimo only)")
+    ap.add_argument("--capabilities", default=None, help="Comma-separated capabilities to register with (default: per-tool profile in DEFAULT_CAPABILITIES)")
+    ap.add_argument("--introduction", default="", help="Short self-assessment shown to orchestrators (default: tool name)")
     ap.add_argument("--max-tasks", type=int, default=0, help="Stop after N tasks (0 = run forever)")
     ap.add_argument("--retries", type=int, default=2, help="Extra attempts on failure/silent-no-op before giving up (default 2, so 3 attempts total)")
     ap.add_argument("--timeout", type=int, default=TASK_TIMEOUT_SECONDS, help=f"Seconds before killing a hung attempt (default {TASK_TIMEOUT_SECONDS})")
     args = ap.parse_args()
 
     project = args.project or Path(args.cwd).name
+    caps = (args.capabilities or ",".join(DEFAULT_CAPABILITIES.get(args.tool, ["code"]))).split(",")
+    caps = [c.strip() for c in caps if c.strip()]
+    introduction = args.introduction or f"Headless {args.tool} worker ({args.name})"
+    reg_worker(args.daemon, args.name, "idle", project, args.cwd, caps, introduction)
     log(
         f"WORKER DAEMON tool={args.tool} name={args.name} cwd={args.cwd} "
-        f"project={project} interval={args.interval}s max_tasks={args.max_tasks or 'inf'}"
+        f"project={project} interval={args.interval}s max_tasks={args.max_tasks or 'inf'} "
+        f"registered(caps={','.join(caps)})"
     )
 
     build_cmd = TOOL_REGISTRY[args.tool]
@@ -440,6 +482,7 @@ def main() -> int:
 
             log(f"CLAIMED {label}")
             ack_task(args.daemon, memory_id, "running", project, args.cwd)
+            reg_worker(args.daemon, args.name, "busy", project, args.cwd)
             prompt = build_prompt(task.get("content", ""), task_id, args.name)
             cmd = build_cmd(prompt, args.model, args.agent_profile)
 
@@ -448,12 +491,15 @@ def main() -> int:
                 TOOL_ENV_OVERRIDES.get(args.tool),
             )
             ack_task(args.daemon, memory_id, "completed" if succeeded else "failed", project, args.cwd)
+            reg_worker(args.daemon, args.name, "idle", project, args.cwd)
 
             done += 1
             if args.max_tasks and done >= args.max_tasks:
+                reg_worker(args.daemon, args.name, "offline", project, args.cwd)
                 log(f"max-tasks ({args.max_tasks}) reached, exiting")
                 return 0
     except KeyboardInterrupt:
+        reg_worker(args.daemon, args.name, "offline", project, args.cwd)
         log("shutdown (SIGINT)")
         return 0
 

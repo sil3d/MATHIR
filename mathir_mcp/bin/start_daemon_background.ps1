@@ -28,7 +28,7 @@ param(
     [switch]$Wait,
     [int]$WaitTimeout = 60,
 
-    [string]$PythonPath = "$env:USERPROFILE\AppData\Local\Programs\Python\Python311\python.exe",
+    [string]$PythonPath = "",
     [string]$BinDir     = "$env:USERPROFILE\.config\MATHIR\mathir_mcp\bin",
     [string]$DaemonPath = "$env:USERPROFILE\.config\MATHIR\mathir_mcp\mathir_lib\mathir_server.py",
     [string]$StatsPath  = "$env:USERPROFILE\.config\MATHIR\mathir_mcp\mathir_lib\mathir_stats_server.py",
@@ -40,6 +40,25 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# FIX (2026-08-18): auto-detect the Python interpreter. The hardcoded default
+# pointed at the Python311 layout even though the live daemon runs under
+# miniconda (verified live), so restarts picked a different interpreter.
+# Resolution order: explicit -PythonPath > miniconda > Python311 > PATH.
+if (-not $PythonPath) {
+    $condaPy = "$env:USERPROFILE\miniconda3\python.exe"
+    $py311Py = "$env:USERPROFILE\AppData\Local\Programs\Python\Python311\python.exe"
+    if (Test-Path $condaPy) {
+        $PythonPath = $condaPy
+        Write-Host "Python auto-detected (miniconda): $PythonPath"
+    } elseif (Test-Path $py311Py) {
+        $PythonPath = $py311Py
+        Write-Host "Python auto-detected (Python311): $PythonPath"
+    } else {
+        $cmd = Get-Command python -ErrorAction SilentlyContinue
+        if ($cmd) { $PythonPath = $cmd.Source } else { Write-Error "No python found"; exit 1 }
+    }
+}
 
 function Test-PortQuick {
     param([int]$PortToTest, [int]$TimeoutMs = 800)

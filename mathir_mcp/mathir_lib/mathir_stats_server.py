@@ -142,7 +142,8 @@ def get_db(project_name: str = None):
 
 def load_config():
     if CONFIG_PATH.exists():
-        with open(CONFIG_PATH) as f:
+        # Windows editors may write a UTF-8 BOM; accept it when parsing JSON.
+        with open(CONFIG_PATH, encoding="utf-8-sig") as f:
             return json.load(f)
     return {}
 

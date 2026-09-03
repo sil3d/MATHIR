@@ -1,6 +1,6 @@
 # MATHIR Install — Linux (systemd)
 
-**Audience:** developers running OpenCode on a modern Linux desktop or server.
+**Audience:** developers using **any** coding agent (OpenCode, Codex, MiMo Code, Claude Code, Cursor, ...) on a modern Linux desktop or server.
 **Tested on:** Ubuntu 22.04+, Debian 12+, Fedora 39+, Arch (current), Raspberry Pi OS Bookworm.
 **Time:** ~5 minutes.
 **Result:** `mathir_server.py` running on `127.0.0.1:7338`, auto-started at login via **user systemd** (`~/.config/systemd/user/`), and registered as an MCP server in your agent's config.
@@ -118,7 +118,7 @@ curl -v telnet://127.0.0.1:7338 --max-time 2 2>&1 | grep -E "(Connected|Failed)"
 #    the daemon has been HTTP/Flask since v8.5.0, not raw TCP JSON-RPC;
 #    the old `nc`-based JSON-RPC ping below this line no longer works)
 curl -s http://127.0.0.1:7338/health
-# expected: {"status":"ok","model":"...","version":"8.9.4",...}
+# expected: {"status":"ok","model":"...","version":"8.9.8",...}
 ```
 
 If port 7338 is taken:
@@ -210,9 +210,14 @@ systemctl --user reset-failed mathir-daemon # clear crash counter
 
 ---
 
-## 6. Register the MCP server in `opencode.json`
+## 6. Register the MCP server in your agent's config
 
-The daemon is running; now teach OpenCode how to talk to it. Edit `~/.config/opencode/opencode.json` and add (or merge) this under the top-level `"mcp"` key:
+The daemon is running; now teach your agent how to talk to it. The exact file
+depends on the agent — **OpenCode/MiMo Code** (same schema): `~/.config/opencode/opencode.json`
+or `~/.config/mimocode/mimocode.json`; **Codex**: `~/.codex/config.toml` +
+`~/.codex/hooks.json` (see `mathir_mcp/codex_templates/`); **Claude Code / Cursor /
+Cline / Windsurf / Gemini / Zcode**: `"mcpServers"` in `~/.claude.json`, `~/.cursor/mcp.json`, etc.
+This example uses OpenCode — edit `~/.config/opencode/opencode.json` and add (or merge) this under the top-level `"mcp"` key:
 
 ```jsonc
 "mcp": {

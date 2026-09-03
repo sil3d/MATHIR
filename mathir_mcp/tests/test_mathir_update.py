@@ -231,11 +231,15 @@ class TestUpdaterCheckOnly:
 
     def test_dry_run_shows_plan(self, monkeypatch):
         from mathir_mcp.mathir_lib import mathir_updater
-        # Mock check_for_update to return a fake newer version
+        # Mock check_for_update to return a fake newer version.
+        # Also pin the local version: the repo version (8.x) is >= the mock
+        # target, which would early-return "already at" and skip the plan.
         monkeypatch.setattr(mathir_updater, "check_for_update", lambda *a, **kw: {
             "latest_version": "8.5.2", "update_available": True,
             "release_url": "x", "error": None, "source": "live",
         })
+        monkeypatch.setattr(mathir_updater, "_read_pyproject_version", lambda *a, **kw: "8.5.1")
+        monkeypatch.setattr(mathir_updater, "_is_git_install", lambda *a, **kw: False)
         report = mathir_updater.update(dry_run=True)
         assert report["target"] == "8.5.2"
         assert any("DRY-RUN" in s for s in report["steps"])

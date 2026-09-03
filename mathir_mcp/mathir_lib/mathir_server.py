@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
-MATHIR Unified Server — v8.5.0
+MATHIR Unified Server â€” v8.5.0
 Flask + Waitress: single process, single port (7338).
 Combines: daemon (memory operations) + dashboard (stats) + health probe.
 
@@ -17,6 +17,7 @@ Usage:
 """
 
 import sys
+import re
 import os
 import json
 import time
@@ -59,7 +60,7 @@ sys.path.insert(0, str(_HERE))
 sys.path.insert(0, str(_HERE.parent))
 
 # ---------------------------------------------------------------------------
-# Logging — stderr + rotating file (independent of launcher pipe redirection
+# Logging â€” stderr + rotating file (independent of launcher pipe redirection
 # so crash traces survive even when stdout/stderr are DEVNULL'd by a watchdog)
 # ---------------------------------------------------------------------------
 try:
@@ -98,7 +99,7 @@ try:
     _fh.setFormatter(_fmt)
     _root.addHandler(_fh)
 except OSError:
-    pass  # File logging unavailable — stderr still works
+    pass  # File logging unavailable â€” stderr still works
 log = logging.getLogger("mathir-server")
 
 # ---------------------------------------------------------------------------
@@ -111,7 +112,7 @@ MAX_QUERY_LENGTH = 5000
 MAX_LABEL_LENGTH = 500
 
 # ---------------------------------------------------------------------------
-# Imports — mathir_lib
+# Imports â€” mathir_lib
 # ---------------------------------------------------------------------------
 from mathir_mcp_server import (
     get_embedder,
@@ -177,7 +178,7 @@ _entity_cache_lock = threading.Lock()
 _start_time = time.time()
 
 # ---------------------------------------------------------------------------
-# Auth gate — non-loopback binds REQUIRE MATHIR_AUTH_TOKEN (opt-in, non-breaking)
+# Auth gate â€” non-loopback binds REQUIRE MATHIR_AUTH_TOKEN (opt-in, non-breaking)
 # ---------------------------------------------------------------------------
 _AUTH_TOKEN = os.environ.get('MATHIR_AUTH_TOKEN', '') or ''
 
@@ -200,7 +201,7 @@ def _get_vec_mem(db_path, dim):
 def _resolve_db(project: str = None, cwd: str = None):
     """Resolve VecMemory + embedder. Returns (vec_mem, db_path, embedder) or raises.
 
-    Routing priority (v8.6.1 — local-first, backward-compatible):
+    Routing priority (v8.6.1 â€” local-first, backward-compatible):
       1. cwd/.mathir/mathir.db if it already exists (per-project)
       2. Global ~/.config/MATHIR/data/projects/<project>/mathir.db if it exists (legacy)
       3. Create cwd/.mathir/mathir.db for NEW projects (prefer local going forward)
@@ -329,12 +330,12 @@ app = Flask(__name__)
 
 
 # ---------------------------------------------------------------------------
-# CORS — allow browsers (Tauri webview, Vite dev :3000) to call MATHIR directly
+# CORS â€” allow browsers (Tauri webview, Vite dev :3000) to call MATHIR directly
 # ---------------------------------------------------------------------------
 @app.after_request
 def _add_cors_headers(resp):
     origin = request.headers.get("Origin", "*")
-    # Restrict to localhost variants — MATHIR is a local-only service
+    # Restrict to localhost variants â€” MATHIR is a local-only service
     allowed = ("http://localhost", "http://127.0.0.1", "tauri://", "https://tauri.localhost")
     if origin == "*" or any(origin.startswith(a) for a in allowed):
         resp.headers["Access-Control-Allow-Origin"] = origin if origin != "*" else "*"
@@ -603,7 +604,7 @@ def api_context():
     except Exception as e:
         log.error(f"api_context failed: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
-    # ── Load guardrails (ALWAYS, regardless of search results) ──
+    # â”€â”€ Load guardrails (ALWAYS, regardless of search results) â”€â”€
     guardrails = []
     try:
         if vec_mem is None:
@@ -631,9 +632,9 @@ def api_context():
     # break out of the block or smuggle prompt-instruction tokens).
     lines = []
 
-    # ── Guardrails section: ALWAYS FIRST, always visible ──
+    # â”€â”€ Guardrails section: ALWAYS FIRST, always visible â”€â”€
     if guardrails:
-        lines.append(f"## GUARDRAILS ({len(guardrails)} rules — always active)")
+        lines.append(f"## GUARDRAILS ({len(guardrails)} rules â€” always active)")
         lines.append("These rules MUST be followed at ALL times. They override defaults.\n")
         for g in guardrails:
             ct = _sanitize_for_prompt(g.get("content", ""))[:300]
@@ -641,8 +642,8 @@ def api_context():
             lines.append(f"  * [{lb}] {ct}")
         lines.append("")
 
-    # ── Context memories section ──
-    lines.append(f"## MATHIR Auto-Context — {len(normalized)} memories for: {_sanitize_for_prompt(task)[:100]}")
+    # â”€â”€ Context memories section â”€â”€
+    lines.append(f"## MATHIR Auto-Context â€” {len(normalized)} memories for: {_sanitize_for_prompt(task)[:100]}")
     for tier, items in tiers.items():
         lines.append(f"\n### {_sanitize_for_prompt(tier).upper()} ({len(items)})")
         for item in items:
@@ -676,7 +677,7 @@ def api_cache_stats():
 @app.route("/health")
 def health():
     # Read runtime config so /health reflects the actual installed model
-    # + version (user can change them in mathir.json — see AGENT.md §Changing
+    # + version (user can change them in mathir.json â€” see AGENT.md Â§Changing
     # Models). Fall back to pyproject.toml version if config is missing.
     cfg = {}
     try:
@@ -728,7 +729,7 @@ def health():
 
     # Surface the legacy-schema warning on /health so the agent plugin sees it
     # immediately at session start (the plugin polls /health on session.started).
-    # Uses cached schema kind from warmup — no re-init of embedder.
+    # Uses cached schema kind from warmup â€” no re-init of embedder.
     try:
         if _DB_LEGACY_WARNING:
             # Report the most recent legacy warning (any DB path)
@@ -766,7 +767,7 @@ def api_ping():
 
 
 # ---------------------------------------------------------------------------
-# Memory API routes — all POST, JSON body
+# Memory API routes â€” all POST, JSON body
 # ---------------------------------------------------------------------------
 
 def _get_params():
@@ -852,7 +853,7 @@ def memory_save():
                     block_type = "immunological"
                     risk_warnings.append(f"anomaly_score={anomaly_result['score']:.2f}")
             except Exception:
-                # Anomaly detection is best-effort — never block a save because
+                # Anomaly detection is best-effort â€” never block a save because
                 # of it (e.g. corrupt persisted state, dimension mismatch on an
                 # old DB). Falls through with tier_override=None.
                 pass
@@ -1475,10 +1476,17 @@ def memory_build_links():
         # mention the same named entity, for multi-hop bridging), or "both".
         mode = str(params.get('mode', 'cosine')).lower()
         limit = params.get('limit', 1000)
+        top_k = params.get('top_k', 8)
+        # clean=True wipes the whole link table first so the rebuild is a true
+        # rebuild (stale edges for pairs that no longer qualify disappear).
+        # Default False keeps existing callers' semantics unchanged.
+        if params.get('clean', False):
+            vec_mem._get_conn().execute("DELETE FROM memory_links")
+            vec_mem._get_conn().commit()
         out = {}
         if mode in ("cosine", "both"):
             out["cosine"] = vec_mem.build_links_all(
-                threshold=params.get('threshold', 0.88), limit=limit,
+                threshold=params.get('threshold', 0.88), limit=limit, top_k=top_k,
             )
         if mode in ("entity", "both"):
             out["entity"] = vec_mem.build_entity_links_all(limit=limit)
@@ -1610,6 +1618,93 @@ def push_cache_stats():
 # ---------------------------------------------------------------------------
 # God Orchestrator routes (v8.8.0)
 # ---------------------------------------------------------------------------
+
+@app.route("/api/memory/recall_quality", methods=["POST"])
+def memory_recall_quality():
+    """Recall with explicit quality signal (quality: high | medium | low).
+
+    HTTP twin of the MCP memory_recall_quality tool. Added 2026-08-18:
+    the MCP endpoint_map and the stdio wrapper (Codex) both routed
+    "memory_recall_quality" to this path, which did not exist, so every
+    call failed with a daemon 404. Quality is based on the top-1 score AND
+    lexical grounding: a deliberately nonsensical out-of-domain query still
+    scored 0.839 ("high") purely from embedding-space coincidence (verified
+    live 2026-07-21), so a real match must also share >=4-char tokens.
+    """
+    try:
+        params = _get_params()
+        query = params.get("query", "")
+        k = int(params.get("k", 5))
+        min_score = float(params.get("min_score", 0.4))
+        if not query:
+            return jsonify({"error": "query is required"}), 400
+
+        with app.test_client() as client:
+            resp = client.post("/api/memory/recall", json={"query": query, "k": k})
+            recall = resp.get_json()
+        results = (recall or {}).get("results", []) or []
+
+        if not results:
+            return jsonify({
+                "query": query, "quality": "none", "total": 0,
+                "suggestion": "No memories matched. Try rephrasing or saving knowledge first.",
+                "results": [],
+            })
+
+        top1 = float(results[0].get("score", 0.0))
+        top1_meta = results[0].get("metadata") or {}
+        top1_text = " ".join(str(x) for x in (
+            top1_meta.get("content", ""), results[0].get("content", ""),
+            top1_meta.get("label", ""), results[0].get("label", ""),
+        )).lower()
+        query_tokens = set(re.findall(r"[a-z0-9]{4,}", query.lower()))
+        lexically_grounded = any(tok in top1_text for tok in query_tokens)
+
+        if top1 >= 0.7 and lexically_grounded:
+            quality = "high"
+            suggestion = "Strong match â€” top result is highly relevant."
+        elif top1 >= 0.7:
+            quality = "medium"
+            suggestion = (
+                f"Top-1 score {top1:.2f} looks strong but shares no vocabulary with the "
+                "query â€” likely an embedding-space coincidence, not a real match. Review "
+                "before trusting."
+            )
+        elif top1 >= min_score:
+            quality = "medium"
+            suggestion = "Partial match â€” review top results for relevance."
+        else:
+            quality = "low"
+            suggestion = (
+                f"Top-1 score {top1:.2f} < {min_score:.2f}. "
+                "DB likely lacks what you need. Save new knowledge or broaden query."
+            )
+
+        out = []
+        for r in results:
+            meta = r.get("metadata") or {}
+            out.append({
+                "memory_id": r.get("memory_id"),
+                "score": round(float(r.get("score", 0.0)), 3),
+                "label": meta.get("label", r.get("label", "")),
+                "content_snippet": (str(meta.get("content", "") or r.get("content", "")))[:200],
+                "agent": meta.get("agent", r.get("agent", "")),
+                "block_type": meta.get("block_type", r.get("block_type", "")),
+            })
+
+        return jsonify({
+            "query": query,
+            "quality": quality,
+            "top1_score": round(top1, 3),
+            "min_score": min_score,
+            "lexically_grounded": lexically_grounded,
+            "total": len(out),
+            "suggestion": suggestion,
+            "results": out,
+        })
+    except Exception as e:
+        return jsonify({'error': _sanitize_error(e, 'memory_recall_quality')}), 500
+
 
 @app.route("/api/god/poll", methods=["POST"])
 def api_god_poll():
@@ -1752,7 +1847,7 @@ def api_god_agents():
         cursor = conn.execute(
             """SELECT memory_id, metadata, label
                FROM memories
-               WHERE label LIKE 'god:reg:%'
+               WHERE label LIKE 'god:reg:%' AND tier != 'archived'
                ORDER BY created_at DESC"""
         )
         seen = {}
@@ -1779,11 +1874,229 @@ def api_god_agents():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route("/api/god/reg", methods=["POST"])
+def api_god_reg():
+    """Upsert a god worker registration row (status: idle | busy | offline).
+
+    FIX (2026-08-18): mathir_god_agent previously called memory_save for
+    every god:reg:* transition, inserting a NEW memory row per poll â€”
+    observed live creating 419 near-duplicate god:reg rows for a single
+    worker name (all similarity 1.0, same label family, created within a
+    47s window, all since archived by consolidate). This route reuses the
+    existing registration row (same memory_id, INSERT OR REPLACE) so
+    repeated polls never accumulate junk; only the first call for a name
+    inserts a row, every later call updates it in place.
+    """
+    try:
+        params = _get_params()
+        memory_id, action, label = _god_reg_upsert(
+            params.get("name", ""),
+            params.get("status", "idle"),
+            params.get("content", {}),
+            params.get("project"),
+            params.get("cwd"),
+        )
+        return jsonify({
+            "memory_id": memory_id, "label": label,
+            "action": action, "saved": True,
+        })
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": _sanitize_error(e, "god_reg")}), 500
+
+
+def _god_internal_call(path, payload):
+    """Call one of our own routes in-process (no network, no port).
+
+    Used by the HTTP god-agent entry points so the register/poll/ack flow
+    stays implemented in exactly one place (the existing routes).
+    """
+    with app.test_client() as client:
+        resp = client.post(path, json=payload)
+        data = resp.get_json() if resp.is_json else None
+        if resp.status_code != 200:
+            raise RuntimeError(f"{path} -> HTTP {resp.status_code}: {data}")
+        return data or {}
+
+
+@app.route("/api/god/agent", methods=["POST"])
+def api_god_agent():
+    """Register a god worker (idle) and poll for one pending task.
+
+    HTTP twin of the MCP mathir_god_agent tool, as a single call: register
+    idle -> poll (atomic claim) -> ack running + register busy when a task
+    is found, so a plain HTTP client just executes and reports.
+    """
+    try:
+        params = _get_params()
+        name = params.get("name", "")
+        if not name:
+            return jsonify({"error": "name is required"}), 400
+        reg_payload = {
+            "capabilities": params.get("capabilities", []),
+            "introduction": params.get("introduction", ""),
+        }
+        project = params.get("project")
+        cwd = params.get("cwd")
+        poll_interval = params.get("poll_interval", 8)
+
+        _god_internal_call("/api/god/reg", {
+            "name": name, "status": "idle", "content": reg_payload,
+            "project": project, "cwd": cwd,
+        })
+        polled = _god_internal_call("/api/god/poll", {
+            "agent": name, "status": "pending",
+            "project": project, "cwd": cwd,
+        })
+        task = polled.get("task")
+        if not task:
+            return jsonify({
+                "status": "waiting", "reason": "no_pending_task",
+                "instruction": f"Call /api/god/agent again after {poll_interval}s",
+            })
+
+        task_label = task.get("label", "")
+        parts = task_label.split(":")
+        task_id = parts[2] if len(parts) >= 3 else "unknown"
+        if len(parts) == 5 and parts[4] == "shutdown":
+            _god_internal_call("/api/god/reg", {
+                "name": name, "status": "offline", "content": reg_payload,
+                "project": project, "cwd": cwd,
+            })
+            return jsonify({"status": "shutdown", "task": task})
+
+        _god_internal_call("/api/god/ack", {
+            "memory_id": task["memory_id"], "status": "running",
+            "project": project, "cwd": cwd,
+        })
+        _god_internal_call("/api/god/reg", {
+            "name": name, "status": "busy", "content": reg_payload,
+            "project": project, "cwd": cwd,
+        })
+        content = task.get("content", "")
+        try:
+            task_info = json.loads(content)
+        except (json.JSONDecodeError, TypeError):
+            task_info = {"description": content}
+        return jsonify({
+            "status": "task_found",
+            "task_id": task_id,
+            "description": task_info.get("description", content),
+            "task": task,
+            "report_instruction": (
+                "After completing, report via /api/memory/save with "
+                f"label='god:result:{task_id}:orchestrator:completed', "
+                "block_type='episodic', priority=7, then call /api/god/agent again."
+            ),
+        })
+    except Exception as e:
+        return jsonify({"error": _sanitize_error(e, "god_agent")}), 500
+
+
+@app.route("/api/god/orchestre", methods=["POST"])
+def api_god_orchestre():
+    """HTTP twin of the MCP mathir_god_orchestre tool: list registered
+    workers and pending results, hand back the dispatch instruction."""
+    try:
+        params = _get_params()
+        directive = params.get("directive", "")
+        project = params.get("project")
+        cwd = params.get("cwd")
+
+        agents_resp = _god_internal_call("/api/god/agents", {
+            "project": project, "cwd": cwd,
+        })
+        agents = agents_resp.get("agents", [])
+        idle_agents = [a for a in agents if a.get("status") == "idle"]
+
+        search = _god_internal_call("/api/memory/smart_search", {
+            "query": "god:result orchestrator", "k": 20,
+            "project": project, "cwd": cwd,
+        })
+        pending = []
+        for mem in search.get("results", []):
+            label = mem.get("label", "")
+            if label.startswith("god:result:") and ":completed" in label:
+                pending.append(mem)
+
+        return jsonify({
+            "status": "ready",
+            "directive": directive,
+            "registered_workers": agents,
+            "idle_workers": idle_agents,
+            "pending_results": pending,
+            "instruction": (
+                f"DIRECTIVE: {directive}\n"
+                "Break it into tasks and dispatch each via /api/memory/save with "
+                "label='god:task:{8-char-hex}:{agent}:pending', "
+                "content='{\"description\": ...}', block_type='working_memory', priority=7. "
+                "Monitor with /api/memory/smart_search (query='god:result orchestrator'). "
+                "Shutdown workers with label='god:task:00000000:{name}:shutdown'."
+            ),
+        })
+    except Exception as e:
+        return jsonify({"error": _sanitize_error(e, "god_orchestre")}), 500
+
+
+def _god_reg_upsert(name, status, content, project=None, cwd=None):
+    """Upsert a god:reg row, reusing the existing memory_id when present.
+
+    Shared by /api/god/reg and /api/god/agent. Returns (memory_id, action,
+    label). Raises ValueError on bad input.
+    """
+    import uuid
+    if not name:
+        raise ValueError("name is required")
+    if status not in ("idle", "busy", "offline"):
+        raise ValueError("status must be idle|busy|offline")
+
+    vec_mem, _db_path, embedder = _resolve_db(project=project, cwd=cwd)
+    conn = vec_mem._get_conn()
+
+    # Normalize content: accept a dict OR a pre-serialized JSON string
+    # (mathir_god_agent historically passed json.dumps({...}) as content).
+    if isinstance(content, str):
+        try:
+            content = json.loads(content)
+        except (json.JSONDecodeError, TypeError):
+            content = {"raw": content}
+    content_str = json.dumps(content, ensure_ascii=False)
+
+    label = f"god:reg:{name}:{name}:{status}"
+    safe_name = name.replace("%", r"\%").replace("_", r"\_")
+    existing = conn.execute(
+        """SELECT memory_id FROM memories
+           WHERE label LIKE ? ESCAPE '\\'
+             AND tier != 'archived'
+           ORDER BY created_at DESC LIMIT 1""",
+        (f"god:reg:{safe_name}:{safe_name}:%",),
+    ).fetchone()
+    memory_id = existing["memory_id"] if existing else f"mem_{uuid.uuid4().hex}"
+    action = "updated" if existing else "created"
+
+    emb_np = _encode_passage(embedder, content_str)
+    metadata = {
+        "agent": name,
+        "block_type": "working_memory",
+        "label": label,
+        "priority": 3,
+        "content": content_str,
+        "project": project or get_project_name(),
+        "risk_warnings": None,
+        "file_path": "",
+        "tier": "working_memory",
+    }
+    vec_mem.store(memory_id, emb_np, metadata)
+    invalidate_on_write(project=project)
+    return memory_id, action, label
+
+
 # ---------------------------------------------------------------------------
 # Startup
 # ---------------------------------------------------------------------------
 
-# Schema of the resolved DB at last warmup — cached so /health and other
+# Schema of the resolved DB at last warmup â€” cached so /health and other
 # request handlers don't re-init the embedder just to check the schema.
 _DB_SCHEMA_KIND: dict = {}      # str(db_path) -> "new" | "legacy"
 _DB_LEGACY_WARNING: dict = {}   # str(db_path) -> warning text
@@ -1850,7 +2163,7 @@ def _warmup():
                 else:
                     vec_count = conn.execute("SELECT COUNT(*) FROM embeddings_brute").fetchone()[0]
                 if vec_count == 0 and pending > 0:
-                    log.info(f"vec_memories empty but {pending} memories exist — rebuilding embeddings...")
+                    log.info(f"vec_memories empty but {pending} memories exist â€” rebuilding embeddings...")
                     result = vec_mem.rebuild_vec_index(embedder=embedder)
                     log.info(f"Vec rebuild: {result}")
         except Exception as e:
@@ -1860,7 +2173,7 @@ def _warmup():
 
 
 # ---------------------------------------------------------------------------
-# Autonomous maintenance ("sleep") — periodic decay/promote/dedupe/link-build
+# Autonomous maintenance ("sleep") â€” periodic decay/promote/dedupe/link-build
 # ---------------------------------------------------------------------------
 # Without this, run_maintenance() in mathir_vec.py existed but nothing ever
 # called it -- confirmed live, 2026-07-21: no scheduler/cron/background
@@ -1942,7 +2255,7 @@ _SHUTTING_DOWN = threading.Event()
 def _shutdown(reason: str = "unknown") -> None:
     """Close all cached VecMemory connections so SQLite WAL is checkpointed.
 
-    Idempotent — safe to call from signal handler and atexit. Without this,
+    Idempotent â€” safe to call from signal handler and atexit. Without this,
     a hard taskkill leaves the -wal sidecar un-checkpointed and the next
     startup can fail to bind or read stale data.
     """
@@ -2107,7 +2420,7 @@ def main():
     t = threading.Thread(target=_warmup, daemon=True)
     t.start()
 
-    # Autonomous maintenance ("sleep") — decay/promote/dedupe/link-build
+    # Autonomous maintenance ("sleep") â€” decay/promote/dedupe/link-build
     mt = threading.Thread(target=_maintenance_loop, daemon=True, name="mathir-maintenance")
     mt.start()
 
