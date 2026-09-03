@@ -217,12 +217,19 @@ MATHIR has **2 long-running processes** + **1 cross-tool instruction file**:
 cp mathir_mcp/opencode_templates/AGENTS.md /path/to/your/project/AGENTS.md
 ```
 
-**Per-project DB routing**, each project gets its own `.mathir/mathir.db`:
-- `your-project/` → `your-project/.mathir/mathir.db`
-- mathir_mcp (installer) → `~/.config/MATHIR/mathir_mcp/.mathir/mathir.db`
-- Future projects → `<project>/.mathir/mathir.db` (auto-created on first save)
+**Per-project DB routing**
 
-Routing is fixed in v8.5.1: `mathir_mcp_server.py` injects `project` + `cwd` into every request; `mathir_server.py` uses them to pick the right DB.
+HTTP daemon requests should include both `project` and `cwd`:
+
+| Request | Database |
+|---|---|
+| Named project | `~/.config/MATHIR/data/projects/<project>/mathir.db` |
+| Unnamed request | `<cwd>/.mathir/mathir.db` |
+
+The MCP bridge adds `project` and `cwd` to daemon calls. The HTTP resolver uses
+the canonical global path whenever `project` is present. Direct library calls
+through `get_db_path()` retain their local-first discovery order for backward
+compatibility.
 
 ---
 
@@ -407,7 +414,7 @@ By mid-2026 the "LLM has no memory" gap is being closed from two directions at o
 
 Honest gaps: MATHIR has no external benchmark citations, no peer review, and no third-party adoption yet, the numbers below are internal and should be read as such. If you need a battle-tested, funded, widely-adopted memory backend today, Mem0/Zep/Letta are reasonable choices. MATHIR is a research project testing a specific architectural bet (structured, self-maintaining, local-first, multi-agent memory), documented openly including where it falls short.
 
-> **Anomaly detection status:** the MCP server/daemon (`mathir_lib/`, what coding agents connect to) now wires its `immunological` tier to a real, live Mahalanobis-distance detector: `/api/memory/save` scores every incoming embedding against a running per-project baseline and can write `tier='immunological'` when it flags an outlier. On a realistic prompt-injection corpus (`mathir_mcp/tests/data/anomaly_eval/`), the honest result is **AUC-ROC=0.8533** for normal-vs-injection separation, good, not perfect. There is no clean separation between "malicious" and "merely unusual" using distance alone: benign-but-unusual text can also score above the threshold and get flagged. Because of this, flagged content is **not** auto-blocked or silently deleted, it lands in the `immunological` tier for review via `memory_audit_immunological`. A separate, simpler (non-Mahalanobis) detector also exists in `mathir_dropin/` (the standalone embeddable library for non-MCP apps, see [docs/05_SHIPPING_GUIDE.md](docs/05_SHIPPING_GUIDE.md)), it is a different implementation and its numbers are not the ones quoted above.
+> **Anomaly detection status:** `/api/memory/save` scores incoming embeddings against a per-project Mahalanobis baseline. Outliers can be stored in the `immunological` tier for review with `memory_audit_immunological`. The detector is not an automatic blocker or deletion policy. On the prompt-injection evaluation corpus, the recorded AUC-ROC is 0.8533. The standalone `mathir_dropin/` detector is a separate implementation with separate measurements.
 >
 > **Retrieval quality vs FAISS:** real BEIR benchmarks (SciFact/ArguAna/NFCorpus, see [benchmarks/06_results/current/](benchmarks/06_results/current/)) currently show plain FAISS dense retrieval *outperforming* MATHIR's hybrid BM25+dense+cross-encoder pipeline. Any "+14pp vs FAISS" figure you may see elsewhere comes from a 50-query/200-chunk internal evaluation on a single textbook and is not comparable to a standard IR benchmark, see [docs/SOTA_RESEARCH_2024_2026.md](docs/SOTA_RESEARCH_2024_2026.md) for the full self-audit.
 >
@@ -419,10 +426,14 @@ Full comparison: [docs/07_MATHIR_VS_VECTORDB_USE_CASES.md](docs/07_MATHIR_VS_VEC
 
 ## 📊 Tests & Benchmarks
 
-**98/98 tests pass** (`mathir_mcp/tests/`). Run yourself:
+**90 targeted reliability tests pass** across anomaly detection, maintenance,
+cache, migration, authentication, and module-tree checks. This is a targeted
+verification snapshot, not a claim that every historical test is green:
 
 ```bash
-pytest mathir_mcp/tests/ -v
+python -m pytest mathir_mcp/tests/test_anomaly_detector.py mathir_mcp/tests/test_anomaly_route.py mathir_mcp/tests/test_decay.py mathir_mcp/tests/test_migration.py -q
+python -m pytest mathir_mcp/tests/test_consolidate_quality.py mathir_mcp/tests/test_hybrid_search_bm25_cache.py mathir_mcp/tests/test_cache.py -q
+python -m pytest mathir_mcp/tests/test_mathir_update.py mathir_mcp/tests/test_auth.py mathir_mcp/tests/test_module_tree.py -q
 ```
 
 | Benchmark | Result |
@@ -450,7 +461,7 @@ Full report: [benchmarks/06_results/current/README.md](benchmarks/06_results/cur
                ▼
 ┌──────────────────────────────────┐
 │  MATHIR Daemon (port 7338)        │
-│  Flask+Waitress · FastMCP 3.4.2  │
+│  Flask + Waitress · HTTP API         │
 │  HybridSearch + CrossEncoder rerank│
 │  6 tiers · INT8 · Ebbinghaus      │
 │                                    │
@@ -462,7 +473,7 @@ Full report: [benchmarks/06_results/current/README.md](benchmarks/06_results/cur
                │
                ▼
         SQLite + sqlite-vec
-        (per-project DB)
+        (canonical named-project DB)
 ```
 
 Full architecture: [docs/BRAIN_ARCHITECTURE.md](docs/BRAIN_ARCHITECTURE.md)
@@ -488,7 +499,7 @@ MATHIR/
 
 ## 🗺️ Roadmap
 
-### ✅ Done (V1–V8.5.1)
+### ✅ Done (V1–V8.9.8)
 
 ✅ **V1–V5** Core architecture + KL router
 ✅ **V6** LLM-agnostic plugin API
@@ -500,11 +511,12 @@ MATHIR/
 ✅ **V7.8** GPU embeddings + daemon architecture
 ✅ **V8.0** Cascade architecture
 ✅ **V8.5.0** FastMCP rewrite + auto-injection (20 tools)
-✅ **V8.5.1** New tools (23 total) + project-aware DB
+✅ **V8.5.1** Project-aware DB routing and expanded MCP tool surface
 ✅ **V8.6.0** INT8 quantization + cross-encoder rerank + multi-agent benchmark
 ✅ **V8.7.0** 3-layer auto-cache (L1 embedding, L2 recall, L3 session)
 ✅ **V8.8.0** God Mode, cross-process multi-agent orchestration
 ✅ **V8.9.0** Guardrail tier, push-based always-active rules (6th tier)
+✅ **V8.9.8** Reliability hardening: bounded injection, canonical DB routing, adaptive anomaly warmup, bounded maintenance, input caps, and injection cooldown
 
 ### 🔜 Next: 4 validation stages
 
