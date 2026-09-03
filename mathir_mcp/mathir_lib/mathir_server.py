@@ -109,7 +109,15 @@ MAX_REQUEST_SIZE = 65536
 MAX_CONTEXT_LENGTH = 50000
 MAX_CONTENT_LENGTH = 100000
 MAX_QUERY_LENGTH = 5000
-MAX_LABEL_LENGTH = 500
+# FIX (2026-09-01): was 500, silently 2.5x looser than the MCP-layer cap
+# (mathir_mcp_server.py: 200) documented in GLOBAL_INSTRUCTIONS.md. Since
+# mathir_proxy.py and every auto-inject plugin hit this HTTP layer directly
+# (not the MCP layer), an unbounded-by-docs 500-char label could reach
+# vec_mem.store() through that path. Aligned to the documented/MCP value.
+MAX_LABEL_LENGTH = 200
+# FIX (2026-09-01): 'agent' had no cap at all on this HTTP path even though
+# the MCP layer caps it at 100 chars -- added for parity (see _validate_input).
+MAX_AGENT_LENGTH = 100
 
 # ---------------------------------------------------------------------------
 # Imports â€” mathir_lib
@@ -137,7 +145,20 @@ except ImportError:
 
 _anomaly_config = load_config().get("memory", {})
 _ANOMALY_THRESHOLD = _anomaly_config.get("anomaly_threshold", 2.0)
-_ANOMALY_WARMUP = _anomaly_config.get("anomaly_warmup_count", 30)
+# FIX (2026-09-01): default fallback was 30, but the calibrated value
+# (config_template.json's "anomaly_warmup_count": 60, with the note
+# "RECALIBRATED 2026-07-02 against real production memories") is 60 --
+# and the deployed runtime config (~/.config/MATHIR/config/mathir.json)
+# was MISSING the key entirely, so every save silently used the
+# undertrained 30-sample fallback. 30 samples in 384 dimensions leaves the
+# Mahalanobis covariance severely rank-deficient (see mathir_anomaly.py's
+# _get_inverse() docstring); verified live: this pushed in-distribution
+# scores to 30-42 against a threshold of 25, flagging 437/791 (55%) of a
+# real project's memories as anomalous, including 14/14 non-god saves
+# since 2026-08-01 (100% false-positive rate). Also fixed the runtime
+# config file directly to state the value explicitly rather than relying
+# on this fallback ever again.
+_ANOMALY_WARMUP = _anomaly_config.get("anomaly_warmup_count", 60)
 
 # ---------------------------------------------------------------------------
 # Globals
@@ -201,26 +222,24 @@ def _get_vec_mem(db_path, dim):
 def _resolve_db(project: str = None, cwd: str = None):
     """Resolve VecMemory + embedder. Returns (vec_mem, db_path, embedder) or raises.
 
-    Routing priority (v8.6.1 â€” local-first, backward-compatible):
-      1. cwd/.mathir/mathir.db if it already exists (per-project)
-      2. Global ~/.config/MATHIR/data/projects/<project>/mathir.db if it exists (legacy)
-      3. Create cwd/.mathir/mathir.db for NEW projects (prefer local going forward)
-      4. Fallback -> get_project_db_path() (registry, legacy)
+    A named project always resolves to its canonical global database under
+    ``MATHIR_HOME/data/projects/<project>/mathir.db``. This prevents a caller's
+    working directory from creating a second database for the same project.
+    Unnamed calls remain cwd-local because cwd is their only project identity.
     """
     dim = get_embedder_dim()
     db_path = None
     if cwd:
         cwd_path = Path(cwd)
         local_db = cwd_path / ".mathir" / "mathir.db"
-        if local_db.exists():
+        if project:
+            home = Path(os.environ.get(
+                "MATHIR_HOME", str(Path.home() / ".config" / "MATHIR")
+            )).expanduser()
+            db_path = home / "data" / "projects" / project / "mathir.db"
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+        elif local_db.exists():
             db_path = local_db
-        elif project:
-            global_db = Path(os.environ.get("MATHIR_HOME", str(Path.home() / ".config" / "MATHIR"))) / "data" / "projects" / project / "mathir.db"
-            if global_db.exists():
-                db_path = global_db
-            else:
-                local_db.parent.mkdir(parents=True, exist_ok=True)
-                db_path = local_db
         else:
             local_db.parent.mkdir(parents=True, exist_ok=True)
             db_path = local_db
@@ -256,7 +275,14 @@ def _encode_query(embedder, query: str):
     cached = embedding_cache.get(full_text)
     if cached is not None:
         return cached
-    emb = embedder.encode(full_text)
+    try:
+        emb = embedder.encode(full_text, show_progress_bar=False)
+    except TypeError as exc:
+        # Keep small test/custom embedders compatible with the
+        # SentenceTransformer API without masking errors from encode().
+        if "show_progress_bar" not in str(exc):
+            raise
+        emb = embedder.encode(full_text)
     if hasattr(emb, 'cpu'):
         result = emb.cpu().numpy().astype('float32').reshape(-1)
     else:
@@ -272,15 +298,18 @@ def _encode_passage(embedder, text: str):
     cached = embedding_cache.get(full_text)
     if cached is not None:
         return cached
-    emb = embedder.encode(full_text)
+    try:
+        emb = embedder.encode(full_text, show_progress_bar=False)
+    except TypeError as exc:
+        if "show_progress_bar" not in str(exc):
+            raise
+        emb = embedder.encode(full_text)
     if hasattr(emb, 'cpu'):
         result = emb.cpu().numpy().astype('float32').reshape(-1)
     else:
         result = np.array(emb, dtype=np.float32).reshape(-1)
     embedding_cache.put(full_text, result)
     return result
-
-
 def get_embedder_dim():
     embedder = get_embedder()
     if hasattr(embedder, 'dim'):
@@ -307,6 +336,11 @@ def _validate_input(params: dict) -> Optional[str]:
         ("content", MAX_CONTENT_LENGTH),
         ("query", MAX_QUERY_LENGTH),
         ("label", MAX_LABEL_LENGTH),
+        # FIX (2026-09-01): 'agent' had no cap on this HTTP path (the one
+        # mathir_proxy.py and every auto-inject plugin actually hit) even
+        # though MAX_AGENT_LENGTH existed as a constant and the MCP layer
+        # (mathir_mcp_server.py) already enforced it. Parity fix.
+        ("agent", MAX_AGENT_LENGTH),
     ):
         val = params.get(field, "")
         if isinstance(val, str) and len(val) > cap:
@@ -375,8 +409,13 @@ def _get_project_db(project_name=None):
                 db_path = Path(reg["projects"][project_name].get("db_path", ""))
                 if db_path.exists():
                     return _sql.connect(str(db_path))
-        except Exception:
-            pass
+        except Exception as exc:
+            # FIX (2026-09-01): was `except: pass` -- a corrupt/unreadable
+            # registry file silently reported as "project not found"
+            # instead of "registry read failed", indistinguishable from a
+            # genuinely missing project. Logged so the two cases can be told
+            # apart from the daemon log.
+            log.warning("_get_project_db: registry read failed for %r: %s", project_name, exc)
     return None
 
 
@@ -404,8 +443,12 @@ def _list_projects():
                         "size_bytes": db_path.stat().st_size,
                         "last_used": info.get("last_used", ""),
                     })
-        except Exception:
-            pass
+        except Exception as exc:
+            # FIX (2026-09-01): was `except: pass` -- a corrupt registry
+            # made the dashboard's project list silently show ONLY the
+            # legacy DB (or nothing), indistinguishable from "no other
+            # projects exist". Logged for the same reason as above.
+            log.warning("_list_projects: registry read failed: %s", exc)
     return projects
 
 
@@ -604,14 +647,20 @@ def api_context():
     except Exception as e:
         log.error(f"api_context failed: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
-    # â”€â”€ Load guardrails (ALWAYS, regardless of search results) â”€â”€
+    # ── Load guardrails (ALWAYS, regardless of search results) ──
     guardrails = []
     try:
         if vec_mem is None:
             vec_mem, _, _ = _resolve_db(project=project, cwd=_cwd)
         guardrails = vec_mem.list_guardrails(project=project, k=50)
-    except Exception:
-        pass
+    except Exception as exc:
+        # FIX (2026-09-01): was `except: pass` -- a guardrail-load failure
+        # meant the "always-active" GUARDRAILS block silently vanished from
+        # every injected context with zero signal anywhere (no log, no
+        # response field). Guardrails are meant to be non-negotiable rules;
+        # failing that silently is the worst possible failure mode for this
+        # specific code path. Now at least logged.
+        log.warning("api_context: guardrail load failed (project=%s): %s", project, exc)
 
     # Group search results by tier (exclude guardrails from search results
     # since they're shown in their own section)
@@ -628,36 +677,96 @@ def api_context():
             "agent": r.get("agent", ""),
             "score": r.get("score", 0.0),
         })
-    # Format as injection text (sanitize every field so a stored memory cannot
-    # break out of the block or smuggle prompt-instruction tokens).
-    lines = []
 
-    # â”€â”€ Guardrails section: ALWAYS FIRST, always visible â”€â”€
+    # ── Token/size budget (2026-09-01) ──
+    # Previously this endpoint had no cap at all: MAX_CONTEXT_LENGTH (50000)
+    # was defined at module scope but never referenced here, so the
+    # unconditionally-injected guardrail block (up to 50 rules x 300 chars)
+    # plus every recalled memory was sent on every injection with no upper
+    # bound. Every auto-inject plugin (OMP, OpenCode, MiMoCode) and the
+    # universal proxy hit this endpoint on (in OMP's case) every provider
+    # request, so an unbounded payload directly inflates per-call token
+    # cost. Budget: guardrails get first claim (they are "MUST always be
+    # followed" rules) up to 70% of MAX_CONTEXT_LENGTH; list_guardrails
+    # already returns priority DESC, so truncating the tail drops the
+    # LOWEST-priority guardrails first. Memories fill whatever remains.
+    budget = MAX_CONTEXT_LENGTH
+    guardrail_budget = int(budget * 0.7)
+
+    lines = []
+    truncated_guardrails = 0
     if guardrails:
-        lines.append(f"## GUARDRAILS ({len(guardrails)} rules â€” always active)")
-        lines.append("These rules MUST be followed at ALL times. They override defaults.\n")
+        header = [
+            f"## GUARDRAILS ({len(guardrails)} rules — always active)",
+            "These rules MUST be followed at ALL times. They override defaults.\n",
+        ]
+        used = sum(len(h) + 1 for h in header)
+        kept = 0
+        body = []
         for g in guardrails:
             ct = _sanitize_for_prompt(g.get("content", ""))[:300]
             lb = _sanitize_for_prompt(g.get("label", ""))
-            lines.append(f"  * [{lb}] {ct}")
+            line = f"  * [{lb}] {ct}"
+            if used + len(line) + 1 > guardrail_budget and kept > 0:
+                # Always keep at least the single highest-priority guardrail
+                # even if it alone exceeds the sub-budget -- "MUST always be
+                # followed" beats a soft size target for rule #1.
+                truncated_guardrails = len(guardrails) - kept
+                break
+            body.append(line)
+            used += len(line) + 1
+            kept += 1
+        if truncated_guardrails:
+            header[0] = (
+                f"## GUARDRAILS ({kept}/{len(guardrails)} rules shown, "
+                f"budget-truncated — always active)"
+            )
+        lines.extend(header)
+        lines.extend(body)
         lines.append("")
 
-    # â”€â”€ Context memories section â”€â”€
-    lines.append(f"## MATHIR Auto-Context â€” {len(normalized)} memories for: {_sanitize_for_prompt(task)[:100]}")
+    truncated_memories = False
+    remaining = max(0, budget - sum(len(l) + 1 for l in lines))
+    header_line = f"## MATHIR Auto-Context — {len(normalized)} memories for: {_sanitize_for_prompt(task)[:100]}"
+    if len(header_line) + 1 <= remaining:
+        lines.append(header_line)
+        remaining -= len(header_line) + 1
+    else:
+        truncated_memories = True
     for tier, items in tiers.items():
-        lines.append(f"\n### {_sanitize_for_prompt(tier).upper()} ({len(items)})")
+        if remaining <= 0:
+            truncated_memories = True
+            break
+        tier_header = f"\n### {_sanitize_for_prompt(tier).upper()} ({len(items)})"
+        if len(tier_header) + 1 > remaining:
+            truncated_memories = True
+            break
+        lines.append(tier_header)
+        remaining -= len(tier_header) + 1
         for item in items:
             ag = _sanitize_for_prompt(item.get('agent', ''))
             lb = _sanitize_for_prompt(item.get('label', ''))
             ct = _sanitize_for_prompt(item.get('content', ''))[:200]
-            lines.append(f"> [{ag}] {lb}: {ct}")
+            line = f"> [{ag}] {lb}: {ct}"
+            if len(line) + 1 > remaining:
+                truncated_memories = True
+                break
+            lines.append(line)
+            remaining -= len(line) + 1
+
+    # A final hard cap protects the contract if future formatting changes
+    # bypass one of the incremental checks above.
+    context = "\n".join(lines)[:budget]
     return jsonify({
-        "context": "\n".join(lines),
+        "context": context,
         "tiers": {t: len(v) for t, v in tiers.items()},
         "guardrails_count": len(guardrails),
         "guardrails": [{"label": g.get("label", ""), "content": g.get("content", "")[:300]} for g in guardrails],
         "total": len(normalized),
         "task": task[:200],
+        "budget_bytes": budget,
+        "truncated_guardrails": truncated_guardrails,
+        "truncated_memories": truncated_memories,
     })
 
 
@@ -953,13 +1062,18 @@ def memory_recall():
             block_type_filter=block_type,
             include_embeddings=bool(params.get('include_embeddings', False)),
         )
+        # FIX (2026-09-01): was N calls to touch_recall() in a loop -- each
+        # doing its own SELECT + UPDATE + conn.commit() (a WAL fsync). At
+        # k=5 that's ~20 statements/5 fsyncs per recall call; k can go up
+        # to 1000, i.e. up to 1000 commits for one recall. The vector
+        # search itself is a few ms; this write-amplification dwarfed it.
+        # touch_recall_batch() does the identical bump in one UPDATE + one
+        # commit for the whole result set.
         touched = 0
         try:
-            for r in results:
-                mid = r.get('memory_id')
-                if mid and hasattr(vec_mem, 'touch_recall'):
-                    vec_mem.touch_recall(mid)
-                    touched += 1
+            mids = [r.get('memory_id') for r in results if r.get('memory_id')]
+            if mids and hasattr(vec_mem, 'touch_recall_batch'):
+                touched = vec_mem.touch_recall_batch(mids).get('touched', 0)
         except Exception:
             pass
         response = {'results': results, 'query': query, 'total': len(results), 'touched': touched, 'cache': 'miss'}
@@ -1170,6 +1284,7 @@ def memory_hybrid_search():
     err = _validate(params)
     if err:
         return err
+    dconn = None  # FIX (2026-09-01): see finally block below
     try:
         _vec_mem, db_path, embedder = _resolve_db(project=params.get("project"), cwd=params.get("cwd"))
         query_text = params.get('query', '')
@@ -1319,7 +1434,6 @@ def memory_hybrid_search():
                 import logging
                 logging.getLogger("mathir").warning("Reranking failed, returning RRF results: %s", e)
 
-        dconn.close()
         return jsonify({
             'results': results[:k], 'query': query_text, 'total': len(results[:k]),
             'mode': 'hybrid+rerank' if reranked else 'hybrid',
@@ -1328,6 +1442,19 @@ def memory_hybrid_search():
         })
     except Exception as e:
         return jsonify({'error': _sanitize_error(e, 'memory_hybrid_search')}), 500
+    finally:
+        # FIX (2026-09-01): dconn.close() previously only ran on the
+        # success path (was the last line before `return jsonify(...)`).
+        # Any exception raised in the ~140 lines between opening dconn and
+        # that line (vector search, BM25 rebuild, entity extraction,
+        # reranking) left the connection fd -- and, if the sqlite-vec
+        # extension loaded, its handle -- dangling. A `finally` runs on
+        # every exit path.
+        if dconn is not None:
+            try:
+                dconn.close()
+            except Exception:
+                pass
 
 
 @app.route("/api/memory/risk_check", methods=["POST"])
@@ -1602,8 +1729,15 @@ def memory_sessions():
                     "label": meta.get("label", ""),
                     "timestamp": r[ts_col] if ts_col in r.keys() else "",
                 })
-            except:
-                pass
+            except (ValueError, TypeError, KeyError) as exc:
+                # FIX (2026-09-01): was a bare `except: pass` -- the only
+                # truly bare except in this file, which also silently
+                # swallows KeyboardInterrupt/SystemExit. Narrowed to the
+                # exceptions a malformed metadata JSON row can actually
+                # raise, and logged so a corrupt row is visible instead of
+                # silently vanishing from the sessions list.
+                log.debug("memory_sessions: skipping malformed row %r: %s",
+                          r["memory_id"] if "memory_id" in r.keys() else "?", exc)
         return jsonify({"sessions": sessions, "total": len(sessions)})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -1765,7 +1899,15 @@ def api_god_poll():
                 return jsonify({"task": None})
 
             parts = row["label"].split(":")
-            claimed_label = f"god:{parts[1]}:{parts[2]}:{safe_agent}:claimed"
+            # FIX (2026-09-01): was f"god:{parts[1]}:{parts[2]}:{safe_agent}:claimed"
+            # -- safe_agent is the LIKE-escaped form (backslash-escaped '%'/'_'),
+            # built ONLY for the ESCAPE '\\' clause above. Persisting it into the
+            # stored label means an agent name containing '_' or '%' (e.g.
+            # "worker_1") gets written as "...:worker\_1:claimed" -- a label no
+            # subsequent exact-match query (by the real agent name "worker_1")
+            # can ever find again. Use the raw `agent` for the persisted label;
+            # `safe_agent` stays scoped to the LIKE pattern only.
+            claimed_label = f"god:{parts[1]}:{parts[2]}:{agent}:claimed"
             res = conn.execute(
                 "UPDATE memories SET label = ? WHERE memory_id = ? AND label = ?",
                 (claimed_label, row["memory_id"], row["label"]),

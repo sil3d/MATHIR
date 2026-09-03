@@ -1,5 +1,29 @@
 # MATHIR Changelog
 
+## [Unreleased] — 2026-09-03 — MEMORY RELIABILITY + DB HYGIENE
+
+### Fixed
+- `/api/context` now has a hard 50,000-character budget, priority-ordered
+  guardrail reservation, truncation metadata, and logged guardrail failures.
+- Headless embedder calls explicitly disable tqdm progress output, avoiding
+  `[Errno 22] Invalid argument` from detached Windows stderr handles.
+- Anomaly detection defaults to a 60-sample warmup and continuously adapts
+  after warmup, preventing a stale baseline from trapping a project in the
+  immunological tier.
+- Named projects resolve to one canonical global database; arbitrary caller
+  working directories no longer create fragmented stores.
+- Recall writes are batched, duplicate/link work is bounded, link construction
+  is chunked, and decay removes archived vectors.
+
+### Database maintenance
+- Canonical MATHIR data was merged and compacted; stale anomaly rows, orphan
+  graph edges, and decayed vectors were removed. The historical deployed graph
+  was rebuilt with bounded top-k links and a pre-cleanup backup retained.
+
+### Changed
+- OMP provider re-injection now uses a configurable 30-second cooldown and
+  appends context without repeatedly prepending it.
+
 ## [8.9.8] — 2026-08-18 — GLOBAL INSTRUCTIONS v8.9.8 (DB HYGIENE + SYNC)
 
 ### Changed

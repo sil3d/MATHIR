@@ -78,7 +78,7 @@ class MahalanobisDetector:
         dim: int,
         threshold: float,
         regularization: float = 1e-4,
-        warmup_count: int = 30,
+        warmup_count: int = 60,
         ema_decay: float = 0.01,
         recompute_every: int = 10,
     ) -> None:

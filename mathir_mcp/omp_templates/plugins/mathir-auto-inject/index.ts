@@ -75,6 +75,19 @@ const PROVIDER_REINJECT_COOLDOWN_MS = parseInt(
   process.env.MATHIR_PROVIDER_REINJECT_COOLDOWN_MS ?? "5000", 10);
 let lastAgentStart = 0;
 
+// Verified live, 2026-09-03: PROVIDER_REINJECT_COOLDOWN_MS only guards the
+// first 5s after before_agent_start. Any agentic turn that runs longer than
+// that (multi-tool-call turns routinely do) hit fetchContext() — a real
+// daemon HTTP round-trip — on EVERY subsequent before_provider_request call,
+// with nothing throttling consecutive re-injections. A 10-tool-call turn
+// meant 10 extra daemon calls purely for injection. lastReinjectAt adds a
+// second timer, independent of lastAgentStart, so re-injection itself is
+// rate-limited across the whole turn. 30s mirrors the shared dedup window
+// already used by the sibling opencode/mimocode plugins' lastInjection map.
+const REINJECT_INTERVAL_MS = parseInt(
+  process.env.MATHIR_REINJECT_INTERVAL_MS ?? "30000", 10);
+let lastReinjectAt = 0;
+
 function projectFromCwd(cwd: string | undefined): string {
   if (!cwd) return "global";
   const normalized = cwd.replace(/\\/g, "/").replace(/\/+$/, "");
@@ -186,6 +199,7 @@ export default function mathirAutoInject(pi: PiAPI): void {
     const cwd = ctx?.cwd ?? process.cwd();
     const project = projectFromCwd(cwd);
     lastAgentStart = Date.now(); // mark turn start for before_provider_request dedup
+    lastReinjectAt = 0; // new turn: allow the first re-injection immediately
 
     const [ctx_res, godBlock, regBlock] = await Promise.all([
       fetchContext(task, project, STRICT),
@@ -230,7 +244,7 @@ export default function mathirAutoInject(pi: PiAPI): void {
   // ── v8.9.8: re-inject context into every provider request ──
   // Fires for EVERY request to the model provider, including the steps the
   // agent takes while "thinking" (tool calls → next request → ...). We
-  // prepend a system message with the recalled context so the model keeps
+  // append a system message with the recalled context so the model keeps
   // relevant memory visible for the whole turn, not just at prompt submit.
   // Fail-open: any error or a payload without .messages leaves the request
   // untouched.
@@ -242,8 +256,17 @@ export default function mathirAutoInject(pi: PiAPI): void {
 
     const now = Date.now();
     if (now - lastAgentStart < PROVIDER_REINJECT_COOLDOWN_MS) return; // custom msg already in history
+    // Verified live, 2026-09-03: without this second timer, a turn that runs
+    // past the cooldown above re-injects on EVERY remaining provider request
+    // for that turn (one fetchContext() daemon round-trip apiece). Rate-limit
+    // re-injections themselves, independent of turn start.
+    if (now - lastReinjectAt < REINJECT_INTERVAL_MS) return;
 
-    // Already injected into this exact request body?
+    // Already injected into this exact request body? Secondary safety net —
+    // the primary throttle is lastReinjectAt above; this scan still matters
+    // because some runtimes reuse/mutate a messages array whose history may
+    // not persist our injected message back out, so lastReinjectAt alone
+    // can't see it.
     const already = (messages as Array<Record<string, unknown>>).some(
       (m) => typeof m?.content === "string" && (m.content as string).includes("<mathir-auto-injection>"),
     );
@@ -256,10 +279,20 @@ export default function mathirAutoInject(pi: PiAPI): void {
     const res = await fetchContext(task, project, STRICT);
     if (!res?.context) return;
 
-    (messages as Array<Record<string, unknown>>).unshift({
+    // Verified live, 2026-09-03: this was `.unshift(...)`, inserting at index
+    // 0 — the earliest position in the request. Providers cache prompts by
+    // matching a stable leading prefix; this block's content changes every
+    // call (recall results differ per task), so unshifting it invalidated
+    // the provider's cache for the ENTIRE request (system prompt, tool defs,
+    // full conversation history) on every re-injected request. `.push(...)`
+    // lands it at the end instead, right before whatever the actual next
+    // content is, so the stable leading prefix stays cacheable and only the
+    // already-variable tail is affected.
+    (messages as Array<Record<string, unknown>>).push({
       role: "system",
       content: `<mathir-auto-injection>\n${res.context}\n</mathir-auto-injection>`,
     });
+    lastReinjectAt = now;
     pi.logger.info?.(
       `mathir: re-injected ${res.context.length} chars into provider request (project=${project})`,
     );

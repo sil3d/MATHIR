@@ -96,8 +96,15 @@ def _decode_brute_blob(blob: bytes) -> np.ndarray:
 class VecMemory:
     """
     SQLite-backed vector memory with sqlite-vec acceleration.
-    
-    Uses vec0 virtual table for O(log N) approximate nearest neighbor search.
+
+    Uses the vec0 virtual table for EXACT k-nearest-neighbor search --
+    sqlite-vec's vec0 has no ANN index; `WHERE embedding MATCH ... AND k = ?`
+    is a linear scan over every stored int8 vector (corrected 2026-09-01;
+    this docstring previously and incorrectly claimed "O(log N) approximate
+    nearest neighbor search"). At the current scale (int8, dim=384, low
+    thousands of rows) an exact scan is a few ms and genuinely fine -- but
+    it is O(N) per query, not sublinear, and there is no faiss/hnswlib
+    anywhere in this tree. Re-evaluate if the corpus grows past ~50k rows.
     Falls back to brute-force cosine similarity if sqlite-vec is not available.
     """
     
@@ -118,12 +125,25 @@ class VecMemory:
         ``modality``/``embedding`` BLOB columns). The two branches differ in
         where ``recall_count``/``label``/``priority`` live (column vs metadata
         JSON) — callers must handle both.
+
+        Cached per-instance (2026-09-01): this DB's schema cannot change at
+        runtime (a migration in ``_ensure_db`` only ever runs once, at
+        construction), yet this ran a fresh ``PRAGMA table_info(memories)``
+        on every call. It is invoked from ``search()``, ``touch_recall()``,
+        ``promote()``, ``get_decay_candidates()``, ``_load_meta()`` and more
+        — i.e. on nearly every hot-path operation. Computing it once removes
+        one PRAGMA round-trip from every one of those calls.
         """
+        cached = getattr(self, "_schema_kind_cache", None)
+        if cached is not None:
+            return cached
         with self._db_lock:
             conn = self._get_conn()
             cursor = conn.execute("PRAGMA table_info(memories)")
             columns = {col[1] for col in cursor.fetchall()}
-            return "new" if "content" in columns else "legacy"
+            kind = "new" if "content" in columns else "legacy"
+        self._schema_kind_cache = kind
+        return kind
 
     def _field_sql(self, field: str, kind: str) -> str:
         """Return a SQL expression that reads ``field`` regardless of schema.
@@ -282,6 +302,29 @@ class VecMemory:
                         if "duplicate column name" not in str(exc):
                             raise
                 log.info(f"Using existing memories table with columns: {list(columns.keys())}")
+
+            # Idempotent indexes on hot filter/sort columns (2026-09-01):
+            # list_guardrails (WHERE tier='guardrail' ORDER BY priority),
+            # list_immunological (WHERE tier=... ORDER BY created_at),
+            # get_decay_candidates (WHERE tier NOT IN (...) AND
+            # last_recalled_at < ?), build_links (WHERE tier != 'archived'
+            # AND label NOT LIKE 'god:reg:%'), and every project/agent-
+            # scoped query all filter or sort on these columns -- and until
+            # now NONE of them were indexed (only memory_links/memory_audit
+            # had indexes), so every one of those was a full table scan.
+            # Guard column existence: the legacy schema stores some of
+            # these fields in metadata JSON instead of as columns.
+            _cur_cols = {col[1] for col in conn.execute("PRAGMA table_info(memories)").fetchall()}
+            if "tier" in _cur_cols:
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_memories_tier ON memories(tier)")
+            if "project" in _cur_cols:
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_memories_project ON memories(project)")
+            if "agent" in _cur_cols:
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_memories_agent ON memories(agent)")
+            if "label" in _cur_cols:
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_memories_label ON memories(label)")
+            if "last_recalled_at" in _cur_cols:
+                conn.execute("CREATE INDEX IF NOT EXISTS idx_memories_last_recalled ON memories(last_recalled_at)")
 
             # Vec table for vector search (if sqlite-vec available)
             if HAS_VEC:
@@ -532,7 +575,7 @@ class VecMemory:
                             details={"block_type": metadata.get("block_type"), "priority": metadata.get("priority")})
             return memory_id
 
-    def _get_anomaly_detector(self, threshold: float, warmup_count: int = 30):
+    def _get_anomaly_detector(self, threshold: float, warmup_count: int = 60):
         """Lazily load (or create) this DB's MahalanobisDetector, caching it
         on the instance so the O(dim^3) inverse isn't recomputed from scratch
         on every call within a single daemon process lifetime."""
@@ -591,7 +634,7 @@ class VecMemory:
             self._commit_with_retry()
 
     def check_and_update_anomaly(
-        self, embedding: np.ndarray, threshold: float, warmup_count: int = 30,
+        self, embedding: np.ndarray, threshold: float, warmup_count: int = 60,
     ) -> Dict[str, Any]:
         """Score ``embedding`` against this project's anomaly baseline.
 
@@ -599,10 +642,12 @@ class VecMemory:
         embedding is folded into the baseline and treated as non-anomalous
         — there isn't enough data yet to trust a covariance estimate.
 
-        After warmup: embeddings scoring above ``threshold`` are flagged as
-        anomalous and are NOT folded into the baseline (anomalies must not
-        pollute what "normal" means). Non-anomalous embeddings update the
-        baseline as usual.
+        After warmup, the detector remains adaptive and folds every sample
+        into its EMA baseline, including flagged samples. A prior
+        implementation froze the baseline on anomalies; one stale or
+        under-trained state could therefore flag every subsequent normal
+        memory forever. The detector's small EMA decay limits the influence
+        of isolated outliers while guaranteeing recovery from drift.
 
         Returns ``{"is_anomaly": bool, "score": float | None, "warmed_up": bool}``.
         """
@@ -615,8 +660,11 @@ class VecMemory:
 
         score = detector.score(embedding)
         is_anomaly = score > threshold
-        if not is_anomaly:
-            detector.update(embedding)
+        # Keep the baseline adaptive. The detector's EMA decay is deliberately
+        # small after warmup, so a rare outlier has bounded influence while a
+        # persistently shifted workload can recover instead of locking the
+        # entire project into the immunological tier.
+        detector.update(embedding)
         self._save_anomaly_state()
         return {"is_anomaly": is_anomaly, "score": score, "warmed_up": True}
 
@@ -1074,6 +1122,7 @@ class VecMemory:
                     FROM vec_memories v
                     JOIN memories m ON v.memory_id = m.memory_id
                     WHERE m.tier != 'archived' AND m.label NOT LIKE 'god:reg:%'
+                    ORDER BY m.created_at DESC
                     LIMIT ?
                     """,
                     [limit],
@@ -1085,6 +1134,7 @@ class VecMemory:
                     FROM embeddings_brute e
                     JOIN memories m ON e.memory_id = m.memory_id
                     WHERE m.tier != 'archived' AND m.label NOT LIKE 'god:reg:%'
+                    ORDER BY m.created_at DESC
                     LIMIT ?
                     """,
                     [limit],
@@ -1108,29 +1158,34 @@ class VecMemory:
             if not vecs:
                 return {"links_created": 0, "memories_scanned": 0}
 
-            # Matrix cosine: M[i, j] = cosine(vecs[i], vecs[j])
-            # Normalise rows, then dot product = cosine similarity.
+            # Cosine similarity, chunked (2026-09-01): a full N x N
+            # `unit @ unit.T` materializes O(N^2) floats -- at N=1000
+            # (the default `limit`) that's 4 MB, fine, but at N=18000 it's
+            # 1.3 GB (plus the 18000x384 stack), an OOM waiting to happen
+            # the moment a caller raises `limit` on a large project. Compute
+            # similarity in row-chunks against the full `unit` matrix
+            # instead: peak extra memory is O(chunk_size * N), not O(N^2),
+            # while producing an identical result (same top-K edges).
             stack = np.stack(vecs).astype(np.float32)
             norms = np.linalg.norm(stack, axis=1)
             norms = np.where(norms == 0, 1.0, norms)
             unit = stack / norms[:, None]
-            sim = unit @ unit.T  # shape (N, N)
 
-            # Build directed edges: for each memory keep only its top-`top_k`
-            # neighbours above `threshold`. Without the per-memory cap this
-            # model's hot cosine scores produce an almost-complete graph
-            # (~87% of all pairs at 0.88 on the live DB, 2026-08-18) that
-            # carries no "actually related" signal. Top-K per row bounds the
-            # graph at N * top_k candidate pairs.
-            np.fill_diagonal(sim, -1.0)
+            n = unit.shape[0]
+            chunk_size = max(1, min(n, 2000))
             edges: List[tuple] = []
-            for i in range(sim.shape[0]):
-                row = sim[i]
-                cand = np.where(row >= threshold)[0]
-                if len(cand) > top_k:
-                    cand = cand[np.argsort(-row[cand])[:top_k]]
-                for j in cand:
-                    edges.append((ids[i], ids[j], float(row[j])))
+            for start in range(0, n, chunk_size):
+                end = min(start + chunk_size, n)
+                sim_chunk = unit[start:end] @ unit.T  # (chunk, N)
+                for local_i in range(end - start):
+                    i = start + local_i
+                    row = sim_chunk[local_i]
+                    row[i] = -1.0  # exclude self
+                    cand = np.where(row >= threshold)[0]
+                    if len(cand) > top_k:
+                        cand = cand[np.argsort(-row[cand])[:top_k]]
+                    for j in cand:
+                        edges.append((ids[i], ids[j], float(row[j])))
 
             # Dedup just in case (cosine matrix is symmetric so each pair appears
             # twice with (i,j) and (j,i)). We write both directions deliberately,
@@ -1551,6 +1606,50 @@ class VecMemory:
                 "new_stability": new_stability,
             }
 
+    def touch_recall_batch(self, memory_ids: List[str]) -> Dict[str, Any]:
+        """Batched form of touch_recall(): one commit for N memory_ids.
+
+        FIX (2026-09-01): the recall route called touch_recall() once per
+        result in a Python loop -- each call does its own SELECT existence
+        check, UPDATE, and ``conn.commit()`` (a WAL fsync). At k=5 that is
+        ~20 SQL statements and 5 fsyncs per /api/memory/recall call; the
+        route allows k up to 1000, i.e. up to 1000 commits for one recall.
+        The actual vector search is a few ms; this write-amplification
+        dwarfed it. This does the same recall_count/last_recalled_at/
+        stability bump as touch_recall() but as one UPDATE...WHERE
+        memory_id IN (...) per schema kind, followed by exactly one commit.
+
+        Returns ``{"touched": N}`` -- callers that need the detailed
+        per-memory before/after stability pair should use touch_recall().
+        """
+        if not memory_ids:
+            return {"touched": 0}
+        with self._db_lock:
+            conn = self._get_conn()
+            kind = self._schema_kind()
+            now = datetime.now().timestamp()
+            placeholders = ",".join("?" * len(memory_ids))
+            if kind == "new":
+                conn.execute(
+                    "UPDATE memories SET "
+                    "metadata = json_set(metadata, '$.recall_count', "
+                    "COALESCE(json_extract(metadata, '$.recall_count'), 0) + 1), "
+                    f"last_recalled_at = ?, stability = MIN(1.0, COALESCE(stability, 1.0) + 0.1) "
+                    f"WHERE memory_id IN ({placeholders})",
+                    [now, *memory_ids],
+                )
+            else:
+                conn.execute(
+                    "UPDATE memories SET "
+                    "recall_count = COALESCE(recall_count, 0) + 1, "
+                    "last_recalled_at = ?, "
+                    "stability = MIN(1.0, COALESCE(stability, 1.0) + 0.1) "
+                    f"WHERE memory_id IN ({placeholders})",
+                    [now, *memory_ids],
+                )
+            conn.commit()
+            return {"touched": len(memory_ids)}
+
     # ────────────────────────────────────────────────────────────────────
     # DECAY / FORGETTING (Phase 4 of MATHIR Brain — Consolidation)
     # ────────────────────────────────────────────────────────────────────
@@ -1799,6 +1898,25 @@ class VecMemory:
                     "WHERE memory_id = ?",
                     archive_updates,
                 )
+                # FIX (2026-09-01): the vector index was never pruned here,
+                # unlike delete() (line ~1385) and consolidate_pair() (line
+                # ~2397) which both DELETE FROM vec_memories. Because
+                # search() has no tier filter, everything decay_all ever
+                # archived stayed fully retrievable through recall/context
+                # forever -- verified live: 594/791 rows (75%) of the
+                # project DB were tier='archived' yet still vector-searchable.
+                # This defeats forgetting entirely. Mirror delete()'s cleanup.
+                archived_ids = [mid for (_stab, mid) in archive_updates]
+                if HAS_VEC:
+                    conn.executemany(
+                        "DELETE FROM vec_memories WHERE memory_id = ?",
+                        [(mid,) for mid in archived_ids],
+                    )
+                else:
+                    conn.executemany(
+                        "DELETE FROM embeddings_brute WHERE memory_id = ?",
+                        [(mid,) for mid in archived_ids],
+                    )
             conn.commit()
 
             # Recount by_tier after the decay pass (for dashboards / assertions).
@@ -2198,7 +2316,8 @@ class VecMemory:
                     [meta_json, mid],
                 )
 
-    def find_duplicates(self, threshold: float = 0.95, limit: int = 100) -> List[Dict[str, Any]]:
+    def find_duplicates(self, threshold: float = 0.95, limit: int = 100,
+                        max_scan: int = 5000) -> List[Dict[str, Any]]:
         """Find near-duplicate memory pairs with cosine similarity above `threshold`.
 
         Uses sqlite-vec KNN when available, otherwise brute-force cosine over
@@ -2211,25 +2330,37 @@ class VecMemory:
             Cosine similarity threshold in [0, 1]. Default 0.95 (per BRAIN_ARCHITECTURE.md).
         limit : int
             Maximum number of pairs to return.
-
-        Returns
-        -------
-        list of dicts: [{memory_id_a, memory_id_b, similarity}, ...]
-            sorted by similarity DESC, capped at `limit`.
+        max_scan : int
+            FIX (2026-09-01): candidate IDs were previously pulled with NO
+            LIMIT (every non-archived row), then each got its own KNN query
+            -- 2 SQL round-trips and one exact linear vector scan (no ANN
+            index; see VecMemory's class docstring) PER candidate. At 18k
+            memories that's 36,000 statements and 18k O(N) scans, i.e.
+            effectively O(N^2) work. CLAUDE.md instructs every agent to run
+            `memory_consolidate(dry_run=True)` BEFORE every save, making
+            this the single hottest write-path call in the codebase.
+            `limit` only ever capped the OUTPUT; it never bounded the scan.
+            This caps the number of candidate memories actually scanned
+            (most-recently-created first, so a "just saved, check for a
+            near-duplicate" call stays fast even as the DB grows).
         """
+        if max_scan < 1:
+            raise ValueError("max_scan must be >= 1")
         with self._db_lock:
             conn = self._get_conn()
 
             # Candidate IDs come from the canonical memories table.
             # We deliberately exclude 'archived' so already-merged memories don't
-            # churn the result set.
+            # churn the result set. ORDER BY + LIMIT bounds the scan itself,
+            # not just the reported output.
             id_rows = conn.execute(
-                "SELECT memory_id FROM memories WHERE tier != 'archived' OR tier IS NULL"
+                "SELECT memory_id FROM memories WHERE tier != 'archived' OR tier IS NULL "
+                "ORDER BY created_at DESC LIMIT ?",
+                [max_scan],
             ).fetchall()
             all_ids = [r["memory_id"] for r in id_rows]
             if len(all_ids) < 2:
                 return []
-
             pairs: Dict[tuple, float] = {}
 
             if HAS_VEC:

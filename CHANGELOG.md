@@ -8,6 +8,36 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased] — 2026-09-03 — MEMORY RELIABILITY + DB HYGIENE
+
+### Fixed
+- **Prompt injection payload growth** — `/api/context` now enforces a hard
+  50,000-character context budget, reserves the first 70% for priority-ordered
+  guardrails, and reports truncation instead of silently sending an unbounded
+  prompt. Guardrail-load failures are logged.
+- **Detached-daemon embedder crash** — query/passage encoding disables tqdm
+  progress output explicitly, preventing `[Errno 22] Invalid argument` when the
+  daemon has no console.
+- **Anomaly detector lock-up** — calibrated warmup defaults to 60 samples and
+  the online baseline remains adaptive after warmup, so stale covariance state
+  cannot classify every later memory as immunological forever.
+- **DB fragmentation** — named projects now resolve to one canonical global
+  database instead of creating a database under arbitrary caller working
+  directories.
+- **Maintenance memory cost** — batched recall updates, bounded duplicate scans,
+  chunked link construction, vector cleanup on decay, and supporting SQLite
+  indexes reduce avoidable query and graph overhead.
+
+### Changed
+- OMP provider re-injection is throttled to a configurable 30-second interval
+  and appends context without repeatedly prepending duplicate system messages.
+
+### Database maintenance
+- Merged the active MATHIR project store into the canonical project database,
+  restored distinct worker registrations, removed stale anomaly classifications,
+  deleted orphan/decayed graph data, and rebuilt the large historical graph with
+  bounded top-k links. Pre-cleanup database backups remain available locally.
+
 ## [8.9.8] — 2026-08-18 — GLOBAL INSTRUCTIONS UNIFIED (DB HYGIENE) + COMPLETED INJECTION CHANNELS
 
 **mathir_mcp package work — full detail in [mathir_mcp/CHANGELOG.md](mathir_mcp/CHANGELOG.md#898--2026-08-18--global-instructions-v898-db-hygiene--sync).**

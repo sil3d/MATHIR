@@ -32,10 +32,38 @@ log = logging.getLogger("mathir-mcp")
 # Config
 # ---------------------------------------------------------------------------
 DAEMON_URL = os.environ.get("MATHIR_DAEMON_URL", "http://127.0.0.1:7338")
-MAX_QUERY_LENGTH = 5000
-MAX_CONTENT_LENGTH = 100000
-MAX_LABEL_LENGTH = 200
-MAX_AGENT_LENGTH = 100
+
+def _get_input_max_multiplier() -> float:
+    """Parse the MCP_INPUT_MAX env var into a cap multiplier.
+
+    Documented in GLOBAL_INSTRUCTIONS.md: "Tune with the MCP_INPUT_MAX env
+    var (multiplier -- MCP_INPUT_MAX=2.0 doubles all caps). Out-of-range
+    values fall back to default." That doc promise shipped with no actual
+    implementation -- mathir_mcp/dev/test_input_length_dos.py::
+    test_mcp_input_max_env_var re-imports this module under
+    MCP_INPUT_MAX=2.0 and asserts MAX_CONTENT_LENGTH/MAX_QUERY_LENGTH
+    exactly double, which could never pass. Bounds (0, 100] chosen so a
+    typo'd/malicious value (0, negative, "nan", "inf", absurdly large)
+    can't zero out validation or blow up the caps -- it silently no-ops
+    to multiplier=1.0 instead, matching the documented fallback behavior.
+    """
+    raw = os.environ.get("MCP_INPUT_MAX")
+    if not raw:
+        return 1.0
+    try:
+        mult = float(raw)
+    except (TypeError, ValueError):
+        return 1.0
+    if not (0 < mult <= 100):
+        return 1.0
+    return mult
+
+
+_INPUT_MAX_MULTIPLIER = _get_input_max_multiplier()
+MAX_QUERY_LENGTH = int(5000 * _INPUT_MAX_MULTIPLIER)
+MAX_CONTENT_LENGTH = int(100000 * _INPUT_MAX_MULTIPLIER)
+MAX_LABEL_LENGTH = int(200 * _INPUT_MAX_MULTIPLIER)
+MAX_AGENT_LENGTH = int(100 * _INPUT_MAX_MULTIPLIER)
 
 # Block types a client may write. "immunological" is reserved for the internal
 # anomaly detector and is rejected on the save path.
@@ -170,6 +198,37 @@ def get_model_prefixes(model_name: str) -> tuple:
     return MODEL_PREFIXES.get(model_name, ("", ""))
 
 
+_torch_threads_configured = False
+
+
+def _configure_torch_threads() -> None:
+    """Cap torch's intra-op thread pool before the first embedder loads.
+
+    Verified live on this machine: an unrelated Python process running
+    ONNX/torch inference with no thread cap pegged 662% CPU for 8+ hours
+    and degraded the whole system. torch defaults to sizing its thread
+    pool off all visible cores, which is fine for one isolated process
+    but compounds badly once several agent processes each load an
+    embedder concurrently. MATHIR_EMBED_THREADS lets an operator raise/
+    lower the cap; invalid/missing values fall back to 4. Guarded by a
+    module-level flag so this fires exactly once per process, before any
+    SentenceTransformer() construction -- torch.set_num_threads() raises
+    if called after intra-op parallelism has already started.
+    """
+    global _torch_threads_configured
+    if _torch_threads_configured:
+        return
+    import torch
+    try:
+        n_threads = int(os.environ.get("MATHIR_EMBED_THREADS", "4"))
+    except (TypeError, ValueError):
+        n_threads = 4
+    if n_threads <= 0:
+        n_threads = 4
+    torch.set_num_threads(n_threads)
+    _torch_threads_configured = True
+
+
 def get_embedder(model_name: str = None):
     """Load embedder on demand (for daemon compatibility). CACHED PER MODEL.
 
@@ -206,6 +265,7 @@ def get_embedder(model_name: str = None):
         )
     if model_name in _cached_embedders:
         return _cached_embedders[model_name]
+    _configure_torch_threads()
     from sentence_transformers import SentenceTransformer
     import torch
     embedder = None
