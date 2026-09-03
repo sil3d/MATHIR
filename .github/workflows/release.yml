@@ -127,8 +127,10 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_name == format('refs/tags/{0}', github.event.release.tag_name) && github.event.release.tag_name || steps.ver.outputs.VERSION }}
-          name: ${{ steps.ver.outputs.VERSION }}
+          # Stable releases must point at the pushed v*.*.* tag. The previous
+          # expression created a second unprefixed tag on every tagged push.
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || steps.ver.outputs.VERSION }}
+          name: ${{ github.ref_type == 'tag' && github.ref_name || steps.ver.outputs.VERSION }}
           body_path: CHANGELOG_FRAGMENT.md
           files: mathir-bundle-${{ steps.ver.outputs.VERSION }}.zip
           prerelease: ${{ steps.ver.outputs.PRERELEASE == 'true' }}
