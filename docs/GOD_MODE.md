@@ -1,8 +1,8 @@
-# MATHIR God Mode — Multi-Agent Orchestration
+# MATHIR God Mode: Multi-Agent Orchestration
 
 ## The Problem
 
-You have multiple AI agents (Claude Code, MiMo, Codex, OpenCode, Kilo...) — each in its own terminal, each with its own strengths. But they don't talk to each other. You're the bottleneck: copying context between terminals, deciding who does what, checking results manually.
+You have multiple AI agents (Claude Code, MiMo, Codex, OpenCode, Kilo...), each in its own terminal, each with its own strengths. But they don't talk to each other. You're the bottleneck: copying context between terminals, deciding who does what, checking results manually.
 
 **What if your agents could coordinate themselves?**
 
@@ -10,7 +10,7 @@ You have multiple AI agents (Claude Code, MiMo, Codex, OpenCode, Kilo...) — ea
 
 **MATHIR God Mode** turns MATHIR's shared memory into a **cross-process message queue**. One agent becomes the **orchestrator** (the brain), the others become **workers** (the hands). The orchestrator decomposes a directive, assigns tasks based on each worker's strengths, monitors progress, and verifies results.
 
-No new infrastructure. No message broker. No API gateway. Just MATHIR — the memory layer your agents already use.
+No new infrastructure. No message broker. No API gateway. Just MATHIR, the memory layer your agents already use.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -38,7 +38,7 @@ No new infrastructure. No message broker. No API gateway. Just MATHIR — the me
 
 ## How It Works (3 Steps)
 
-### Step 1 — Workers Self-Identify
+### Step 1: Workers Self-Identify
 
 Open each worker terminal and call `mathir_god_agent()` with **no arguments**.
 
@@ -65,9 +65,9 @@ The agent self-assesses and calls back:
 ← "Registered. Polling for tasks..."
 ```
 
-Each agent identifies itself naturally — **you never tell them who they are**.
+Each agent identifies itself naturally, **you never tell them who they are**.
 
-### Step 2 — Orchestrator Assigns
+### Step 2: Orchestrator Assigns
 
 In the orchestrator terminal (typically your strongest reasoning model):
 
@@ -98,7 +98,7 @@ Task: "Write 20 unit tests for auth module"
   → codex (said "I'm fast at bulk mechanical work")
 ```
 
-### Step 3 — Workers Execute & Report
+### Step 3: Workers Execute & Report
 
 Workers poll via `mathir_god_agent()` in a loop. When a task arrives:
 
@@ -131,7 +131,7 @@ god:{type}:{id}:{target}:{status}
 
 ## MCP Tools
 
-### `mathir_god_agent` — Worker Tool
+### `mathir_god_agent`: Worker Tool
 
 | Call | Effect |
 |---|---|
@@ -141,7 +141,7 @@ god:{type}:{id}:{target}:{status}
 
 Returns: `identify`, `waiting`, `task_found`, or `shutdown`.
 
-### `mathir_god_orchestre` — Orchestrator Tool
+### `mathir_god_orchestre`: Orchestrator Tool
 
 | Call | Effect |
 |---|---|
@@ -169,7 +169,7 @@ Two HTTP endpoints added to the MATHIR daemon:
 
 ## Client-side tooling (`bin/god/`)
 
-The MCP tools above are designed for single-turn agent sessions — they return immediately, they can't loop forever. For **long-running polling** (a worker waiting for tasks across many turns, or an orchestrator watching for results), use the standalone bridge daemon shipped in [`mathir_mcp/bin/god/`](../mathir_mcp/bin/god/).
+The MCP tools above are designed for single-turn agent sessions, they return immediately, they can't loop forever. For **long-running polling** (a worker waiting for tasks across many turns, or an orchestrator watching for results), use the standalone bridge daemon shipped in [`mathir_mcp/bin/god/`](../mathir_mcp/bin/god/).
 
 ### Why a separate client bridge?
 
@@ -221,7 +221,7 @@ Full spec: [`bin/god/PROTOCOL.md`](../mathir_mcp/bin/god/PROTOCOL.md) · Usage: 
 
 ### Headless, unattended workers (`god_mode_start.py` / `god_worker_daemon.py`)
 
-`god_bridge.py` only notifies — a human still has to see the beep and drive the agent. For fully unattended execution, `god_mode_start.py --launch <tool> --name <n> --cwd <path>` spawns a detached `god_worker_daemon.py` process that does the whole loop itself: poll `/api/god/poll` → `ack` to `running` → spawn the target CLI headlessly with its documented flags (e.g. `opencode run --auto`, `claude -p --dangerously-skip-permissions`, `codex exec --sandbox workspace-write`) → stream output live to a log file → retry on a silent no-op (process exits 0 but never called `memory_save`) or a hang past its timeout → `ack` `completed`/`failed`. Stop it with `god_mode_stop.py --name <n>` or `--all`.
+`god_bridge.py` only notifies, a human still has to see the beep and drive the agent. For fully unattended execution, `god_mode_start.py --launch <tool> --name <n> --cwd <path>` spawns a detached `god_worker_daemon.py` process that does the whole loop itself: poll `/api/god/poll` → `ack` to `running` → spawn the target CLI headlessly with its documented flags (e.g. `opencode run --auto`, `claude -p --dangerously-skip-permissions`, `codex exec --sandbox workspace-write`) → stream output live to a log file → retry on a silent no-op (process exits 0 but never called `memory_save`) or a hang past its timeout → `ack` `completed`/`failed`. Stop it with `god_mode_stop.py --name <n>` or `--all`.
 
 Because relying on the orchestrator LLM's own memory to relay every worker's result across a long dispatch has failed in practice, pull results deterministically instead:
 
@@ -237,12 +237,12 @@ Full usage, env vars, and troubleshooting: [`bin/god/README.md`](../mathir_mcp/b
 
 ## Design Principles
 
-1. **No new infrastructure** — MATHIR's existing memory is the message queue
-2. **Self-identification** — agents describe themselves, you don't configure them
-3. **Smart assignment** — orchestrator matches task complexity to agent capability
-4. **Single-poll-and-return** — MCP tools can't loop; they return immediately
-5. **Protocol-level coordination** — structured labels, not free-text parsing
-6. **Agent-agnostic** — works with any agent that has MCP access to MATHIR
+1. **No new infrastructure**, MATHIR's existing memory is the message queue
+2. **Self-identification**, agents describe themselves, you don't configure them
+3. **Smart assignment**, orchestrator matches task complexity to agent capability
+4. **Single-poll-and-return**, MCP tools can't loop; they return immediately
+5. **Protocol-level coordination**, structured labels, not free-text parsing
+6. **Agent-agnostic**, works with any agent that has MCP access to MATHIR
 
 ---
 

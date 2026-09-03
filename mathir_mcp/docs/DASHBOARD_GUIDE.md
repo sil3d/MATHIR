@@ -1,4 +1,4 @@
-# MATHIR Dashboard — Setup Guide
+# MATHIR Dashboard: Setup Guide
 
 ## What Is This?
 
@@ -120,13 +120,13 @@ python3 -m mathir_lib.mathir_stats_server
 launchctl load ~/Library/LaunchAgents/com.mathir.dashboard.plist
 ```
 
-## Agent Integration — How Your Agent Should Use MATHIR
+## Agent Integration: How Your Agent Should Use MATHIR
 
 ### The 3 Rules
 
-1. **ALWAYS recall before acting** — never start a task without checking memory
-2. **ALWAYS save after completing** — every task completion gets saved
-3. **NEVER say "pre-existing error"** — fix it or escalate with full context
+1. **ALWAYS recall before acting**, never start a task without checking memory
+2. **ALWAYS save after completing**, every task completion gets saved
+3. **NEVER say "pre-existing error"**, fix it or escalate with full context
 
 ### Agent Workflow
 
@@ -144,7 +144,7 @@ SESSION END
 
 ### Commands for Agents
 
-**At session start — recall what you know:**
+**At session start, recall what you know:**
 ```bash
 # Via daemon (fast, model already loaded)
 python -m mathir_lib.mathir_client recall "project context" -k 10
@@ -153,7 +153,7 @@ python -m mathir_lib.mathir_client recall "project context" -k 10
 memory_recall(query="project context", k=10)
 ```
 
-**After completing a task — save what you did:**
+**After completing a task, save what you did:**
 ```bash
 # Via daemon
 python -m mathir_lib.mathir_client save "Task completed: [what was done]" \
@@ -164,7 +164,7 @@ memory_save(content="Task completed: [what was done]", agent="[your_agent_name]"
             block_type="episodic", label="task-[short-description]", priority=7)
 ```
 
-**When you discover a pattern — save it as a skill:**
+**When you discover a pattern, save it as a skill:**
 ```bash
 python -m mathir_lib.mathir_client save "SKILL: [Problem Title]
 
@@ -188,7 +188,7 @@ EXAMPLES:
   --agent [your_agent_name] --type semantic --label skill-[problem-slug] --priority 9
 ```
 
-### Memory Types — When to Use Each
+### Memory Types: When to Use Each
 
 | Type | When | Example |
 |------|------|---------|

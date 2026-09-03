@@ -8,7 +8,7 @@
 
 ## 1. TL;DR
 
-- **Yes, MATHIR accepts every modality** — text, audio, image, video, and any mix thereof. It is **modality-agnostic** by design because it stores **embeddings (vectors)**, not raw data.
+- **Yes, MATHIR accepts every modality**: text, audio, image, video, and any mix thereof. It is **modality-agnostic** by design because it stores **embeddings (vectors)**, not raw data.
 - **The pipeline is universal**: *raw modality → modality-specific encoder (CLIP, CLAP, Whisper, sentence-transformers) → fixed-dim embedding vector → MATHIR's 6-tier memory*. MATHIR never sees the original bytes.
 - **Storage is a 6-tier numerical bank**: working_memory (64 slots), episodic (1000 slots), semantic (256 prototypes), procedural (128 slots), immunological (100 slots), guardrail (50 max, immune to decay). All slots are `float32` tensors of `internal_dim=272` by default (or raw-embedding dim when `use_raw_embedding=True`). 1000 embeddings at 512-dim cost **≈ 2 MB**; V7 sparse coding compresses that by **9.3×** to ~117 KB.
 
@@ -16,7 +16,7 @@
 
 ## 2. The Fundamental Insight
 
-MATHIR is a **memory layer for LLMs that operates on numerical embeddings**, not on tokens, pixels, or waveforms. This single design choice makes it **inherently modality-agnostic**: the only thing that crosses the MATHIR boundary is a `torch.Tensor` of shape `[B, D]` (typically `[1, 512]` for CLIP-class models or `[1, 384]` for sentence-transformers). Whatever produced that tensor — a sentence, a photograph, a 30-second voice memo, a 5-minute video, a sensor reading, a protein structure, a stock-price tick — is, from MATHIR's perspective, **just a point in a vector space**. The encoder that produced the embedding is responsible for the *semantics*; MATHIR is responsible for the *memory operations* (store, retrieve, cluster, detect anomaly, route, compress, forget). This separation of concerns is what makes the system composable: you can swap CLIP for BLIP-2, Whisper for Wav2Vec2, or even a domain-specific encoder (e.g. for EEG or genomics) without touching a single line of MATHIR code.
+MATHIR is a **memory layer for LLMs that operates on numerical embeddings**, not on tokens, pixels, or waveforms. This single design choice makes it **inherently modality-agnostic**: the only thing that crosses the MATHIR boundary is a `torch.Tensor` of shape `[B, D]` (typically `[1, 512]` for CLIP-class models or `[1, 384]` for sentence-transformers). Whatever produced that tensor, a sentence, a photograph, a 30-second voice memo, a 5-minute video, a sensor reading, a protein structure, a stock-price tick, is, from MATHIR's perspective, **just a point in a vector space**. The encoder that produced the embedding is responsible for the *semantics*; MATHIR is responsible for the *memory operations* (store, retrieve, cluster, detect anomaly, route, compress, forget). This separation of concerns is what makes the system composable: you can swap CLIP for BLIP-2, Whisper for Wav2Vec2, or even a domain-specific encoder (e.g. for EEG or genomics) without touching a single line of MATHIR code.
 
 ---
 
@@ -24,8 +24,8 @@ MATHIR is a **memory layer for LLMs that operates on numerical embeddings**, not
 
 | Modality | Supported? | Recommended Encoder | Dim | Params | Same-space text/image? |
 |----------|:----------:|---------------------|----:|-------:|:----------------------:|
-| **Text** | ✅ | `sentence-transformers/all-MiniLM-L6-v2` | 384 | 22 M | — |
-| **Text (high quality)** | ✅ | `intfloat/e5-large-v2` | 1024 | 335 M | — |
+| **Text** | ✅ | `sentence-transformers/all-MiniLM-L6-v2` | 384 | 22 M |: |
+| **Text (high quality)** | ✅ | `intfloat/e5-large-v2` | 1024 | 335 M |: |
 | **Image** | ✅ | `openai/clip-vit-base-patch32` | 512 | 151 M | ✅ (CLIP) |
 | **Image (SOTA)** | ✅ | `openai/clip-vit-large-patch14` | 768 | 428 M | ✅ (CLIP) |
 | **Audio** | ✅ | `laion/clap-htsat-unfused` | 512 | ~150 M | ✅ (CLAP) |
@@ -395,7 +395,7 @@ When you call `plugin.store({"embedding": emb, ...})`, MATHIR populates its inte
 | Field | Required? | Source | Purpose |
 |-------|:---------:|--------|---------|
 | `embedding` | **yes** | user | The vector to memorize. The *only* mathematically meaningful field. |
-| `modality` | optional | user | `"text" / "image" / "audio" / "video" / …` — pure metadata, never inspected by MATHIR. |
+| `modality` | optional | user | `"text" / "image" / "audio" / "video" / …`: pure metadata, never inspected by MATHIR. |
 | `text` | optional | user | Raw text. Used by `HybridEpisodicMemory` for **BM25 sparse retrieval** alongside dense cosine. |
 | `text_id`, `image_id`, `page`, `tags` | optional | user | Any structured metadata, returned with recall results. |
 | `timestamp` | auto | internal | Set on insert (for Ebbinghaus forgetting). |
@@ -426,7 +426,7 @@ When you call `plugin.store({"embedding": emb, ...})`, MATHIR populates its inte
 | CLIP ViT-L/14 | 768 | 3.0 KB | 3.0 MB | ~ 5 MB |
 | Whisper-large-v3 (post-proj) | 1024 | 4.0 KB | 4.0 MB | ~ 5 MB |
 | LLaMA-3 hidden state | 4096 | 16 KB | 16 MB | ~ 17 MB |
-| **V7 sparse coding (9.3× compression)** | — | ~ 0.21 KB equiv. | **~ 210 KB** | — |
+| **V7 sparse coding (9.3× compression)** |: | ~ 0.21 KB equiv. | **~ 210 KB** |: |
 
 So a 1000-slot memory bank at CLIP 512-d costs **2 MB of GPU/CPU memory**, plus negligible overhead for the V7 projector (≈ 200 K parameters). On a single 8 GB GPU, you can host tens of millions of slots in principle (though indexing time becomes the bottleneck before memory does).
 
@@ -578,7 +578,7 @@ The implication is concrete:
 Practical patterns:
 
 1. **Caption the modality at insert time** (e.g. BLIP-2 for images, Whisper for audio, video captioning model for video) and pass the caption as the `text` field.
-2. **Use CLIP itself to align the embedding to text space** — the dense cosine already does cross-modal retrieval, so BM25 is a *complement*, not a requirement.
+2. **Use CLIP itself to align the embedding to text space**, the dense cosine already does cross-modal retrieval, so BM25 is a *complement*, not a requirement.
 3. **Skip the hybrid backend** entirely for purely non-text workloads and use the standard `EpisodicMemory` (dense-only).
 
 ```python
@@ -649,7 +649,7 @@ All of these share the same skeleton: *encode → store → encode(query) → re
 
 ---
 
-## Appendix A — Choosing a dimension
+## Appendix A: Choosing a dimension
 
 | Encoder family | Typical dim | MATHIR config | Notes |
 |----------------|------------:|---------------|-------|
@@ -664,11 +664,11 @@ All of these share the same skeleton: *encode → store → encode(query) → re
 | LLaMA / Mistral hidden | 2048, 4096, 8192 | `MATHIRPluginV7(4096)` | Embedding *of* the LLM's own state. |
 | DINOv2 | 384, 768, 1024 | `MATHIRPluginV7(...)` | Vision-only self-supervised. |
 
-**Rule of thumb**: pick a single `D` that all your encoders can be projected to, and stick to it across the agent. Mixing `D` in the same plugin is not supported (intentionally — different `D`s mean different geometries).
+**Rule of thumb**: pick a single `D` that all your encoders can be projected to, and stick to it across the agent. Mixing `D` in the same plugin is not supported (intentionally, different `D`s mean different geometries).
 
 ---
 
-## Appendix B — Quick FAQ
+## Appendix B: Quick FAQ
 
 **Q: Does MATHIR have its own CLIP / Whisper / etc. inside?**
 A: No. MATHIR is encoder-agnostic. You bring the encoder.
@@ -693,7 +693,7 @@ A: It contains one (episodic) but is much more: it has a router, a working memor
 
 ---
 
-## Appendix C — One-page summary
+## Appendix C: One-page summary
 
 ```
 ┌────────────────────────────────────────────────────────────────┐

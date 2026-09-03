@@ -1,4 +1,4 @@
-# SOTA Retrieval & RAG Research — 2024-2026
+# SOTA Retrieval & RAG Research: 2024-2026
 
 _by @background-researcher · 2026-06-05_
 
@@ -7,7 +7,7 @@ _by @background-researcher · 2026-06-05_
 > This document is the source of truth for which systems MATHIR must beat and how
 > to install them.
 
-> **Note (2026-09-03):** Research methodology and BEIR comparison framework remain valid for MATHIR v8.9.8. The headline critique — that MATHIR's 45.7% is **not comparable** to BEIR nDCG@10 — stands unchanged. New since v8.5: 6-tier memory (including guardrails), God Mode orchestration, bounded injection, canonical project DB routing, and adaptive anomaly warmup. These are complementary features, not SOTA-claim shifts.
+> **Note (2026-09-03):** Research methodology and BEIR comparison framework remain valid for MATHIR v8.9.8. The headline critique, that MATHIR's 45.7% is **not comparable** to BEIR nDCG@10, stands unchanged. New since v8.5: 6-tier memory (including guardrails), God Mode orchestration, bounded injection, canonical project DB routing, and adaptive anomaly warmup. These are complementary features, not SOTA-claim shifts.
 
 ---
 
@@ -59,7 +59,7 @@ lays out exactly what to do.
 
 ---
 
-## 2. SOTA Retrieval Models — Complete Catalogue (2024-2026)
+## 2. SOTA Retrieval Models: Complete Catalogue (2024-2026)
 
 ### 2.1 Lexical / Sparse
 
@@ -67,7 +67,7 @@ lays out exactly what to do.
 | Field | Value |
 |---|---|
 | **Paper** | Robertson, Walker, et al. 1994/2009 |
-| **GitHub** | (algorithm, not a model) — implemented in Lucene, Pyserini, Anserini, rank_bm25 |
+| **GitHub** | (algorithm, not a model): implemented in Lucene, Pyserini, Anserini, rank_bm25 |
 | **Size** | n/a (inverted index) |
 | **BEIR avg nDCG@10** | **42.66** (the strong baseline everyone beats) |
 | **When to use** | Always. It's the floor. |
@@ -217,7 +217,7 @@ lays out exactly what to do.
 | **HuggingFace** | `vidore/colpali-v1.2`, `vidore/colqwen2-v0.1` |
 | **Size** | 3 B (PaliGemma-3B) / 2 B (Qwen2-VL-2B) |
 | **Dim** | 128 / 128 per patch |
-| **BEIR avg nDCG@10** | n/a (text) — **ViDoRe: 84+ nDCG@5** (visual doc retrieval) |
+| **BEIR avg nDCG@10** | n/a (text): **ViDoRe: 84+ nDCG@5** (visual doc retrieval) |
 | **Why it matters** | The SOTA for PDF/visual RAG; uses page images, not OCR |
 
 ### 2.4 Rerankers (Cross-Encoders)
@@ -278,7 +278,7 @@ lays out exactly what to do.
 
 ---
 
-## 3. BEIR Benchmark — Leaderboard & Datasets
+## 3. BEIR Benchmark: Leaderboard & Datasets
 
 ### 3.1 What is BEIR?
 
@@ -346,14 +346,14 @@ BEIR-13 is the standard 13-dataset subset (excludes Robust04, Signal, Touche, TR
 
 ### 3.4 Top-3 SOTA systems (as of 2024-2026)
 
-1. **#1 — Qwen3-Embedding-8B** (Alibaba, 2025) — **~57.3 BEIR-13 avg nDCG@10**
+1. **#1, Qwen3-Embedding-8B** (Alibaba, 2025), **~57.3 BEIR-13 avg nDCG@10**
    - Open weights, 8B params, 32K context, Matryoshka
-2. **#2 — NV-Embed-v2** (NVIDIA, 2024) — **~56.5 BEIR-13 avg nDCG@10**
+2. **#2, NV-Embed-v2** (NVIDIA, 2024), **~56.5 BEIR-13 avg nDCG@10**
    - Open weights, 7.85B, latent attention pooling, was MTEB #1 in 2024
-3. **#3 — BGE-M3 hybrid** (BAAI, 2024) — **~55.1 BEIR-13 avg nDCG@10**
+3. **#3, BGE-M3 hybrid** (BAAI, 2024), **~55.1 BEIR-13 avg nDCG@10**
    - Open weights, 568M, three retrieval modes (dense/sparse/multi-vec)
-4. **#4 — GTE-Qwen2-7B-Instruct** (Alibaba, 2024) — **~55.0 BEIR-13**
-5. **#5 — E5-Mistral-7B-Instruct** (Microsoft, 2024) — **~54.4 BEIR-13**
+4. **#4, GTE-Qwen2-7B-Instruct** (Alibaba, 2024), **~55.0 BEIR-13**
+5. **#5, E5-Mistral-7B-Instruct** (Microsoft, 2024), **~54.4 BEIR-13**
 
 After reranking with a top cross-encoder (Cohere Rerank v3.5, BGE-reranker-v2-gemma),
 all these numbers go up by **+5 to +12 nDCG@10**. The reranker-augmented SOTA is
@@ -378,9 +378,9 @@ BEIR-13 (or the corresponding subset).** Anything below 45 is regression.
 
 ---
 
-## 4. Open-Source Libraries — Install & Use
+## 4. Open-Source Libraries: Install & Use
 
-### 4.1 `beir` — the benchmark itself
+### 4.1 `beir`: the benchmark itself
 
 ```bash
 pip install beir
@@ -404,7 +404,7 @@ results = retriever.search(corpus, queries, top_k=100)
 ndcg, _map, recall, precision = EvaluateRetrieval.evaluate(qrels, results, k_values=[1,10,100])
 ```
 
-### 4.2 `pyserini` — BM25 + dense + prebuilt indexes
+### 4.2 `pyserini`: BM25 + dense + prebuilt indexes
 
 ```bash
 pip install pyserini
@@ -433,7 +433,7 @@ Pre-built indexes (per dataset × per retriever):
 | BGE-M3 (flat) | `beir-v1.0.0-<ds>.bge-m3` | `beir-v1.0.0-nq.bge-m3` |
 | ColBERTv2 | `beir-v1.0.0-<ds>.colbertv2.0` | `beir-v1.0.0-hotpotqa.colbertv2.0` |
 
-### 4.3 `sentence-transformers` — dense bi-encoders
+### 4.3 `sentence-transformers`: dense bi-encoders
 
 ```bash
 pip install sentence-transformers
@@ -449,7 +449,7 @@ Models available directly: `BAAI/bge-m3`, `intfloat/multilingual-e5-base`,
 `jinaai/jina-embeddings-v3`, `sentence-transformers/all-MiniLM-L6-v2` (MATHIR's
 current embedder), `thenlper/gte-large`.
 
-### 4.4 `rank-bm25` — pure-Python BM25
+### 4.4 `rank-bm25`: pure-Python BM25
 
 ```bash
 pip install rank_bm25
@@ -463,7 +463,7 @@ scores = bm25.get_scores(query.split())
 
 Lightweight, no JVM, no FAISS, no PyTorch. Good for unit tests.
 
-### 4.5 `FlashRank` — ONNX cross-encoder reranker
+### 4.5 `FlashRank`: ONNX cross-encoder reranker
 
 ```bash
 pip install flashrank
@@ -476,7 +476,7 @@ rerankrequest = RerankRequest(query="...", passages=[{"id": d, "text": t} for d,
 results = ranker.rerank(rerankrequest)
 ```
 
-### 4.6 `ColBERT` — late interaction
+### 4.6 `ColBERT`: late interaction
 
 ```bash
 pip install colbert-ai
@@ -584,7 +584,7 @@ non-in-domain datasets) for cleaner zero-shot numbers.
 These are the systems that should appear in a "MATHIR vs SOTA" plot. They are
 ordered roughly by how hard they are to beat on BEIR-13.
 
-### Tier 1 — Open SOTA (2024-2026)
+### Tier 1: Open SOTA (2024-2026)
 
 | # | System | BEIR-13 nDCG@10 | Size | Open? | Rerank? |
 |---|---|---:|---|---|---|
@@ -594,7 +594,7 @@ ordered roughly by how hard they are to beat on BEIR-13.
 | 4 | **GTE-Qwen2-7B-Instruct** | ~55.0 | 7B | yes | No |
 | 5 | **E5-Mistral-7B-Instruct** | ~54.4 | 7B | yes | No |
 
-### Tier 2 — Strong Open Dense / Sparse
+### Tier 2: Strong Open Dense / Sparse
 
 | # | System | BEIR-13 nDCG@10 | Size | Open? | Rerank? |
 |---|---|---:|---|---|---|
@@ -604,7 +604,7 @@ ordered roughly by how hard they are to beat on BEIR-13.
 | 9 | **mE5-base-v2** | ~52.0 | 278M | yes | No |
 | 10 | **Contriever-MSMARCO** | ~46.6 | 110M | yes | No |
 
-### Tier 3 — Lexical / Reranker-only
+### Tier 3: Lexical / Reranker-only
 
 | # | System | BEIR-13 nDCG@10 | Size | Open? | Rerank? |
 |---|---|---:|---|---|---|
@@ -612,7 +612,7 @@ ordered roughly by how hard they are to beat on BEIR-13.
 | 12 | **Cohere Rerank v3.5** | +10-15 over base | proprietary | API | yes |
 | 13 | **BGE Reranker v2-gemma** | +10-15 over base | 2.6B | yes | yes |
 
-### Tier 4 — Visual / Domain-specific
+### Tier 4: Visual / Domain-specific
 
 | # | System | Benchmark | nDCG | Size | Open? |
 |---|---|---|---:|---|---|
@@ -627,7 +627,7 @@ comparison is:
 - **With rerank:** any of the above + bge-reranker-v2-gemma.
 - **With online adaptation:** the SOTA that comes closest is **TART** (Contriever
   fine-tuned online) or **DRAMA** (2024). MATHIR's claim is "online learning
-  during deployment" — there is no clean published SOTA to compare against
+  during deployment", there is no clean published SOTA to compare against
   directly. This is the gap MATHIR should claim.
 
 
@@ -839,7 +839,7 @@ To make MATHIR's BEIR numbers citable, the protocol must match the literature.
 8. **Seed:** Set `torch.manual_seed(42)`, `numpy.random.seed(42)`. Report
    single-run numbers (variance is small for these models).
 9. **Evaluator:** `beir.retrieval.evaluation.EvaluateRetrieval.evaluate()`.
-   This is the canonical BEIR evaluator — numbers will match the leaderboard.
+   This is the canonical BEIR evaluator, numbers will match the leaderboard.
 10. **Reporting:** Report nDCG@10, MRR@10, Recall@100 for each of the 18
     datasets AND the BEIR-13 average. Always include the BEIR-13 average as
     the headline number.
@@ -922,7 +922,7 @@ comparable.
    That affects the level of rigor required.
 6. **Multilingual:** Does MATHIR need to be tested in non-English (e.g. on
    `mMarcoRetrieval`, `Mr.TyDi`, `Mintaka`)? The user has multilingual-e5
-   in the recommendations — confirm whether multilingual is in scope.
+   in the recommendations, confirm whether multilingual is in scope.
 7. **Visual RAG:** ColPali/ColQwen are explicitly for PDF/visual retrieval.
    If MATHIR is being marketed for PDF RAG, this is a hard requirement.
 

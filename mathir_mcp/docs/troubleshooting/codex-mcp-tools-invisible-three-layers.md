@@ -1,4 +1,4 @@
-# Codex MCP Tools Invisible — Three-Layer Path to Root Cause
+# Codex MCP Tools Invisible: Three-Layer Path to Root Cause
 
 Symptom: "MCP server `mathir` is configured but `mcp__mathir__*` tools never appear
 in Codex's tool list, even after restart."
@@ -6,7 +6,7 @@ in Codex's tool list, even after restart."
 This went through **three** distinct failures before resolving. Documenting
 each so the next agent doesn't burn the same time.
 
-> **Companion doc**: [`../../../docs/CODEX_INTEGRATION.md`](../../../docs/CODEX_INTEGRATION.md) — full setup guide (install + config + autostart + cheat sheet).
+> **Companion doc**: [`../../../docs/CODEX_INTEGRATION.md`](../../../docs/CODEX_INTEGRATION.md), full setup guide (install + config + autostart + cheat sheet).
 > This file is the incident narrative; the integration guide is the canonical reference.
 
 ---
@@ -104,7 +104,7 @@ With all three fixes applied:
        < initialize.json + tools/list.json > response.json
    ```
    Returns 27 tools, zero stdout banner, valid JSON-RPC.
-2. Restart Codex Desktop fully (not just new task — kill the Electron process).
+2. Restart Codex Desktop fully (not just new task, kill the Electron process).
 3. Codex's tools/list now contains `mcp__mathir__memory_recall`, `memory_save`,
    `mathir_health`, etc.
 
@@ -126,13 +126,13 @@ With all three fixes applied:
 
 ## Files touched in this incident
 
-- `~/.codex/config.toml` — added `[mcp_servers.mathir]` block (3 fix passes)
-- `~/.codex/config.toml.bak.codex-mcp-fix-20260731` — backup after pass 1
-- `~/.codex/config.toml.bak.codex-mcp-fix-20260731-pre-python` — backup after pass 2
-- `~/.codex/config.toml.mathir-bad-inject-20260730-2335.bak` — pre-existing
-- `~/.codex/hooks.json` — pre-existing, points at `claude_code_hook.py` (works)
-- `mathir_mcp/mathir_lib/mathir_mcp_server.py:1490` — `mcp.run(show_banner=False)`
+- `~/.codex/config.toml`: added `[mcp_servers.mathir]` block (3 fix passes)
+- `~/.codex/config.toml.bak.codex-mcp-fix-20260731`: backup after pass 1
+- `~/.codex/config.toml.bak.codex-mcp-fix-20260731-pre-python`: backup after pass 2
+- `~/.codex/config.toml.mathir-bad-inject-20260730-2335.bak`: pre-existing
+- `~/.codex/hooks.json`: pre-existing, points at `claude_code_hook.py` (works)
+- `mathir_mcp/mathir_lib/mathir_mcp_server.py:1490`: `mcp.run(show_banner=False)`
   in BOTH repo and deployed copies
-- `mathir_mcp/CHANGELOG.md` — Unreleased entry added
-- `mathir_mcp/bin/auto_start.bat` — proxy target changed `anthropic.com` → `openai.com`
+- `mathir_mcp/CHANGELOG.md`: Unreleased entry added
+- `mathir_mcp/bin/auto_start.bat`: proxy target changed `anthropic.com` → `openai.com`
   (Codex uses OpenAI-format Chat Completions, not Anthropic-format)

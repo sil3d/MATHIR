@@ -1,4 +1,4 @@
-# Research Report — Latin Names, Scientific Nomenclature & Technical Terms
+# Research Report: Latin Names, Scientific Nomenclature & Technical Terms
 
 **Compiled by:** @background-researcher
 **Date:** 2026-06-06
@@ -17,8 +17,8 @@ Latin/scientific/technical terms obey a small set of **deep, regular structural 
 
 ### 1.1 Standards & Authorities
 
-- **ICZN** — International Code of Zoological Nomenclature (animals). Governs "binomial nomenclature" since Linnaeus, *Systema Naturae* 10th ed., 1758.
-- **ICN** — International Code of Nomenclature for algae, fungi, and plants (formerly ICBN). Uses "binomial nomenclature" with the "subsp." abbreviation (vs. ICZN's "ssp.").
+- **ICZN**: International Code of Zoological Nomenclature (animals). Governs "binomial nomenclature" since Linnaeus, *Systema Naturae* 10th ed., 1758.
+- **ICN**: International Code of Nomenclature for algae, fungi, and plants (formerly ICBN). Uses "binomial nomenclature" with the "subsp." abbreviation (vs. ICZN's "ssp.").
 - Both are LATIN, gender-disagreeing nouns/adjectives; the genus name is a **Latinized noun** (always capitalized, treated as a singular proper noun), the species epithet is **lowercase**.
 
 ### 1.2 Core structure (formal grammar)
@@ -38,8 +38,8 @@ EBNF-ish: `Binomial = (Upper Word) (lower Word)  ;  Trinomial = Binomial (lower 
 
 - After first use, the **genus is abbreviated to its initial**: *Homo sapiens* → *H. sapiens*.
 - Parens around author = species was moved from original genus:
-  - *Vanessa atalanta* (Linnaeus, 1758) — Linnaeus originally placed it in *Papilio*.
-  - *Balaena mysticetus* Linnaeus, 1758 — bowhead whale; no parens = Linnaeus's original genus.
+  - *Vanessa atalanta* (Linnaeus, 1758): Linnaeus originally placed it in *Papilio*.
+  - *Balaena mysticetus* Linnaeus, 1758: bowhead whale; no parens = Linnaeus's original genus.
 - Authors with two names are NOT typically abbreviated (per ICZN).
 - Authority may be omitted in informal contexts.
 - Abbreviation conventions: `&` for "and", `ex` for "validly published by", `sensu` (NOT italicized) for "as used by".
@@ -64,7 +64,7 @@ EBNF-ish: `Binomial = (Upper Word) (lower Word)  ;  Trinomial = Binomial (lower 
 
 | # | Full name | Type | Notes |
 |---|-----------|------|-------|
-| 1 | *Homo sapiens* Linnaeus, 1758 | Binomial + authority | "wise human" — canonical human |
+| 1 | *Homo sapiens* Linnaeus, 1758 | Binomial + authority | "wise human": canonical human |
 | 2 | *Homo sapiens sapiens* | Trinomial (subspecies) | extinct human subspecies |
 | 3 | *Escherichia coli* | Binomial (bacteria) | shortened to *E. coli* in popular use |
 | 4 | *Panthera leo* (Linnaeus, 1758) | Binomial; leo = noun in apposition | lion |
@@ -80,7 +80,7 @@ EBNF-ish: `Binomial = (Upper Word) (lower Word)  ;  Trinomial = Binomial (lower 
 | 14 | *Canis* spp. | Genus + "spp." | multiple species |
 | 15 | *Escherichia coli* O157:H7 | Binomial + serotype (post-ICZN extension) | pathogenic strain |
 | 16 | *Magnolia hodgsonii* | Binomial, genitive of "Hodgson" | "−ii" = male commemorated |
-| 17 | *Anthus hodgsoni* | Binomial, genitive of "Hodgson" | "−i" (also male) — variant declension |
+| 17 | *Anthus hodgsoni* | Binomial, genitive of "Hodgson" | "−i" (also male): variant declension |
 | 18 | *Quercus robur* subsp. *robur* | Trinomial with explicit subsp. | |
 
 ### 1.6 Edge cases & common errors
@@ -88,7 +88,7 @@ EBNF-ish: `Binomial = (Upper Word) (lower Word)  ;  Trinomial = Binomial (lower 
 - **Case-mixing** is the #1 matching bug. *Homo sapiens* must match *HOMO SAPIENS*, *homo sapiens*, *H. sapiens*.
 - The genus-initial abbreviation is **only valid AFTER a first full mention** in the same document; some search engines must therefore expand *E. coli* → *Escherichia coli* (E. coli is so widespread that it's accepted as a standalone common name).
 - The epithet can be an **adjective agreeing with the genus** (*Panthera leo* uses "leo" as a noun in apposition, so no agreement needed) OR a **noun in genitive** (*coli* = "of the colon"; *hodgsonii* = "of Hodgson") OR a **noun in apposition** (*Panthera leo*).
-- Hyphenated species epithets exist (e.g. *Lactobacillus kefiranofaciens* — single word) and rare multi-word epithets (deprecated by ICZN but appear historically).
+- Hyphenated species epithets exist (e.g. *Lactobacillus kefiranofaciens*: single word) and rare multi-word epithets (deprecated by ICZN but appear historically).
 - Strain identifiers (O157:H7, K-12) are appended with no italicization.
 
 ### 1.7 Algorithm implications (for MATHIR)
@@ -104,8 +104,8 @@ EBNF-ish: `Binomial = (Upper Word) (lower Word)  ;  Trinomial = Binomial (lower 
 
 ### 2.1 Standards
 
-- **Terminologia Anatomica (TA)** — current standard, Federative Committee on Anatomical Terminology (FCAT) / IFAA, 1998. ~7,500 gross anatomy terms.
-- **Terminologia Histologica** — histology. **Terminologia Neuroanatomica** — nervous system (merged 2016). **Terminologia Embryologica** — embryology.
+- **Terminologia Anatomica (TA)**: current standard, Federative Committee on Anatomical Terminology (FCAT) / IFAA, 1998. ~7,500 gross anatomy terms.
+- **Terminologia Histologica**: histology. **Terminologia Neuroanatomica**: nervous system (merged 2016). **Terminologia Embryologica**: embryology.
 - All terms are **Latin, listed in TA as official (no English equivalent)**.
 - Supersedes *Nomina Anatomica* (1955-1985) and *BNA* (*Basle Nomina Anatomica*, 1895).
 
@@ -118,14 +118,14 @@ Term  := [Modifier]* Root [Modifier]*
 ```
 
 Concrete templates (all in Latin):
-- `[Noun] [adjective]` — *cavum nasi* (nasal cavity)
-- `[genitive/possessive] [noun]` — *musculus brachii* (muscle of the arm)
-- `[compound noun]` — *sternocleidomastoideus* (sterno + cleido + mastoideus)
-- `[adjective] [noun in genitive]` — *arteria iliaca communis* (common iliac artery)
+- `[Noun] [adjective]`: *cavum nasi* (nasal cavity)
+- `[genitive/possessive] [noun]`: *musculus brachii* (muscle of the arm)
+- `[compound noun]`: *sternocleidomastoideus* (sterno + cleido + mastoideus)
+- `[adjective] [noun in genitive]`: *arteria iliaca communis* (common iliac artery)
 
 The order is typically **descriptive-modifier-then-anatomy-noun**, but sometimes the noun comes first as a heading:
-- *musculus sternocleidomastoideus* (muscle, sternocleidomastoid) — noun first, then adjective
-- *musculus biceps brachii* (biceps brachii muscle) — noun, then adjective phrase
+- *musculus sternocleidomastoideus* (muscle, sternocleidomastoid): noun first, then adjective
+- *musculus biceps brachii* (biceps brachii muscle): noun, then adjective phrase
 
 ### 2.3 Word formation rules (regular morphology)
 
@@ -152,17 +152,17 @@ In clinical/anatomical practice, eponyms (named after discoverers) are common **
 | Latin TA term | Eponym (English) | Anatomist / Physician |
 |---------------|------------------|----------------------|
 | *area parolfactoria* (Broca's area) | Broca's area | Paul Broca, 1861 |
-| *gyrus frontalis inferior* pars opercularis | Broca's area (modern) | — |
+| *gyrus frontalis inferior* pars opercularis | Broca's area (modern) |: |
 | *morbus Alzheimerianus* | Alzheimer's disease | Alois Alzheimer, 1906 |
 | *circulus arteriosus cerebri* | Circle of Willis | Thomas Willis, 1664 |
-| *ductus thoracicus* | (no common eponym) | — |
+| *ductus thoracicus* | (no common eponym) |: |
 | *tuba uterina* | Fallopian tube | Gabriele Falloppio, 1561 |
-| *aponeurosis bicipitalis* | lacertus fibrosus (no eponym) | — |
-| *musculus trapezius* | (no eponym) | — |
+| *aponeurosis bicipitalis* | lacertus fibrosus (no eponym) |: |
+| *musculus trapezius* | (no eponym) |: |
 | *nodus sinuatrialis* | SA node / Keith-Flack node | Arthur Keith, Martin Flack, 1906 |
-| *ligamentum cruciatum anterius* | ACL (no eponym) | — |
-| *medulla spinalis* | spinal cord | — |
-| *ventriculus sinister* | left ventricle | — |
+| *ligamentum cruciatum anterius* | ACL (no eponym) |: |
+| *medulla spinalis* | spinal cord |: |
+| *ventriculus sinister* | left ventricle |: |
 
 ### 2.5 10+ Real Examples (with structure breakdown)
 
@@ -188,10 +188,10 @@ In clinical/anatomical practice, eponyms (named after discoverers) are common **
 ### 2.6 Common English shortenings vs. Latin TA
 
 This is a major source of mismatch:
-- "sternocleidomastoid" (English) ↔ "musculus sternocleidomastoideus" (TA) — drop *musculus*, change final **−us → −oid** (English uses -oid, Latin uses -oideus)
+- "sternocleidomastoid" (English) ↔ "musculus sternocleidomastoideus" (TA): drop *musculus*, change final **−us → −oid** (English uses -oid, Latin uses -oideus)
 - "gastrocnemius" = same form, no shortening
-- "deltoid" ↔ "musculus deltoideus" — drop *musculus*, change **-eus → -oid** again
-- "lat dorsi" (clinical slang) ↔ "musculus latissimus dorsi" — full shortening
+- "deltoid" ↔ "musculus deltoideus": drop *musculus*, change **-eus → -oid** again
+- "lat dorsi" (clinical slang) ↔ "musculus latissimus dorsi": full shortening
 - "quad" / "quads" (colloquial) ↔ "musculus quadriceps femoris"
 
 ### 2.7 Algorithm implications
@@ -208,7 +208,7 @@ This is a major source of mismatch:
 ### 3.1 Standards
 
 - **INN** = International Nonproprietary Name, selected by **WHO** (mandate from 1953).
-- Published in **English, Latin, French, Russian, Spanish, Arabic, Chinese** — same stem across all.
+- Published in **English, Latin, French, Russian, Spanish, Arabic, Chinese**: same stem across all.
 - **rINN** = recommended INN; **pINN** = proposed INN; **INNM** = modified INN (for salts/esters).
 - National equivalents: **BAN** (British), **USAN** (US), **JAN** (Japan), **DCF** (France DCF), **DCIT** (Italy). These have largely converged with INN.
 
@@ -253,8 +253,8 @@ The key rule: **stem appears at the end (suffix) usually, sometimes at the begin
 | methyl (E)-2-[[3-(1-piperidinylmethyl)phenoxy]methyl]benzeneacetate | loratadine | Claritin | -tadine (antihistamines) |
 | 2,2-dimethylpropionic acid, 2,6-dimethyl-4-(2-nitrophenyl)-3,5-pyridinedicarboxylic acid 1,4-dihydropyridine ester | nifedipine | Adalat, Procardia | -dipine |
 | 4-amino-N-(5-methyl-3-isoxazolyl)benzenesulfonamide | sulfamethoxazole | (in Bactrim) | sulfa- (sulfonamides) |
-| (2S,3R,4R,5S,6R)-2-{[(2R,3S,4R,5R)-3,4-dihydroxy-2-(hydroxymethyl) tetrahydro-2H-pyran-5-yl]oxy}-6-(hydroxymethyl)tetrahydro-2H-pyran-3,4,5-triol | — (no INN) | — | (trivial names only) |
-| 4-{[4-(4-chlorophenyl)-2-pyridinyl]methoxy}-4-oxobutanoic acid | — (no INN) | — | (chemistry only) |
+| (2S,3R,4R,5S,6R)-2-{[(2R,3S,4R,5R)-3,4-dihydroxy-2-(hydroxymethyl) tetrahydro-2H-pyran-5-yl]oxy}-6-(hydroxymethyl)tetrahydro-2H-pyran-3,4,5-triol |: (no INN) |: | (trivial names only) |
+| 4-{[4-(4-chlorophenyl)-2-pyridinyl]methoxy}-4-oxobutanoic acid |: (no INN) |: | (chemistry only) |
 
 ### 3.4 INN spelling regularization (predictable rules)
 
@@ -262,28 +262,28 @@ Per WHO, INN follows a **phonemic orthography**:
 - `ph` → `f` (*amfetamine* not *amphetamine*)
 - `th` → `t` (*levmetamfetamine* not *levomethamphetamine*)
 - `ae`, `oe` → `e` (*cefepime* not *cephaepime*)
-- `y` → `i` (*furosemide* not *furosemide... wait — furosemide already follows this; *sodium picosulfate* not *picosulphate*)
+- `y` → `i` (*furosemide* not *furosemide... wait: furosemide already follows this; *sodium picosulfate* not *picosulphate*)
 - Avoid `h` and `k` if possible
 
-This is the **#1 reason** drug names look "off" to non-specialists — *amfetamine* looks like a typo of *amphetamine*.
+This is the **#1 reason** drug names look "off" to non-specialists, *amfetamine* looks like a typo of *amphetamine*.
 
 ### 3.5 10+ Stem-Based Examples
 
-1. **atorvastatin** → `-statin` (HMG-CoA reductase inhibitor) — Lipitor
-2. **enalapril** → `-pril` (ACE inhibitor) — Vasotec
-3. **losartan** → `-sartan` (ARB) — Cozaar
-4. **amlodipine** → `-dipine` (CCB) — Norvasc
-5. **adalimumab** → `-mab` (mAb; **-li-**-mab = immunomodulator) — Humira
-6. **imatinib** → `-nib` (TKI) — Gleevec
-7. **remdesivir** → `-vir` (antiviral) — Veklury
-8. **omeprazole** → `-prazole` (PPI) — Prilosec
-9. **lorazepam** → `-azepam` (benzodiazepine) — Ativan
-10. **ciprofloxacin** → `-floxacin` (fluoroquinolone) — Cipro
-11. **metoprolol** → `-olol` (β-blocker) — Lopressor/Toprol
-12. **rituximab** → `-mab` (chimeric anti-CD20 mAb) — Rituxan
-13. **budesonide** → `-ide` (steroid) — Pulmicort
-14. **aciclovir / acyclovir** → `-vir` (antiviral) — Zovirax
-15. **liraglutide** → `-tide` (GLP-1 peptide) — Victoza
+1. **atorvastatin** → `-statin` (HMG-CoA reductase inhibitor), Lipitor
+2. **enalapril** → `-pril` (ACE inhibitor), Vasotec
+3. **losartan** → `-sartan` (ARB), Cozaar
+4. **amlodipine** → `-dipine` (CCB), Norvasc
+5. **adalimumab** → `-mab` (mAb; **-li-**-mab = immunomodulator), Humira
+6. **imatinib** → `-nib` (TKI), Gleevec
+7. **remdesivir** → `-vir` (antiviral), Veklury
+8. **omeprazole** → `-prazole` (PPI), Prilosec
+9. **lorazepam** → `-azepam` (benzodiazepine), Ativan
+10. **ciprofloxacin** → `-floxacin` (fluoroquinolone), Cipro
+11. **metoprolol** → `-olol` (β-blocker), Lopressor/Toprol
+12. **rituximab** → `-mab` (chimeric anti-CD20 mAb), Rituxan
+13. **budesonide** → `-ide` (steroid), Pulmicort
+14. **aciclovir / acyclovir** → `-vir` (antiviral), Zovirax
+15. **liraglutide** → `-tide` (GLP-1 peptide), Victoza
 
 ### 3.6 Algorithm implications
 
@@ -292,7 +292,7 @@ This is the **#1 reason** drug names look "off" to non-specialists — *amfetami
   - *paracetamol* (INN/BAN) / *acetaminophen* (USAN) / *paracetamolum* (Latin) / *paracétamol* (FR) / парацетамол (RU)
   - The **first ~5 letters** are usually stable.
 - Brand names are **trademarked**; never stem-match them. Index them only as synonyms.
-- INN "modified" for salt: `<base> <salt>` (e.g., *oxacillin sodium*) — space-separated.
+- INN "modified" for salt: `<base> <salt>` (e.g., *oxacillin sodium*): space-separated.
 
 ---
 
@@ -309,36 +309,36 @@ This is the **#1 reason** drug names look "off" to non-specialists — *amfetami
 
 | # | Phrase | Pronunciation guide | Meaning | Example use |
 |---|--------|---------------------|---------|-------------|
-| 1 | **habeas corpus** | HAY-bee-uss KOR-puss | "you shall have the body" — writ demanding a prisoner be brought before a court to determine legality of detention | *Writ of habeas corpus* filed by detainee. |
-| 2 | **pro bono** | proh BOH-noh | "for the public good" — done without charge, typically legal work | *The firm took the case pro bono.* |
+| 1 | **habeas corpus** | HAY-bee-uss KOR-puss | "you shall have the body": writ demanding a prisoner be brought before a court to determine legality of detention | *Writ of habeas corpus* filed by detainee. |
+| 2 | **pro bono** | proh BOH-noh | "for the public good": done without charge, typically legal work | *The firm took the case pro bono.* |
 | 3 | **pro bono publico** | proh BOH-noh PUB-li-koh | same as pro bono, more emphatic | *Work done pro bono publico.* |
-| 4 | **ex parte** | ex PAR-tay | "from one side" — application made by one party without notice to the other | *Ex parte hearing* (no opposition present). |
-| 5 | **amicus curiae** | ah-MEE-kuss KYOOR-ee-eye | "friend of the court" — non-party who offers expertise | *The ACLU filed an amicus brief.* |
-| 6 | **prima facie** | PRY-mah FAY-shee(-ay) | "at first sight" — evidence sufficient on its face | *Prima facie case of negligence.* |
+| 4 | **ex parte** | ex PAR-tay | "from one side": application made by one party without notice to the other | *Ex parte hearing* (no opposition present). |
+| 5 | **amicus curiae** | ah-MEE-kuss KYOOR-ee-eye | "friend of the court": non-party who offers expertise | *The ACLU filed an amicus brief.* |
+| 6 | **prima facie** | PRY-mah FAY-shee(-ay) | "at first sight": evidence sufficient on its face | *Prima facie case of negligence.* |
 | 7 | **per se** | per SAY | "by/in itself" | *Not per se illegal.* |
-| 8 | **mens rea** | menz RAY-ah | "guilty mind" — intent to commit a crime | *Theft requires mens rea.* |
-| 9 | **actus reus** | AK-tuss RAY-uss | "guilty act" — physical component of a crime | *Both actus reus and mens rea required.* |
-| 10 | **in absentia** | in ab-SEN-shee-ah | "in absence" — done while one party is not present | *Trial in absentia* (defendant not present). |
-| 11 | **in re** | in RAY | "in the matter of" — used when no adversary | *In re Smith Estate.* |
-| 12 | **in rem** | in REM | "against a thing" — jurisdiction over property, not person | *In rem forfeiture of the vessel.* |
-| 13 | **in personam** | in per-SOH-nam | "against a person" — personal jurisdiction | *Judgment in personam.* |
-| 14 | **corpus delicti** | KOR-puss dee-LIK-tee | "body of the crime" — the fact that a crime occurred | *Corpus delicti must be established.* |
-| 15 | **corpus juris** | KOR-puss JOOR-iss | "body of law" — a comprehensive legal code | *Corpus Juris Civilis* (Justinian). |
-| 16 | **duces tecum** | DOO-sess TAY-kum | "bring with you" — subpoena to produce documents | *Subpoena duces tecum.* |
-| 17 | **sub judice** | sub YOO-di-kay | "under a judge" — before a court, not for public discussion | *The matter is sub judice.* |
-| 18 | **subpoena** | sub-PEE-nah | "under penalty" — summons | *Subpoena ad testificandum* (to testify). |
+| 8 | **mens rea** | menz RAY-ah | "guilty mind": intent to commit a crime | *Theft requires mens rea.* |
+| 9 | **actus reus** | AK-tuss RAY-uss | "guilty act": physical component of a crime | *Both actus reus and mens rea required.* |
+| 10 | **in absentia** | in ab-SEN-shee-ah | "in absence": done while one party is not present | *Trial in absentia* (defendant not present). |
+| 11 | **in re** | in RAY | "in the matter of": used when no adversary | *In re Smith Estate.* |
+| 12 | **in rem** | in REM | "against a thing": jurisdiction over property, not person | *In rem forfeiture of the vessel.* |
+| 13 | **in personam** | in per-SOH-nam | "against a person": personal jurisdiction | *Judgment in personam.* |
+| 14 | **corpus delicti** | KOR-puss dee-LIK-tee | "body of the crime": the fact that a crime occurred | *Corpus delicti must be established.* |
+| 15 | **corpus juris** | KOR-puss JOOR-iss | "body of law": a comprehensive legal code | *Corpus Juris Civilis* (Justinian). |
+| 16 | **duces tecum** | DOO-sess TAY-kum | "bring with you": subpoena to produce documents | *Subpoena duces tecum.* |
+| 17 | **sub judice** | sub YOO-di-kay | "under a judge": before a court, not for public discussion | *The matter is sub judice.* |
+| 18 | **subpoena** | sub-PEE-nah | "under penalty": summons | *Subpoena ad testificandum* (to testify). |
 | 19 | **quid pro quo** | kwid proh KWOH | "something for something" | *Quid pro quo sexual harassment.* |
-| 20 | **ad hoc** | ad HOK | "for this" — improvised, special purpose | *Ad hoc committee.* |
-| 21 | **ex post facto** | ex pohst FAK-toh | "after the fact" — retroactive (esp. criminal law) | *Ex post facto law is unconstitutional in US.* |
-| 22 | **alibi** | AL-ih-bye | "elsewhere" — defense that defendant was elsewhere | *Alibi defense.* |
-| 23 | **res ipsa loquitur** | rez IP-sah LOK-wi-tur | "the thing speaks for itself" — negligence inferred | *Res ipsa loquitur doctrine.* |
-| 24 | **stare decisis** | STAR-ay de-SIGH-sis | "to stand by decided matters" — precedent | *Binding under stare decisis.* |
-| 25 | **voir dire** | vwar DEER | "to speak the truth" — jury selection / pretrial examination | *Voir dire of prospective jurors.* |
-| 26 | **malum in se** | MAH-lum in SAY | "wrong in itself" — inherently evil act | *Murder is malum in se.* |
-| 27 | **malum prohibitum** | MAH-lum proh-HIB-i-tum | "wrong because prohibited" — act illegal only by statute | *Drug possession is malum prohibitum.* |
+| 20 | **ad hoc** | ad HOK | "for this": improvised, special purpose | *Ad hoc committee.* |
+| 21 | **ex post facto** | ex pohst FAK-toh | "after the fact": retroactive (esp. criminal law) | *Ex post facto law is unconstitutional in US.* |
+| 22 | **alibi** | AL-ih-bye | "elsewhere": defense that defendant was elsewhere | *Alibi defense.* |
+| 23 | **res ipsa loquitur** | rez IP-sah LOK-wi-tur | "the thing speaks for itself": negligence inferred | *Res ipsa loquitur doctrine.* |
+| 24 | **stare decisis** | STAR-ay de-SIGH-sis | "to stand by decided matters": precedent | *Binding under stare decisis.* |
+| 25 | **voir dire** | vwar DEER | "to speak the truth": jury selection / pretrial examination | *Voir dire of prospective jurors.* |
+| 26 | **malum in se** | MAH-lum in SAY | "wrong in itself": inherently evil act | *Murder is malum in se.* |
+| 27 | **malum prohibitum** | MAH-lum proh-HIB-i-tum | "wrong because prohibited": act illegal only by statute | *Drug possession is malum prohibitum.* |
 | 28 | **bona fide** | BOH-nah FY-dee | "in good faith" | *Bona fide purchaser.* |
 | 29 | **inter alia** | in-ter AH-lee-ah | "among other things" | *The plaintiff claims, inter alia, fraud.* |
-| 30 | **a fortiori** | ah for-shee-OR-ee | "from stronger [reason]" — even more so | *If A, then a fortiori B.* |
+| 30 | **a fortiori** | ah for-shee-OR-ee | "from stronger [reason]": even more so | *If A, then a fortiori B.* |
 
 ### 4.3 Use in legal documents
 
@@ -360,8 +360,8 @@ This is the **#1 reason** drug names look "off" to non-specialists — *amfetami
 
 ### 5.1 Standards
 
-- **IAU** (International Astronomical Union) — sole authority for proper names and constellation boundaries (since 1930).
-- **Working Group on Star Names (WGSN)** — catalog of IAU-approved star proper names (330+ as of 2018).
+- **IAU** (International Astronomical Union): sole authority for proper names and constellation boundaries (since 1930).
+- **Working Group on Star Names (WGSN)**: catalog of IAU-approved star proper names (330+ as of 2018).
 - Multiple naming systems coexist: proper names, Bayer designation, Flamsteed designation, variable star designation, catalog numbers (HD, HIP, GJ, HR, BD, etc.).
 
 ### 5.2 Bayer designation (Johann Bayer, 1603, *Uranometria*)
@@ -398,9 +398,9 @@ This is the **#1 reason** drug names look "off" to non-specialists — *amfetami
 | Gliese (GJ) | `GJ <number>` / `Gliese <number>` | GJ 273 (Luyten's Star) |
 | Bright Star (HR) | `HR <4-digit number>` | HR 8799 |
 | Bonner Durchmusterung (BD) | `BD +<dec> <number>` | BD +49 399 |
-| SAO | `SAO <number>` | — |
-| 2MASS | `2MASS J<coords>` | — |
-| Gaia DR3 | `Gaia DR3 <id>` | — |
+| SAO | `SAO <number>` |: |
+| 2MASS | `2MASS J<coords>` |: |
+| Gaia DR3 | `Gaia DR3 <id>` |: |
 
 ### 5.6 10+ Real Examples (with structure)
 
@@ -427,10 +427,10 @@ This is the **#1 reason** drug names look "off" to non-specialists — *amfetami
 
 ### 5.7 Common name vs. scientific name
 
-- **Common (proper) name**: "Polaris", "Sirius", "Betelgeuse" — colloquial, often Arabic-derived, IAU-standardized.
-- **Bayer designation**: "Alpha Ursae Minoris" — Greek/Latin letter + Latin genitive.
-- **Flamsteed**: "1 Ursae Minoris" — number + nominative.
-- **Catalog**: "HD 8890" — ID only.
+- **Common (proper) name**: "Polaris", "Sirius", "Betelgeuse": colloquial, often Arabic-derived, IAU-standardized.
+- **Bayer designation**: "Alpha Ursae Minoris": Greek/Latin letter + Latin genitive.
+- **Flamsteed**: "1 Ursae Minoris": number + nominative.
+- **Catalog**: "HD 8890": ID only.
 
 The same star has **multiple acceptable names**. Algorithms must know they're synonyms.
 
@@ -523,7 +523,7 @@ The same star has **multiple acceptable names**. Algorithms must know they're sy
 
 ### 6.4 When diacritics MATTER (false friends)
 
-Some diacritics produce **distinct letters** in their native alphabet — collapsing them is a real correctness loss:
+Some diacritics produce **distinct letters** in their native alphabet, collapsing them is a real correctness loss:
 
 | Pair | Languages | Risk |
 |------|-----------|------|
@@ -535,7 +535,7 @@ Some diacritics produce **distinct letters** in their native alphabet — collap
 | **å** vs **a** | Swedish, Norwegian, Danish | Treated as **separate letter** in alphabet. |
 | **ä, ö, ü** vs **a, o, u** | Estonian, Finnish, Swedish, German | In German, they're variants of a, o, u; in Estonian/Finnish/Swedish, they're **separate letters**. |
 | **ñ** vs **n** | Spanish | *ñ* is the 15th letter of the Spanish alphabet. *año* (year) ≠ *ano* (anus). |
-| **ř** vs **r** | Czech | *řeka* (river) ≠ *reka* (not a word) — losing the caron loses the sound. |
+| **ř** vs **r** | Czech | *řeka* (river) ≠ *reka* (not a word): losing the caron loses the sound. |
 | **č, š, ž** vs **c, s, z** | Czech, Slovak, Slovenian, Croatian, Baltic | Different letters. |
 
 ### 6.5 Algorithm implications
@@ -577,11 +577,11 @@ Some diacritics produce **distinct letters** in their native alphabet — collap
 | **Sport teams** | 1st XV (rugby), 3rd XI (cricket) | Sometimes mixed with Arabic |
 | **Outlines** | i., ii., iii. (lowercase for sub-sections) | |
 | **Page numbers** (preface) | i, ii, iii, iv, v (front matter) | Often lowercase |
-| **Blood types** | (No Roman — O, A, B, AB) | |
-| **Repetition marks** | (No Roman — "ditto" or " " or ‡) | |
+| **Blood types** | (No Roman: O, A, B, AB) | |
+| **Repetition marks** | (No Roman: "ditto" or " " or ‡) | |
 | **Year on monuments** | Anno Domini MMXXVI = AD 2026 | |
 | **Copyright dates** | © 2024 (no Roman, modern practice) | |
-| **Sport jerseys** | (No Roman — Arabic) | |
+| **Sport jerseys** | (No Roman: Arabic) | |
 
 ### 7.3 Variants & non-standard forms
 
@@ -606,8 +606,8 @@ Some diacritics produce **distinct letters** in their native alphabet — collap
 - A Roman numeral can be **substring** of a larger word: "Ivanka" contains "I", "V"; must be detected as context (separated by spaces, periods, or word boundaries).
 - "Mi" or "MiX" or "Dix" can be misinterpreted (e.g., a French surname "Midi" = Roman "MIDI"?).
 - A Roman numeral can be followed by a **lettercase change**: "Type III" (uppercase Roman) vs. "page iii" (lowercase Roman).
-- A Roman numeral can be **in URL paths**: `/v1/v2/iii` — common in API versioning.
-- A Roman numeral can be **in copyright notices**: "© MMXXIV" — but rarely in modern practice.
+- A Roman numeral can be **in URL paths**: `/v1/v2/iii`: common in API versioning.
+- A Roman numeral can be **in copyright notices**: "© MMXXIV": but rarely in modern practice.
 
 ### 7.5 Algorithm implications
 
@@ -709,32 +709,32 @@ Based on all 7 research areas, here are the **cross-cutting algorithmic patterns
 
 ### Primary (Tier 1)
 
-- **International Code of Zoological Nomenclature (ICZN)** — 4th edition, 1999, online at https://www.iczn.org/
-- **International Code of Nomenclature for algae, fungi, and plants (ICN)** — Shenzhen Code, 2018, https://www.iapt-taxon.org/nomen/main.php
-- **Terminologia Anatomica** — 2nd ed., 2019, Thieme, https://www.thieme.com/books-main/clinical-neurology/product/4373-terminologia-anatomica
-- **WHO INN Programme** — https://www.who.int/teams/health-product-and-policy-standards/inn
-- **WHO Stem Book** — "The use of stems in the selection of International Nonproprietary Names (INN) for pharmaceutical substances" (2024) — https://iris.who.int/bitstream/handle/10665/379226/9789240099388-eng.pdf
-- **International Astronomical Union (IAU)** — https://www.iau.org/
-- **Unicode Standard** — chapters 3, 4, 5, 7 (Normalization, Case Folding, Diacritics)
-- **ISO 9:1995** — Transliteration of Cyrillic
-- **ALA-LC Romanization Tables** — Library of Congress
+- **International Code of Zoological Nomenclature (ICZN)**: 4th edition, 1999, online at https://www.iczn.org/
+- **International Code of Nomenclature for algae, fungi, and plants (ICN)**: Shenzhen Code, 2018, https://www.iapt-taxon.org/nomen/main.php
+- **Terminologia Anatomica**: 2nd ed., 2019, Thieme, https://www.thieme.com/books-main/clinical-neurology/product/4373-terminologia-anatomica
+- **WHO INN Programme**: https://www.who.int/teams/health-product-and-policy-standards/inn
+- **WHO Stem Book**: "The use of stems in the selection of International Nonproprietary Names (INN) for pharmaceutical substances" (2024): https://iris.who.int/bitstream/handle/10665/379226/9789240099388-eng.pdf
+- **International Astronomical Union (IAU)**: https://www.iau.org/
+- **Unicode Standard**: chapters 3, 4, 5, 7 (Normalization, Case Folding, Diacritics)
+- **ISO 9:1995**: Transliteration of Cyrillic
+- **ALA-LC Romanization Tables**: Library of Congress
 
-### Secondary (Tier 2) — used in this report
+### Secondary (Tier 2): used in this report
 
-- Wikipedia: *Binomial nomenclature* — https://en.wikipedia.org/wiki/Binomial_nomenclature
-- Wikipedia: *Author citation (zoology)* — https://en.wikipedia.org/wiki/Author_citation_(zoology)
-- Wikipedia: *International nonproprietary name* — https://en.wikipedia.org/wiki/International_Nonproprietary_Name
-- Wikipedia: *Terminologia Anatomica* — https://en.wikipedia.org/wiki/Terminologia_Anatomica
-- Wikipedia: *Anatomical terminology* — https://en.wikipedia.org/wiki/Anatomical_terminology
-- Wikipedia: *Bayer designation* — https://en.wikipedia.org/wiki/Bayer_designation
-- Wikipedia: *Flamsteed designation* — https://en.wikipedia.org/wiki/Flamsteed_designation
-- Wikipedia: *Stellar designations and names* — https://en.wikipedia.org/wiki/Stellar_designations_and_names
-- Wikipedia: *List of legal Latin terms* — https://en.wikipedia.org/wiki/List_of_legal_Latin_terms
-- Wikipedia: *Diacritic* — https://en.wikipedia.org/wiki/Diacritic
-- Wikipedia: *Polish alphabet* — https://en.wikipedia.org/wiki/Polish_alphabet
-- Wikipedia: *Roman numerals* — https://en.wikipedia.org/wiki/Roman_numerals
+- Wikipedia: *Binomial nomenclature*: https://en.wikipedia.org/wiki/Binomial_nomenclature
+- Wikipedia: *Author citation (zoology)*: https://en.wikipedia.org/wiki/Author_citation_(zoology)
+- Wikipedia: *International nonproprietary name*: https://en.wikipedia.org/wiki/International_Nonproprietary_Name
+- Wikipedia: *Terminologia Anatomica*: https://en.wikipedia.org/wiki/Terminologia_Anatomica
+- Wikipedia: *Anatomical terminology*: https://en.wikipedia.org/wiki/Anatomical_terminology
+- Wikipedia: *Bayer designation*: https://en.wikipedia.org/wiki/Bayer_designation
+- Wikipedia: *Flamsteed designation*: https://en.wikipedia.org/wiki/Flamsteed_designation
+- Wikipedia: *Stellar designations and names*: https://en.wikipedia.org/wiki/Stellar_designations_and_names
+- Wikipedia: *List of legal Latin terms*: https://en.wikipedia.org/wiki/List_of_legal_Latin_terms
+- Wikipedia: *Diacritic*: https://en.wikipedia.org/wiki/Diacritic
+- Wikipedia: *Polish alphabet*: https://en.wikipedia.org/wiki/Polish_alphabet
+- Wikipedia: *Roman numerals*: https://en.wikipedia.org/wiki/Roman_numerals
 
-### Tertiary (Tier 3) — referenced but not authoritative
+### Tertiary (Tier 3): referenced but not authoritative
 
 - Stack Overflow threads on Unicode normalization (NFKC vs NFC)
 - GitHub issues on `unidecode` library (lossy transliteration)
@@ -755,12 +755,12 @@ Based on all 7 research areas, here are the **cross-cutting algorithmic patterns
 - Legal Latin (curated list available)
 
 **Medium confidence** on:
-- Specific diacritic handling edge cases (Polish Ł/L, Turkish I/i — many gotchas)
+- Specific diacritic handling edge cases (Polish Ł/L, Turkish I/i: many gotchas)
 - Some anatomical eponyms (regional variation)
 - Some compound Bayer/Flamsteed edge cases (rare historical forms)
 
 **Lower confidence** on:
-- Real-world frequency of historical Roman-numeral variants (XIIX, IIXX) in modern text — likely very low
+- Real-world frequency of historical Roman-numeral variants (XIIX, IIXX) in modern text: likely very low
 - Specific INN stem lists beyond the common 20-30 (full list is 400+ in *Stem Book*)
 - Modern usage of obscure legal Latin phrases (most are post-2010 only used in academic writing)
 
@@ -777,5 +777,5 @@ Based on all 7 research areas, here are the **cross-cutting algorithmic patterns
    - Diacritic canonical ↔ ASCII transliteration
 4. **Add Roman-numeral detection** to the tokenizer so "Henry VIII" doesn't get split into "Henry" and "VIII" (or alternatively, treat VIII as an integer 8 but preserve the surface form for display).
 5. **Use NFKC normalization** as the default preprocessing step.
-6. **Add Polish Ł/L and Turkish I/İ/ı special handling** — these are the most-mis-handled cases.
+6. **Add Polish Ł/L and Turkish I/İ/ı special handling**, these are the most-mis-handled cases.
 7. **Integration test against UNIBRI** to verify that "Müller" and "Mueller" now match at the same recall level.

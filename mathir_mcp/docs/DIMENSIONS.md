@@ -1,6 +1,6 @@
 # Embedding Dimensions Guide (v8.6.0)
 
-**Current model (as of 2026-07-02): intfloat/multilingual-e5-small (384d, 239MB VRAM, retrieval-trained)** — was paraphrase-multilingual-MiniLM-L12-v2 (same architecture/size, different training objective). See "Real, Independently-Verified Alternative" section below for the investigation that led to this switch; the HotpotQA multi-hop result that finally justified it (+2.5x retrieval quality, ~12% slower not 5x as earlier estimated) is in MATHIR memory embedder-swap-strongest-positive-result-hotpotqa. All comparison tables below that name both models by their historical role (default vs. alternative) reflect what was tested AT THE TIME of each experiment, not the current default -- read dates/context, not just table headers.
+**Current model (as of 2026-07-02): intfloat/multilingual-e5-small (384d, 239MB VRAM, retrieval-trained)**, was paraphrase-multilingual-MiniLM-L12-v2 (same architecture/size, different training objective). See "Real, Independently-Verified Alternative" section below for the investigation that led to this switch; the HotpotQA multi-hop result that finally justified it (+2.5x retrieval quality, ~12% slower not 5x as earlier estimated) is in MATHIR memory embedder-swap-strongest-positive-result-hotpotqa. All comparison tables below that name both models by their historical role (default vs. alternative) reflect what was tested AT THE TIME of each experiment, not the current default -- read dates/context, not just table headers.
 
 ---
 
@@ -36,11 +36,11 @@ reproduce it):
 | arguana | **nDCG@10 0.4488** | nDCG@10 0.3908 (-13%) | e5-small ~1.8x slower |
 
 Both models are the same size class (384d, ~118M params, similar
-edge/low-VRAM footprint) — this is a same-footprint quality/speed
+edge/low-VRAM footprint), this is a same-footprint quality/speed
 trade-off, not an upgrade to a bigger model. `multilingual-e5-small` is
 trained specifically for retrieval (requires `"query: "` / `"passage: "`
-text prefixes — see the comparison script for the exact usage) and wins
-clearly on factual/QA-style retrieval (scifact, nfcorpus — closer to
+text prefixes, see the comparison script for the exact usage) and wins
+clearly on factual/QA-style retrieval (scifact, nfcorpus, closer to
 MATHIR's typical "find a fact in my memories" use case), but loses on
 argument-similarity-style retrieval (arguana) where the current default's
 paraphrase-training is actually a better fit. It is also meaningfully
@@ -64,7 +64,7 @@ NOT affected by this default change (each DB is pinned to the model it
 was created with -- see VecMemory.ensure_embedding_model).
 
 Original 2026-06-30 reasoning (superseded, kept for context): "MATHIR's
-default was deliberately NOT changed based on this result — the
+default was deliberately NOT changed based on this result, the
 current 384d paraphrase-multilingual model remains the default
 specifically to preserve edge-device speed and because the trade-off is
 task-dependent, not a clean win." If your use case is factual/QA-style
@@ -79,7 +79,7 @@ explicitness / for reverting to the old model if desired):
 ```
 
 then follow the migration steps below (dimension is unchanged at 384d, so
-no vec0 rebuild is needed — but re-embedding existing content is still
+no vec0 rebuild is needed, but re-embedding existing content is still
 recommended for consistent similarity scores across old and new memories,
 since the two models produce different embedding spaces at the same
 dimensionality).
@@ -96,27 +96,27 @@ misdiagnosed later:
 1. **MATHIR's vector search mechanism itself is not the problem.** Holding
    the embedder fixed and comparing raw FAISS `IndexFlatIP` against
    `VecMemory.search()`'s real code path on the exact same embeddings
-   (nfcorpus) produced an **identical** nDCG@10 (0.2345 = 0.2345) — sqlite-vec's
+   (nfcorpus) produced an **identical** nDCG@10 (0.2345 = 0.2345), sqlite-vec's
    exact brute-force cosine search is mathematically equivalent to FAISS at
    these corpus sizes. (It is ~500x slower per-query in this specific
    unindexed comparison, a separate performance question, not a quality one.)
 2. **The RRF fusion default weights (vector_weight=1.0, bm25_weight=1.0)
-   are already near-optimal for the current embedder** — sweeping
+   are already near-optimal for the current embedder**, sweeping
    vector_weight from 1 to 10 (favoring the vector signal more) made
    nfcorpus nDCG@10 *worse* (0.3056 → 0.2583), not better. With a weaker
    embedder, BM25's lexical signal compensates for semantic weakness rather
    than diluting it.
 3. **Conclusion: the quality gap is substantially the embedding model's
-   retrieval-specific training** — not a search bug, not a fusion-weight
+   retrieval-specific training**, not a search bug, not a fusion-weight
    misconfiguration. The trade-off is real and belongs to whoever picks the
    model (see the table above).
 
-**⚠️ Correction (2026-07-01, later re-test) — the "weak embedder → hybrid
+**⚠️ Correction (2026-07-01, later re-test), the "weak embedder → hybrid
 helps, strong embedder → hybrid hurts" rule stated in an earlier version of
 this section was an oversimplification, contradicted by new data.**
 Re-running the exact same RRF hybrid fusion test with
 `intfloat/multilingual-e5-small` (a substantially stronger embedder than
-the default — e5-small's dense-only baseline is 0.6770 on scifact vs the
+the default, e5-small's dense-only baseline is 0.6770 on scifact vs the
 default's 0.4837) still showed hybrid fusion **helping**, not hurting:
 +0.0225 on nfcorpus, +0.0146 on scifact
 (`benchmarks/07_utilities/retest_with_stronger_embedder.py`). This
@@ -124,14 +124,14 @@ directly contradicts the simple binary rule, since `bge-base-en-v1.5`
 (baseline 0.744 on scifact, even stronger than e5-small) DOES show hybrid
 hurting (0.660 RRF < 0.744 dense-only, per `multi_dataset_efficient.py`).
 So the real relationship is **not** a clean function of embedder strength
-alone — there is a threshold or some other factor (possibly specific to
+alone, there is a threshold or some other factor (possibly specific to
 how each embedder's score distribution interacts with BM25's score scale
 in RRF, or something specific to bge-base vs e5-small/the current default)
 that this session did not fully characterize. Treat "hybrid fusion's
 helpfulness depends on embedder choice" as the honest, narrower claim;
 do NOT treat it as a simple strong/weak binary without further testing
 across more embedders. PRF's effect became much smaller (roughly neutral,
-+0.0006/-0.0049) with e5-small — consistent with, but not a strong
++0.0006/-0.0049) with e5-small, consistent with, but not a strong
 confirmation of, the weak/strong pattern for that specific technique.
 
 **Follow-up hypothesis tested and also falsified**: maybe it's the dense
@@ -149,10 +149,10 @@ scifact, 3 embedders side by side):
 
 If the "peaked ranking → hybrid hurts" hypothesis held, gap and delta
 should be inversely ordered. They are not: gap order is
-default>bge>e5, but delta order is default>e5>bge — no clean
+default>bge>e5, but delta order is default>e5>bge, no clean
 correlation. **This hypothesis is also rejected.** Note also that
 `default`'s hybrid delta here (+0.1193, scifact) is larger than reported
-earlier in this document (see point 2's "helps when weak" framing) —
+earlier in this document (see point 2's "helps when weak" framing):
 this specific number came from re-running with a slightly different
 inline harness (`investigate_hybrid_flip_factor.py`) than the original
 `test_rrf_weights.py` measurement on nfcorpus; the two scripts aren't
@@ -168,8 +168,8 @@ question**~~ **RESOLVED below.**
 The "top1-top10 gap" statistic (rejected above) was the wrong variable to
 look at. Completing the full 3-embedder × 2-dataset matrix
 (`benchmarks/07_utilities/complete_hybrid_flip_matrix.py`, 2026-07-01) and
-sorting by the simplest possible statistic — the baseline dense nDCG@10
-itself — reveals a clean, **perfectly monotonic** relationship within each
+sorting by the simplest possible statistic, the baseline dense nDCG@10
+itself, reveals a clean, **perfectly monotonic** relationship within each
 dataset:
 
 | Dataset | Embedder (sorted by baseline quality) | Baseline nDCG@10 | Hybrid delta |
@@ -184,20 +184,20 @@ dataset:
 In both datasets, as baseline quality increases, the hybrid-fusion delta
 decreases monotonically, crossing from clearly positive to slightly
 negative. This is **not** a threshold/binary effect and **not** specific
-to embedder identity — it's a continuous function of how good the dense
+to embedder identity, it's a continuous function of how good the dense
 ranking already is on that corpus. The earlier "e5-small still helps
 despite being stronger than default, contradicting the rule" framing was
 comparing the wrong things: e5-small's improvement over default simply
 wasn't large enough yet to cross into the harmful regime for these two
 corpora; bge-base's larger improvement was what crossed it. There was
-never a contradiction — just an incomplete matrix (2-3 cherry-picked
+never a contradiction, just an incomplete matrix (2-3 cherry-picked
 points) instead of the full sorted picture.
 
 **Practical, actionable rule**: the marginal value of BM25 hybrid fusion
 shrinks as the chosen embedder's baseline retrieval quality on your
 corpus rises, and can go negative once that baseline is already strong.
 There's no single universal `bm25_weight` that's right for every
-embedder/corpus combination — if you upgrade to a stronger embedder,
+embedder/corpus combination, if you upgrade to a stronger embedder,
 re-check whether hybrid fusion (or its weight) still helps on YOUR data,
 rather than assuming the default 1.0/1.0 weighting remains optimal.
 
@@ -205,19 +205,19 @@ rather than assuming the default 1.0/1.0 weighting remains optimal.
 
 A natural next architecture idea, given point 2 above: gate BM25 fusion
 per-query on the dense ranking's own confidence (e.g. the top1/top2 score
-margin) — fuse only when the dense ranking looks ambiguous, trust dense-only
+margin), fuse only when the dense ranking looks ambiguous, trust dense-only
 otherwise. This was tested empirically
 (`benchmarks/07_utilities/test_adaptive_fusion_hypothesis.py`, 2026-07-01,
 nfcorpus, median-split by margin) **before** writing any server code, and
 the hypothesis did not hold: hybrid fusion improved nDCG@10 in *both* the
 low-confidence bucket (0.1946 → 0.2847, +0.09) *and* the high-confidence
 bucket (0.2746 → 0.3267, +0.05) with the current embedder. There is no
-per-query signal here to gate on — the real, validated factor is the
+per-query signal here to gate on, the real, validated factor is the
 *embedder's overall strength* (point 2), not per-query ambiguity. Do not
 build a confidence-gated fusion mechanism on this premise; it would add
 real complexity for no measured benefit. If a stronger embedder is adopted
 later, this same test should be re-run with that embedder before deciding
-whether hybrid should be disabled outright versus kept adaptive — the two
+whether hybrid should be disabled outright versus kept adaptive, the two
 outcomes are indistinguishable without re-testing.
 
 ### Rejected idea: embedding-space pseudo-relevance feedback (PRF)
@@ -242,7 +242,7 @@ This is now the **third** independent technique (after hybrid BM25 fusion
 and cross-encoder reranking) that shows the exact same pattern: it helps
 when the baseline dense signal is weak and hurts when the baseline dense
 signal is already strong. That's a real, generalizable finding in its own
-right — any secondary/augmentation signal added on top of this embedder's
+right, any secondary/augmentation signal added on top of this embedder's
 dense search inherits this same trade-off. Not adopted as a default; the
 script is kept for reproducibility and to save whoever revisits this idea
 from re-discovering the same drift problem from scratch.
@@ -250,10 +250,10 @@ from re-discovering the same drift problem from scratch.
 ### Rejected idea: document-side hubness correction
 
 A fourth, structurally different novel idea (self-written, targets a
-different failure mode than the three above — a *document-side* ranking
+different failure mode than the three above, a *document-side* ranking
 bias rather than a query-side signal):
 `benchmarks/07_utilities/novel_algo_hubness_correction.py` (2026-07-01).
-High-dimensional embedding spaces can suffer from "hubness" — some
+High-dimensional embedding spaces can suffer from "hubness", some
 documents become disproportionately-frequent nearest neighbors across many
 unrelated queries, an intrinsic-dimensionality artifact rather than true
 relevance. Precomputed each document's mean similarity to a random sample
@@ -262,19 +262,19 @@ scores proportionally (`adjusted = cos(q,d) - lambda * hub_score(d)`),
 sweeping lambda from 0.1 to 4.0.
 
 Result: unlike the other three techniques, this one does **not** show a
-"helps weak / hurts strong baseline" pattern — it shows negligible effect
-at small, safe lambda values (nfcorpus -0.0015, scifact +0.0028 at best —
+"helps weak / hurts strong baseline" pattern, it shows negligible effect
+at small, safe lambda values (nfcorpus -0.0015, scifact +0.0028 at best):
 both within noise) and **catastrophic** degradation at larger lambda
 (scifact nDCG@10 0.4837 → 0.1196 at lambda=4, a near-total collapse, since
 a query-independent penalty this large overwhelms the actual
 query-document similarity signal entirely). Conclusion: hubness is not a
 meaningfully large effect at these corpus sizes (thousands of documents,
-not millions) with this embedder — this technique has no safe operating
+not millions) with this embedder, this technique has no safe operating
 point where it provides a real benefit. Not adopted.
 
 ### Rejected idea: anisotropy correction ("all-but-the-top")
 
-A fifth technique, structurally different again — corrects the embedding
+A fifth technique, structurally different again, corrects the embedding
 SPACE itself rather than blending a signal or penalizing scores:
 `benchmarks/07_utilities/novel_algo_anisotropy_correction.py` (2026-07-01).
 Sentence embeddings are known to be anisotropic (a few dominant principal
@@ -290,7 +290,7 @@ monotonically, on both datasets as D increases (nfcorpus never beats
 baseline at any D; scifact degrades from +0.0049 at D=0 down to -0.0700 at
 D=20). One notable side-observation: mean-centering ALONE (D=0, no
 directions removed) has a small positive effect on scifact (+0.0049) but a
-negative effect on nfcorpus (-0.0131) — yet another instance of the same
+negative effect on nfcorpus (-0.0131), yet another instance of the same
 dataset-dependent split seen in every technique tested so far. Not
 adopted; the underlying anisotropy hypothesis does not hold up as
 implemented here.
@@ -300,7 +300,7 @@ implemented here.
 BM25 hybrid fusion, cross-encoder reranking, embedding-space PRF,
 document-side hubness correction, and embedding-space anisotropy
 correction were all tested rigorously against real BEIR data with real,
-standard metrics — none of them provide a reliable, corpus-independent
+standard metrics, none of them provide a reliable, corpus-independent
 improvement over plain single-pass dense search with a good embedder. Three
 of the five (BM25 fusion, CE rerank, PRF) share an identical qualitative
 pattern: help when the baseline dense signal is weak, hurt when it's
@@ -310,7 +310,7 @@ redeeming operating point. The one validated, generalizable lever for
 MATHIR's retrieval quality remains the embedding model choice itself (see
 the table above). Further architecture changes to the *search/ranking*
 mechanism are not where the effort should go without a genuinely new idea
-that breaks this pattern — this is a documented, evidence-based stopping
+that breaks this pattern, this is a documented, evidence-based stopping
 point, not an assumption.
 
 ## How to Change Model (Step by Step)
@@ -477,7 +477,7 @@ python -m mathir_mcp
 
 Embedding dimensions define the vector size representing each text chunk. Higher dimensions capture more nuance but cost more in speed, storage, and RAM.
 
-**MATHIR default: 384d** — best balance of quality, speed, and memory usage.
+**MATHIR default: 384d**, best balance of quality, speed, and memory usage.
 
 | Dimensions | Example Model | Vector Size (bytes) | SQLite Index (1K memories) |
 |-----------|---------------|---------------------|---------------------------|
@@ -530,7 +530,7 @@ Storage:  384d ██░░░░░░░░░░░ 15%
 
 ## Matryoshka Embedding
 
-Some models (nomic, bge) support **Matryoshka representation learning (MRL)** — you can truncate embeddings without re-embedding:
+Some models (nomic, bge) support **Matryoshka representation learning (MRL)**, you can truncate embeddings without re-embedding:
 
 ```python
 # bge-large outputs 1024d, but you can use first 768d or 384d
@@ -566,7 +566,7 @@ MATHIR auto-detects dimension mismatches:
 4. Rebuilds vec0 with correct dimensions
 5. All memories preserved (content + metadata intact)
 
-**Warning**: vec0 rebuild can take minutes for large databases. Existing memories are not lost — only the vector index is recreated.
+**Warning**: vec0 rebuild can take minutes for large databases. Existing memories are not lost, only the vector index is recreated.
 
 ```python
 # Auto-detection in mathir_server.py
@@ -589,33 +589,33 @@ if existing_dim and existing_dim[0] != model_dim:
 
 ## Model Benchmarks
 
-*(merged from MODEL_COMPARISON.md — v8.3+)*
+*(merged from MODEL_COMPARISON.md, v8.3+)*
 
 ### Benchmark Table
 
 | Model | Dims | Size | CPU Save | CPU Recall | GPU Save | GPU Recall | MTEB Avg | License |
 |-------|------|------|----------|-----------|----------|------------|----------|---------|
 | paraphrase-multilingual-MiniLM-L12-v2 | 384 | 471 MB / 239 MB fp16 | ~104ms/sent | ~140ms | ~104ms/sent | ~140ms | ~49.7 (Eng) / 49.4 (Multi) | Apache-2.0 |
-| MiniLM-L6-v2 | 384 | 80 MB | 22ms | 53ms | — | — | 56.26 | Apache-2.0 |
+| MiniLM-L6-v2 | 384 | 80 MB | 22ms | 53ms |: |: | 56.26 | Apache-2.0 |
 | nomic-embed-text-v1.5 | 768 | 137 MB | 21ms | 27ms | ~12ms | ~10ms | 62.38 | Apache-2.0 |
 | bge-large-en-v1.5 | 1024 | 335 MB | 43ms | 25ms | **3ms** | **3ms** | 64.23 | MIT |
 | e5-large-v2 | 1024 | 1.3 GB | 68ms | 45ms | ~18ms | ~15ms | 63.13 | MIT |
-| Octen-MiniLM-L6-INT8 | 384 | 22 MB | 8ms | 18ms | — | — | ~55 | Apache-2.0 |
-| Qwen2.5-7B-emb | 3584 | 4.7 GB | — | — | ~30ms | ~25ms | 71.5 | Apache-2.0 |
+| Octen-MiniLM-L6-INT8 | 384 | 22 MB | 8ms | 18ms |: |: | ~55 | Apache-2.0 |
+| Qwen2.5-7B-emb | 3584 | 4.7 GB |: |: | ~30ms | ~25ms | 71.5 | Apache-2.0 |
 
 > GPU times: RTX 4060 Laptop GPU, CUDA 12.4, torch 2.6.0+cu124.
 > CPU times: mid-range CPU (Ryzen 7 / i7-12700).
 
 ### Model Profiles
 
-#### intfloat/multilingual-e5-small (384d) — MATHIR DEFAULT (since 2026-07-02)
+#### intfloat/multilingual-e5-small (384d): MATHIR DEFAULT (since 2026-07-02)
 - **Best for**: Multilingual projects, retrieval-quality-sensitive use cases
 - **Pros**: Retrieval-trained (query:/passage: asymmetric prefixes, applied automatically by MATHIR), same size/architecture as the previous default (117.7M params, 471MB CPU / 239MB fp16 GPU) -- switching cost is ~12% slower single-query latency, NOT 5x as an earlier (incorrect, unverified) estimate claimed. Measured +2.5x retrieval quality on HotpotQA multi-hop (both_gold@2: 15.0%->37.0%).
 - **Cons**: Requires the query:/passage: prefix convention (handled internally by MATHIR's get_model_prefixes(); matters only if calling the model directly outside MATHIR)
 - **Install**: pip install sentence-transformers
 - **GPU**: CUDA fp16 via SentenceTransformer (falls back to CPU automatically on load/encode failure)
 
-#### paraphrase-multilingual-MiniLM-L12-v2 (384d) — PREVIOUS MATHIR DEFAULT (pre-2026-07-02)
+#### paraphrase-multilingual-MiniLM-L12-v2 (384d): PREVIOUS MATHIR DEFAULT (pre-2026-07-02)
 - **Best for**: Multilingual projects (FR/EN/DE/ES/JA/ZH), low VRAM
 - **Pros**: 50+ languages, Apache-2.0, 43.8M downloads, 471MB CPU / 239MB fp16 GPU
 - **Cons**: Paraphrase/STS-trained, not retrieval-trained -- measurably weaker on retrieval tasks than e5-small at the same cost. Lower MTEB English (~49.7 vs bge-large 64.2), 128 token max (chunking needed)

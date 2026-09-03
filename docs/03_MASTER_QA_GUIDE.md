@@ -1,4 +1,4 @@
-# MATHIR — Master Q&A Guide
+# MATHIR: Master Q&A Guide
 
 **Complete Question & Answer Reference for Master's Defense**
 
@@ -34,7 +34,7 @@
 **A:** MATHIR (Memory-Augmented Tensor Hybrid with Intelligent Routing) is a **plug-and-play hierarchical memory layer** that gives any LLM the ability to learn, remember, and adapt in real-time on edge hardware.
 
 ### Q1.2: What problem does MATHIR solve?
-**A:** LLMs are **amnesiac** — they forget everything between sessions, can't learn from experience, and can't detect anomalies. Existing solutions (vector databases, RAG, long context) all **store** information but **don't learn** from it. MATHIR maintains five adaptive memory tiers plus a push-based guardrail tier that evolves in real-time.
+**A:** LLMs are **amnesiac**: they forget everything between sessions, can't learn from experience, and can't detect anomalies. Existing solutions (vector databases, RAG, long context) all **store** information but **don't learn** from it. MATHIR maintains five adaptive memory tiers plus a push-based guardrail tier that evolves in real-time.
 
 ### Q1.3: What is the difference between MATHIR and a vector database?
 **A:**
@@ -76,7 +76,7 @@
 | **Architecture** | Structural design + algorithms | Transformer, Mamba, MATHIR |
 | **Framework** | Code that implements an architecture | HuggingFace, PyTorch |
 
-MATHIR is the **Architecture + Framework** — like "Transformer + HuggingFace" rolled into one. It is NOT a model.
+MATHIR is the **Architecture + Framework**, like "Transformer + HuggingFace" rolled into one. It is NOT a model.
 
 ### Q2.3: How many parameters does MATHIR have?
 **A:** It depends on instantiation:
@@ -87,10 +87,10 @@ MATHIR is the **Architecture + Framework** — like "Transformer + HuggingFace" 
 **The key point**: parameters are configurable based on the use case, not fixed.
 
 ### Q2.4: Does MATHIR have pre-trained weights?
-**A:** **NO.** All weights are initialized at instantiation. MATHIR's "training" is **online learning** during use — the weights evolve as the system processes new experiences.
+**A:** **NO.** All weights are initialized at instantiation. MATHIR's "training" is **online learning** during use, the weights evolve as the system processes new experiences.
 
 ### Q2.5: Can I download a "pretrained MATHIR"?
-**A:** **NO** — and that's by design. The whole point of MATHIR is that it learns **your** specific patterns, not generic ones. You instantiate it, run it, and it adapts to **your** workload.
+**A:** **NO**, and that's by design. The whole point of MATHIR is that it learns **your** specific patterns, not generic ones. You instantiate it, run it, and it adapts to **your** workload.
 
 ### Q2.6: Is MATHIR competing with GPT-4 / Claude / LLaMA?
 **A:** **NO.** MATHIR **augments** these models, it doesn't compete with them. It's the **hippocampus** to their **neocortex**.
@@ -130,10 +130,10 @@ MATHIR is the **Architecture + Framework** — like "Transformer + HuggingFace" 
 - Backward compatible with V6
 
 ### Q3.3: Can I use V6 code with V7?
-**A:** **YES** — V7 is 100% backward compatible. `MATHIRPluginV7(4096)` with no V7 features enabled behaves identically to `MATHIRPlugin(4096)`.
+**A:** **YES**, V7 is 100% backward compatible. `MATHIRPluginV7(4096)` with no V7 features enabled behaves identically to `MATHIRPlugin(4096)`.
 
 ### Q3.4: What about V1-V5? Should I use them?
-**A:** **NO** — V1-V5 are **legacy**. They are driving-specific agents (CNN encoders for camera input). For LLM/RL applications, use V6+.
+**A:** **NO**, V1-V5 are **legacy**. They are driving-specific agents (CNN encoders for camera input). For LLM/RL applications, use V6+.
 
 ---
 
@@ -150,7 +150,7 @@ MATHIR is the **Architecture + Framework** — like "Transformer + HuggingFace" 
 | **immunological** | 100 slots | Anomaly detection via Mahalanobis distance | On event |
 | **guardrail** | 50/project | Critical rules, always auto-injected | Manual (`memory_save` with `block_type=guardrail`), immune to decay |
 
-The first five are the original V6/V7 architecture. **guardrail** was added in v8.9.0 as a 6th tier — see Q4.2a for why it's architecturally different from the other five.
+The first five are the original V6/V7 architecture. **guardrail** was added in v8.9.0 as a 6th tier: see Q4.2a for why it's architecturally different from the other five.
 
 ### Q4.2: Why is this inspired by the brain?
 **A:** The original 5 tiers mirror the **Complementary Learning Systems (CLS)** theory of McClelland, McNaughton, and O'Reilly (1995):
@@ -161,13 +161,13 @@ The first five are the original V6/V7 architecture. **guardrail** was added in v
 - immunological ↔ Amygdala (threat detection)
 
 ### Q4.2a: Where does guardrail fit in the CLS mapping?
-**A:** It doesn't, deliberately. guardrail isn't a natural-memory analogue like the other five — it's an engineering addition for a problem CLS theory doesn't address: rules that must be seen every time, not rules that compete for recall. The closest loose analogy is a reflex arc (bypasses deliberation entirely) rather than any of the five learning/consolidation systems above; treat that as an intuition pump, not a formal claim. See Q4.3 for how this changes the routing story.
+**A:** It doesn't, deliberately. guardrail isn't a natural-memory analogue like the other five; it's an engineering addition for a problem CLS theory doesn't address: rules that must be seen every time, not rules that compete for recall. The closest loose analogy is a reflex arc that bypasses deliberation, not any of the five learning/consolidation systems above. Treat that as an intuition pump, not a formal claim. See Q4.3 for how this changes the routing story.
 
 ### Q4.3: How does the router decide which tier to use?
-**A:** A **KL-constrained softmax** over the 5 adaptive tiers (working_memory, episodic, semantic, procedural, immunological) — a trust-region penalty prevents collapse to a single tier. **guardrail bypasses the router entirely**: it's push-based, not selected — every active guardrail for the project is injected into `/api/context` / `memory_context` on every call, unconditionally, before any router-selected memories.
+**A:** A **KL-constrained softmax** covers the 5 adaptive tiers (working_memory, episodic, semantic, procedural, immunological). A trust-region penalty prevents collapse to a single tier. **guardrail bypasses the router entirely**: it is push-based, not selected; every active guardrail for the project is injected into `/api/context` / `memory_context` on every call, unconditionally, before any router-selected memories.
 
 ### Q4.4: Can I customize the capacities?
-**A:** **YES** — all capacities are config-driven:
+**A:** **YES**, all capacities are config-driven:
 ```yaml
 memory:
   working_capacity: 64
@@ -190,7 +190,7 @@ memory:
 6. **Theorem 6 (mHC Geometry)**: Linear-rate Sinkhorn-Knopp convergence
 
 ### Q5.2: Why is the Neyman-Pearson theorem important?
-**A:** Theorem 4 proves that MATHIR's Mahalanobis anomaly detector is **mathematically optimal** — no other detector (Euclidean, cosine, learned) can achieve a higher true-positive rate at the same false-positive rate, for Gaussian-distributed normal data.
+**A:** Theorem 4 proves that MATHIR's Mahalanobis anomaly detector is **mathematically optimal**, no other detector (Euclidean, cosine, learned) can achieve a higher true-positive rate at the same false-positive rate, for Gaussian-distributed normal data.
 
 ### Q5.3: What does the Johnson-Lindenstrauss lemma have to do with MATHIR?
 **A:** This is the key insight that drove the v8.5 retrieval research. The 64-dim projection violated the JL bound (need ~132 dims for n=200, ε=0.3), causing 12-14pp quality loss. The fix: use raw 384-dim embeddings.
@@ -236,8 +236,8 @@ memory:
 
 ### Q7.3: Which one is the winner?
 **A:** It depends on the use case:
-- **Best balance**: A (Raw) — matches FAISS quality at 657 QPS
-- **Best quality**: D (Hybrid) — 45.7%, beats FAISS by +14.1pp
+- **Best balance**: A (Raw): matches FAISS quality at 657 QPS
+- **Best quality**: D (Hybrid): 45.7%, beats FAISS by +14.1pp
 - **Production recommendation**: Cascade A→D
 
 ### Q7.4: How does D's hybrid retrieval work?
@@ -258,7 +258,7 @@ Each source captures orthogonal information (semantic, lexical, interactive), so
 ## 8. Latency Optimizations (v8.5) {#8-latency}
 
 ### Q8.1: What was the latency problem?
-**A:** Approach D's hybrid retrieval took **494ms per query** — too slow for real-time applications. The cross-encoder alone took ~480ms.
+**A:** Approach D's hybrid retrieval took **494ms per query**, too slow for real-time applications. The cross-encoder alone took ~480ms.
 
 ### Q8.2: How did v8.5 fix the latency?
 **A:** With a **cross-encoder result cache** (LRU on `(query, doc)` pairs):
@@ -310,12 +310,12 @@ But for **most workloads**, the cache alone is sufficient and simpler.
 
 ### Q8.9: Why does the cache work without hurting quality?
 **A:** Each layer exploits a different property:
-- **L1**: Embedding is **deterministic** — same text always produces the same vector. Memoization is lossless.
+- **L1**: Embedding is **deterministic**: same text always produces the same vector. Memoization is lossless.
 - **L2**: Recall results are valid until the corpus changes. TTL + write-invalidation balances freshness vs speed (same pattern as HTTP cache-control with must-revalidate on mutation).
-- **L3**: Agent working sets are small and stable — an agent's hot memories are a subset of the corpus that changes slowly. Pre-warming avoids cold starts (Denning 1968 working-set model).
+- **L3**: Agent working sets are small and stable: an agent's hot memories are a subset of the corpus that changes slowly. Pre-warming avoids cold starts (Denning 1968 working-set model).
 
 ### Q8.10: Is the cache shared between Claude, MiMo, and OpenCode?
-**A:** **YES.** All 3 tools connect to the same daemon on port 7338. L2 (recall cache) is shared — if Claude does a recall, MiMo doing the same query gets a cache hit. L3 is per-project, so different projects don't pollute each other.
+**A:** **YES.** All 3 tools connect to the same daemon on port 7338. L2 (recall cache) is shared, if Claude does a recall, MiMo doing the same query gets a cache hit. L3 is per-project, so different projects don't pollute each other.
 
 ### Q8.11: How do I monitor cache performance?
 **A:** `GET /api/cache/stats` returns hits, misses, hit ratio, and invalidation counts for all 3 layers. The `memory_recall` response also includes a `"cache": "hit"` or `"cache": "miss"` field for observability.
@@ -325,13 +325,13 @@ But for **most workloads**, the cache alone is sufficient and simpler.
 ## 8b. INT8 Quantization (v8.6.0) {#8b-int8}
 
 ### Q8b.1: What is INT8 quantization in MATHIR?
-**A:** Scalar quantization that compresses float32 embeddings to int8 — **4x compression** with zero recall loss. Implemented in `mathir_vec.py` via `_quantize_int8()` and `_dequantize_int8()`.
+**A:** Scalar quantization that compresses float32 embeddings to int8, **4x compression** with zero recall loss. Implemented in `mathir_vec.py` via `_quantize_int8()` and `_dequantize_int8()`.
 
 ### Q8b.2: Does INT8 hurt retrieval quality?
 **A:** **NO.** Scalar quantization is lossless for cosine similarity ranking when the original embeddings are normalized. The relative ordering of distances is preserved. This is the key advantage over product quantization (PQ) which introduces approximation error.
 
 ### Q8b.3: When should I use INT8?
-**A:** When memory footprint matters (edge deployment, large corpora). The 4x compression means 1M memories go from ~6MB to ~1.5MB. The daemon applies INT8 automatically when storing embeddings — no configuration needed.
+**A:** When memory footprint matters (edge deployment, large corpora). The 4x compression means 1M memories go from ~6MB to ~1.5MB. The daemon applies INT8 automatically when storing embeddings, no configuration needed.
 
 ---
 
@@ -344,10 +344,10 @@ But for **most workloads**, the cache alone is sufficient and simpler.
 **A:** **+20 percentage points** on the Fluid Mechanics benchmark (25.7% → 45.7%). The cross-encoder captures interactive relevance that cosine similarity misses.
 
 ### Q8c.3: What's the latency cost?
-**A:** ~480ms for 30 candidates (single-threaded, CPU). This is why the v8.5 result cache is critical — on warm paths, the CE score is served from LRU cache in <1ms.
+**A:** ~480ms for 30 candidates (single-threaded, CPU). This is why the v8.5 result cache is critical, on warm paths, the CE score is served from LRU cache in <1ms.
 
 ### Q8c.4: Is cross-encoder reranking always enabled?
-**A:** **NO** — it's opt-in. Use `memory_recall` with `rerank=True` or configure the daemon with `MATHIR_RERANK=true`. The default hybrid search uses vector + BM25 + RRF without CE for speed.
+**A:** **NO**, it's opt-in. Use `memory_recall` with `rerank=True` or configure the daemon with `MATHIR_RERANK=true`. The default hybrid search uses vector + BM25 + RRF without CE for speed.
 
 ---
 
@@ -355,7 +355,7 @@ But for **most workloads**, the cache alone is sufficient and simpler.
 
 ### Q9.0: What is the HybridSearch architecture?
 
-**A:** MATHIR V8.4.1 introduces `HybridSearch` — an auto-selecting backend that picks the optimal vector index based on collection size. The flow:
+**A:** MATHIR V8.4.1 introduces `HybridSearch`, an auto-selecting backend that picks the optimal vector index based on collection size. The flow:
 
 ```
 User Query
@@ -368,7 +368,7 @@ HybridSearch Auto-Select
     └─ SQLite: ALWAYS stores metadata (tags, timestamps, agent info)
 ```
 
-**Why auto-select?** Numpy is faster at small scales (0.78ms vs 1.37ms) with better recall. USearch wins at scale via O(log N) HNSW traversal. The crossover happens at ~5K vectors — below that, brute-force is both faster and more accurate.
+**Why auto-select?** Numpy is faster at small scales (0.78ms vs 1.37ms) with better recall. USearch wins at scale via O(log N) HNSW traversal. The crossover happens at ~5K vectors, below that, brute-force is both faster and more accurate.
 
 ### Q9.0a: What are the BEIR benchmark results?
 
@@ -379,10 +379,10 @@ HybridSearch Auto-Select
 | **USearch** | 1.37ms | 0.8376 | N>=5K (auto-switch) |
 | **sqlite-vec** | 23.68ms | 0.8592 | Never for vectors |
 
-sqlite-vec is 30× slower than numpy for vector search — use it only for metadata queries, never for embeddings.
+sqlite-vec is 30× slower than numpy for vector search, use it only for metadata queries, never for embeddings.
 
 ### Q9.1: How does raw retrieval speed/quality compare to plain FAISS?
-**A:** Internal stress test (White's Fluid Mechanics, 200 chunks, 50 queries), reported honestly — real BEIR benchmarks (SciFact/ArguAna/NFCorpus, see `benchmarks/06_results/current/`) currently show plain FAISS dense retrieval *outperforming* MATHIR's hybrid pipeline, so treat the numbers below as a single-corpus internal result, not a general claim:
+**A:** Internal stress test (White's Fluid Mechanics, 200 chunks, 50 queries), reported honestly, real BEIR benchmarks (SciFact/ArguAna/NFCorpus, see `benchmarks/06_results/current/`) currently show plain FAISS dense retrieval *outperforming* MATHIR's hybrid pipeline, so treat the numbers below as a single-corpus internal result, not a general claim:
 | System | Quality | QPS (warm) | Latency (warm) |
 |--------|---------|------------|----------------|
 | FAISS | 31.6% | 20,392 | 0.05ms |
@@ -390,10 +390,10 @@ sqlite-vec is 30× slower than numpy for vector search — use it only for metad
 | **MATHIR D + Cache (warm)** | **45.7%** | **5+** | **3-220ms** |
 
 ### Q9.2: What does MATHIR add that a plain vector index doesn't attempt?
-**A:** A vector index (FAISS, Qdrant, Chroma) is a static similarity search — no tiering, no decay, no anomaly signal, no cross-process sharing. MATHIR adds those as first-class, self-maintaining behavior: online prototype updates, Mahalanobis anomaly scoring, Ebbinghaus decay/promotion, and multi-agent shared memory (God Mode). This is a different problem than "faster/better top-k," which is why a raw quality comparison against FAISS (Q9.1) isn't the right lens.
+**A:** A vector index (FAISS, Qdrant, Chroma) is a static similarity search, no tiering, no decay, no anomaly signal, no cross-process sharing. MATHIR adds those as first-class, self-maintaining behavior: online prototype updates, Mahalanobis anomaly scoring, Ebbinghaus decay/promotion, and multi-agent shared memory (God Mode). This is a different problem than "faster/better top-k," which is why a raw quality comparison against FAISS (Q9.1) isn't the right lens.
 
 ### Q9.3: Is MATHIR meant to replace a vector database?
-**A:** No — for large static corpora with a sub-10ms SLA, a vector index alone is the right tool, and a common pattern is FAISS as a fast L1 filter feeding MATHIR as an L2 layer for reranking, learning, and anomaly detection:
+**A:** No, for large static corpora with a sub-10ms SLA, a vector index alone is the right tool, and a common pattern is FAISS as a fast L1 filter feeding MATHIR as an L2 layer for reranking, learning, and anomaly detection:
 ```
 User Query
     ↓
@@ -412,7 +412,7 @@ LLM
 4. **Spaced repetition** (Ebbinghaus)
 5. **9.3× compression** (internal memory footprint)
 6. **Multi-modal** (text + image, via separate encoders)
-7. **Multi-agent, cross-process, local-first sharing** (God Mode — not present in typical vector-DB setups)
+7. **Multi-agent, cross-process, local-first sharing** (God Mode, not present in typical vector-DB setups)
 
 ---
 
@@ -453,16 +453,16 @@ User message → Embedding → MATHIR (6 tiers) → Enhanced context → LLM →
 - **Total: 2001-2220ms** (acceptable for chat)
 
 ### Q10.5: Does MATHIR work with any LLM?
-**A:** **YES** — OpenAI, Ollama, HuggingFace, Cohere, Gemini, Claude (via separate encoder), and custom models. See `docs/DEV_INTEGRATION_GUIDE.md`.
+**A:** **YES**, OpenAI, Ollama, HuggingFace, Cohere, Gemini, Claude (via separate encoder), and custom models. See `docs/DEV_INTEGRATION_GUIDE.md`.
 
 ---
 
 ## 11. Autonomous Driving Use Case {#11-driving}
 
-**This section has moved.** The autonomous-driving research direction — including the sensor-dropout/place-memory hypothesis, its relationship to the sensor-fusion-robustness literature (Grace-BEV, MetaBEV, UniBEV), the latency argument, and honest limits — now lives in **[docs/MATHIR_FOR_ROBOTICS.md](MATHIR_FOR_ROBOTICS.md)**. What remains true and worth keeping here: MATHIR never replaces perception (camera/LiDAR/VLM) or the low-level controller (PID/MPC) — it is a memory layer that sits between perception and decision, informing high-level choices, not executing the control loop itself.
+**This section has moved.** The autonomous-driving research direction, including the sensor-dropout/place-memory hypothesis, its relationship to the sensor-fusion-robustness literature (Grace-BEV, MetaBEV, UniBEV), the latency argument, and honest limits, now lives in **[docs/MATHIR_FOR_ROBOTICS.md](MATHIR_FOR_ROBOTICS.md)**. What remains true and worth keeping here: MATHIR never replaces perception (camera/LiDAR/VLM) or the low-level controller (PID/MPC), it is a memory layer that sits between perception and decision, informing high-level choices, not executing the control loop itself.
 
 ### Q11.5: Can MATHIR run on Jetson/Raspberry Pi?
-**A:** **YES** — V7's 9.3× compression puts the internal memory footprint at ~60KB. On Jetson, use bge-large (1024d) with GPU support; on Raspberry Pi, fall back to MiniLM (384d) on CPU. With cache, latency is 3-220ms on CPU, fast enough for edge. Note: this has been validated on consumer hardware, not automotive-grade embedded hardware — see limits in MATHIR_FOR_ROBOTICS.md.
+**A:** **YES**, V7's 9.3× compression puts the internal memory footprint at ~60KB. On Jetson, use bge-large (1024d) with GPU support; on Raspberry Pi, fall back to MiniLM (384d) on CPU. With cache, latency is 3-220ms on CPU, fast enough for edge. Note: this has been validated on consumer hardware, not automotive-grade embedded hardware, see limits in MATHIR_FOR_ROBOTICS.md.
 
 ### Q11.6: What are the deployment options?
 **A:** Three tiers, each optimized for different hardware:
@@ -479,7 +479,7 @@ The system auto-downgrades: GPU → CPU → Edge based on available hardware. `H
 ## 12. LLM Integration {#12-llm}
 
 ### Q12.1: How do I integrate MATHIR with OpenAI?
-**A:** *(v8.5.0 — OpenAI is no longer a mathir_lib.providers plugin. Use the OpenAI Python SDK directly, then store embeddings via the daemon client.)*
+**A:** *(v8.5.0, OpenAI is no longer a mathir_lib.providers plugin. Use the OpenAI Python SDK directly, then store embeddings via the daemon client.)*
 ```python
 import openai
 from mathir_lib.mathir_client import call as mathir_call
@@ -510,7 +510,7 @@ response = openai.chat.completions.create(
 ```
 
 ### Q12.2: How do I integrate with Ollama (local)?
-**A:** *(v8.5.0 — Ollama is now just another sentence-transformers-compatible embedder; the daemon auto-detects GPU/CPU and uses the configured model from `MATHIR_EMBEDDING_MODEL`.)*
+**A:** *(v8.5.0, Ollama is now just another sentence-transformers-compatible embedder; the daemon auto-detects GPU/CPU and uses the configured model from `MATHIR_EMBEDDING_MODEL`.)*
 ```python
 # Set env vars before launching the daemon:
 #   export MATHIR_EMBEDDING_MODEL=ollama:nomic-embed-text
@@ -539,7 +539,7 @@ MATHIRPluginV7(embedding_dim=4096)  # LLaMA-3
 ```
 
 ### Q12.5: See the full integration guide
-**A:** `docs/DEV_INTEGRATION_GUIDE.md` — 5,200 words, covers all providers.
+**A:** `docs/DEV_INTEGRATION_GUIDE.md`, 5,200 words, covers all providers.
 
 ---
 
@@ -579,13 +579,13 @@ MATHIRPluginV7(embedding_dim=4096)  # LLaMA-3
 
 ### Q14.1: How is the project organized?
 **A:** See `MASTER_PROJECT_INDEX.md`. Briefly:
-- `mathir_lib/` — modern V6/V7 code
-- `mathir_lib/memory/` — 15 memory modules
-- `mathir_lib/legacy/` — V1-V5 (archived)
-- `legacy_v1_v3/` — V1-V3 root scripts (archived)
-- `tests/` — 8 test files, 130+ pass
-- `benchmarks/` — 7+ stress test scripts
-- `docs/` — 26 markdown files
+- `mathir_lib/`: modern V6/V7 code
+- `mathir_lib/memory/`: 15 memory modules
+- `mathir_lib/legacy/`: V1-V5 (archived)
+- `legacy_v1_v3/`: V1-V3 root scripts (archived)
+- `tests/`: 8 test files, 130+ pass
+- `benchmarks/`: 7+ stress test scripts
+- `docs/`: 26 markdown files
 
 ### Q14.2: How many tests?
 **A:** **98 tests** in the daemon suite (v8.9.0), plus 271 tests in the legacy suite:
@@ -611,11 +611,11 @@ pytest tests/ -q                     # all
 
 ### Q14.4: Where are the benchmarks?
 **A:** `benchmarks/` directory:
-- `compare_all_approaches.py` — 5-system master comparison
-- `approach_d_vs_faiss.py` — focused D vs FAISS
-- `real_stress_test.py` — 200-query mixed workload
-- `stress_cache_warm.py` — 4 scenarios
-- `streamlit_app.py` — interactive dashboard
+- `compare_all_approaches.py`: 5-system master comparison
+- `approach_d_vs_faiss.py`: focused D vs FAISS
+- `real_stress_test.py`: 200-query mixed workload
+- `stress_cache_warm.py`: 4 scenarios
+- `streamlit_app.py`: interactive dashboard
 
 ### Q14.5: How do I run the Streamlit dashboard?
 **A:**
@@ -634,7 +634,7 @@ streamlit run benchmarks/streamlit_app.py
 2. **Memory overhead**: 2.5MB for hybrid with CE (cross-encoder model size)
 3. **Sub-Gaussian assumption**: Theorem 4 assumes Gaussian normal data
 4. **No fine-tuning**: Pre-trained embedding models are frozen
-5. **Cache TTL staleness**: L2 (60s) and L3 (5min) can serve slightly stale results between writes — acceptable for most workloads, tunable via env vars
+5. **Cache TTL staleness**: L2 (60s) and L3 (5min) can serve slightly stale results between writes, acceptable for most workloads, tunable via env vars
 
 ### Q15.2: What's planned for V8?
 **A:** The two-stage cascade architecture (FAISS + MATHIR D) is the immediate next step. Also:
@@ -644,7 +644,7 @@ streamlit run benchmarks/streamlit_app.py
 - Multi-tenant memory isolation
 
 ### Q15.3: What's the long-term vision?
-**A:** MATHIR becomes the **standard memory layer for LLMs in production** — like Redis for caching or PostgreSQL for databases. Every agent framework (LangChain, LlamaIndex, AutoGen) integrates MATHIR.
+**A:** MATHIR becomes the **standard memory layer for LLMs in production**, like Redis for caching or PostgreSQL for databases. Every agent framework (LangChain, LlamaIndex, AutoGen) integrates MATHIR.
 
 ---
 
@@ -657,7 +657,7 @@ streamlit run benchmarks/streamlit_app.py
 - Detect novel situations
 - Operate autonomously for long periods
 
-MATHIR solves this with online learning + anomaly detection + hierarchical memory — three things vector databases cannot do.
+MATHIR solves this with online learning + anomaly detection + hierarchical memory, three things vector databases cannot do.
 
 ### Q16.2: "How is this different from RAG?"
 **A:**
@@ -676,7 +676,7 @@ MATHIR solves this with online learning + anomaly detection + hierarchical memor
 3. **First closed-form** analysis of the Johnson-Lindenstrauss bottleneck in retrieval
 
 ### Q16.4: "What if the embedding model changes?"
-**A:** Re-instantiate `MATHIRPluginV7(new_dim)`. The internal projection layer adapts. If you want to preserve online-learned weights, save them before re-instantiation (not yet supported — future work).
+**A:** Re-instantiate `MATHIRPluginV7(new_dim)`. The internal projection layer adapts. If you want to preserve online-learned weights, save them before re-instantiation (not yet supported, future work).
 
 ### Q16.5: "How do you know it works in production?"
 **A:** We validated with:
@@ -720,8 +720,8 @@ memories = plugin.recall(query, k=5)
 
 **That's it. 3 lines of code.** Full implementation in `mathir_lib/plugin_v7.py` (~250 lines).
 
-### Q16.10: "Final question — what's the take-home message?"
-**A:** **MATHIR is the first theoretically-grounded, plug-and-play memory layer that gives any LLM the ability to learn, remember, and adapt in real-time. It is not a model — it is an architecture. It is not just a vector database — it is a cognitive layer. And it works.**
+### Q16.10: "Final question: what's the take-home message?"
+**A:** **MATHIR is the first theoretically-grounded, plug-and-play memory layer that gives any LLM the ability to learn, remember, and adapt in real-time. It is not a model, it is an architecture. It is not just a vector database, it is a cognitive layer. And it works.**
 
 ---
 
@@ -735,9 +735,9 @@ memories = plugin.recall(query, k=5)
 
 | Tier | Mechanism | Agents | Guarantee |
 |---|---|---|---|
-| **A — Plugin auto-inject** | `mathir-auto-inject.ts` hooks `experimental.chat.system.transform` with a `chat.message` fallback | opencode, mimocode | TRUE auto-injection — agent doesn't need to remember to recall |
-| **B — Instructions + MCP** | MCP server + `GLOBAL_INSTRUCTIONS.md` injected into the agent's instructions path | claude-code, cursor, cline, zcode, codex, etc. (14 agents) | SOFT — agent must comply with the instruction to call `memory_session_start` |
-| **C — MCP only** | MCP server registered, no behavioral prompt | windsurf, gemini-cli, kilo-code, qwen-code, kiro-ide, warp, trae, crush, etc. (34 agents) | NONE — no behavioral prompt to trigger recall |
+| **A: Plugin auto-inject** | `mathir-auto-inject.ts` hooks `experimental.chat.system.transform` with a `chat.message` fallback | opencode, mimocode | TRUE auto-injection: agent doesn't need to remember to recall |
+| **B: Instructions + MCP** | MCP server + `GLOBAL_INSTRUCTIONS.md` injected into the agent's instructions path | claude-code, cursor, cline, zcode, codex, etc. (14 agents) | SOFT: agent must comply with the instruction to call `memory_session_start` |
+| **C: MCP only** | MCP server registered, no behavioral prompt | windsurf, gemini-cli, kilo-code, qwen-code, kiro-ide, warp, trae, crush, etc. (34 agents) | NONE: no behavioral prompt to trigger recall |
 
 **Out of 50 agents: 2 have true auto-injection, 14 have soft injection, 34 have MCP tools only.**
 
@@ -745,15 +745,15 @@ memories = plugin.recall(query, k=5)
 
 **A:** Two escape hatches (both shipped in v8.5.0/v8.5.1):
 
-**Escape hatch 1 — MATHIR proxy on port 7339 (`mathir_proxy.py`):**
+**Escape hatch 1, MATHIR proxy on port 7339 (`mathir_proxy.py`):**
 ```bash
 export ANTHROPIC_BASE_URL=http://127.0.0.1:7339        # Claude Code etc. -- no /v1
 export OPENAI_BASE_URL=http://127.0.0.1:7339/v1         # OpenAI-compatible tools -- /v1 required
 ```
-As of v8.9.8 the proxy speaks both Anthropic's native `/v1/messages` and OpenAI-compatible `/v1/chat/completions` (~30 allowlisted providers + any local model, see `docs/BRAIN_ARCHITECTURE.md`). It intercepts every call, queries the daemon at `/api/context`, and injects `<mathir-auto-injection>` into the request's system instructions — silently, on every supported call. Works for any agent that redirects its baseUrl (Claude Code, Cursor, Cline, Continue, Codex, Gemini, etc.).
+As of v8.9.8 the proxy speaks both Anthropic's native `/v1/messages` and OpenAI-compatible `/v1/chat/completions` (~30 allowlisted providers + any local model, see `docs/BRAIN_ARCHITECTURE.md`). It intercepts every call, queries the daemon at `/api/context`, and injects `<mathir-auto-injection>` into the request's system instructions, silently, on every supported call. Works for any agent that redirects its baseUrl (Claude Code, Cursor, Cline, Continue, Codex, Gemini, etc.).
 
-**Escape hatch 2 — `AGENTS.md` at repo root:**
-26+ agents (Aider, Amp, Claude Code, Codex, Cursor, Devin, Factory, Goose, JetBrains Junie, Jules, OpenCode, VS Code Copilot, Warp, Zed, etc. — see [agents.md](https://agents.md)) auto-read `AGENTS.md` at the project root. MATHIR ships a template at `mathir_mcp/opencode_templates/AGENTS.md` that instructs the agent to call `memory_session_start` on first turn + `memory_context` before each task. Copy it to your project:
+**Escape hatch 2, `AGENTS.md` at repo root:**
+26+ agents (Aider, Amp, Claude Code, Codex, Cursor, Devin, Factory, Goose, JetBrains Junie, Jules, OpenCode, VS Code Copilot, Warp, Zed, etc., see [agents.md](https://agents.md)) auto-read `AGENTS.md` at the project root. MATHIR ships a template at `mathir_mcp/opencode_templates/AGENTS.md` that instructs the agent to call `memory_session_start` on first turn + `memory_context` before each task. Copy it to your project:
 ```bash
 cp mathir_mcp/opencode_templates/AGENTS.md /path/to/your/project/AGENTS.md
 ```
@@ -796,7 +796,7 @@ This prevents a caller's working directory from creating a second database for t
 
 So the agent sees the warning on every interaction without having to read daemon logs. The user can then run `python -m mathir_mcp.mathir_lib.mathir_migrate --dry-run` to preview, then `--apply` to migrate (auto-backup to `.legacy.bak`).
 
-**Additive migrations** (new columns like `stability`, `last_recalled_at`) are auto-applied by `mathir_vec.py` at startup — no action needed.
+**Additive migrations** (new columns like `stability`, `last_recalled_at`) are auto-applied by `mathir_vec.py` at startup, no action needed.
 
 ### Q17.6: How many MCP tools does MATHIR have?
 
@@ -818,7 +818,7 @@ So the agent sees the warning on every interaction without having to read daemon
 | Best speed | FAISS 20,392 QPS |
 | Best balance | A (Raw) 657 QPS + 31.6% |
 | Latency fix | Cache (5-12× speedup) |
-| **3-layer cache** | **L1 embedding (18x) + L2 recall + L3 session — zero config** |
+| **3-layer cache** | **L1 embedding (18x) + L2 recall + L3 session: zero config** |
 | **INT8 quantization** | **4x compression, zero recall loss** |
 | **Cross-encoder reranking** | **+20pp quality (ms-marco-MiniLM-L-6-v2)** |
 | Compression | 9.3× (V7) |
@@ -831,4 +831,4 @@ So the agent sees the warning on every interaction without having to read daemon
 | **Vector backend** | **0.78ms numpy / 1.37ms USearch / 23.68ms sqlite-vec** |
 | **Deployment** | **GPU: bge-large 3ms / CPU: bge-large 30ms / Edge: MiniLM 1ms** |
 
-**MATHIR — The missing hippocampus of LLM agents.** 🧠
+**MATHIR, The missing hippocampus of LLM agents.** 🧠

@@ -1,4 +1,4 @@
-# MATHIR — Quick Start Guide (v8.9.8)
+# MATHIR: Quick Start Guide (v8.9.8)
 
 **Get MATHIR running in 3 minutes.**
 
@@ -46,7 +46,7 @@ Add to `~/.claude/settings.json`:
 ```
 
 ### OpenCode / MiMoCode
-The plugin is auto-configured. Just start the daemon — the auto-inject plugin picks it up.
+The plugin is auto-configured. Just start the daemon, the auto-inject plugin picks it up.
 
 ### Any other agent (Windsurf, Cursor, Cline, etc.)
 Add the MCP server to your agent's config. The command is `mathir-mcp`.
@@ -109,7 +109,7 @@ for mem in results["memories"]:
 
 ## 5b. Long-running polling (god bridge)
 
-For multi-agent orchestration, the MCP god tools (`mathir_god_agent`, `mathir_god_orchestre`) are designed for single-turn usage — they return immediately. For a **worker waiting across many turns** or an **orchestrator watching for results**, use the standalone `god_bridge.py`:
+For multi-agent orchestration, the MCP god tools (`mathir_god_agent`, `mathir_god_orchestre`) are designed for single-turn usage and return immediately. For a **worker waiting across many turns** or an **orchestrator watching for results**, use the standalone `god_bridge.py`.
 
 ```bash
 # Worker terminal (waits for tasks assigned to you)
@@ -169,7 +169,7 @@ The first request downloads the embedding model (~80MB). Subsequent requests are
 Make sure the daemon is running: `curl http://127.0.0.1:7338/health`
 
 ### Legacy training scripts (train.bat, dashboard.bat)
-These were part of MATHIR v1-v5 (autonomous driving research). The current system (v8.9.8) is a daemon-based MCP server — no training scripts needed.
+These were part of MATHIR v1-v5 (autonomous driving research). The current system (v8.9.8) is a daemon-based MCP server, no training scripts needed.
 
 ---
 

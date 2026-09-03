@@ -1,4 +1,4 @@
-# CUDA Setup — MATHIR Embeddings & GPU Acceleration
+# CUDA Setup: MATHIR Embeddings & GPU Acceleration
 
 ## Current Working Stack
 
@@ -84,7 +84,7 @@ model = SentenceTransformer("BAAI/bge-large-en-v1.5", backend="onnx")
 
 ### 1. INT8 ONNX Models Are Not GPU-Compatible
 
-INT8 quantized ONNX models (e.g., Octen INT8 variants) are **not compatible** with CUDAExecutionProvider. They silently fall back to CPU. There is no workaround — use full-precision models if you need GPU acceleration.
+INT8 quantized ONNX models (e.g., Octen INT8 variants) are **not compatible** with CUDAExecutionProvider. They silently fall back to CPU. There is no workaround, use full-precision models if you need GPU acceleration.
 
 ### 2. DirectML EP Reshape Errors
 

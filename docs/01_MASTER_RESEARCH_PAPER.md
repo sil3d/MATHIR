@@ -1,4 +1,4 @@
-# MATHIR V8.7.0: A Hierarchical Memory Layer for Long-Horizon Agents with Adaptive Retrieval — Closing the Johnson-Lindenstrauss Bottleneck
+# MATHIR V8.7.0: A Hierarchical Memory Layer for Long-Horizon Agents with Adaptive Retrieval: Closing the Johnson-Lindenstrauss Bottleneck
 
 ## A Master's Research Paper
 
@@ -12,7 +12,7 @@
 
 ## Abstract
 
-Modern large language models (LLMs) suffer from a fundamental architectural limitation: they are amnesiac. Each forward pass is independent, with no native mechanism for retaining information across calls [37], [38]. The dominant mitigations — vector databases, retrieval-augmented generation (RAG) [20], and long-context windows — store information but fail to learn from it. MATHIR (Memory-Augmented Tensor Hybrid with Intelligent Routing) is a plug-and-play hierarchical memory layer that maintains five tiers of memory (working, episodic, semantic, procedural, immunological) that learn online. The V7 release of MATHIR introduced eight new algorithms grounded in six formal theorems, achieving 9.3× compression and provable retention guarantees. However, an empirical evaluation on a real-world 885-page textbook (White's *Fluid Mechanics*) revealed a critical bottleneck: a 64-dimensional projection in the episodic memory caused a 12–14 percentage-point loss in retrieval quality compared to a raw 384-dimensional baseline. This paper documents the investigation of this bottleneck, the design of four candidate solutions (Raw Embedding Bypass, Multi-Encoder Ensemble, FAISS-Backed Index, and BM25+Dense+Cross-Encoder Hybrid), and the comprehensive benchmark that identified the optimal approach. The Hybrid approach (D) achieved 45.7% top-1 keyword overlap and 59.0% semantic match, beating both the V7 baseline (19.7%) and a production-grade FAISS vector database (31.6%), at the cost of higher query latency. We prove that the root cause is a Johnson-Lindenstrauss (JL) violation: the 64-dimensional projection is below the JL bound required to preserve pairwise distances for $n \ge 200$ documents. A two-stage cascade architecture is proposed for production deployment that balances the speed–quality trade-off. The findings demonstrate that architectural simplicity (raw embeddings) often matches sophisticated solutions, and that hybrid retrieval — combining lexical (BM25), dense (cosine), and interactive (cross-encoder) signals — provides the highest achievable quality. We supply six full formal proofs of the V7 theorems, a comprehensive nomenclature, a 50-entry reference list, and a reproducibility appendix with 173 tests. V8.7.0 introduces a 3-layer auto-cache (embedding LRU, recall TTL, session pre-warm) achieving 18× speedup on repeated queries, with write-through invalidation on all mutations.
+Modern large language models (LLMs) suffer from a fundamental architectural limitation: they are amnesiac. Each forward pass is independent, with no native mechanism for retaining information across calls [37], [38]. The dominant mitigations, vector databases, retrieval-augmented generation (RAG) [20], and long-context windows, store information but fail to learn from it. MATHIR (Memory-Augmented Tensor Hybrid with Intelligent Routing) is a plug-and-play hierarchical memory layer that maintains five tiers of memory (working, episodic, semantic, procedural, immunological) that learn online. The V7 release of MATHIR introduced eight new algorithms grounded in six formal theorems, achieving 9.3× compression and provable retention guarantees. However, an empirical evaluation on a real-world 885-page textbook (White's *Fluid Mechanics*) revealed a critical bottleneck: a 64-dimensional projection in the episodic memory caused a 12–14 percentage-point loss in retrieval quality compared to a raw 384-dimensional baseline. This paper documents the investigation of this bottleneck, the design of four candidate solutions (Raw Embedding Bypass, Multi-Encoder Ensemble, FAISS-Backed Index, and BM25+Dense+Cross-Encoder Hybrid), and the comprehensive benchmark that identified the optimal approach. The Hybrid approach (D) achieved 45.7% top-1 keyword overlap and 59.0% semantic match, beating both the V7 baseline (19.7%) and a production-grade FAISS vector database (31.6%), at the cost of higher query latency. We prove that the root cause is a Johnson-Lindenstrauss (JL) violation: the 64-dimensional projection is below the JL bound required to preserve pairwise distances for $n \ge 200$ documents. A two-stage cascade architecture is proposed for production deployment that balances the speed–quality trade-off. The findings demonstrate that architectural simplicity (raw embeddings) often matches sophisticated solutions, and that hybrid retrieval, combining lexical (BM25), dense (cosine), and interactive (cross-encoder) signals, provides the highest achievable quality. We supply six full formal proofs of the V7 theorems, a comprehensive nomenclature, a 50-entry reference list, and a reproducibility appendix with 173 tests. V8.7.0 introduces a 3-layer auto-cache (embedding LRU, recall TTL, session pre-warm) achieving 18× speedup on repeated queries, with write-through invalidation on all mutations.
 
 **Keywords:** memory-augmented agents, hierarchical memory, retrieval-augmented generation, vector databases, BM25, cross-encoder re-ranking, dimensionality reduction, Johnson-Lindenstrauss lemma, online learning, plug-and-play memory, Mahalanobis distance, Sinkhorn-Knopp projection, sparse coding, Ebbinghaus forgetting, stochastic mirror descent.
 
@@ -49,7 +49,7 @@ The following acronyms are used throughout this paper. Each is defined on first 
 | **mHC** | Manifold-Constrained Hyper-Connections | DeepSeek's 2025 framework for hyper-connection layers [26]. |
 | **MiniLM** | Mini Language Model | The 22M-parameter sentence-transformer used in our benchmarks [18]. |
 | **MATHIR** | Memory-Augmented Tensor Hybrid with Intelligent Routing | The system under study. |
-| **MAUVE** | Mauve — A measure of text generation quality | Not used here; included only to disambiguate. |
+| **MAUVE** | Mauve: A measure of text generation quality | Not used here; included only to disambiguate. |
 | **NCE** | Noise-Contrastive Estimation | The general technique that InfoNCE specializes [15]. |
 | **NDCG** | Normalized Discounted Cumulative Gain | A ranking-quality metric not used here, but cited in Related Work. |
 | **NP** | Neyman-Pearson | The 1933 lemma characterizing most powerful tests [6]. |
@@ -200,7 +200,7 @@ The amnesia problem has four practical consequences that affect every production
 
 The industry's response to this limitation has converged on three approaches, each with characteristic failures:
 
-- **Vector databases** (Pinecone, Weaviate, Qdrant, Chroma) store embeddings for later retrieval. They enable "memory" but do not *learn* — there is no adaptation beyond adding new entries. Production systems process billions of vectors but adapt none of them.
+- **Vector databases** (Pinecone, Weaviate, Qdrant, Chroma) store embeddings for later retrieval. They enable "memory" but do not *learn*: there is no adaptation beyond adding new entries. Production systems process billions of vectors but adapt none of them.
 - **Retrieval-augmented generation (RAG)** [20] retrieves the top-$k$ most similar documents for a query. RAG is stateless: it has no notion of which retrievals were useful, no online learning, and no anomaly detection. It is essentially a content-addressable look-up bolted onto a generator.
 - **Long context windows** (128k to 1M tokens) pass everything through the model. Memory scales linearly with sequence length, compute quadratically with attention [36]. Forgetting is passive and uniform: the system has no notion of which tokens are more important than others.
 
@@ -210,13 +210,13 @@ None of these solutions learn from experience. None of them adapt. None of them 
 
 The prior art in memory-augmented neural networks can be classified along two axes: the *type* of memory (parameter-internal vs. external) and the *update mechanism* (static vs. adaptive).
 
-*Parameter-internal memory* — the dominant paradigm before 2014 — encodes the memory in the network's weights. The long short-term memory (LSTM) network of Hochreiter and Schmidhuber [38] introduced a gated cell that could preserve information across long sequences, but the cell capacity is fixed at design time and cannot be expanded without retraining. More recent approaches, such as the in-context learning of GPT-3 [37], can be interpreted as a form of ephemeral parameter-internal memory: the key–value pairs of the attention matrix serve as a "working memory" of the prompt. This working memory is volatile: it disappears at the end of the context window.
+*Parameter-internal memory*, the dominant paradigm before 2014, encodes the memory in the network's weights. The long short-term memory (LSTM) network of Hochreiter and Schmidhuber [38] introduced a gated cell that could preserve information across long sequences, but the cell capacity is fixed at design time and cannot be expanded without retraining. More recent approaches, such as the in-context learning of GPT-3 [37], can be interpreted as a form of ephemeral parameter-internal memory: the key–value pairs of the attention matrix serve as a "working memory" of the prompt. This working memory is volatile: it disappears at the end of the context window.
 
-*External memory* — the dominant paradigm since 2014 — stores information in a matrix or graph outside the network and reads from it with attention. The Neural Turing Machine (NTM) of Graves et al. [1] introduced content-based and location-based addressing into a memory matrix; the Differentiable Neural Computer (DNC) extended this with temporal linkage to enable graph-like retrieval. The Compressive Transformer of Rae et al. [2] introduced a memory of past activations compressed via a learned autoencoder, giving the first practical long-context attention without quadratic cost. MemGPT [3] introduced a hierarchical memory system with paging between "core" (in-context) and "archival" (vector database) tiers, conceptually similar to MATHIR's working and episodic distinction.
+*External memory*, the dominant paradigm since 2014, stores information in a matrix or graph outside the network and reads from it with attention. The Neural Turing Machine (NTM) of Graves et al. [1] introduced content-based and location-based addressing into a memory matrix; the Differentiable Neural Computer (DNC) extended this with temporal linkage to enable graph-like retrieval. The Compressive Transformer of Rae et al. [2] introduced a memory of past activations compressed via a learned autoencoder, giving the first practical long-context attention without quadratic cost. MemGPT [3] introduced a hierarchical memory system with paging between "core" (in-context) and "archival" (vector database) tiers, conceptually similar to MATHIR's working and episodic distinction.
 
 What is missing from all of these systems is *online adaptation*. The NTM and DNC update the memory contents but not the read/write heads. MemGPT moves pages but does not learn which pages to move. The Compressive Transformer learns a compression function but does not learn which activations to compress. The result is a system that stores and retrieves but never improves.
 
-This is the gap that MATHIR fills. The V7 release of MATHIR introduces eight new algorithms — `EbbinghausMemory`, `SparseCodingMemory`, `VariationalMemory`, `CrossAttentionMemory`, `HyperbolicMemory`, `InfoNCELoss`, `NeuralODEMemory`, and `MahalanobisImmunologicalMemory` — each of which adapts online. V8.7.0, the subject of this paper, additionally introduces four new retrieval approaches (A, B, C, D) that close a 12–14 percentage-point quality gap discovered during real-world testing, a 3-layer auto-cache (18x speedup), INT8 quantization (4x compression), and cross-encoder reranking (+20pp).
+This is the gap that MATHIR fills. The V7 release of MATHIR introduces eight new algorithms, `EbbinghausMemory`, `SparseCodingMemory`, `VariationalMemory`, `CrossAttentionMemory`, `HyperbolicMemory`, `InfoNCELoss`, `NeuralODEMemory`, and `MahalanobisImmunologicalMemory`, each of which adapts online. V8.7.0, the subject of this paper, additionally introduces four new retrieval approaches (A, B, C, D) that close a 12–14 percentage-point quality gap discovered during real-world testing, a 3-layer auto-cache (18x speedup), INT8 quantization (4x compression), and cross-encoder reranking (+20pp).
 
 ### 1.3 Research Questions
 
@@ -254,7 +254,7 @@ This section reviews the theoretical foundations and prior art on which MATHIR V
 
 The idea of augmenting neural networks with external memory dates to the Neural Turing Machine (NTM) of Graves et al. [1], which used a memory matrix with content-based and location-based addressing. The NTM was trained end-to-end with gradient descent, but the read/write heads were static: the network learned *how* to address but not *what* to remember. The Differentiable Neural Computer (DNC) extended the NTM with temporal linkage, allowing the network to retrieve items in the order they were written. The Compressive Transformer of Rae et al. [2] introduced a memory of past activations compressed via a learned autoencoder, giving the first practical long-context attention without quadratic cost. MemGPT [3] introduced a hierarchical memory system with paging between "core" and "archival" tiers, conceptually similar to MATHIR's working and episodic distinction. Letta (2024) and Mem0 (2024) extended this with production-grade frameworks but did not introduce new theoretical guarantees.
 
-The MATHIR contribution to this thread is the unification of these ideas under a single theoretical framework (six theorems, Section 3) and a strict LLM-agnostic interface. Unlike prior work, MATHIR requires no model-specific code, no tokenisers, and no attention. The interface is simply: pass in an embedding, get an enhanced embedding out. This makes MATHIR drop-in compatible with any LLM that exposes an embedding layer — including GPT-4, Claude, LLaMA-3, Qwen, Mistral, and local 7B models.
+The MATHIR contribution to this thread is the unification of these ideas under a single theoretical framework (six theorems, Section 3) and a strict LLM-agnostic interface. Unlike prior work, MATHIR requires no model-specific code, no tokenisers, and no attention. The interface is simply: pass in an embedding, get an enhanced embedding out. This makes MATHIR drop-in compatible with any LLM that exposes an embedding layer, including GPT-4, Claude, LLaMA-3, Qwen, Mistral, and local 7B models.
 
 ### 2.2 Vector Databases and Retrieval-Augmented Generation
 
@@ -340,7 +340,7 @@ MATHIR evolved through eight major versions (V1–V8.7.0), each addressing a spe
 | V8.1 | Multimodal support | Multimodal support (text, image, audio, video) | ✓ |
 | V8.2 | Daemon + per-project DBs | Daemon push API + per-project databases | ✓ |
 | V8.3 | Thread safety | HybridSearch thread safety + bug fixes | ✓ |
-| v8.5.0 | Living memory | Living memory — Ebbinghaus lifecycle, 6 tiers, link graph, 27 MCP tools (20 in v8.5.0, 23 in v8.5.1, 25 in v8.8.0, 26 in v8.9.0, 27 in v8.9.1) | ✓ (this paper) |
+| v8.5.0 | Living memory | Living memory: Ebbinghaus lifecycle, 6 tiers, link graph, 27 MCP tools (20 in v8.5.0, 23 in v8.5.1, 25 in v8.8.0, 26 in v8.9.0, 27 in v8.9.1) | ✓ (this paper) |
 | v8.6.0 | INT8 + reranking | INT8 scalar quantization (4x compression, 0% loss), cross-encoder reranking (+20pp), multi-agent benchmark (0% → 53%), 22 algorithms, 122 tests | ✓ (this paper) |
 | V8.6.1 | 2026-07-03 | Portable paths fix | Eliminated all hardcoded paths, cross-platform install, DB routing backward-compat | ✓ |
 | V8.7.0 | 2026-07-03 | 3-layer auto-cache | L1 embedding LRU (1024), L2 recall TTL (256, 60s), L3 session pre-warm (top-20, 5min), 122 tests | ✓ (this paper) |
@@ -360,13 +360,13 @@ plugin.store({"embedding": emb, "action": act, "outcome": rew})
 memories = plugin.recall(query_embedding, k=5)
 ```
 
-MATHIR has **five** cognitive memory tiers (the immunological tier is a first-class, addressable 5th tier — *not* merely an internal detection layer):
+MATHIR has **five** cognitive memory tiers (the immunological tier is a first-class, addressable 5th tier, *not* merely an internal detection layer):
 
 - **Working memory** ($W = 64$ slots, circular buffer + multi-head attention): immediate context, sub-millisecond access. The session scratchpad.
 - **Episodic memory** ($N = 1000$ slots, key-value with cosine similarity): past experiences, millisecond access. The autobiographical buffer.
 - **Semantic memory** ($P = 256$ prototypes, online k-means via Robbins-Monro): learned concepts, millisecond access. Stable knowledge.
-- **Procedural memory** ($S = 128$ slots): skills and how-to patterns, event-driven update. Muscle memory — labels must be prefixed `how-to:` or `recipe:`.
-- **Immunological memory** ($I = 100$ slots, cdist threshold): detected anomalies, prompt injections, threat signatures, and suspicious patterns. **A real, queryable, writable 5th tier** that follows the same lifecycle (promotion, decay, consolidation, linking) as the other four. *Terminal in the promotion chain*, like procedural — anomaly memories are not promoted out. See Section 3.13 for the full formal treatment.
+- **Procedural memory** ($S = 128$ slots): skills and how-to patterns, event-driven update. Muscle memory: labels must be prefixed `how-to:` or `recipe:`.
+- **Immunological memory** ($I = 100$ slots, cdist threshold): detected anomalies, prompt injections, threat signatures, and suspicious patterns. **A real, queryable, writable 5th tier** that follows the same lifecycle (promotion, decay, consolidation, linking) as the other four. *Terminal in the promotion chain*, like procedural: anomaly memories are not promoted out. See Section 3.13 for the full formal treatment.
 
 A KL-constrained router $R_t : \mathcal{X} \to \Delta_5$ (a **five-way** probability simplex over the five tiers) allocates among the tiers with a PPO-style trust region to prevent collapse.
 
@@ -383,43 +383,43 @@ MATHIR v8.9.4 exposes 27 tools via the Model Context Protocol (MCP), enabling an
 
 #### Basic CRUD (6 tools)
 
-1. **`memory_save(content, agent, block_type, label, priority)`** — Save a memory to any of the **five** tiers. `block_type` specifies the target tier: `working_memory`, `episodic`, `semantic`, `procedural`, or `immunological`. The immunological tier stores detected anomalies (prompt injections, suspicious patterns, threat signatures) and is both queryable and writable — save threats to it for pattern matching over time. Priority ranges from 1 (low) to 10 (critical), defaulting to 5. Procedural memories must have labels prefixed with `how-to:` or `recipe:`.
+1. **`memory_save(content, agent, block_type, label, priority)`**, Save a memory to any of the **five** tiers. `block_type` specifies the target tier: `working_memory`, `episodic`, `semantic`, `procedural`, or `immunological`. The immunological tier stores detected anomalies (prompt injections, suspicious patterns, threat signatures) and is both queryable and writable, save threats to it for pattern matching over time. Priority ranges from 1 (low) to 10 (critical), defaulting to 5. Procedural memories must have labels prefixed with `how-to:` or `recipe:`.
 
-2. **`memory_recall(query, k, agent, block_type)`** — Semantic search across all tiers using cosine similarity on embeddings. Returns the top-k most relevant memories. Each recall operation increments the memory's `recall_count` and boosts its stability score (Ebbinghaus auto-touch).
+2. **`memory_recall(query, k, agent, block_type)`**, Semantic search across all tiers using cosine similarity on embeddings. Returns the top-k most relevant memories. Each recall operation increments the memory's `recall_count` and boosts its stability score (Ebbinghaus auto-touch).
 
-3. **`memory_smart_search(query, k)`** — Faster daemon-native text search that bypasses the embedding model. Useful for exact-match queries (error messages, function names, version strings) where lexical matching outperforms semantic similarity.
+3. **`memory_smart_search(query, k)`**, Faster daemon-native text search that bypasses the embedding model. Useful for exact-match queries (error messages, function names, version strings) where lexical matching outperforms semantic similarity.
 
-4. **`memory_hybrid_search(query, k)`** — Combines vector similarity (cosine on 384d embeddings) with BM25 lexical search and Reciprocal Rank Fusion (RRF, k=60). Provides the best of both semantic and keyword matching. Optimised for production retrieval workloads.
+4. **`memory_hybrid_search(query, k)`**, Combines vector similarity (cosine on 384d embeddings) with BM25 lexical search and Reciprocal Rank Fusion (RRF, k=60). Provides the best of both semantic and keyword matching. Optimised for production retrieval workloads.
 
-5. **`memory_delete(memory_id, reason)`** — Soft delete that sets the memory's tier to `archived` rather than physically removing it. Requires a reason string for audit traceability. Prefer `memory_consolidate` for merging near-duplicates instead of deletion.
+5. **`memory_delete(memory_id, reason)`**, Soft delete that sets the memory's tier to `archived` rather than physically removing it. Requires a reason string for audit traceability. Prefer `memory_consolidate` for merging near-duplicates instead of deletion.
 
-6. **`memory_stats(project)`** — Returns aggregate statistics: total memories by tier, by agent, by project, and database file size. Useful for monitoring memory bloat and planning consolidation runs.
+6. **`memory_stats(project)`**, Returns aggregate statistics: total memories by tier, by agent, by project, and database file size. Useful for monitoring memory bloat and planning consolidation runs.
 
 #### Lifecycle (7 tools)
 
-7. **`memory_promote(memory_id, force)`** — Move a memory to the next tier in the hierarchy: `working_memory` → `episodic` → `semantic` → `procedural`. The immunological tier is a **terminal** tier parallel to procedural (anomaly memories stay in immunological forever — they are not promoted out). Promotion follows Ebbinghaus rules: `working_memory` → `episodic` requires `recall_count ≥ 3` and `age ≥ 1 day`; `episodic` → `semantic` requires `recall_count ≥ 10` and `age ≥ 7 days`; `semantic` → `procedural` requires `priority ≥ 8`, `recall_count ≥ 5`, and label prefix `how-to:` or `recipe:`. Setting `force = true` bypasses all rules.
+7. **`memory_promote(memory_id, force)`**, Move a memory to the next tier in the hierarchy: `working_memory` → `episodic` → `semantic` → `procedural`. The immunological tier is a **terminal** tier parallel to procedural (anomaly memories stay in immunological forever, they are not promoted out). Promotion follows Ebbinghaus rules: `working_memory` → `episodic` requires `recall_count ≥ 3` and `age ≥ 1 day`; `episodic` → `semantic` requires `recall_count ≥ 10` and `age ≥ 7 days`; `semantic` → `procedural` requires `priority ≥ 8`, `recall_count ≥ 5`, and label prefix `how-to:` or `recipe:`. Setting `force = true` bypasses all rules.
 
-8. **`memory_auto_promote()`** — Scans all memories and automatically promotes those that meet the Ebbinghaus criteria. Run this at the end of sessions or when mature `working_memory` entries should become `episodic`.
+8. **`memory_auto_promote()`**, Scans all memories and automatically promotes those that meet the Ebbinghaus criteria. Run this at the end of sessions or when mature `working_memory` entries should become `episodic`.
 
-9. **`memory_decay(threshold_days, archive_floor)`** — Ebbinghaus forgetting curve implementation: stability decreases by 5% per 30 days of no recall. Memories with stability below `archive_floor` (default 0.05) are moved to `archived`. `threshold_days` controls when decay begins (default 30). Run periodically (e.g., weekly) to prevent memory bloat.
+9. **`memory_decay(threshold_days, archive_floor)`**, Ebbinghaus forgetting curve implementation: stability decreases by 5% per 30 days of no recall. Memories with stability below `archive_floor` (default 0.05) are moved to `archived`. `threshold_days` controls when decay begins (default 30). Run periodically (e.g., weekly) to prevent memory bloat.
 
-10. **`memory_consolidate(threshold, dry_run)`** — Merges near-duplicate memories detected by cosine similarity. When `threshold` exceeds the pairwise cosine similarity (default 0.95 for conservative merging, 0.85 for aggressive), the memories are merged into a single canonical entry. Set `dry_run = true` to preview merges without modifying the database.
+10. **`memory_consolidate(threshold, dry_run)`**, Merges near-duplicate memories detected by cosine similarity. When `threshold` exceeds the pairwise cosine similarity (default 0.95 for conservative merging, 0.85 for aggressive), the memories are merged into a single canonical entry. Set `dry_run = true` to preview merges without modifying the database.
 
-11. **`memory_link(source_id, target_id, weight)`** — Adds a directed edge to the memory link graph. `weight` ranges from 0.0 to 1.0 (default 1.0). Links encode semantic relationships (e.g., "this bug was caused by that commit") and enable spreading-activation retrieval.
+11. **`memory_link(source_id, target_id, weight)`**, Adds a directed edge to the memory link graph. `weight` ranges from 0.0 to 1.0 (default 1.0). Links encode semantic relationships (e.g., "this bug was caused by that commit") and enable spreading-activation retrieval.
 
-12. **`memory_get_links(memory_id, depth, decay)`** — BFS traversal of the link graph from a given memory. `depth` limits hops (1–2 typical); `decay` is the per-hop weight multiplier (0.5 = halve each hop). Returns linked memories ranked by cumulative weight.
+12. **`memory_get_links(memory_id, depth, decay)`**, BFS traversal of the link graph from a given memory. `depth` limits hops (1–2 typical); `decay` is the per-hop weight multiplier (0.5 = halve each hop). Returns linked memories ranked by cumulative weight.
 
-13. **`memory_build_links(threshold)`** — Scans all memories and automatically creates links between pairs whose cosine similarity exceeds `threshold` (0.7 catches broad associations). Idempotent — safe to run multiple times. Run after batch saves to populate the graph.
+13. **`memory_build_links(threshold)`**, Scans all memories and automatically creates links between pairs whose cosine similarity exceeds `threshold` (0.7 catches broad associations). Idempotent, safe to run multiple times. Run after batch saves to populate the graph.
 
 #### Other (4 tools)
 
-14. **`memory_audit(agent, limit)`** — Returns the most recent audit log entries, filterable by agent name. Each entry records the operation type, memory ID, timestamp, and result. Useful for debugging unexpected memory mutations.
+14. **`memory_audit(agent, limit)`**, Returns the most recent audit log entries, filterable by agent name. Each entry records the operation type, memory ID, timestamp, and result. Useful for debugging unexpected memory mutations.
 
-15. **`memory_export(project)`** — Exports all memories for a project as a JSON array. Each entry includes the memory content, tier, label, priority, recall count, stability score, creation time, and links. Useful for backup, migration, and offline analysis.
+15. **`memory_export(project)`**, Exports all memories for a project as a JSON array. Each entry includes the memory content, tier, label, priority, recall count, stability score, creation time, and links. Useful for backup, migration, and offline analysis.
 
-16. **`memory_sessions(limit)`** — Lists recent memory sessions with their timestamps, agent names, and operation counts. Helps identify which agents have been active and what they have stored.
+16. **`memory_sessions(limit)`**, Lists recent memory sessions with their timestamps, agent names, and operation counts. Helps identify which agents have been active and what they have stored.
 
-17. **`memory_dashboard(action)`** — Launches or manages the MATHIR Neural Memory Dashboard, a web UI for real-time monitoring of the **6-tier** cognitive memory system (working, episodic, semantic, procedural, immunological, guardrail). Actions: `status` (check if running), `start` (launch the dashboard), `open` (open in browser).
+17. **`memory_dashboard(action)`**, Launches or manages the MATHIR Neural Memory Dashboard, a web UI for real-time monitoring of the **6-tier** cognitive memory system (working, episodic, semantic, procedural, immunological, guardrail). Actions: `status` (check if running), `start` (launch the dashboard), `open` (open in browser).
 
 ### 3.4 V7–V8 Theoretical Advances
 
@@ -431,16 +431,16 @@ V7 adds eight new algorithms, each grounded in a formal theorem:
 |-----------|---------|------------|
 | `EbbinghausMemory` | Theorem 2 | Spaced-repetition forgetting curves |
 | `SparseCodingMemory` | Theorem 5 | ISTA + hard thresholding (4× compression) |
-| `VariationalMemory` | — | Gaussian uncertainty per slot |
-| `CrossAttentionMemory` | — | Learned Q/K/V addressing |
-| `HyperbolicMemory` | — | Poincaré ball embeddings |
+| `VariationalMemory` |: | Gaussian uncertainty per slot |
+| `CrossAttentionMemory` |: | Learned Q/K/V addressing |
+| `HyperbolicMemory` |: | Poincaré ball embeddings |
 | `InfoNCELoss` | Theorem 3 | Mutual-information contrastive learning |
-| `NeuralODEMemory` | — | Continuous-time dynamics (RK4) |
+| `NeuralODEMemory` |: | Continuous-time dynamics (RK4) |
 | `MahalanobisImmunologicalMemory` | Theorem 4 | NP-optimal anomaly detection |
 
 The variational tier (V slots, each storing $(\mu, \sigma)$) doubles the effective storage because both the mean and variance must be tracked. The sparse-coding tier uses an over-complete dictionary $D \in \mathbb{R}^{K \times d}$ with $K = 1088$ atoms and a sparsity level of $s = 8$. The hyperbolic tier embeds memory addresses in a Poincaré ball of curvature $c = 1$, enabling tree-like hierarchies to be represented with low distortion.
 
-### 3.5 Theorem 1 — Information Capacity of Hierarchical Memory
+### 3.5 Theorem 1: Information Capacity of Hierarchical Memory
 
 **Statement.** Let $M_t$ be a MATHIR V7 memory with $N$ episodic slots, $P$ semantic prototypes, $W$ working slots, $I$ immune-bank slots, $V$ variational slots (each storing $(\mu, \sigma)$), and a sparse-coding dictionary $D \in \mathbb{R}^{K \times d}$, all of embedding dimension $d$. Suppose the encoder has signal-to-noise ratio $\mathrm{SNR} = \sigma_s^2 / \sigma_n^2$ on the data distribution. Then
 
@@ -489,7 +489,7 @@ The first inequality holds because $X \to \phi(X) \to M_t$ is a Markov chain, an
 
 After TurboQuant 3-bit quantisation [27], the realised information drops to $\le 3 \cdot 8 \cdot 1{,}142{,}866 / 8 \approx 428$ kbits, but a more careful accounting (Section 5) shows that the realised information is approximately 117 kB for 1000 memories, comfortably within the 60 KB budget after the 9.3× compression. Theorem 1 thus certifies that V7's information budget is consistent with the deployment constraints.
 
-### 3.6 Theorem 2 — Retention Guarantee After $K$ Steps
+### 3.6 Theorem 2: Retention Guarantee After $K$ Steps
 
 **Statement.** Suppose that (i) the episodic encoder is $L$-Lipschitz, (ii) the router weights satisfy $\|\nabla_t R\| \le \eta$ almost surely, (iii) the semantic prototypes $(\pi_j)$ are updated by the Robbins-Monro rule $\pi_j^{(t+1)} = \pi_j^{(t)} + \beta_t (x_t - \pi_j^{(t)})$ with $\beta_t > 0$ satisfying $\sum_t \beta_t = \infty$ and $\sum_t \beta_t^2 < \infty$, and (iv) episodic keys are i.i.d. sub-Gaussian with variance proxy $s^2$. Then for any item stored $K$ steps ago,
 
@@ -549,7 +549,7 @@ Taking $\varepsilon = K L \eta / N$ and using the Lipschitz property to translat
 
 Since $e^{-500} < 10^{-217}$, this is a confidence exceeding $1 - 10^{-217}$, far beyond any practical concern. This is the formal foundation of the README claim of 100% retention at one thousand steps.
 
-### 3.7 Theorem 3 — Router Convergence Rate
+### 3.7 Theorem 3: Router Convergence Rate
 
 **Statement.** Let $\pi_t \in \Delta_5$ be the router allocation at iteration $t$, evolving under the stochastic mirror-descent update
 
@@ -603,7 +603,7 @@ Solving for $T$ iteratively (treating $\log T$ as slowly varying) gives $T = \Om
 
 **Implication.** The V7 router reaches near-optimal allocation in $\sim 100$ iterations under typical hyperparameters ($\beta_0 = 0.1, \rho = 0.95, \sigma_g^2 \approx 1$), enabling rapid personalisation of the memory system to a new agent or task. This is the empirical observation underlying the V7 router's fast convergence.
 
-### 3.8 Theorem 4 — Neyman-Pearson Optimality of Mahalanobis Anomaly Detection
+### 3.8 Theorem 4: Neyman-Pearson Optimality of Mahalanobis Anomaly Detection
 
 **Statement.** Suppose the "normal" data is distributed as $P_0 = \mathcal{N}(\mu, \Sigma)$ on $\mathbb{R}^d$ with $\Sigma \succ 0$, and the "novel" data is distributed as $P_1$ absolutely continuous with respect to $P_0$. Let $D_M(x; \mu, \Sigma) = \sqrt{(x - \mu)^\top \Sigma^{-1} (x - \mu)}$ be the Mahalanobis distance. Then, for any false-positive rate $\alpha \in (0, 1)$, the test
 
@@ -647,7 +647,7 @@ Setting $\Pr(\chi^2_d > \tau_\alpha^2) = \alpha$ gives $\tau_\alpha = \sqrt{\chi
 
 **Implication.** MATHIR's Mahalanobis anomaly detector is *provably optimal* for the Gaussian-normal assumption. No other detector (Euclidean, cosine, learned) can achieve a higher true-positive rate at the same false-positive rate, in the asymptotic limit. The constant gap in finite samples is $O(\sqrt{d/n})$ by the Cramér-Wold theorem.
 
-### 3.9 Theorem 5 — Sparse-Coding Reconstruction Bound
+### 3.9 Theorem 5: Sparse-Coding Reconstruction Bound
 
 **Statement.** Let $D \in \mathbb{R}^{K \times d}$ be a dictionary with normalised columns ($\|D_k\| = 1$) satisfying the restricted isometry property (RIP) of order $2s$ with constant $\delta_{2s} < \sqrt{2} - 1$. Let $X \sim \mathcal{N}(0, \Sigma)$ on $\mathbb{R}^d$, and let $z^* \in \arg\min_z \tfrac{1}{2} \|x - D^\top z\|^2 + \lambda \|z\|_1$. Then
 
@@ -689,7 +689,7 @@ The constant $C = C_1 + C_2$ is computable from the mutual coherence and RIP con
 
 **Implication.** The expected reconstruction error per memory is $O(s \sigma^2 / K) = O(8 \sigma^2 / 1088) \approx 0.0074 \sigma^2$, which is a 135× reduction in squared error per memory compared to storing the raw vector. Combined with TurboQuant's 10.7× compression, the total compression ratio is approximately 9.3×, matching the empirical measurement in `v6_vs_v7_results.json`.
 
-### 3.10 Theorem 6 — mHC Geometry: Contraction of Overrelaxed Sinkhorn-Knopp
+### 3.10 Theorem 6: mHC Geometry: Contraction of Overrelaxed Sinkhorn-Knopp
 
 **Statement.** Let $A \in \mathbb{R}^{d \times d}_{>0}$ be a positive matrix, and let $\mathcal{S}_\omega$ denote the Sinkhorn-Knopp projection with overrelaxation parameter $\omega \in (0, 2)$. Let $W^* = \mathcal{S}_\omega(A)$ be the unique doubly-stochastic projection of $A$ (Birkhoff-von Neumann theorem). Then the overrelaxed iteration
 
@@ -719,7 +719,7 @@ where $\rho(\omega) = (1 - \omega / 2) / (1 + \omega / 2)$ for $\omega \in (0, 2
 
 so the error contracts by $1 / (1 + \rho(\omega)) = (1 + \omega/2) / 2$ per iteration. For $\omega = 1.5$, the rate is $1 / 1.375 \approx 0.727$ per iteration in operator norm, but the Frobenius-norm rate (which is what the V7 mHC layer actually uses) is approximately $0.375$ per iteration because the spectral norm bound is conservative for matrices with clustered eigenvalues. $\blacksquare$
 
-**Practical implications.** The V7 mHC layer uses $\omega = 1.5$ and 20 iterations of Sinkhorn-Knopp, achieving an effective contraction factor of $0.375^{20} \approx 10^{-8}$. This means the V7 mHC layer can guarantee that its weight matrix is within $10^{-8}$ (in Frobenius norm) of the doubly-stochastic manifold, which is far below any practically measurable threshold. The computational cost is $20 \cdot d^2$ flops per mHC layer, which for $d = 272$ is approximately $1.5 \times 10^6$ flops — negligible compared to a single attention head.
+**Practical implications.** The V7 mHC layer uses $\omega = 1.5$ and 20 iterations of Sinkhorn-Knopp, achieving an effective contraction factor of $0.375^{20} \approx 10^{-8}$. This means the V7 mHC layer can guarantee that its weight matrix is within $10^{-8}$ (in Frobenius norm) of the doubly-stochastic manifold, which is far below any practically measurable threshold. The computational cost is $20 \cdot d^2$ flops per mHC layer, which for $d = 272$ is approximately $1.5 \times 10^6$ flops, negligible compared to a single attention head.
 
 **Reference.** Sinkhorn (1964) for the original theorem; Beck and Teboulle (2003) for the mirror-descent connection; DeepSeek (2025) for the application to hyper-connections in deep networks.
 
@@ -742,9 +742,9 @@ V7's episodic memory uses two compression layers:
 
 **Combined compression**: $4 \times 10.7 = 42.8\times$ in theory, $9.3\times$ measured empirically (`v6_vs_v7_results.json`). The gap between theoretical and empirical compression is due to dictionary overhead and quantisation rounding.
 
-### 3.13 Immunological Tier — The 5th Cognitive Layer
+### 3.13 Immunological Tier: The 5th Cognitive Layer
 
-The immunological tier is the **5th, first-class, addressable memory tier** of MATHIR (the others being working, episodic, semantic, and procedural). It is named by analogy with the innate immune system: just as biological immunity stores and matches against previously-seen pathogen signatures, the immunological tier stores and matches against previously-seen *anomaly signatures* (prompt injections, threat patterns, suspicious embeddings). Crucially, in V8.7.0 the immunological tier is no longer an internal detection layer — it is a fully first-class memory tier with its own `block_type`, its own row in the database, its own lifecycle (promotion, decay, consolidation, linking), and its own queryable/writable MCP API surface (`memory_save(..., block_type="immunological", ...)` and `memory_recall(..., block_type="immunological", ...)`).
+The immunological tier is the **5th, first-class, addressable memory tier** of MATHIR (the others being working, episodic, semantic, and procedural). It is named by analogy with the innate immune system: just as biological immunity stores and matches against previously-seen pathogen signatures, the immunological tier stores and matches against previously-seen *anomaly signatures* (prompt injections, threat patterns, suspicious embeddings). Crucially, in V8.7.0 the immunological tier is no longer an internal detection layer, it is a fully first-class memory tier with its own `block_type`, its own row in the database, its own lifecycle (promotion, decay, consolidation, linking), and its own queryable/writable MCP API surface (`memory_save(..., block_type="immunological", ...)` and `memory_recall(..., block_type="immunological", ...)`).
 
 #### 3.13.1 Definition (what it stores)
 
@@ -757,7 +757,7 @@ Each immunological slot is a triple $(x, \mu, \Sigma, \tau, \mathrm{tag})$ where
 
 The tier capacity is $I = 100$ clusters by default (configurable). Clusters are FIFO-evicted when full; the most-frequently-recalled clusters are the most durable.
 
-#### 3.13.2 Mahalanobis detector — formal definition
+#### 3.13.2 Mahalanobis detector: formal definition
 
 For an incoming query $q \in \mathbb{R}^D$, the Mahalanobis distance to cluster $c$ is
 
@@ -791,12 +791,12 @@ is the *most powerful* test of $H_0: q \sim \mathcal{N}(\mu_c, \Sigma_c)$ versus
 
 Each immunological cluster supports two query modes:
 
-1. **Embedding match** — given a query embedding $q$, retrieve the top-$k$ clusters by smallest $D_M(q; \mu_c, \Sigma_c)$. Returns the threat labels and the associated `recall_count` / `priority` / `stability` metadata.
-2. **Tag match** — given a textual pattern $t$ (e.g. `"prompt-injection"`), retrieve all clusters whose `tag` contains $t$ as a substring. This is implemented via `memory_smart_search(query=t, block_type="immunological")`.
+1. **Embedding match**, given a query embedding $q$, retrieve the top-$k$ clusters by smallest $D_M(q; \mu_c, \Sigma_c)$. Returns the threat labels and the associated `recall_count` / `priority` / `stability` metadata.
+2. **Tag match**, given a textual pattern $t$ (e.g. `"prompt-injection"`), retrieve all clusters whose `tag` contains $t$ as a substring. This is implemented via `memory_smart_search(query=t, block_type="immunological")`.
 
 The two modes compose: an incoming query is first scored for embedding-match anomaly; if anomalous, the matched cluster's tag is used to retrieve *related* clusters by tag-match, giving a two-hop pattern lookup. This is the immunological analogue of antibody cross-reactivity.
 
-#### 3.13.6 Integration with the other tiers — cross-tier linking
+#### 3.13.6 Integration with the other tiers: cross-tier linking
 
 > Note: with v8.9.0, the system has 6 tiers total (working, episodic, semantic, procedural, immunological, guardrail). The guardrail tier (v8.9.0) is push-based and always auto-injected, immune to decay.
 
@@ -813,14 +813,14 @@ Unlike a transient detection layer, the immunological tier participates in every
 
 | Lifecycle operation | Immunological behaviour |
 |---|---|
-| `memory_save` | Yes — accepts `block_type="immunological"`. |
-| `memory_recall` | Yes — filterable via `block_type="immunological"`. |
-| `memory_promote` | Terminal — `immunological → procedural` is **not** allowed; the only "promotion" is from working/episodic/semantic *into* immunological via the auto-route, never out. |
+| `memory_save` | Yes: accepts `block_type="immunological"`. |
+| `memory_recall` | Yes: filterable via `block_type="immunological"`. |
+| `memory_promote` | Terminal: `immunological → procedural` is **not** allowed; the only "promotion" is from working/episodic/semantic *into* immunological via the auto-route, never out. |
 | `memory_auto_promote` | No-op for memories already in immunological. |
-| `memory_decay` | Yes — anomaly memories decay at the same 5%/30d rate, but the `archive_floor` is **higher** (0.20 instead of 0.05) so threat signatures survive longer. |
-| `memory_consolidate` | Yes — duplicate clusters are merged on cosine similarity > 0.95 across the cluster centroids. |
-| `memory_link` / `memory_get_links` | Yes — immunological nodes are full link-graph citizens. |
-| `memory_build_links` | Yes — links between clusters and the originating episodic/semantic/working nodes are constructed automatically. |
+| `memory_decay` | Yes: anomaly memories decay at the same 5%/30d rate, but the `archive_floor` is **higher** (0.20 instead of 0.05) so threat signatures survive longer. |
+| `memory_consolidate` | Yes: duplicate clusters are merged on cosine similarity > 0.95 across the cluster centroids. |
+| `memory_link` / `memory_get_links` | Yes: immunological nodes are full link-graph citizens. |
+| `memory_build_links` | Yes: links between clusters and the originating episodic/semantic/working nodes are constructed automatically. |
 
 This parity is what makes immunological a *real* 5th tier rather than a sidecar: it has the same SQLite schema, the same MCP API, the same lifecycle hooks, and the same dashboard visualisation as the other four.
 
@@ -828,7 +828,7 @@ This parity is what makes immunological a *real* 5th tier rather than a sidecar:
 
 Per-query, the immunological tier costs:
 
-- **Detection** (3.13.2): $O(I \cdot D^2)$ for the $I$ matrix-vector products and Cholesky-factor lookup. With $I = 100, D = 384$, this is approximately $1.5 \times 10^7$ flops per query — sub-millisecond on a modern CPU, dominated by the $D^2 = 147{,}456$ operations per cluster.
+- **Detection** (3.13.2): $O(I \cdot D^2)$ for the $I$ matrix-vector products and Cholesky-factor lookup. With $I = 100, D = 384$, this is approximately $1.5 \times 10^7$ flops per query: sub-millisecond on a modern CPU, dominated by the $D^2 = 147{,}456$ operations per cluster.
 - **Tag match** (substring scan): $O(I \cdot \bar\ell)$ where $\bar\ell \approx 40$ is the mean tag length. Negligible (≈4000 character comparisons).
 - **EMA update** on cluster hit: $O(D^2)$ per cluster hit, amortised.
 
@@ -869,7 +869,7 @@ The result was a clear quality gap:
 | MATHIR V7 default (64-dim) | 19.7% | 1,338 QPS |
 | **Quality gap** | **-11.9 pp** | -15.2x slower |
 
-This 11.9 percentage-point gap is far outside the noise floor (the standard error of the mean overlap across 50 queries is approximately 3.5 percentage points, giving a z-score of 3.4 — statistically significant at $p < 0.001$). The two systems also differed in semantic match: FAISS achieved 45.0% semantic match versus V7's 28.0%, a 17.0 percentage-point gap.
+This 11.9 percentage-point gap is far outside the noise floor (the standard error of the mean overlap across 50 queries is approximately 3.5 percentage points, giving a z-score of 3.4, statistically significant at $p < 0.001$). The two systems also differed in semantic match: FAISS achieved 45.0% semantic match versus V7's 28.0%, a 17.0 percentage-point gap.
 
 The throughput gap (15.2×) is a separate concern: V7's 64-dim projection is fast (one matrix multiply), but the per-store overhead (router forward, semantic-prototype update, immune-bank update) dominates. FAISS's flat-index insertion is essentially free.
 
@@ -1346,7 +1346,7 @@ To illustrate the qualitative difference, we present side-by-side comparisons fo
 **Query 11: "What is the vorticity equation?"**
 - **FAISS**: returns the chapter 4 introduction (weakly related). Overlap: 10%.
 - **Approach D**: returns a discussion of dimensional analysis and Buckingham Pi theorem (also weakly related). Overlap: 15%.
-- **Verdict**: Tied (both fail — neither retrieves the chapter on vorticity).
+- **Verdict**: Tied (both fail: neither retrieves the chapter on vorticity).
 
 **Query 21: "How is Mach number defined?"**
 - **FAISS**: returns an example computation involving Mach number. Overlap: 50%.
@@ -1356,7 +1356,7 @@ To illustrate the qualitative difference, we present side-by-side comparisons fo
 **Query 31: "Explain the k-epsilon turbulence model."**
 - **FAISS**: returns a discussion of boundary layer theory (related, but not the k-epsilon model). Overlap: 20%.
 - **Approach D**: returns a discussion of boundary layer theory (same). Overlap: 20%.
-- **Verdict**: Tied (both fail — the k-epsilon model is discussed only briefly in this textbook).
+- **Verdict**: Tied (both fail: the k-epsilon model is discussed only briefly in this textbook).
 
 **Query 42: "State the Navier–Stokes equations."**
 - **FAISS**: returns the chapter 4 introduction (mentions Navier–Stokes in passing). Overlap: 30%.
@@ -1385,7 +1385,7 @@ The storage time for 200 chunks is dominated by the embedding encoding step (one
 - MATHIR runs the router and reconstruction head on every store.
 - FAISS has a single optimized insertion kernel.
 
-For the test corpus of 200 chunks, the storage time difference (1.7 ms vs 1256 ms) is negligible in absolute terms — both are far below human-perceptible thresholds. At 100,000 chunks, FAISS's flat index requires approximately 0.4 ms per chunk (300 MB total), while MATHIR's Approach D requires approximately 6 ms per chunk due to BM25 indexing. For production deployment, MATHIR should use HNSW or PQ indices at scale.
+For the test corpus of 200 chunks, the storage time difference (1.7 ms vs 1256 ms) is negligible in absolute terms, both are far below human-perceptible thresholds. At 100,000 chunks, FAISS's flat index requires approximately 0.4 ms per chunk (300 MB total), while MATHIR's Approach D requires approximately 6 ms per chunk due to BM25 indexing. For production deployment, MATHIR should use HNSW or PQ indices at scale.
 
 ### 7.7 Compression Performance (V6 vs V7)
 
@@ -1739,7 +1739,7 @@ Expected runtime: < 2 minutes on CPU. The benchmarks are deterministic given the
 
 This appendix provides the complete theorem statements and proofs of the six V7 theorems, including all intermediate steps, the explicit constants, and the conditions for validity.
 
-#### A.1 Theorem 1 — Information Capacity
+#### A.1 Theorem 1: Information Capacity
 
 **Statement (restated).** Let $M_t$ be a MATHIR V7 memory with $N$ episodic slots, $P$ semantic prototypes, $W$ working slots, $I$ immune-bank slots, $V$ variational slots (each storing $(\mu, \sigma)$), and a sparse-coding dictionary $D \in \mathbb{R}^{K \times d}$, all of embedding dimension $d$. Suppose the encoder has signal-to-noise ratio $\mathrm{SNR} = \sigma_s^2 / \sigma_n^2$ on the data distribution. Then
 
@@ -1804,7 +1804,7 @@ The data-processing gap is $O(\sqrt{d/N})$ under sub-Gaussian concentration of e
 
 **Tightness.** Equality requires (a) matched-filter encoders (jointly Gaussian slot distributions), (b) AWGN noise, and (c) statistically independent slots. The third condition is the binding constraint: with finite $N$, slot dependence introduces an $O(\sqrt{d/N})$ gap.
 
-#### A.2 Theorem 2 — Retention Guarantee (Complete)
+#### A.2 Theorem 2: Retention Guarantee (Complete)
 
 **Statement (restated).** Under the assumptions of Section 3.5, for any item stored $K$ steps ago,
 
@@ -1892,7 +1892,7 @@ For $N \ge 1$ the bound is
 
 where $C = 2 \sigma_\mathrm{key} \sqrt{2} / s^2$ absorbs the geometric factors. $\blacksquare$
 
-#### A.3 Theorem 3 — Router Convergence (Complete)
+#### A.3 Theorem 3: Router Convergence (Complete)
 
 **Statement (restated).** Under the assumptions of Section 3.6, the stochastic mirror-descent router with geometric step size $\beta_t = \beta_0 \rho^t$ satisfies
 
@@ -1946,7 +1946,7 @@ Dividing the regret bound by $\sum_t \beta_t$ and using the bound on the cumulat
 
 Simplifying with $1 - \rho^T \ge (1 - \rho) T / (T + 1)$ (geometric-series inequality) gives the stated bound. $\blacksquare$
 
-#### A.4 Theorem 4 — Neyman-Pearson Optimality (Complete)
+#### A.4 Theorem 4: Neyman-Pearson Optimality (Complete)
 
 **Statement (restated).** Under the assumptions of Section 3.7, the Mahalanobis test (5) is the most powerful test of $H_0: P = P_0$ vs. $H_1: P = P_1$ at level $\alpha$.
 
@@ -1983,7 +1983,7 @@ so $\Pr(D_M^2 > \tau_\alpha^2) = \alpha$ when $\tau_\alpha = \sqrt{\chi^2_{d, 1-
 
 which by Neyman-Pearson is the highest achievable at level $\alpha$. $\blacksquare$
 
-#### A.5 Theorem 5 — Sparse Coding Bound (Complete)
+#### A.5 Theorem 5: Sparse Coding Bound (Complete)
 
 **Statement (restated).** Under the assumptions of Section 3.8,
 
@@ -2019,7 +2019,7 @@ The $s$ factor is the sparsity: the LASSO can have at most $s$ false positives (
 
 **Tightness.** The rate $\sigma^2 s / K$ is minimax-optimal [25, Theorem 2.1]. The $\lambda^2 s$ term is the cost of using a convex relaxation; the combinatorial $\ell_0$ penalty achieves the oracle rate but is NP-hard.
 
-#### A.6 Theorem 6 — mHC Geometry (Complete)
+#### A.6 Theorem 6: mHC Geometry (Complete)
 
 **Statement (restated).** Under the assumptions of Section 3.9, the overrelaxed Sinkhorn-Knopp iteration converges to the doubly-stochastic projection at a linear rate $1 / (1 + \rho(\omega))$ per iteration, where $\rho(\omega) = (1 - \omega/2) / (1 + \omega/2)$.
 
@@ -2061,7 +2061,7 @@ The contraction rate is therefore
 
 For $\omega = 1.5$, this gives $1/1.375 \approx 0.727$ per iteration in operator norm. The Frobenius-norm rate is tighter: approximately $0.375$ per iteration for matrices with clustered eigenvalues (which is the case for typical mHC weight matrices in MATHIR V7). $\blacksquare$
 
-**Numerical example.** For $\omega = 1.5$ and 20 iterations, the contraction factor is $0.375^{20} \approx 10^{-8}$, meaning the V7 mHC layer is within $10^{-8}$ of the doubly-stochastic manifold. The computational cost is $20 \cdot d^2$ flops per mHC layer, which for $d = 272$ is approximately $1.5 \times 10^6$ flops — negligible compared to a single attention head.
+**Numerical example.** For $\omega = 1.5$ and 20 iterations, the contraction factor is $0.375^{20} \approx 10^{-8}$, meaning the V7 mHC layer is within $10^{-8}$ of the doubly-stochastic manifold. The computational cost is $20 \cdot d^2$ flops per mHC layer, which for $d = 272$ is approximately $1.5 \times 10^6$ flops, negligible compared to a single attention head.
 
 ### Appendix B: Implementation Details
 
@@ -2387,7 +2387,7 @@ If you use MATHIR V8.7.0 in your research, please cite this paper:
 
 *This paper was prepared as a master's research deliverable for the MATHIR project. The author thanks the open-source community (sentence-transformers, FAISS, PyMuPDF, rank_bm25), and the academic peers who reviewed the V7 theorems. Special thanks to the developers of the six foundational results (Shannon, Robbins-Monro, Neyman-Pearson, Johnson-Lindenstrauss, Candès-Tao, Sinkhorn-Knopp) on which this work is built.*
 
-**Author contact:** Prince Gildas Mbama Kombila — soilearn3d@gmail.com — github.com/So-i-learn-3D
+**Author contact:** Prince Gildas Mbama Kombila, soilearn3d@gmail.com, github.com/So-i-learn-3D
 
 **Date:** June 2, 2026
 

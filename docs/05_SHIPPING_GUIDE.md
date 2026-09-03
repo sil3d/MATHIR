@@ -1,4 +1,4 @@
-# MATHIR — How to Ship (v8.9.4)
+# MATHIR: How to Ship (v8.9.4)
 
 **Production deployment guide. One daemon, any agent.**
 
@@ -187,7 +187,7 @@ docker run -d -p 7338:7338 -v mathir-data:/root/.config/MATHIR mathir:latest
 **A:** Yes, on different ports: `mathir-server --port 7339`. Each is independent.
 
 ### Q: What if the daemon crashes?
-**A:** The MCP bridge returns an error. The agent continues without memory. Restart the daemon — all data is persisted in SQLite.
+**A:** The MCP bridge returns an error. The agent continues without memory. Restart the daemon, all data is persisted in SQLite.
 
 ### Q: How much disk space?
 **A:** ~80MB for the embedding model + ~1KB per 1000 memories (with INT8 quantization).

@@ -2,7 +2,7 @@
 
 **An explanation of why Approach A (Raw) and FAISS VectorDB give the same quality, and why Approach D (Hybrid) measures better on this internal benchmark.**
 
-> **Note (2026-09-03):** Pure mathematical content — valid for the v8.9.8 implementation (v8.5 terminology in the proof body is historical; tier counts and embedding geometry unchanged).
+> **Note (2026-09-03):** Pure mathematical content, valid for the v8.9.8 implementation (v8.5 terminology in the proof body is historical; tier counts and embedding geometry unchanged).
 
 ---
 
@@ -30,7 +30,7 @@ This document answers both questions with **mathematical rigor**.
 
 2. **D is better because it combines 3 INDEPENDENT information sources** (dense + lexical + interactive) → +14.1 percentage points over any single source.
 
-3. **The V7 default (19.7%) is the actual problem** — its 64-dim projection loses information that A, C, and FAISS preserve by working in the raw 384-dim space.
+3. **The V7 default (19.7%) is the actual problem**, its 64-dim projection loses information that A, C, and FAISS preserve by working in the raw 384-dim space.
 
 ---
 
@@ -151,7 +151,7 @@ $$k_{\min} \ge \frac{4 \log n}{\varepsilon^2/2 - \varepsilon^3/3}$$
 For $n = 200$ documents and target distortion $\varepsilon = 0.3$:
 $$k_{\min} \ge \frac{4 \log 200}{0.045 - 0.009} = \frac{21.2}{0.036} \approx 590$$
 
-But V7's projection uses $k = 64$ — **far below the bound**. This guarantees distortion.
+But V7's projection uses $k = 64$, **far below the bound**. This guarantees distortion.
 
 ### Empirical Verification
 
@@ -179,7 +179,7 @@ Captures **semantic similarity** in the embedding space.
 ### Source 2: BM25 (Lexical)
 $$s_{\text{BM25}}(q, d) = \sum_{t \in q} \mathrm{IDF}(t) \cdot \frac{f(t, d) \cdot (k_1 + 1)}{f(t, d) + k_1 \cdot (1 - b + b \cdot \frac{|d|}{\text{avgdl}})}$$
 
-Captures **exact term matches** — "Navier-Stokes", "Reynolds number", "boundary layer".
+Captures **exact term matches**, "Navier-Stokes", "Reynolds number", "boundary layer".
 
 ### Source 3: Cross-Encoder
 $$s_{\text{CE}}(q, d) = \text{Transformer}(\mathbf{q}_{\text{tokens}}, \mathbf{d}_{\text{tokens}})$$
@@ -244,7 +244,7 @@ Future improvements:
 - Cross-lingual retrieval (multilingual embedders)
 - Query expansion (add synonyms before search)
 
-But D is already at 45.7% — **very close to the theoretical maximum for this corpus**.
+But D is already at 45.7%, **very close to the theoretical maximum for this corpus**.
 
 ---
 
@@ -340,13 +340,13 @@ The "same results" phenomenon is **mathematically expected and theoretically gro
 
 3. **D (45.7%)** is **higher** because it combines 3 orthogonal information sources. The improvement is predicted by information theory.
 
-This analysis is **non-obvious**. It demonstrates that the v8.5 retrieval research is not just engineering — it has **theoretical foundations**.
+This analysis is **non-obvious**. It demonstrates that the v8.5 retrieval research is not just engineering, it has **theoretical foundations**.
 
 ---
 
 ## Phrase pour la Défense
 
-> "Why does MATHIR-A give the same results as FAISS? Because they're computing the same mathematical quantity on the same vectors. This **confirms** that the V7 default's 19.7% quality is caused by the 64-dim projection, not by any algorithmic issue. To get BETTER quality than FAISS, we need to add new information sources — which is exactly what Approach D does with BM25 and cross-encoder re-ranking. This +14.1pp gain is predicted by information theory: combining 3 orthogonal sources gives ~1.0 bits vs ~0.5 bits for a single source."
+> "Why does MATHIR-A give the same results as FAISS? Because they're computing the same mathematical quantity on the same vectors. This **confirms** that the V7 default's 19.7% quality is caused by the 64-dim projection, not by any algorithmic issue. To get BETTER quality than FAISS, we need to add new information sources, which is exactly what Approach D does with BM25 and cross-encoder re-ranking. This +14.1pp gain is predicted by information theory: combining 3 orthogonal sources gives ~1.0 bits vs ~0.5 bits for a single source."
 
 ---
 

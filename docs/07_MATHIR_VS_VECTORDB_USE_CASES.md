@@ -1,6 +1,6 @@
-# MATHIR and Vector Databases — Where Each Fits (Chat Use Case)
+# MATHIR and Vector Databases: Where Each Fits (Chat Use Case)
 
-> **Framing note (2026):** this document originally compared MATHIR head-to-head against FAISS across chat and driving use cases. It's kept as internal benchmark data, not as a "we beat them" claim — plain FAISS actually wins on raw retrieval quality in real BEIR benchmarks (see the honest self-audit linked from the root README). The useful takeaway is architectural: a static vector index and a self-maintaining, tiered, learning memory layer solve different problems and compose well as L1/L2. The driving-specific content has moved to [MATHIR_FOR_ROBOTICS.md](MATHIR_FOR_ROBOTICS.md).
+> **Framing note (2026):** this document originally compared MATHIR head-to-head against FAISS across chat and driving use cases. It's kept as internal benchmark data, not as a "we beat them" claim, plain FAISS actually wins on raw retrieval quality in real BEIR benchmarks (see the honest self-audit linked from the root README). The useful takeaway is architectural: a static vector index and a self-maintaining, tiered, learning memory layer solve different problems and compose well as L1/L2. The driving-specific content has moved to [MATHIR_FOR_ROBOTICS.md](MATHIR_FOR_ROBOTICS.md).
 
 **Author:** Prince Gildas Mbama Kombila
 **Affiliation:** MATHIR Project, Independent Master's Research
@@ -9,19 +9,19 @@
 **Current implementation:** MATHIR v8.9.8 (6 memory tiers including guardrail + God Mode orchestration; see CHANGELOG)
 **Domain:** Memory-Augmented LLM Systems, Edge Deployment, Safety-Critical AI
 
-> **Note (2026-09-03):** The benchmark tables below are historical measurements from the original comparison harness, not current latency or throughput guarantees. The tier count is **six** (working_memory, episodic, semantic, procedural, immunological, guardrail). Current runtime reliability details — HTTP transport, canonical project DB routing, bounded injection, and maintenance limits — are documented in [DAEMON.md](../mathir_mcp/docs/DAEMON.md).
+> **Note (2026-09-03):** The benchmark tables below are historical measurements from the original comparison harness, not current latency or throughput guarantees. The tier count is **six** (working_memory, episodic, semantic, procedural, immunological, guardrail). Current runtime reliability details, HTTP transport, canonical project DB routing, bounded injection, and maintenance limits, are documented in [DAEMON.md](../mathir_mcp/docs/DAEMON.md).
 
 ---
 
 ## 1. Overview
 
-Vector databases (FAISS, Qdrant, Chroma, Pinecone, Weaviate) are the dominant *external-memory* paradigm for LLM augmentation in 2026. They store high-dimensional embeddings and retrieve the top-$k$ nearest neighbours in sub-millisecond latency, but they do not learn from the data they store, do not adapt their indices to the user's distribution, do not detect when an input is anomalous, and cannot correlate symbolic metadata with dense geometry. **MATHIR (Memory-Augmented Tensor Hybrid with Intelligent Routing)** is a hierarchical, online-learning memory layer designed to sit between any LLM (or vision-language model) and the real world. It provides **six memory tiers** (working_memory, episodic, semantic, procedural, immunological, guardrail), a KL-constrained router, and six formal theorems that bound its behaviour. This document compares MATHIR against a production-grade FAISS vector database on two concrete use cases — **conversational chat** and **autonomous driving** — and shows that MATHIR is the right choice when adaptation, anomaly detection, hybrid retrieval, or safety is required, while the vector database remains optimal for ultra-low-latency, static, and batch workloads. The recommendation is not "either/or" but a **cascade architecture** in which the vector database is the L1 retriever and MATHIR is the L2 reranker + learner + safety net.
+Vector databases (FAISS, Qdrant, Chroma, Pinecone, Weaviate) are the dominant *external-memory* paradigm for LLM augmentation in 2026. They store high-dimensional embeddings and retrieve the top-$k$ nearest neighbours in sub-millisecond latency, but they do not learn from the data they store, do not adapt their indices to the user's distribution, do not detect when an input is anomalous, and cannot correlate symbolic metadata with dense geometry. **MATHIR (Memory-Augmented Tensor Hybrid with Intelligent Routing)** is a hierarchical, online-learning memory layer designed to sit between any LLM (or vision-language model) and the real world. It provides **six memory tiers** (working_memory, episodic, semantic, procedural, immunological, guardrail), a KL-constrained router, and six formal theorems that bound its behaviour. This document compares MATHIR against a production-grade FAISS vector database on two concrete use cases, **conversational chat** and **autonomous driving**, and shows that MATHIR is the right choice when adaptation, anomaly detection, hybrid retrieval, or safety is required, while the vector database remains optimal for ultra-low-latency, static, and batch workloads. The recommendation is not "either/or" but a **cascade architecture** in which the vector database is the L1 retriever and MATHIR is the L2 reranker + learner + safety net.
 
 ---
 
 ## 2. Architecture Comparison
 
-The two architectures under comparison share the same goal — augment an LLM with persistent memory — but differ in every other dimension.
+The two architectures under comparison share the same goal, augment an LLM with persistent memory, but differ in every other dimension.
 
 ### 2.1 Vector Database + LLM (the dominant 2026 stack)
 
@@ -53,7 +53,7 @@ The two architectures under comparison share the same goal — augment an LLM wi
 └────────────────────────────────────────────────────────────────┘
 ```
 
-**Properties.** Flat-topology memory; write-once-read-many; a single scalar score per candidate; cosine / L2 / inner-product similarity. The index is built once, updated in append-only mode, and never adapts to the query distribution. There is no concept of "novel" input — every vector is matched to its nearest neighbour regardless of distance.
+**Properties.** Flat-topology memory; write-once-read-many; a single scalar score per candidate; cosine / L2 / inner-product similarity. The index is built once, updated in append-only mode, and never adapts to the query distribution. There is no concept of "novel" input, every vector is matched to its nearest neighbour regardless of distance.
 
 ### 2.2 MATHIR + LLM (the v8.5 stack)
 
@@ -108,13 +108,13 @@ The two architectures under comparison share the same goal — augment an LLM wi
 | Memory budget | Grows linearly with $N$ | Hard-capped at 60 KB (Theorem 1) |
 | Router | None | KL-constrained (Theorem 3) |
 | Cache | Vendor-specific | Built-in 10K LRU (chat) / 90%+ hit (driving) |
-| LLM-agnostic | N/A (it *is* the memory) | Yes — drop-in `.perceive() / .store() / .recall()` |
+| LLM-agnostic | N/A (it *is* the memory) | Yes: drop-in `.perceive() / .store() / .recall()` |
 | Edge deployable | ❌ (typical 2–4 GB) | ✅ (60 KB internal memory, ~500 MB embedding model (GPU) or 80 MB (CPU INT8)) |
 | Formal guarantees | None | 6 theorems, 8 algorithms |
 
 ---
 
-## 3. Use Case 1 — Chat Conversationnel
+## 3. Use Case 1: Chat Conversationnel
 
 A conversational assistant (customer support, personal assistant, technical copilot) must (a) recall the user's prior turns, (b) adapt to the user's vocabulary and intent over time, (c) detect when the user asks something outside the established topics, and (d) answer technical / domain-specific questions with high precision.
 
@@ -139,14 +139,14 @@ A conversational assistant (customer support, personal assistant, technical copi
 
 ### 3.2 What the warm-path numbers mean in practice
 
-A 30-minute chat session with 80 queries (20 unique × 4 paraphrases each — the typical conversational pattern) sees the following distribution:
+A 30-minute chat session with 80 queries (20 unique × 4 paraphrases each, the typical conversational pattern) sees the following distribution:
 
 | Outcome | Count | Latency | Notes |
 |---|---:|---:|---|
 | Cache hit (paraphrase of a recent question) | 64 (80 %) | 6 ms median | User-perceived: instantaneous |
 | Cold miss (genuinely new question) | 16 (20 %) | 494 ms | One-time cost per novel turn |
 
-The **median** user-perceived latency is therefore 6 ms — within the budget of any chat UI. The **mean** is higher (399 ms) because the cold misses pull the average up, but as the session progresses, the cache fills and the mean converges to the median. VectorDB is faster on the first turn (0.05 ms vs 494 ms) but cannot exploit the conversational structure: every paraphrased question is a fresh query.
+The **median** user-perceived latency is therefore 6 ms, within the budget of any chat UI. The **mean** is higher (399 ms) because the cold misses pull the average up, but as the session progresses, the cache fills and the mean converges to the median. VectorDB is faster on the first turn (0.05 ms vs 494 ms) but cannot exploit the conversational structure: every paraphrased question is a fresh query.
 
 ### 3.3 Where VectorDB wins in chat
 
@@ -166,29 +166,29 @@ The **median** user-perceived latency is therefore 6 ms — within the budget of
 
 ---
 
-## 4. Use Case 2 — Conduite Autonome (moved)
+## 4. Use Case 2: Conduite Autonome (moved)
 
-**This section has moved to [docs/MATHIR_FOR_ROBOTICS.md](MATHIR_FOR_ROBOTICS.md).** The autonomous-driving research direction is now developed as its own track — it makes a different, unvalidated hypothesis (place-based episodic memory as a fallback when sensor confidence collapses) that deserves its own honest framing rather than being folded into a general "MATHIR vs VectorDB" comparison. The historical latency/anomaly numbers below (§4, original) are retained in that document with full context on what is/isn't validated.
+**This section has moved to [docs/MATHIR_FOR_ROBOTICS.md](MATHIR_FOR_ROBOTICS.md).** The autonomous-driving research direction is now developed as its own track, it makes a different, unvalidated hypothesis (place-based episodic memory as a fallback when sensor confidence collapses) that deserves its own honest framing rather than being folded into a general "MATHIR vs VectorDB" comparison. The historical latency/anomaly numbers below (§4, original) are retained in that document with full context on what is/isn't validated.
 
 <details>
 <summary>Original section 4 content (kept for reference, superseded by MATHIR_FOR_ROBOTICS.md)</summary>
 
-## 4. Use Case 2 — Conduite Autonome
+## 4. Use Case 2: Conduite Autonome
 
-An autonomous-driving stack — typically a vision-language model (Qwen3-VL, LLaVA-1.6) or a perception-CNN + RL-policy head — must (a) retrieve past situations similar to the current scene, (b) update the memory in real time as the car drives, (c) flag novel situations (a pedestrian on the highway, a mattress in the fast lane) that the policy has never seen, and (d) run at 10–50 Hz with deterministic latency. This is the **safety-critical** use case: a missed anomaly is a fatality.
+An autonomous-driving stack, typically a vision-language model (Qwen3-VL, LLaVA-1.6) or a perception-CNN + RL-policy head, must (a) retrieve past situations similar to the current scene, (b) update the memory in real time as the car drives, (c) flag novel situations (a pedestrian on the highway, a mattress in the fast lane) that the policy has never seen, and (d) run at 10–50 Hz with deterministic latency. This is the **safety-critical** use case: a missed anomaly is a fatality.
 
 ### 4.1 Detailed comparison
 
 | Dimension | FAISS VectorDB | MATHIR v8.5 + LRU + anomaly | Winner |
 |---|---|---|---|
-| **Latency (per-frame, 20 Hz loop)** | 0.05 ms (well within 50 ms budget) | 6 ms (warm) — 494 ms (cold) | VectorDB on raw latency |
+| **Latency (per-frame, 20 Hz loop)** | 0.05 ms (well within 50 ms budget) | 6 ms (warm): 494 ms (cold) | VectorDB on raw latency |
 | **Real-time `store()`** | Append-only, O(log n) per insert | O(1) with sparse-coding + TurboQuant | TIE |
 | **Online adaptation to the route** | ❌ (same cosine for highway / city / tunnel) | ✅ (episodic store fills with what the car actually sees; semantic prototypes specialise per environment) | **MATHIR (VectorDB literally cannot do this)** |
-| **Novel situation detection** | ❌ (returns nearest miss with high confidence — "shadow", "road surface") | ✅ (Mahalanobis, Theorem 4, NP-optimal) | **MATHIR** |
+| **Novel situation detection** | ❌ (returns nearest miss with high confidence: "shadow", "road surface") | ✅ (Mahalanobis, Theorem 4, NP-optimal) | **MATHIR** |
 | **Cross-correlate symbolic labels with embeddings** | ❌ (no BM25 stage) | ✅ (BM25 stage: "pedestrian", "rain", "merge") | MATHIR |
 | **Cache hit rate** | n/a | **90 %+** (revisiting same intersection, same merge lane, same weather) | MATHIR |
 | **50 Hz control loop sub-frame budget** | ✅ (0.05 ms) | ✅ on warm path (6 ms << 20 ms budget) | VectorDB on first frame; MATHIR after warm-up |
-| **Safety signal (novelty)** | None | Anomaly score, exponential-tail quantile | **MATHIR — this is a safety requirement** |
+| **Safety signal (novelty)** | None | Anomaly score, exponential-tail quantile | **MATHIR: this is a safety requirement** |
 | **HD map lookup (static)** | ✅ (perfect fit) | Overkill | VectorDB |
 | **Fleet analytics (batch, offline)** | ✅ (20 392 QPS) | Overkill | VectorDB |
 | **Pre-recorded data replay** | ✅ | ✅ | TIE |
@@ -198,7 +198,7 @@ An autonomous-driving stack — typically a vision-language model (Qwen3-VL, LLa
 
 ### 4.2 Why driving is the killer use case for MATHIR
 
-VectorDB treats all 4 environments (highway, city, country, tunnel) the same — same cosine, same top-1. MATHIR's episodic memory **differentiates them within 30 minutes** because `store()` calls fill the bank with the situations the policy actually handles. The semantic prototypes converge to environment-specific clusters. The immunological memory learns the tunnel-illumination distribution separately from the highway-shadow distribution. After one hour of driving:
+VectorDB treats all 4 environments (highway, city, country, tunnel) the same, same cosine, same top-1. MATHIR's episodic memory **differentiates them within 30 minutes** because `store()` calls fill the bank with the situations the policy actually handles. The semantic prototypes converge to environment-specific clusters. The immunological memory learns the tunnel-illumination distribution separately from the highway-shadow distribution. After one hour of driving:
 
 | Memory state after 1 h | VectorDB | MATHIR v8.5 |
 |---|---|---|
@@ -209,13 +209,13 @@ VectorDB treats all 4 environments (highway, city, country, tunnel) the same —
 
 The 80–85 % cache hit rate observed in chat is *higher* in driving (90 %+) because driving revisits the same situation frequently: same intersection, same merge lane, same weather pattern, same pedestrian crossing. The LRU cache fills with these recurring episodes and serves them in 6 ms.
 
-### 4.3 Safety argument — VectorDB has no novelty signal
+### 4.3 Safety argument: VectorDB has no novelty signal
 
 This is the single most important distinction. Consider the input: an embedding of "black blob in the middle of the road" that has never been seen by the fleet. The two systems behave as follows:
 
 **FAISS VectorDB.** Returns the nearest neighbour with high confidence. If the fleet's most-similar vector is "road surface" (cosine 0.78), the policy receives the input *with* a high-similarity match and proceeds as if the road is normal. **Failure mode: silent mis-classification.**
 
-**MATHIR v8.5.** The Mahalanobis distance $D_M(x; \mu, \Sigma)$ against the running $\Sigma$ (estimated from the last 1000 normal driving embeddings) yields $D_M = 6.2$, which exceeds $\tau_{0.01} = \sqrt{\chi^2_{d, 0.99}} \approx 1.6$ for $d = 384$. The immunological tier fires; the policy head receives a high-anomaly flag and can route to an emergency maneuver (brake, swerve, slow down). **Theorem 4 certifies this detector as NP-optimal for Gaussian normal data** — no other anomaly statistic (Euclidean, cosine, learned) can achieve a higher true-positive rate at the same false-positive rate in the asymptotic limit. Empirically, on a 50/50 normal/out-of-distribution test, MATHIR's Mahalanobis detector reaches F1 = 0.89 ± 0.03 vs Euclidean baseline F1 = 0.71 ± 0.04.
+**MATHIR v8.5.** The Mahalanobis distance $D_M(x; \mu, \Sigma)$ against the running $\Sigma$ (estimated from the last 1000 normal driving embeddings) yields $D_M = 6.2$, which exceeds $\tau_{0.01} = \sqrt{\chi^2_{d, 0.99}} \approx 1.6$ for $d = 384$. The immunological tier fires; the policy head receives a high-anomaly flag and can route to an emergency maneuver (brake, swerve, slow down). **Theorem 4 certifies this detector as NP-optimal for Gaussian normal data**, no other anomaly statistic (Euclidean, cosine, learned) can achieve a higher true-positive rate at the same false-positive rate in the asymptotic limit. Empirically, on a 50/50 normal/out-of-distribution test, MATHIR's Mahalanobis detector reaches F1 = 0.89 ± 0.03 vs Euclidean baseline F1 = 0.71 ± 0.04.
 
 ### 4.4 On-car deployment profile (NVIDIA Jetson AGX Orin 8 GB)
 
@@ -226,7 +226,7 @@ This is the single most important distinction. Consider the input: an embedding 
 | LRU cache | 0.01 GB | 0.1 ms |
 | **Total** | **~7.51 GB** | **86–580 ms** |
 
-A FAISS index of 1 M 384-dim vectors (PQ16) takes 2 GB VRAM and 50 ms per query — incompatible with a ~500 MB budget or a 20 ms sub-frame SLA. MATHIR's 60 KB hard-capped memory budget (Theorem 1) is the only option for on-car deployment.
+A FAISS index of 1 M 384-dim vectors (PQ16) takes 2 GB VRAM and 50 ms per query, incompatible with a ~500 MB budget or a 20 ms sub-frame SLA. MATHIR's 60 KB hard-capped memory budget (Theorem 1) is the only option for on-car deployment.
 
 </details>
 
@@ -238,21 +238,21 @@ The 12 capabilities below are the precise feature set that MATHIR brings to an L
 
 | # | Capability | Theorem / Algorithm | VectorDB equivalent | Empirical gain |
 |---|---|---|---|---|
-| 1 | **Online learning of the index** | Robbins-Monro prototype updates (Theorem 3) | None — append-only | Prototypes converge to user distribution in ~100 iterations; +12–18 % retrieval quality on personalised corpora |
+| 1 | **Online learning of the index** | Robbins-Monro prototype updates (Theorem 3) | None: append-only | Prototypes converge to user distribution in ~100 iterations; +12–18 % retrieval quality on personalised corpora |
 | 2 | **Anomaly / novelty detection** | Mahalanobis, NP-optimal (Theorem 4) | None | F1 = 0.89 vs 0.71 (Euclidean) on 50/50 normal/OOD |
 | 3 | **Hybrid retrieval (BM25 + dense + CE)** | Approach D (Reciprocal Rank Fusion + cross-encoder rerank) | Vendor-specific, optional | +14.1 pp top-1 overlap on real textbook (45.7 % vs 31.6 %) |
 | 4 | **Spaced-repetition forgetting** | Ebbinghaus $S \mapsto S(1+\alpha)^r$ (Theorem 2) | FIFO / LRU | 100 % retention at 1000 steps for hot items; 94 % cold-start |
-| 5 | **Hierarchical routing across memory tiers** | KL-constrained router (Theorem 3) | None — single-tier | Convergence to near-optimal tier allocation in $O(\log(1/\varepsilon)/\varepsilon)$ iterations; prevents router collapse |
+| 5 | **Hierarchical routing across memory tiers** | KL-constrained router (Theorem 3) | None: single-tier | Convergence to near-optimal tier allocation in $O(\log(1/\varepsilon)/\varepsilon)$ iterations; prevents router collapse |
 | 6 | **9.3× memory compression** | Sparse 8-of-1088 + TurboQuant 3-bit | PQ (lossy) | 1 088 000 B → 116 976 B for 1000 × 272-dim embeddings |
 | 7 | **Variational uncertainty per slot** | Reparameterised Gaussian $\mu, \sigma$ | None | The LLM can know when the memory is uncertain; abstention triggers |
-| 8 | **Cross-attention addressing** | Learned Q/K/V (Algorithm 5) | None — cosine only | Outperforms cosine on multi-modal embeddings; +5–8 % in vision-text retrieval |
+| 8 | **Cross-attention addressing** | Learned Q/K/V (Algorithm 5) | None: cosine only | Outperforms cosine on multi-modal embeddings; +5–8 % in vision-text retrieval |
 | 9 | **Information-bottleneck memory** | Master objective $(\star)$ with $D_{\mathrm{KL}}(P_{M_t} \| P_0)$ | None | Bounded information capacity (Theorem 1: $I(X; M_t) \le C \cdot d \cdot \log_2(1 + \mathrm{SNR})$) |
 | 10 | **Sparse coding tier** | ISTA + hard-threshold (Theorem 5) | None | 4× additional compression; reconstruction error $\le 0.74\,\sigma^2 / 1088$ |
-| 11 | **Hyperbolic semantic geometry** | Poincaré ball (Algorithm 8) | None — flat Euclidean | Tree-like hierarchies represented with low distortion |
-| 12 | **Neural-ODE continuous-time memory evolution** | RK4 integrator (Algorithm 7) | None — discrete | Smooth interpolation between observed states; differentiable w.r.t. time |
+| 11 | **Hyperbolic semantic geometry** | Poincaré ball (Algorithm 8) | None: flat Euclidean | Tree-like hierarchies represented with low distortion |
+| 12 | **Neural-ODE continuous-time memory evolution** | RK4 integrator (Algorithm 7) | None: discrete | Smooth interpolation between observed states; differentiable w.r.t. time |
 | 13 | **Built-in LRU result cache** | 10 000 entries, 100 % score preservation | Vendor-specific | 80–85 % cache hit (chat), 90 %+ (driving); 6 ms median on hit |
 | 14 | **Formal convergence certificates** | 6 theorems with proofs | None | Provides a-priori guarantees for safety-critical deployment |
-| 15 | **Edge deployment in 60 KB memory** | Hard budget from Theorem 1 | None — GB-scale | Runs on Jetson Orin 8 GB; FAISS does not fit |
+| 15 | **Edge deployment in 60 KB memory** | Hard budget from Theorem 1 | None: GB-scale | Runs on Jetson Orin 8 GB; FAISS does not fit |
 | 16 | **LLM-agnostic drop-in interface** | `.perceive() / .store() / .recall()` | N/A (vectorDB is the memory) | Same code with Claude, GPT-5, Qwen3, LLaMA-3, local 7B |
 
 ---
@@ -266,7 +266,7 @@ All numbers below are from `benchmarks/` and `compare_all_approaches_results.jso
 | System | Top-1 overlap | Top-1 semantic match | Queries ≥ 30 % | Queries ≥ 50 % |
 |---|:---:|:---:|:---:|:---:|
 | FAISS VectorDB (raw 384-dim) | 31.6 % | 45 % | 28/50 | 20/50 |
-| **MATHIR v8.5 — Approach D (Hybrid)** | **45.7 %** | **59 %** | **40/50** | **31/50** |
+| **MATHIR v8.5: Approach D (Hybrid)** | **45.7 %** | **59 %** | **40/50** | **31/50** |
 | **Δ** | **+14.1 pp** | **+14 pp** | **+12** | **+11** |
 
 ### 6.2 Memory compression (1000 × 272-dim embeddings)
@@ -314,14 +314,14 @@ All numbers below are from `benchmarks/` and `compare_all_approaches_results.jso
 
 ### 6.7 Eight new V7 algorithms
 
-1. `EbbinghausMemory` — Theorem 2
-2. `SparseCodingMemory` — Theorem 5
-3. `VariationalMemory` — reparametrised Gaussian slots
-4. `CrossAttentionMemory` — learned Q/K/V addressing
-5. `HyperbolicMemory` — Poincaré ball
-6. `InfoNCELoss` — mutual-information contrastive
-7. `NeuralODEMemory` — RK4 continuous-time evolution
-8. `MahalanobisImmunologicalMemory` — Theorem 4
+1. `EbbinghausMemory`, Theorem 2
+2. `SparseCodingMemory`, Theorem 5
+3. `VariationalMemory`, reparametrised Gaussian slots
+4. `CrossAttentionMemory`, learned Q/K/V addressing
+5. `HyperbolicMemory`, Poincaré ball
+6. `InfoNCELoss`, mutual-information contrastive
+7. `NeuralODEMemory`, RK4 continuous-time evolution
+8. `MahalanobisImmunologicalMemory`, Theorem 4
 
 ---
 
@@ -329,29 +329,29 @@ All numbers below are from `benchmarks/` and `compare_all_approaches_results.jso
 
 Four concrete examples that illustrate when to reach for MATHIR versus when a vector database is sufficient.
 
-### Scenario 1 — Customer-support chatbot with 10 K FAQs and 1 M historical tickets
+### Scenario 1: Customer-support chatbot with 10 K FAQs and 1 M historical tickets
 
 - **Recommended:** FAISS VectorDB as the **L1 retriever**, MATHIR v8.5 as the **L2 reranker** (cascade).
 - **Reasoning:** 1 M tickets + 10 K FAQs require the throughput of FAISS (20 K QPS). The 50 ms budget per turn is dominated by the LLM (40 ms), leaving 10 ms for retrieval. FAISS does the first pass in 0.05 ms; MATHIR reranks the top-50 in 150 ms amortized. Cache hit rate 80 % drops MATHIR's median to 6 ms.
 - **MATHIR's value:** +14.1 pp top-1 quality on the first pass; anomaly flag on never-before-seen questions; personalised prototype clusters per customer cohort.
 
-### Scenario 2 — Personal AI assistant that learns the user's name, job, allergies, project deadlines
+### Scenario 2: Personal AI assistant that learns the user's name, job, allergies, project deadlines
 
 - **Recommended:** MATHIR v8.5 alone.
 - **Reasoning:** The corpus is small (< 1 000 items) and personal. Ebbinghaus spaced-repetition keeps "peanut allergy" and "wife's birthday" indefinitely. VectorDB's FIFO drops them after 1000 inserts. The KL router learns that this user asks short, conversational questions and routes to working memory 60 % of the time.
 - **MATHIR's value:** Permanent retention of critical personal facts; per-user prototype adaptation; novelty flag for unusual requests.
 
-### Scenario 3 — Autonomous driving in a new city (no HD map, no fleet data)
+### Scenario 3: Autonomous driving in a new city (no HD map, no fleet data)
 
 - **Recommended:** MATHIR v8.5 + episodic store only.
-- **Reasoning:** The first 30 minutes of driving fills the episodic bank with the situations the policy actually encounters. The semantic prototypes converge to environment-specific clusters (roundabouts, tram crossings, school zones). The Mahalanobis immunological memory flags novel situations (e.g. a horse-drawn cart on a main road) that no fleet has seen. VectorDB has no notion of "novel"; it returns the nearest miss with high confidence — a safety hazard.
+- **Reasoning:** The first 30 minutes of driving fills the episodic bank with the situations the policy actually encounters. The semantic prototypes converge to environment-specific clusters (roundabouts, tram crossings, school zones). The Mahalanobis immunological memory flags novel situations (e.g. a horse-drawn cart on a main road) that no fleet has seen. VectorDB has no notion of "novel"; it returns the nearest miss with high confidence: a safety hazard.
 - **MATHIR's value:** Real-time adaptation to the new city; novelty signal for the policy head; safety argument from Theorem 4.
 
-### Scenario 4 — Static document search (PDF library, Wikipedia mirror)
+### Scenario 4: Static document search (PDF library, Wikipedia mirror)
 
 - **Recommended:** FAISS VectorDB alone.
 - **Reasoning:** 10 M documents, uniform query distribution, sub-10 ms SLA, no need to learn. FAISS's HNSW/IVF indices are optimised exactly for this. MATHIR's 60 KB memory budget and online-learning overhead are wasted on a static corpus.
-- **MATHIR's value:** None — vectorDB is the right tool.
+- **MATHIR's value:** None: vectorDB is the right tool.
 
 ---
 
@@ -385,13 +385,13 @@ Four concrete examples that illustrate when to reach for MATHIR versus when a ve
 
 ---
 
-## 9. Verdict — The "What" of the Value
+## 9. Verdict: The "What" of the Value
 
 A master's defense panel will ask: *"What does MATHIR bring that a vector database does not, and is it worth the engineering complexity?"* The answer has three layers.
 
 ### 9.1 The operational answer
 
-MATHIR **learns the index as it serves**. A vector database stores whatever you put in and retrieves it forever. MATHIR's semantic prototypes shift toward the user distribution (Theorem 3 guarantees convergence in $O(\log(1/\varepsilon)/\varepsilon)$ iterations), its episodic bank fills with the situations the system actually encounters, and its immunological covariance tracks the running "normal" distribution. After one hour of personalised use, the two systems are retrieving from different corpora — and MATHIR's corpus is the one that matters.
+MATHIR **learns the index as it serves**. A vector database stores whatever you put in and retrieves it forever. MATHIR's semantic prototypes shift toward the user distribution (Theorem 3 guarantees convergence in $O(\log(1/\varepsilon)/\varepsilon)$ iterations), its episodic bank fills with the situations the system actually encounters, and its immunological covariance tracks the running "normal" distribution. After one hour of personalised use, the two systems are retrieving from different corpora, and MATHIR's corpus is the one that matters.
 
 ### 9.2 The quality answer
 
@@ -399,11 +399,11 @@ MATHIR's hybrid retrieval (BM25 + dense + cross-encoder) achieves **+14.1 percen
 
 ### 9.3 The safety answer
 
-MATHIR's Mahalanobis immunological memory is **provably NP-optimal** (Theorem 4) for Gaussian-distributed normal data. No vector database has an equivalent safety signal. In autonomous driving, the absence of a novelty flag means a never-before-seen obstacle is returned as the nearest neighbour with high confidence — a silent mis-classification. MATHIR returns an anomaly score above the $\chi^2$ quantile and the policy head can route to an emergency maneuver. This is the difference between a system that *retrieves* and a system that *knows what it does not know*.
+MATHIR's Mahalanobis immunological memory is **provably NP-optimal** (Theorem 4) for Gaussian-distributed normal data. No vector database has an equivalent safety signal. In autonomous driving, the absence of a novelty flag means a never-before-seen obstacle is returned as the nearest neighbour with high confidence, a silent mis-classification. MATHIR returns an anomaly score above the $\chi^2$ quantile and the policy head can route to an emergency maneuver. This is the difference between a system that *retrieves* and a system that *knows what it does not know*.
 
 ### 9.4 The honest trade-off
 
-MATHIR is **slower on the cold path** (494 ms median for Approach D vs 0.05 ms for FAISS), **larger in code complexity** (8 algorithms, 6 theorems vs ~10 000 lines of FAISS), and **smaller in maximum corpus** (60 KB memory budget vs gigabytes for FAISS). These are not bugs — they are the price of online learning, anomaly detection, and hybrid retrieval. For workloads that need those features, the price is worth paying. For workloads that do not, the vector database remains the right tool.
+MATHIR is **slower on the cold path** (494 ms median for Approach D vs 0.05 ms for FAISS), **larger in code complexity** (8 algorithms, 6 theorems vs ~10 000 lines of FAISS), and **smaller in maximum corpus** (60 KB memory budget vs gigabytes for FAISS). These are not bugs, they are the price of online learning, anomaly detection, and hybrid retrieval. For workloads that need those features, the price is worth paying. For workloads that do not, the vector database remains the right tool.
 
 ### 9.5 The architectural recommendation
 
@@ -465,4 +465,4 @@ pytest tests/test_approach_d_hybrid.py
 
 ---
 
-*Generated: 2026-06-02 — MATHIR V8.4.1 Master's defense document. Comments and corrections should be directed to the MATHIR maintainers. The companion paper is `docs/MASTER_RESEARCH_PAPER.md` (with full theorem proofs and 50-entry bibliography). The companion retrieval-research report is `docs/RETRIEVAL_RESEARCH_REPORT.md`.*
+*Generated: 2026-06-02, MATHIR V8.4.1 Master's defense document. Comments and corrections should be directed to the MATHIR maintainers. The companion paper is `docs/MASTER_RESEARCH_PAPER.md` (with full theorem proofs and 50-entry bibliography). The companion retrieval-research report is `docs/RETRIEVAL_RESEARCH_REPORT.md`.*

@@ -1,4 +1,4 @@
-# MATHIR — Academic References & Research Papers
+# MATHIR: Academic References & Research Papers
 
 Papers cited in the MATHIR codebase, grouped by algorithm/feature.
 
@@ -9,7 +9,7 @@ Papers cited in the MATHIR codebase, grouped by algorithm/feature.
 ### L1 Embedding Cache (LRU)
 
 - **O'Neil, E.J., O'Neil, P.E., & Weikum, G. (1993).** "The LRU-K Page Replacement Algorithm for Database Disk Buffering." *Proceedings of the 1993 ACM SIGMOD International Conference on Management of Data*, pp. 297-306.
-  - Foundational LRU variant for buffer management. MATHIR's L1 uses classic LRU (K=1) on embedding vectors — deterministic outputs make embeddings ideal LRU candidates.
+  - Foundational LRU variant for buffer management. MATHIR's L1 uses classic LRU (K=1) on embedding vectors: deterministic outputs make embeddings ideal LRU candidates.
 
 - **Cao, P. & Irani, S. (1999).** "Cost-Aware WWW Proxy Caching Algorithms." *Proceedings of USENIX USITS*.
   - Cost-aware caching where items have different retrieval costs. Directly applicable: embedding encode (~60ms) vs cached lookup (<1ms) = 60x cost differential justifies aggressive caching.
@@ -17,12 +17,12 @@ Papers cited in the MATHIR codebase, grouped by algorithm/feature.
 ### L2 Recall Cache (TTL + Write-Invalidation)
 
 - **Nishtala, R., Fugal, H., Grimm, S., et al. (2013).** "Scaling Memcache at Facebook." *Proceedings of the 10th USENIX NSDI*, pp. 385-398.
-  - Real-world multi-tier caching at scale with write-through invalidation. Same pattern used by MATHIR's `invalidate_on_write()` — any mutation (save/delete/promote/consolidate) clears the recall cache.
+  - Real-world multi-tier caching at scale with write-through invalidation. Same pattern used by MATHIR's `invalidate_on_write()`: any mutation (save/delete/promote/consolidate) clears the recall cache.
 
 ### L3 Session Pre-Warm (Working Set)
 
 - **Denning, P.J. (1968).** "The Working Set Model for Program Behavior." *Communications of the ACM*, 11(5), pp. 323-333. DOI: `10.1145/363095.363141`
-  - Classic paper establishing that programs access a small, stable "working set." MATHIR's L3 pre-loads top-20 memories per project — an agent's hot memories are a small subset of the corpus.
+  - Classic paper establishing that programs access a small, stable "working set." MATHIR's L3 pre-loads top-20 memories per project: an agent's hot memories are a small subset of the corpus.
 
 - **Denning, P.J. (1980).** "Working Sets Past and Present." *IEEE Transactions on Software Engineering*, SE-6(1), pp. 64-84. DOI: `10.1109/TSE.1980.230464`
   - Retrospective survey of working-set theory with extensions. Provides theoretical backing for session-locality assumptions.
@@ -71,7 +71,7 @@ Papers cited in the MATHIR codebase, grouped by algorithm/feature.
   - ScaNN paper on vector quantization for faster retrieval. Conceptually related to MATHIR's INT8 scalar quantization (4x compression, zero recall loss).
 
 - **Johnson, J., Douze, M., & Jegou, H. (2021).** "Billion-Scale Similarity Search with GPUs." *IEEE Transactions on Big Data*, 7(3), pp. 535-547. DOI: `10.1109/TBDATA.2019.2921572`
-  - FAISS — foundational work on efficient similarity search. MATHIR uses sqlite-vec but shares the same indexing principles.
+  - FAISS: foundational work on efficient similarity search. MATHIR uses sqlite-vec but shares the same indexing principles.
 
 ---
 

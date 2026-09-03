@@ -1,7 +1,7 @@
 <!-- SEO: meta tags for search engines -->
 <!-- mathir,memory-augmented,llm-memory,cognitive-memory,vector-database,ai-agent,rag,mcp,model-context-protocol,knowledge-graph,ai-memory,long-term-memory,open-source,mit,sqlite,local-ai,edge-ai,jetson,raspberry-pi,neuroscience,ebbinghaus,tier-promotion,memory-consolidation,prompt-injection,anomaly-detection,mahalanobis,onnx,sentence-transformers,python,llama,claude,chatgpt,gemini,opencode,cursor,windsurf,kilocode -->
 
-> **⚠️ DISCLAIMER** — MATHIR has NOT undergone formal security testing. Use at your own risk in production. **License:** MIT.
+> **⚠️ DISCLAIMER:** MATHIR has NOT undergone formal security testing. Use at your own risk in production. **License:** MIT.
 
 ---
 
@@ -13,11 +13,11 @@
 
 ### Memory-Augmented Tensor Hybrid with Intelligent Routing
 
-**The first cognitive memory layer for LLMs that actually thinks — promotes, forgets, consolidates, and links.**
+**The first cognitive memory layer for LLMs that actually thinks, promotes, forgets, consolidates, and links.**
 
 <br/>
 
-> **🧠 v8.9.8 + reliability hardening** — **Unified global instructions, bounded injection, and database hygiene.** The current daemon also enforces a 50,000-character context budget, canonical project DB routing, adaptive anomaly warmup, and bounded link/consolidation work. [God Mode](docs/GOD_MODE.md) · [Client Bridge](mathir_mcp/bin/god/PROTOCOL.md) · [CHANGELOG](mathir_mcp/CHANGELOG.md)
+> **🧠 v8.9.8 + reliability hardening:** **Unified global instructions, bounded injection, and database hygiene.** The current daemon also enforces a 50,000-character context budget, canonical project DB routing, adaptive anomaly warmup, and bounded link/consolidation work. [God Mode](docs/GOD_MODE.md) · [Client Bridge](mathir_mcp/bin/god/PROTOCOL.md) · [CHANGELOG](mathir_mcp/CHANGELOG.md)
 
 <br/>
 
@@ -33,21 +33,21 @@
 
 ## 🧠 What is MATHIR, in one paragraph?
 
-MATHIR is **not another API you call when you feel like it** — it's an **architectural layer that inserts itself between the model and the provider**, in the request path itself. The idea mimics how a human actually thinks: before acting, you unconsciously recall relevant past experience — including a mistake you made a year ago — so you don't repeat it. LLMs don't do that by default: every request is amnesiac, so they repeat the same errors, forget what "don't do X" they were told last week, and relearn the same lessons from scratch. MATHIR's job is to be that recall step — automatically, on every single request, whether the agent asks for it or not. Two ways it does this: **passively** (MCP tools the agent can call to read/write memory) and, as of v8.9.4, **structurally** (a proxy that sits between any tool and its LLM API — Anthropic or OpenAI-compatible — and rewrites the request to inject relevant memory, past mistakes, and standing rules before the provider ever sees it). It runs as **one local process** (Flask daemon + SQLite/sqlite-vec, no external database, no cloud), with memories that **decay, promote, consolidate, and link themselves** (Ebbinghaus-style, not a flat similarity store) — and it can be shared live across multiple agents on the same machine.
+MATHIR is **not another API you call when you feel like it**. It is an **architectural layer that inserts itself between the model and the provider**, in the request path itself. The idea mimics how a human actually thinks: before acting, you unconsciously recall relevant past experience, including a mistake you made a year ago, so you don't repeat it. LLMs don't do that by default: every request is amnesiac, so they repeat the same errors, forget what "don't do X" they were told last week, and relearn the same lessons from scratch. MATHIR's job is to be that recall step, automatically, on every single request, whether the agent asks for it or not. It works through MCP tools for explicit reads and writes, plus automatic context injection through supported hooks and the universal proxy.
 
 ### MATHIR vs. the managed alternatives (Mem0, Zep, Letta)
 
 |  | **MATHIR** | **Mem0 / Zep / Letta (typical)** |
 |---|---|---|
-| **Where it runs** | 100% local — one Python process | Self-host *or* managed cloud API |
-| **Infrastructure** | Single daemon + SQLite (`sqlite-vec`) — zero external services | Orchestrates external services (e.g. Mem0 self-hosted = Qdrant + Postgres + Mem0 itself) |
-| **Cost** | Free, no tier — there is no cloud version to pay for | Free self-hosted; cloud plans from free (10K memories) → $19–249+/mo → custom Enterprise |
+| **Where it runs** | 100% local: one Python process | Self-host *or* managed cloud API |
+| **Infrastructure** | Single daemon + SQLite (`sqlite-vec`): zero external services | Orchestrates external services (e.g. Mem0 self-hosted = Qdrant + Postgres + Mem0 itself) |
+| **Cost** | Free, no tier: there is no cloud version to pay for | Free self-hosted; cloud plans from free (10K memories) → $19–249+/mo → custom Enterprise |
 | **Data residency** | Always on your disk | Yours if self-hosted; on their servers if you use the cloud API |
-| **Multi-agent sharing** | Native (God Mode — same local daemon, any agent) | Not a core feature |
+| **Multi-agent sharing** | Native (God Mode: same local daemon, any agent) | Not a core feature |
 | **License** | MIT | Apache-2.0 (Mem0) |
 | **Retrieval benchmarks** | None published externally yet (internal only, see [Positioning](#-positioning-2026)) | Published LongMemEval / LoCoMo numbers, funded, wider adoption |
 
-**Read this as:** MATHIR trades external validation and managed convenience for zero infrastructure, zero cost, and full local control. If you want a battle-tested hosted memory API today, Mem0/Zep are reasonable choices — see [full honest comparison](#-positioning-2026).
+**Read this as:** MATHIR trades external validation and managed convenience for zero infrastructure, zero cost, and full local control. If you want a battle-tested hosted memory API today, Mem0/Zep are reasonable choices. See [full honest comparison](#-positioning-2026).
 
 ![MATHIR Architecture](docs/assets/Mathir_architecture.png)
 
@@ -134,12 +134,12 @@ mindmap
 4. All communication goes through MATHIR shared memory. No new infrastructure.
 
 **Built-in intelligence:**
-- Agents **self-identify honestly** — the orchestrator doesn't guess who's installed
-- Tasks matched to **worker strengths** — deep reasoning → Claude, bulk work → fast model
-- **Dependency-aware** — tasks dispatched only when prerequisites complete
-- **Cycle detection** — circular dependencies caught at creation time
+- Agents **self-identify honestly**: the orchestrator doesn't guess who's installed
+- Tasks matched to **worker strengths**: deep reasoning → Claude, bulk work → fast model
+- **Dependency-aware**: tasks dispatched only when prerequisites complete
+- **Cycle detection**: circular dependencies caught at creation time
 
-**Fully unattended, too:** the flow above still needs a human to poll each worker terminal. For hands-off execution, `bin/god/god_mode_start.py --launch <tool> --name <n> --cwd <path>` spawns the target agent CLI headlessly in the background — it polls, claims tasks, executes, and reports on its own. `bin/god/god_mode_report.py --cwd <path>` gives a deterministic (non-LLM) readout of what every worker actually did.
+**Fully unattended, too:** the flow above still needs a human to poll each worker terminal. For hands-off execution, `bin/god/god_mode_start.py --launch <tool> --name <n> --cwd <path>` spawns the target agent CLI headlessly in the background, it polls, claims tasks, executes, and reports on its own. `bin/god/god_mode_report.py --cwd <path>` gives a deterministic (non-LLM) readout of what every worker actually did.
 
 Full guide: **[docs/GOD_MODE.md](docs/GOD_MODE.md)**
 
@@ -159,16 +159,16 @@ second cwd-local DB for the same project. Legacy schemas remain detectable via
 the response carries a hard 50,000-character context budget and explicit
 truncation metadata.
 
-**INT8 quantization** — embedding storage reduced 4x (float32 → int8), zero recall loss. 410 DBs migrated: 1.9 GB → 825 MB.
-**Cross-encoder reranking** — `ms-marco-MiniLM-L-6-v2` second-pass scoring: +20pp hit@10 on natural-language queries.
-**Multi-agent benchmark** — free-tier models (mimo, nemotron, north) score 0% without memory → 53% average with MATHIR.
-**e5-small validated** — e5-small + rerank (52.9%) beats e5-large alone (51.0%) at 47x less cost.
+**INT8 quantization**, embedding storage reduced 4x (float32 → int8), zero recall loss. 410 DBs migrated: 1.9 GB → 825 MB.
+**Cross-encoder reranking**, `ms-marco-MiniLM-L-6-v2` second-pass scoring: +20pp hit@10 on natural-language queries.
+**Multi-agent benchmark**, free-tier models (mimo, nemotron, north) score 0% without memory → 53% average with MATHIR.
+**e5-small validated**, e5-small + rerank (52.9%) beats e5-large alone (51.0%) at 47x less cost.
 
 Full diff: [mathir_mcp/CHANGELOG.md](mathir_mcp/CHANGELOG.md) · Full report: [benchmarks/06_results/current/README.md](benchmarks/06_results/current/README.md)
 
 ---
 
-## 🏗️ Universal Architecture — How MATHIR runs everywhere
+## 🏗️ Universal Architecture: How MATHIR runs everywhere
 
 MATHIR has **2 long-running processes** + **1 cross-tool instruction file**:
 
@@ -208,16 +208,16 @@ MATHIR has **2 long-running processes** + **1 cross-tool instruction file**:
 
 | Tier | Mechanism | Agents | Coverage |
 |---|---|---|---|
-| **A — Plugin auto-inject** | `mathir-auto-inject.ts` hooks `experimental.chat.system.transform` with a `chat.message` fallback — no agent cooperation needed | opencode, mimocode | TRUE auto-inject |
-| **B — Instructions + MCP** | MCP server registered + `GLOBAL_INSTRUCTIONS.md` injected. Agent must follow the advisory instruction to call `memory_session_start` — **or upgrade to the proxy below for a hard guarantee (v8.9.8+)** | claude-code, cursor, cline, zcode, codex, etc. (14 agents) | SOFT — agent must comply, unless proxied |
-| **C — Universal proxy** | Point `ANTHROPIC_BASE_URL` or `OPENAI_BASE_URL` at the proxy (port 7339) — no MCP, no agent cooperation, works identically for every tool pointed at it | Any tool with a custom-base-URL setting: windsurf, gemini-cli, kilo, qwen, kiro-ide, warp, trae, crush, claude-code, codex, local models (Ollama/llama.cpp), etc. | HARD — set `ANTHROPIC_BASE_URL=http://127.0.0.1:7339` for Anthropic-native tools (no `/v1` — matches the Anthropic SDK's own base-URL convention), or `OPENAI_BASE_URL=http://127.0.0.1:7339/v1` for OpenAI-compatible tools (`/v1` required) |
+| **A: Plugin auto-inject** | `mathir-auto-inject.ts` hooks `experimental.chat.system.transform` with a `chat.message` fallback: no agent cooperation needed | opencode, mimocode | TRUE auto-inject |
+| **B: Instructions + MCP** | MCP server registered + `GLOBAL_INSTRUCTIONS.md` injected. Agent must follow the advisory instruction to call `memory_session_start`: **or upgrade to the proxy below for a hard guarantee (v8.9.8+)** | claude-code, cursor, cline, zcode, codex, etc. (14 agents) | SOFT: agent must comply, unless proxied |
+| **C: Universal proxy** | Point `ANTHROPIC_BASE_URL` or `OPENAI_BASE_URL` at the proxy (port 7339): no MCP, no agent cooperation, works identically for every tool pointed at it | Any tool with a custom-base-URL setting: windsurf, gemini-cli, kilo, qwen, kiro-ide, warp, trae, crush, claude-code, codex, local models (Ollama/llama.cpp), etc. | HARD: set `ANTHROPIC_BASE_URL=http://127.0.0.1:7339` for Anthropic-native tools (no `/v1`: matches the Anthropic SDK's own base-URL convention), or `OPENAI_BASE_URL=http://127.0.0.1:7339/v1` for OpenAI-compatible tools (`/v1` required) |
 
-**Additional escape hatch — `AGENTS.md` at your project root:** read automatically by 26+ agents (Aider, Amp, Claude Code, Codex, Cursor, Devin, Factory, Goose, JetBrains Junie, Jules, OpenCode, VS Code Copilot, Warp, Zed, etc. — real open standard, [agents.md](https://agents.md), 60,000+ projects as of Dec 2025). Instructs the agent to call `memory_session_start` on first turn + `memory_context` before each task — a soft guarantee like tier B, but works even for agents not in the tier table above.
+**Additional escape hatch, `AGENTS.md` at your project root:** read automatically by 26+ agents (Aider, Amp, Claude Code, Codex, Cursor, Devin, Factory, Goose, JetBrains Junie, Jules, OpenCode, VS Code Copilot, Warp, Zed, etc., real open standard, [agents.md](https://agents.md), 60,000+ projects as of Dec 2025). Instructs the agent to call `memory_session_start` on first turn + `memory_context` before each task, a soft guarantee like tier B, but works even for agents not in the tier table above.
 ```bash
 cp mathir_mcp/opencode_templates/AGENTS.md /path/to/your/project/AGENTS.md
 ```
 
-**Per-project DB routing** — each project gets its own `.mathir/mathir.db`:
+**Per-project DB routing**, each project gets its own `.mathir/mathir.db`:
 - `your-project/` → `your-project/.mathir/mathir.db`
 - mathir_mcp (installer) → `~/.config/MATHIR/mathir_mcp/.mathir/mathir.db`
 - Future projects → `<project>/.mathir/mathir.db` (auto-created on first save)
@@ -227,9 +227,9 @@ Routing is fixed in v8.5.1: `mathir_mcp_server.py` injects `project` + `cwd` int
 ---
 
 <details>
-<summary><b>🧭 Project origin & the problem it solves</b> — click to expand (optional read, 2-min story)</summary>
+<summary><b>🧭 Project origin & the problem it solves</b>, click to expand (optional read, 2-min story)</summary>
 
-### Project Origin — 2 years, 1 question
+### Project Origin: 2 years, 1 question
 
 This is the story behind MATHIR. It's also my end-of-study project.
 
@@ -237,11 +237,11 @@ This is the story behind MATHIR. It's also my end-of-study project.
 >
 > Not a highway with lane markings. Not a pre-mapped city. A place they've never seen, where the rules change every meter.
 
-A car following pre-programmed rules in a perfect simulation isn't intelligent — it's scripted. True autonomy requires the ability to **learn**, **remember**, and **adapt** across situations it's never seen before.
+A car following pre-programmed rules in a perfect simulation isn't intelligent, it's scripted. True autonomy requires the ability to **learn**, **remember**, and **adapt** across situations it's never seen before.
 
-That's where MATHIR started. An AI can't be intelligent if it can't **remember** — every session starts from zero, that's amnesia, not intelligence.
+That's where MATHIR started. An AI can't be intelligent if it can't **remember**, every session starts from zero, that's amnesia, not intelligence.
 
-**Next step:** MATHIR has been validated in software (27 MCP tools, 6-tier architecture, plug-and-play MCP). The autonomous-driving research direction — testing whether place-based episodic memory can complement (not replace) sensor-fusion robustness when sensors degrade — is being developed as its own track: **[docs/MATHIR_FOR_ROBOTICS.md](docs/MATHIR_FOR_ROBOTICS.md)**.
+**Next step:** MATHIR has been validated in software (27 MCP tools, 6-tier architecture, plug-and-play MCP). The autonomous-driving research direction, testing whether place-based episodic memory can complement (not replace) sensor-fusion robustness when sensors degrade, is being developed as its own track: **[docs/MATHIR_FOR_ROBOTICS.md](docs/MATHIR_FOR_ROBOTICS.md)**.
 
 ### The story that hurts
 
@@ -264,12 +264,12 @@ And the autonomous vehicle:
 
 What MATHIR changes:
 
-![MATHIR Story 2 — The Solution](docs/assets/mathir_story2.png)
+![MATHIR Story 2, The Solution](docs/assets/mathir_story2.png)
 
-✅ Memory that follows you everywhere — SQLite local, MIT, zero vendor lock-in.
-✅ Memory that improves — +37.8% online learning, not static facts.
-✅ Anomaly detected in <1ms — immunological tier, AUC = 1.0.
-✅ Runs on edge — 240 MB VRAM, Jetson Orin ✅, Raspberry Pi ⚠️, zero cloud.
+✅ Memory that follows you everywhere, SQLite local, MIT, zero vendor lock-in.
+✅ Memory that improves, +37.8% online learning, not static facts.
+✅ Anomaly detected in <1ms, immunological tier, AUC = 1.0.
+✅ Runs on edge, 240 MB VRAM, Jetson Orin ✅, Raspberry Pi ⚠️, zero cloud.
 
 </details>
 
@@ -279,11 +279,11 @@ What MATHIR changes:
 
 | | Problem | MATHIR solution |
 |---|---|---|
-| 1 | **Medical AI** — "We've never seen this disease before" | Rare case stored as episodic memory → next patient gets instant recall. The model *learns* from experience. |
-| 2 | **Chat sessions** — "Sorry, who are you?" | Context persists across sessions, tools, time. Switch Claude → Gemini → Llama — memory stays. |
-| 3 | **Autonomous driving** — "The sensor just died" | Car doesn't just see — it *remembers*. "Last time I was here, speed bump at this GPS." Memory fills sensor gaps. |
-| 4 | **Fine-tuning** — "My data is a mess" | MATHIR auto-classifies, dedupes, links. Data ready for fine-tuning *as you add it*. |
-| 5 | **Knowledge drift** — "Is this still accurate?" | Memories decay when unused. Old memory fades when API changes. Self-maintaining. |
+| 1 | **Medical AI**: "We've never seen this disease before" | Rare case stored as episodic memory → next patient gets instant recall. The model *learns* from experience. |
+| 2 | **Chat sessions**: "Sorry, who are you?" | Context persists across sessions, tools, time. Switch Claude → Gemini → Llama: memory stays. |
+| 3 | **Autonomous driving**: "The sensor just died" | Car doesn't just see: it *remembers*. "Last time I was here, speed bump at this GPS." Memory fills sensor gaps. |
+| 4 | **Fine-tuning**: "My data is a mess" | MATHIR auto-classifies, dedupes, links. Data ready for fine-tuning *as you add it*. |
+| 5 | **Knowledge drift**: "Is this still accurate?" | Memories decay when unused. Old memory fades when API changes. Self-maintaining. |
 
 ---
 
@@ -298,7 +298,7 @@ What MATHIR changes:
 | 🟥 **Immunological** | Anomaly detection | "Prompt injection detected" |
 | 🛡️ **Guardrail** | Always-active rules (immune to decay) | "NEVER call _get_project_db() from agent code" |
 
-Memories **decay** when unused (Ebbinghaus), **promote** when recalled, **consolidate** with duplicates, **link** to related concepts. This runs on its own — a background maintenance thread in the daemon periodically applies decay/promote/dedupe/link-build to every active project DB (config-driven interval, `mathir.json`'s `"maintenance"` block), no manual trigger required. **Guardrails** are push-based: auto-injected into every `memory_context` response, immune to decay, min priority 8, max 50 per project. **Same memory** works across Claude / GPT / Gemini / Ollama / any LLM.
+Memories **decay** when unused (Ebbinghaus), **promote** when recalled, **consolidate** with duplicates, **link** to related concepts. This runs on its own, a background maintenance thread in the daemon periodically applies decay/promote/dedupe/link-build to every active project DB (config-driven interval, `mathir.json`'s `"maintenance"` block), no manual trigger required. **Guardrails** are push-based: auto-injected into every `memory_context` response, immune to decay, min priority 8, max 50 per project. **Same memory** works across Claude / GPT / Gemini / Ollama / any LLM.
 
 ![MATHIR Brain Architecture](docs/assets/memory_that_think.png)
 
@@ -327,12 +327,12 @@ And the autonomous vehicle:
 
 What MATHIR changes:
 
-![MATHIR Story 2 — The Solution](docs/assets/mathir_story2.png)
+![MATHIR Story 2, The Solution](docs/assets/mathir_story2.png)
 
-✅ Memory that follows you everywhere — SQLite local, MIT, zero vendor lock-in.
-✅ Memory that improves — +37.8% online learning, not static facts.
-✅ Anomaly detected in <1ms — immunological tier, AUC = 1.0.
-✅ Runs on edge — 240 MB VRAM, Jetson Orin ✅, Raspberry Pi ⚠️, zero cloud.
+✅ Memory that follows you everywhere, SQLite local, MIT, zero vendor lock-in.
+✅ Memory that improves, +37.8% online learning, not static facts.
+✅ Anomaly detected in <1ms, immunological tier, AUC = 1.0.
+✅ Runs on edge, 240 MB VRAM, Jetson Orin ✅, Raspberry Pi ⚠️, zero cloud.
 
 ---
 
@@ -350,7 +350,7 @@ Add MATHIR to your AI agent (OpenCode, Claude Code, Cursor, MiMo, etc.):
 }
 ```
 
-**That's it.** 27 tools (`memory_save`, `memory_recall`, `mathir_god_orchestre`, `mathir_god_agent`, etc.) — all your agents.
+**That's it.** 27 tools (`memory_save`, `memory_recall`, `mathir_god_orchestre`, `mathir_god_agent`, etc.), all your agents.
 
 Full MCP config: [mathir_mcp/INSTALL_FOR_AGENT/AGENT.md](mathir_mcp/INSTALL_FOR_AGENT/AGENT.md) (50+ agents).
 
@@ -378,7 +378,7 @@ Install: `pip install -e ./mathir_mcp`
 | **[mathir_mcp/docs/DAEMON.md](mathir_mcp/docs/DAEMON.md)** | Current daemon HTTP API, context budget, DB routing, and legacy JSON-RPC migration note |
 | **[mathir_mcp/docs/DIMENSIONS.md](mathir_mcp/docs/DIMENSIONS.md)** | Embedding model selection |
 | **[mathir_mcp/docs/DASHBOARD_GUIDE.md](mathir_mcp/docs/DASHBOARD_GUIDE.md)** | Stats dashboard setup |
-| **[docs/GOD_MODE.md](docs/GOD_MODE.md)** | God Mode — multi-agent orchestration guide |
+| **[docs/GOD_MODE.md](docs/GOD_MODE.md)** | God Mode: multi-agent orchestration guide |
 | **[mathir_mcp/docs/GPU_SETUP.md](mathir_mcp/docs/GPU_SETUP.md)** | GPU/ONNX acceleration |
 | **[docs/01_MASTER_RESEARCH_PAPER.md](docs/01_MASTER_RESEARCH_PAPER.md)** | Master's research paper (6 theorems) |
 | **[docs/03_MASTER_QA_GUIDE.md](docs/03_MASTER_QA_GUIDE.md)** | 63 Q&A for defense / evaluation |
@@ -399,19 +399,19 @@ Manual: see [INSTALL_FOR_AGENT/INSTALL_WINDOWS.md](mathir_mcp/INSTALL_FOR_AGENT/
 
 ## 📍 Positioning (2026)
 
-By mid-2026 the "LLM has no memory" gap is being closed from two directions at once: model vendors ship native memory (Claude, ChatGPT, Gemini all added cross-session recall in 2026), and a funded agent-memory ecosystem exists (Mem0, Zep/Graphiti, Letta, Cognee, LangMem — hybrid retrieval, temporal graphs, published LongMemEval/LoCoMo numbers). MATHIR doesn't try to out-benchmark that ecosystem on retrieval quality — that's a well-covered, well-funded problem now. What MATHIR set out to test, and what the experiments in this repo actually validate, is narrower and different:
+By mid-2026 the "LLM has no memory" gap is being closed from two directions at once: model vendors ship native memory (Claude, ChatGPT, Gemini all added cross-session recall in 2026), and a funded agent-memory ecosystem exists (Mem0, Zep/Graphiti, Letta, Cognee, LangMem, hybrid retrieval, temporal graphs, published LongMemEval/LoCoMo numbers). MATHIR doesn't try to out-benchmark that ecosystem on retrieval quality, that's a well-covered, well-funded problem now. What MATHIR set out to test, and what the experiments in this repo actually validate, is narrower and different:
 
-- **Structured tiering that self-maintains** — 6 memory tiers (working/episodic/semantic/procedural/immunological/guardrail) with decay, promotion, and consolidation running automatically, not just a flat store with a similarity search.
-- **Cross-process, cross-provider, fully local** — the same memory is shared by multiple agents (Claude, Codex, OpenCode, MiMo, ...) running in separate processes on one machine, coordinating through shared memory with no cloud dependency and no vendor lock-in. This multi-agent "god mode" orchestration is tested and working (see below) — it's not a common feature in the products above.
-- **Runs on modest hardware** — validated on consumer laptops/CPUs, not a managed cloud service; the edge-deployment path (Pi, Jetson) is an explicit next step, not a marketing claim.
+- **Structured tiering that self-maintains**: 6 memory tiers (working/episodic/semantic/procedural/immunological/guardrail) with decay, promotion, and consolidation running automatically, not just a flat store with a similarity search.
+- **Cross-process, cross-provider, fully local**: the same memory is shared by multiple agents (Claude, Codex, OpenCode, MiMo, ...) running in separate processes on one machine, coordinating through shared memory with no cloud dependency and no vendor lock-in. This multi-agent "god mode" orchestration is tested and working (see below): it's not a common feature in the products above.
+- **Runs on modest hardware**: validated on consumer laptops/CPUs, not a managed cloud service; the edge-deployment path (Pi, Jetson) is an explicit next step, not a marketing claim.
 
-Honest gaps: MATHIR has no external benchmark citations, no peer review, and no third-party adoption yet — the numbers below are internal and should be read as such. If you need a battle-tested, funded, widely-adopted memory backend today, Mem0/Zep/Letta are reasonable choices. MATHIR is a research project testing a specific architectural bet (structured, self-maintaining, local-first, multi-agent memory), documented openly including where it falls short.
+Honest gaps: MATHIR has no external benchmark citations, no peer review, and no third-party adoption yet, the numbers below are internal and should be read as such. If you need a battle-tested, funded, widely-adopted memory backend today, Mem0/Zep/Letta are reasonable choices. MATHIR is a research project testing a specific architectural bet (structured, self-maintaining, local-first, multi-agent memory), documented openly including where it falls short.
 
-> **Anomaly detection status:** the MCP server/daemon (`mathir_lib/`, what coding agents connect to) now wires its `immunological` tier to a real, live Mahalanobis-distance detector: `/api/memory/save` scores every incoming embedding against a running per-project baseline and can write `tier='immunological'` when it flags an outlier. On a realistic prompt-injection corpus (`mathir_mcp/tests/data/anomaly_eval/`), the honest result is **AUC-ROC=0.8533** for normal-vs-injection separation — good, not perfect. There is no clean separation between "malicious" and "merely unusual" using distance alone: benign-but-unusual text can also score above the threshold and get flagged. Because of this, flagged content is **not** auto-blocked or silently deleted — it lands in the `immunological` tier for review via `memory_audit_immunological`. A separate, simpler (non-Mahalanobis) detector also exists in `mathir_dropin/` (the standalone embeddable library for non-MCP apps, see [docs/05_SHIPPING_GUIDE.md](docs/05_SHIPPING_GUIDE.md)) — it is a different implementation and its numbers are not the ones quoted above.
+> **Anomaly detection status:** the MCP server/daemon (`mathir_lib/`, what coding agents connect to) now wires its `immunological` tier to a real, live Mahalanobis-distance detector: `/api/memory/save` scores every incoming embedding against a running per-project baseline and can write `tier='immunological'` when it flags an outlier. On a realistic prompt-injection corpus (`mathir_mcp/tests/data/anomaly_eval/`), the honest result is **AUC-ROC=0.8533** for normal-vs-injection separation, good, not perfect. There is no clean separation between "malicious" and "merely unusual" using distance alone: benign-but-unusual text can also score above the threshold and get flagged. Because of this, flagged content is **not** auto-blocked or silently deleted, it lands in the `immunological` tier for review via `memory_audit_immunological`. A separate, simpler (non-Mahalanobis) detector also exists in `mathir_dropin/` (the standalone embeddable library for non-MCP apps, see [docs/05_SHIPPING_GUIDE.md](docs/05_SHIPPING_GUIDE.md)), it is a different implementation and its numbers are not the ones quoted above.
 >
-> **Retrieval quality vs FAISS:** real BEIR benchmarks (SciFact/ArguAna/NFCorpus, see [benchmarks/06_results/current/](benchmarks/06_results/current/)) currently show plain FAISS dense retrieval *outperforming* MATHIR's hybrid BM25+dense+cross-encoder pipeline. Any "+14pp vs FAISS" figure you may see elsewhere comes from a 50-query/200-chunk internal evaluation on a single textbook and is not comparable to a standard IR benchmark — see [docs/SOTA_RESEARCH_2024_2026.md](docs/SOTA_RESEARCH_2024_2026.md) for the full self-audit.
+> **Retrieval quality vs FAISS:** real BEIR benchmarks (SciFact/ArguAna/NFCorpus, see [benchmarks/06_results/current/](benchmarks/06_results/current/)) currently show plain FAISS dense retrieval *outperforming* MATHIR's hybrid BM25+dense+cross-encoder pipeline. Any "+14pp vs FAISS" figure you may see elsewhere comes from a 50-query/200-chunk internal evaluation on a single textbook and is not comparable to a standard IR benchmark, see [docs/SOTA_RESEARCH_2024_2026.md](docs/SOTA_RESEARCH_2024_2026.md) for the full self-audit.
 >
-> **LoCoMo results (2026-07-03):** MATHIR now has LoCoMo numbers — 51.2% on Groq (Llama 3.3 70B, 41/233 judged due to TPM limits), 38.8% on OpenCode Zen free models (67/152 judged). Temporal retrieval is strong (65-73%), multi-hop is weak (8-17%). Full results: [benchmarks/06_results/current/README.md](benchmarks/06_results/current/README.md).
+> **LoCoMo results (2026-07-03):** MATHIR now has LoCoMo numbers, 51.2% on Groq (Llama 3.3 70B, 41/233 judged due to TPM limits), 38.8% on OpenCode Zen free models (67/152 judged). Temporal retrieval is strong (65-73%), multi-hop is weak (8-17%). Full results: [benchmarks/06_results/current/README.md](benchmarks/06_results/current/README.md).
 
 Full comparison: [docs/07_MATHIR_VS_VECTORDB_USE_CASES.md](docs/07_MATHIR_VS_VECTORDB_USE_CASES.md)
 
@@ -503,8 +503,8 @@ MATHIR/
 ✅ **V8.5.1** New tools (23 total) + project-aware DB
 ✅ **V8.6.0** INT8 quantization + cross-encoder rerank + multi-agent benchmark
 ✅ **V8.7.0** 3-layer auto-cache (L1 embedding, L2 recall, L3 session)
-✅ **V8.8.0** God Mode — cross-process multi-agent orchestration
-✅ **V8.9.0** Guardrail tier — push-based always-active rules (6th tier)
+✅ **V8.8.0** God Mode, cross-process multi-agent orchestration
+✅ **V8.9.0** Guardrail tier, push-based always-active rules (6th tier)
 
 ### 🔜 Next: 4 validation stages
 
@@ -571,5 +571,5 @@ Full paper: [docs/MATHIR_Research_Paper.tex](docs/MATHIR_Research_Paper.tex)
 
 ## 📜 License
 
-[MIT](LICENSE) — free for commercial and research use.
+[MIT](LICENSE), free for commercial and research use.
 

@@ -1,8 +1,8 @@
-# MATHIR MCP — Universal Installation
+# MATHIR MCP: Universal Installation
 
 **6-tier cognitive memory for 50 AI coding agents. Install once, use everywhere.**
 
-> **v8.9.8 + reliability hardening** — Unified global instructions, bounded injection, canonical project DB routing, adaptive anomaly detection, and completed injection channels (OMP, OpenCode, MiMoCode, Claude Code). Self-healing daemon + universal LLM injection proxy, 27 MCP tools. See [CHANGELOG.md](CHANGELOG.md).
+> **v8.9.8 + reliability hardening:** Unified global instructions, bounded injection, canonical project DB routing, adaptive anomaly detection, and completed injection channels (OMP, OpenCode, MiMoCode, Claude Code). Self-healing daemon plus universal LLM injection proxy, 27 MCP tools. See [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -66,7 +66,7 @@ Full list (22 algorithms): see [benchmarks/06_results/current/README.md](../benc
 
 ### Auto-Cache Performance (v8.7.0)
 
-3-layer transparent cache — zero config, shared across all agents (Claude Code, MiMo, OpenCode).
+3-layer transparent cache, zero config, shared across all agents (Claude Code, MiMo, OpenCode).
 
 | Scenario | Latency | Speedup |
 |---|---|---|
@@ -82,7 +82,7 @@ Full list (22 algorithms): see [benchmarks/06_results/current/README.md](../benc
 
 Monitor: `GET /api/cache/stats` returns hits, misses, hit ratio per layer.
 
-**Design references**: L1 = pure-function memoization; L2 = HTTP cache-control with write-invalidation; L3 = working-set model (Denning, 1968 — "The Working Set Model for Program Behavior", *Communications of the ACM*).
+**Design references**: L1 = pure-function memoization; L2 = HTTP cache-control with write-invalidation; L3 = working-set model (Denning, 1968, "The Working Set Model for Program Behavior", *Communications of the ACM*).
 
 ---
 
@@ -105,10 +105,10 @@ MATHIR ships god-mode for **multi-terminal multi-agent coordination**. The `math
 
 | File | What it does |
 |---|---|
-| `god/god_bridge.py` | Cross-platform polling daemon — 3 modes: `worker` / `orchestrator` / `observer`. Stdlib only. Notifies, doesn't execute — a human still triggers each worker. |
+| `god/god_bridge.py` | Cross-platform polling daemon: 3 modes: `worker` / `orchestrator` / `observer`. Stdlib only. Notifies, doesn't execute: a human still triggers each worker. |
 | `god/god_poll.ps1` | PowerShell one-shot poller (Windows, faster boot) |
 | `god/god_poll.sh` | Bash one-shot poller (POSIX) |
-| `god/god_mode_start.py` / `god_mode_stop.py` | On-demand launcher/killer for **headless** workers — spawns the target agent CLI as a detached background process, human-triggered only, never autostarted |
+| `god/god_mode_start.py` / `god_mode_stop.py` | On-demand launcher/killer for **headless** workers: spawns the target agent CLI as a detached background process, human-triggered only, never autostarted |
 | `god/god_worker_daemon.py` | The headless execution loop: polls, claims, runs the target CLI unattended, retries on silent no-op/timeout, acks the result |
 | `god/god_mode_report.py` | Deterministic text report read straight from the SQLite DB, for when the orchestrator's own memory of a dispatch round can't be trusted |
 | `god/PROTOCOL.md` | Full label taxonomy (`god:task:...`, `god:result:...`) + message flow |

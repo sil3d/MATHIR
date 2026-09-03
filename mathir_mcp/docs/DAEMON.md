@@ -41,7 +41,7 @@ The MATHIR daemon is a **persistent background process** that:
 
 1. Loads the embedding model once at startup (SentenceTransformer + CUDA)
 2. Keeps the model in RAM/VRAM for instant access
-3. Serves requests via HTTP (Flask + Waitress) — see the stale-protocol note above
+3. Serves requests via HTTP (Flask + Waitress), see the stale-protocol note above
 4. Manages the SQLite database with vec0 vector index
 5. Handles 6-tier cognitive memory routing (working_memory, episodic, semantic, procedural, immunological, guardrail)
 
@@ -49,10 +49,10 @@ Without daemon: each embedding request loads the model (~2-5s)
 With daemon: model stays loaded, requests complete in ~20ms
 With cache (v8.7.0): repeated queries complete in <1ms (L1 embedding + L2 recall cache)
 
-## Protocol (stale — see banner above)
+## Protocol (stale: see banner above)
 
-**Transport**: TCP socket on `127.0.0.1:7338` — **retired since v8.5.0; the daemon is HTTP now.**
-**Format**: JSON-RPC 2.0 (newline-delimited) — **describes the retired protocol, not the current HTTP API.**
+**Transport**: TCP socket on `127.0.0.1:7338`, **retired since v8.5.0; the daemon is HTTP now.**
+**Format**: JSON-RPC 2.0 (newline-delimited), **describes the retired protocol, not the current HTTP API.**
 
 ### Request Format
 
@@ -225,7 +225,7 @@ Hybrid search: vector cosine + BM25 lexical + RRF fusion. Better than either alo
 
 ### `memory_push`
 
-Proactive memory delivery — daemon analyzes context and returns relevant memories.
+Proactive memory delivery, daemon analyzes context and returns relevant memories.
 
 **Params**:
 | Param | Type | Required | Description |
@@ -322,7 +322,7 @@ The `memory_recall` response includes a `"cache"` field (`"hit"` or `"miss"`) fo
 **Design references**:
 - L1: Standard memoization for pure functions (embedding is deterministic)
 - L2: HTTP cache-control pattern with must-revalidate on mutation
-- L3: Working-set model (Denning, 1968) — hot memories are a small, stable subset
+- L3: Working-set model (Denning, 1968): hot memories are a small, stable subset
 
 ## Threading Model
 

@@ -7,15 +7,15 @@ This guide covers the **full** setup: daemon + MCP server + auto-inject hook + t
 
 ---
 
-## 1. Mental model — three layers
+## 1. Mental model: three layers
 
 MATHIR plugs into Codex via **three independent layers**, each owned by a different piece of code:
 
 | Layer | Mechanism | Process | Restart trigger |
 |---|---|---|---|
-| **A — MCP server** | `mathir_mcp_server.py` launched by Codex as a stdio JSON-RPC child | Listens on stdout/stdin | Restart Codex (process-level) |
-| **B — Auto-inject hook** | `claude_code_hook.py` fired by Codex on every `UserPromptSubmit` | Reads stdin JSON, writes `<mathir-auto-injection>` block to stdout | Restart Codex |
-| **C — Transparent proxy** | `mathir_proxy.py` on `127.0.0.1:7339` intercepting Codex's OpenAI API calls and augmenting the system prompt | Listens on TCP 7339 | Restart auto_start.bat / Task Scheduler healthcheck |
+| **A: MCP server** | `mathir_mcp_server.py` launched by Codex as a stdio JSON-RPC child | Listens on stdout/stdin | Restart Codex (process-level) |
+| **B: Auto-inject hook** | `claude_code_hook.py` fired by Codex on every `UserPromptSubmit` | Reads stdin JSON, writes `<mathir-auto-injection>` block to stdout | Restart Codex |
+| **C: Transparent proxy** | `mathir_proxy.py` on `127.0.0.1:7339` intercepting Codex's OpenAI API calls and augmenting the system prompt | Listens on TCP 7339 | Restart auto_start.bat / Task Scheduler healthcheck |
 
 You can ship any subset. Layer A is mandatory for tools. Layer B is for prompt-context auto-injection. Layer C is for cookie-cutter openai-compat clients that don't expose hooks (Cursor, Continue, etc.).
 
@@ -36,7 +36,7 @@ Codex is installed separately. Its config directory is `~/.codex/` (the platform
 
 ---
 
-## 3. Layer A — MCP server (the 27 tools)
+## 3. Layer A: MCP server (the 27 tools)
 
 ### 3.1 Required `~/.codex/config.toml` block
 
@@ -56,14 +56,14 @@ PYTHONPATH = "<MATHIR_HOME>/mathir_mcp/mathir_lib"
 
 **Why every value matters:**
 
-- **`command = "absolute python.exe path"`** — Codex (Electron) does not always inherit your shell's `PATH` for MCP child processes. `command = "python"` may resolve to nothing and the spawn fails with no log.
-- **`args = [...]` single-element list with absolute .py path** — same reasoning.
-- **`startup_timeout_sec = 30`** — matches the pattern used by `node_repl`; default timeout is too short for `from fastmcp import FastMCP` + first tool enum.
-- **Every env var is absolute path** — Codex does **not** shell-expand `~`. Code that worked on Claude Code/MiMoCode/OpenCode by relying on `~/.config/MATHIR/...` will silently crash the MCP server here, because Python's `os.path.expanduser()` only works for paths *inside* Python, not for env vars at startup. Confirmed live (2026-07-31): `PYTHONPATH='~/.config/...'` → `ModuleNotFoundError: mathir_paths` → 0 tools exposed.
+- **`command = "absolute python.exe path"`**: Codex (Electron) does not always inherit your shell's `PATH` for MCP child processes. `command = "python"` may resolve to nothing and the spawn fails with no log.
+- **`args = [...]` single-element list with absolute .py path**: same reasoning.
+- **`startup_timeout_sec = 30`**: matches the pattern used by `node_repl`; default timeout is too short for `from fastmcp import FastMCP` + first tool enum.
+- **Every env var is absolute path**: Codex does **not** shell-expand `~`. Code that worked on Claude Code/MiMoCode/OpenCode by relying on `~/.config/MATHIR/...` will silently crash the MCP server here, because Python's `os.path.expanduser()` only works for paths *inside* Python, not for env vars at startup. Confirmed live (2026-07-31): `PYTHONPATH='~/.config/...'` → `ModuleNotFoundError: mathir_paths` → 0 tools exposed.
 
 ### 3.2 Restart Codex fully
 
-- Quit via task-bar menu (right-click Codex icon → Quit) — **not** just closing the chat window.
+- Quit via task-bar menu (right-click Codex icon → Quit): **not** just closing the chat window.
 - Wait for the Electron process to disappear: `Get-CimInstance Win32_Process -Filter "Name='codex.exe'"` should be empty.
 - Relaunch.
 
@@ -79,7 +79,7 @@ If they don't appear: see section 9.
 
 ---
 
-## 4. Layer B — auto-inject hook (context on every prompt)
+## 4. Layer B: auto-inject hook (context on every prompt)
 
 ### 4.1 Required `~/.codex/hooks.json`
 
@@ -100,7 +100,7 @@ If they don't appear: see section 9.
 }
 ```
 
-The script `claude_code_hook.py` is the **same** hook Claude Code uses — it reads `hook_input["prompt"]` (NOT `message` — that's the common bug, fixed in v8.9.5), queries the daemon for relevant memories + guardrails via `/api/context`, and emits a `<mathir-auto-injection>` block on stdout that Codex merges into the prompt.
+The script `claude_code_hook.py` is the **same** hook Claude Code uses. It reads `hook_input["prompt"]` (NOT `message`, the common bug fixed in v8.9.5), queries the daemon for relevant memories and guardrails via `/api/context`, and emits a `<mathir-auto-injection>` block on stdout that Codex merges into the prompt.
 
 ### 4.2 Verify
 
@@ -110,11 +110,11 @@ Ask Codex:
 > Quel est mon dernier projet mathir?
 ```
 
-If MATHIR fires, the model's first lines should reference project-specific facts before you've given it any. If you see only generic answers, the hook didn't fire — see section 9.
+If MATHIR fires, the model's first lines should reference project-specific facts before you've given it any. If you see only generic answers, the hook didn't fire. See section 9.
 
 ---
 
-## 5. Layer C — transparent OpenAI proxy
+## 5. Layer C: transparent OpenAI proxy
 
 Layer C is **optional for Codex** (Codex already gets tools + hook), but useful for debugging and for any other OpenAI-compat client.
 
@@ -156,7 +156,7 @@ Logs go to `~/.config/MATHIR/logs/mathir_proxy.log`.
 
 ## 6. Surviving reboots (autostart)
 
-The MATHIR daemon auto-start is handled by Windows Task Scheduler (`MATHIR Daemon` task — at logon) and a periodic healthcheck (`MATHIR_Daemon_Healthcheck` — every 5 min) that re-launches both the daemon and the **proxy** via `auto_start.bat`.
+The MATHIR daemon auto-start is handled by Windows Task Scheduler (`MATHIR Daemon` task, at logon) and a periodic healthcheck (`MATHIR_Daemon_Healthcheck`, every 5 min) that re-launches both the daemon and the **proxy** via `auto_start.bat`.
 
 To install on a fresh box:
 
@@ -303,7 +303,7 @@ If TOML fails to parse, restore from one of the `*.bak` files in `~/.codex/` or 
 Replace `princ` with your Windows username everywhere. Adapt the Python path if not using miniconda.
 
 ```toml
-# ~/.codex/config.toml — append to existing content, don't overwrite
+# ~/.codex/config.toml: append to existing content, don't overwrite
 
 [mcp_servers.mathir]
 command = "C:\\Users\\princ\\miniconda3\\python.exe"

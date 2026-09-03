@@ -2,19 +2,19 @@
 
 **6-phase system + 3-layer auto-cache that makes MATHIR proactive, never-blocking, and brain-like.**
 
-> **v8.9.8 + reliability hardening** — 6-tier architecture (guardrail tier: push-based always-active rules, immune to decay). 3-layer auto-cache (L1 Embedding / L2 Recall / L3 Session) and `/api/cache/stats`. The daemon now hard-caps `/api/context` at 50,000 characters, uses canonical named-project DB routing, and disables detached-process progress output. Phase 1 is `mathir_proxy.py` on port 7339, supporting Anthropic `/v1/messages` and OpenAI-compatible `/v1/chat/completions`, with per-request multi-upstream routing. Phase 6 is god-mode orchestration + client polling bridge (`bin/god/`). Self-healing is provided by the platform launchers.
+> **v8.9.8 + reliability hardening:** 6-tier architecture with a guardrail tier for push-based rules immune to decay. The 3-layer auto-cache (L1 Embedding / L2 Recall / L3 Session) exposes `/api/cache/stats`. The daemon hard-caps `/api/context` at 50,000 characters, uses canonical named-project DB routing, and disables detached-process progress output. Phase 1 is `mathir_proxy.py` on port 7339, supporting Anthropic `/v1/messages` and OpenAI-compatible `/v1/chat/completions` with per-request multi-upstream routing. Phase 6 is god-mode orchestration plus the client polling bridge in `bin/god/`. Platform launchers provide self-healing.
 
 ## The Problem
 
 Two failure modes of the original design:
-1. **LLMs forget to recall** — even when told MATHIR is their memory, agents forget to call `recall`. They get distracted by other tasks.
-2. **Daemon crashes** — when the daemon dies, the entire memory system is offline. No recovery.
+1. **LLMs forget to recall:** even when told MATHIR is their memory, agents may skip `recall` when distracted by other tasks.
+2. **Daemon crashes:** when the daemon dies, the entire memory system is offline until recovery.
 
 ## The Solution: 6 Phases
 
-### Phase 1 — Universal Auto-Inject Proxy (`mathir_proxy.py`, port 7339)
+### Phase 1: Universal Auto-Inject Proxy (`mathir_proxy.py`, port 7339)
 
-An OpenAI-compatible HTTP proxy that sits between your LLM client and the real LLM API. **Works for ANY OpenAI-compatible agent** (Claude Code via `OPENAI_BASE_URL`, Cursor, Cline, Continue, Codex, Gemini via `OPENAI_BASE_URL`, etc.) — not just opencode/mimocode.
+An OpenAI-compatible HTTP proxy that sits between your LLM client and the real LLM API. **Works for ANY OpenAI-compatible agent** (Claude Code via `OPENAI_BASE_URL`, Cursor, Cline, Continue, Codex, Gemini via `OPENAI_BASE_URL`, etc.), not just opencode/mimocode.
 
 **Flow:**
 ```
@@ -23,7 +23,7 @@ User message → Proxy (port 7339) → Inject memories → Real LLM API → Resp
               daemon /api/context in <300ms
 ```
 
-**Effect:** The LLM never needs to call `recall`. Memories are pre-injected into the system prompt on every request. Just like a human doesn't "search their brain" — they just know.
+**Effect:** The LLM never needs to call `recall`. Memories are pre-injected into the system prompt on every request. Just like a human doesn't "search their brain", they just know.
 
 **Usage:**
 ```bash
@@ -33,9 +33,9 @@ export ANTHROPIC_BASE_URL=http://127.0.0.1:7339        # Claude Code etc. -- no 
 export OPENAI_BASE_URL=http://127.0.0.1:7339/v1         # OpenAI-compatible tools -- /v1 required
 ```
 
-For opencode/mimocode (which have their own plugin), you don't need the proxy — they auto-inject via `mathir-auto-inject.ts` using `experimental.chat.system.transform` with a `chat.message` fallback. OMP additionally re-injects at the provider boundary with a 30-second cooldown.
+For opencode/mimocode, which have their own plugin, you don't need the proxy. They auto-inject via `mathir-auto-inject.ts` using `experimental.chat.system.transform` with a `chat.message` fallback. OMP additionally re-injects at the provider boundary with a 30-second cooldown.
 
-### Phase 2 — Daemon Watchdog (`mathir_watchdog.py`)
+### Phase 2: Daemon Watchdog (`mathir_watchdog.py`)
 
 Background process that pings the daemon and restarts it if it crashes.
 
@@ -46,9 +46,9 @@ Background process that pings the daemon and restarts it if it crashes.
 python mathir_watchdog.py --interval 15 --cooldown 10
 ```
 
-### Phase 3 — Spreading Activation (`mathir_spread.py`)
+### Phase 3: Spreading Activation (`mathir_spread.py`)
 
-When you recall "Tauri", the link graph automatically activates related memories: "Rust", "IPC", "desktop app", "Cargo", "axum" — even if they don't have the highest cosine similarity to the query.
+When you recall "Tauri", the link graph automatically activates related memories: "Rust", "IPC", "desktop app", "Cargo", "axum", even if they don't have the highest cosine similarity to the query.
 
 **Inspired by:** Collins & Loftus (1975) spreading activation theory.
 
@@ -62,7 +62,7 @@ When you recall "Tauri", the link graph automatically activates related memories
 python mathir_spread.py build_all
 ```
 
-### Phase 4 — Consolidation / Sleep (`mathir_consolidate.py`)
+### Phase 4: Consolidation / Sleep (`mathir_consolidate.py`)
 
 Nightly process that mimics what the brain does during slow-wave sleep:
 - **Merge** near-duplicates (cosine > 0.95)
@@ -78,7 +78,7 @@ python mathir_consolidate.py dry    # Dry run (no changes)
 
 **Schedule:** Run via Windows Task Scheduler nightly, or cron on Linux.
 
-### Phase 5 — Pre-Cognitive Priming (`mathir_prime.py`)
+### Phase 5: Pre-Cognitive Priming (`mathir_prime.py`)
 
 Senses environmental context BEFORE the user even asks:
 - Current working directory
@@ -89,15 +89,15 @@ This is added to the recall query so the LLM gets project-relevant memories, not
 
 **Effect:** When working in `my-project`, the query becomes "fix the bug" + "project:my-project" + "branch:main" → retrieves project-specific memories.
 
-### Phase 6 — Multi-Agent Orchestration Bridge (`bin/god/`)
+### Phase 6: Multi-Agent Orchestration Bridge (`bin/god/`)
 
 Turns MATHIR's shared memory into a **cross-process message queue** for coordinating multiple AI agents across terminals:
 
 - **Server-side:** `mathir_lib/mathir_god.py` exposes `/api/god/poll` + `/api/god/agents` HTTP routes. Workers register, orchestrators dispatch tasks via `memory_save(label="god:task:...")`.
 - **Client-side:** `bin/god/god_bridge.py` is a standalone polling daemon for terminals (3 modes: `worker` / `orchestrator` / `observer`). Stdlib-only, cross-platform (Windows / Linux / macOS).
-- **Protocol:** Structured labels (`god:task:{id}:{worker}:pending`, `god:result:{id}:{worker}:completed`) — see `bin/god/PROTOCOL.md`.
+- **Protocol:** Structured labels (`god:task:{id}:{worker}:pending`, `god:result:{id}:{worker}:completed`): see `bin/god/PROTOCOL.md`.
 
-**Why a separate client bridge?** MCP tools return immediately — they can't block waiting for events. `god_bridge.py` runs as an external process, polls every N seconds, beeps + logs on new events. **Effect:** One orchestrator can dispatch to N workers across N terminals, with zero manual relay.
+**Why a separate client bridge?** MCP tools return immediately. They cannot block waiting for events. `god_bridge.py` runs as an external process, polls every N seconds, beeps and logs on new events. **Effect:** One orchestrator can dispatch to N workers across N terminals with zero manual relay.
 
 **Usage:**
 ```bash
@@ -114,7 +114,7 @@ Three transparent caching layers sit between MCP tool calls and the daemon, elim
 
 | Layer | Scope | Strategy | Size | Invalidation |
 |---|---|---|---|---|
-| **L1 Embedding Cache** | `encode()` output | LRU | 1024 entries | Never (deterministic — same text always produces same vector) |
+| **L1 Embedding Cache** | `encode()` output | LRU | 1024 entries | Never (deterministic: same text always produces same vector) |
 | **L2 Recall Cache** | Search results (`recall`, `smart_search`, `hybrid_search`) | TTL 60 s | 256 entries | Immediate on any `memory_save` / `memory_delete` write |
 | **L3 Session Cache** | `session_start` / `context` (top-20 per project) | TTL 5 min | top-20/project | Immediate on any write |
 
@@ -170,25 +170,25 @@ After this, supported clients receive a `<mathir-auto-injection>` block on each 
 | Long-term memory retrieval | Spreading activation (1-2 hops) |
 | Sleep consolidates memories | `mathir_consolidate.py` |
 | Reticular activating system filters | Pre-cognitive priming (cwd, git, files) |
-| No "explicit search" needed | LLM never calls recall — memories appear |
+| No "explicit search" needed | LLM never calls recall: memories appear |
 | Synaptic facilitation (repeated access = faster) | 3-layer auto-cache (L1/L2/L3) |
 
 ## Files
 
 All brain-phase scripts live in `mathir_mcp/mathir_lib/` (the old `mathir_mcp/brain/` fork was a stale, unimported duplicate, removed in v8.9.4 -- see CHANGELOG).
 
-- `mathir_mcp/mathir_lib/mathir_proxy.py` — Phase 1 (v8.5.0+, current): universal auto-inject proxy on port 7339, Anthropic + OpenAI-compatible. `mathir-brain` launches this.
-- `mathir_mcp/mathir_lib/mathir_inject_proxy.py` — Phase 1 (legacy, unused): the original auto-inject proxy on port 8182. Speaks the raw TCP JSON-RPC protocol the daemon dropped in the v8.5.0 HTTP rewrite, so its injection has been silently non-functional since then. No longer launched by `mathir_brain.py` as of v8.9.4 (was, previously, by mistake). Kept in the tree for now; not recommended.
-- `mathir_mcp/mathir_lib/mathir_watchdog.py` — Phase 2: daemon watchdog
-- `mathir_mcp/mathir_lib/mathir_spread.py` — Phase 3: spreading activation
-- `mathir_mcp/mathir_lib/mathir_consolidate.py` — Phase 4: sleep consolidation
-- `mathir_mcp/mathir_lib/mathir_prime.py` — Phase 5: pre-cognitive priming
-- `mathir_mcp/mathir_lib/mathir_god.py` — Phase 6 (v8.8.0+): god-mode server logic (`GodProtocol`, `TaskGraph`, `WorkerRegistry`, `WorktreeManager`)
-- `mathir_mcp/bin/god/god_bridge.py` — Phase 6 (v8.9.2+): god-mode client polling daemon (3 modes)
-- `mathir_mcp/bin/god/god_poll.{ps1,sh}` — Phase 6: lightweight cross-platform pollers
-- `mathir_mcp/bin/god/PROTOCOL.md` — Phase 6: label spec + message flow
-- `mathir_mcp/mathir_lib/mathir_brain.py` — All-in-one launcher
-- `mathir_mcp/opencode_templates/plugins/mathir-auto-inject.ts` — Tier-A plugin (opencode/mimocode only)
+- `mathir_mcp/mathir_lib/mathir_proxy.py`: Phase 1 (v8.5.0+, current): universal auto-inject proxy on port 7339, Anthropic + OpenAI-compatible. `mathir-brain` launches this.
+- `mathir_mcp/mathir_lib/mathir_inject_proxy.py`: Phase 1 (legacy, unused): the original auto-inject proxy on port 8182. Speaks the raw TCP JSON-RPC protocol the daemon dropped in the v8.5.0 HTTP rewrite, so its injection has been silently non-functional since then. No longer launched by `mathir_brain.py` as of v8.9.4 (was, previously, by mistake). Kept in the tree for now; not recommended.
+- `mathir_mcp/mathir_lib/mathir_watchdog.py`: Phase 2: daemon watchdog
+- `mathir_mcp/mathir_lib/mathir_spread.py`: Phase 3: spreading activation
+- `mathir_mcp/mathir_lib/mathir_consolidate.py`: Phase 4: sleep consolidation
+- `mathir_mcp/mathir_lib/mathir_prime.py`: Phase 5: pre-cognitive priming
+- `mathir_mcp/mathir_lib/mathir_god.py`: Phase 6 (v8.8.0+): god-mode server logic (`GodProtocol`, `TaskGraph`, `WorkerRegistry`, `WorktreeManager`)
+- `mathir_mcp/bin/god/god_bridge.py`: Phase 6 (v8.9.2+): god-mode client polling daemon (3 modes)
+- `mathir_mcp/bin/god/god_poll.{ps1,sh}`: Phase 6: lightweight cross-platform pollers
+- `mathir_mcp/bin/god/PROTOCOL.md`: Phase 6: label spec + message flow
+- `mathir_mcp/mathir_lib/mathir_brain.py`: All-in-one launcher
+- `mathir_mcp/opencode_templates/plugins/mathir-auto-inject.ts`: Tier-A plugin (opencode/mimocode only)
 
 ## Dependencies
 
