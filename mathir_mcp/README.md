@@ -2,7 +2,7 @@
 
 **6-tier cognitive memory for 50 AI coding agents. Install once, use everywhere.**
 
-> **v8.9.8** — Unified global instructions (DB Hygiene enforced in every injected prompt) + completed injection channels (OMP & Claude Code now match OpenCode: God Mode relay/registration + hygiene block). Self-healing daemon + universal LLM injection proxy, 27 MCP tools. See [CHANGELOG.md](CHANGELOG.md).
+> **v8.9.8 + reliability hardening** — Unified global instructions, bounded injection, canonical project DB routing, adaptive anomaly detection, and completed injection channels (OMP, OpenCode, MiMoCode, Claude Code). Self-healing daemon + universal LLM injection proxy, 27 MCP tools. See [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -18,6 +18,7 @@ pip install -e .
 mathir-server &   # listens on 127.0.0.1:7338
 
 # 3. Add to your agent's MCP config — done. 27 tools available.
+#    Named projects use ~/.config/MATHIR/data/projects/<project>/mathir.db.
 ```
 
 For cold-boot auto-start: `python mathir_mcp/INSTALL_FOR_DEV/install_smart.py --autostart-only`
@@ -40,18 +41,26 @@ Platform-specific guides: [INSTALL_FOR_AGENT/INSTALL_WINDOWS.md](INSTALL_FOR_AGE
 | **God Mode (v8.8.0)** | `mathir_mathir_god_agent`, `mathir_mathir_god_orchestre` |
 
 Full signatures: see [`mathir_lib/mathir_mcp_server.py`](mathir_lib/mathir_mcp_server.py).
+### Key Algorithms and Runtime Guarantees
 
-### Key Algorithms (v8.7.0)
-
-| Algorithm | Purpose |
+| Algorithm / guarantee | Purpose |
 |---|---|
 | **3-layer auto-cache** | L1 embedding LRU + L2 recall TTL + L3 session pre-warm |
 | **INT8 scalar quantization** | 4x embedding compression, zero recall loss |
 | **Cross-encoder reranking** | `ms-marco-MiniLM-L-6-v2` second-pass scoring (+20pp) |
 | **Hybrid search** | Vector cosine + BM25 + RRF fusion |
-| **Ebbinghaus decay** | Time-based forgetting (5%/30d floor) |
-| **Mahalanobis anomaly** | Immunological tier (threshold=25.0) |
-| **Spreading activation** | Collins & Loftus link-graph traversal |
+| **Ebbinghaus decay** | Time-based forgetting (5%/30d floor), removing archived vectors |
+| **Mahalanobis anomaly** | Adaptive baseline with 60-sample warmup |
+| **Spreading activation** | Chunked, bounded top-k Collins & Loftus link graph |
+| **Injection budget** | `/api/context` hard-capped at 50,000 characters |
+| **Canonical DB routing** | Named projects resolve to `~/.config/MATHIR/data/projects/<project>/mathir.db` |
+
+**Migration and injection:** pass `project` and `cwd` on daemon requests.
+Named projects use the canonical database above; legacy schemas are previewed
+with `python -m mathir_mcp.mathir_lib.mathir_migrate --dry-run` and applied
+with `--apply`. `/api/context` is capped at 50,000 characters and reports
+truncation explicitly when the budget is reached. The OMP provider-boundary
+reinjection path has a 30-second cooldown.
 
 Full list (22 algorithms): see [benchmarks/06_results/current/README.md](../benchmarks/06_results/current/README.md).
 
@@ -79,10 +88,8 @@ Monitor: `GET /api/cache/stats` returns hits, misses, hit ratio per layer.
 
 ## 📚 Documentation Index
 
-| Doc | Purpose |
-|---|---|
+| **[docs/DAEMON.md](docs/DAEMON.md)** | Current HTTP daemon API, legacy protocol note, context budget & database routing |
 | **[INSTALL_FOR_AGENT/AGENT.md](INSTALL_FOR_AGENT/AGENT.md)** | Per-agent config (50+ agents) & troubleshooting |
-| **[docs/DAEMON.md](docs/DAEMON.md)** | Daemon HTTP/JSON-RPC protocol + security |
 | **[docs/DASHBOARD_GUIDE.md](docs/DASHBOARD_GUIDE.md)** | Stats dashboard setup |
 | **[docs/GPU_SETUP.md](docs/GPU_SETUP.md)** | GPU/ONNX acceleration |
 | **[docs/DIMENSIONS.md](docs/DIMENSIONS.md)** | Embedding model selection |

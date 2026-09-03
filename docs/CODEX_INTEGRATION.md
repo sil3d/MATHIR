@@ -1,6 +1,6 @@
 # MATHIR ↔ Codex Integration Guide
 
-**Date:** 2026-07-31 · **Status:** Production-tested on Windows 10/11, Codex desktop (Electron app), v8.9.5 daemon.
+**Date:** 2026-09-03 · **Status:** Production-tested with Codex desktop/CLI and the v8.9.8 daemon.
 **Audience:** anyone running OpenAI Codex CLI/Desktop and wants persistent memory across sessions.
 
 This guide covers the **full** setup: daemon + MCP server + auto-inject hook + transparent proxy + autostart. After following it, Codex will expose 27 tools (`mcp__mathir__*`) and every prompt will get MATHIR context auto-injected before the model sees it.
@@ -32,7 +32,7 @@ curl http://127.0.0.1:7338/health
 
 If the daemon is dead, run `~/.config/MATHIR/mathir_mcp/bin/auto_start.bat` (Windows) or the `mathir-daemon.service` systemd unit (Linux/macOS). See section 7 below.
 
-Codex lives at `C:\Users\princ\AppData\Local\OpenAI\Codex\bin\<build-id>\codex.exe` on Windows. Its config dir is `~/.codex/` (which resolves to `C:\Users\princ\.codex\`). You don't need to "install" Codex from this guide.
+Codex is installed separately. Its config directory is `~/.codex/` (the platform's user-home equivalent). You don't need to install Codex from this guide.
 
 ---
 
@@ -42,16 +42,16 @@ Codex lives at `C:\Users\princ\AppData\Local\OpenAI\Codex\bin\<build-id>\codex.e
 
 ```toml
 [mcp_servers.mathir]
-command = "C:\\Users\\princ\\miniconda3\\python.exe"     # ABSOLUTE PATH, not just "python"
-args = ["C:\\Users\\princ\\.config\\MATHIR\\mathir_mcp\\mathir_lib\\mathir_mcp_server.py"]
+command = "<ABSOLUTE_PYTHON_EXE>"                         # replace with the Python executable Codex can spawn
+args = ["<MATHIR_HOME>/mathir_mcp/mathir_lib/mathir_mcp_server.py"]
 startup_timeout_sec = 30
 
 [mcp_servers.mathir.env]
 MATHIR_EMBEDDING_DIM = "384"
 MATHIR_PORT = "7338"
 MATHIR_DAEMON_URL = "http://127.0.0.1:7338"
-MATHIR_CONFIG = "C:\\Users\\princ\\.config\\MATHIR\\config\\mathir.json"
-PYTHONPATH = "C:\\Users\\princ\\.config\\MATHIR\\mathir_mcp\\mathir_lib"
+MATHIR_CONFIG = "<MATHIR_HOME>/config/mathir.json"
+PYTHONPATH = "<MATHIR_HOME>/mathir_mcp/mathir_lib"
 ```
 
 **Why every value matters:**
@@ -73,7 +73,7 @@ Then verify:
 > liste tes outils MCP
 ```
 
-Expected: 31+ tools including `mcp__mathir__memory_recall`, `mcp__mathir__memory_save`, `mcp__mathir__mathir_health`, …
+Expected: 27 tools including `mcp__mathir__memory_recall`, `mcp__mathir__memory_save`, `mcp__mathir__mathir_health`, …
 
 If they don't appear: see section 9.
 
@@ -91,7 +91,7 @@ If they don't appear: see section 9.
         "hooks": [
           {
             "type": "command",
-            "command": "python \"C:\\Users\\princ\\.config\\MATHIR\\mathir_mcp\\bin\\claude_code_hook.py\""
+            "command": "python \"<MATHIR_HOME>/mathir_mcp/bin/claude_code_hook.py\""
           }
         ]
       }
@@ -120,7 +120,7 @@ Layer C is **optional for Codex** (Codex already gets tools + hook), but useful 
 
 ### 5.1 What it does
 
-`mathir_proxy.py` listens on `127.0.0.1:7339`, accepts `/v1/chat/completions` requests in OpenAI Chat Completions format, queries MATHIR for context matching the last user message, prepends a `<mathir-auto-injection>` block to the `system` field, and forwards the request to the real `api.openai.com`.
+`mathir_proxy.py` listens on `127.0.0.1:7339`, accepts `/v1/chat/completions` requests in OpenAI Chat Completions format, queries MATHIR for context matching the last user message, adds a `<mathir-auto-injection>` block to the request's system instructions, and forwards the request to the real `api.openai.com`.
 
 ### 5.2 Required `~/.codex/config.toml` addition
 
@@ -144,7 +144,7 @@ curl http://127.0.0.1:7339/health
 ### 5.4 One-shot launch (manual)
 
 ```bash
-python "C:\Users\princ\.config\MATHIR\mathir_mcp\mathir_lib\mathir_proxy.py" \
+python "<MATHIR_HOME>/mathir_mcp/mathir_lib/mathir_proxy.py" \
     --port 7339 \
     --host 127.0.0.1 \
     --target https://api.openai.com
@@ -162,8 +162,8 @@ To install on a fresh box:
 
 ```cmd
 :: From an elevated cmd.exe
-schtasks /create /tn "MATHIR Daemon" /tr "\"C:\Users\princ\miniconda3\python.exe\" \"C:\Users\princ\.config\MATHIR\mathir_mcp\mathir_lib\mathir_server.py\" --force" /sc onlogon /ru "%USERNAME%"
-schtasks /create /tn "MATHIR_Daemon_Healthcheck" /tr "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"C:\Users\princ\.config\MATHIR\mathir_mcp\bin\auto_start_healthcheck.ps1\"" /sc minute /mo 5 /ru "%USERNAME%"
+schtasks /create /tn "MATHIR Daemon" /tr "\"<ABSOLUTE_PYTHON_EXE>\" \"<MATHIR_HOME>\\mathir_mcp\\mathir_lib\\mathir_server.py\" --force" /sc onlogon /ru "%USERNAME%"
+schtasks /create /tn "MATHIR_Daemon_Healthcheck" /tr "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"<MATHIR_HOME>\\mathir_mcp\\bin\\auto_start_healthcheck.ps1\"" /sc minute /mo 5 /ru "%USERNAME%"
 ```
 
 The healthcheck task pulls up `auto_start.bat` whenever port 7338 OR 7339 is missing.
@@ -185,34 +185,31 @@ xcopy /Y mathir_mcp\bin "%USERPROFILE%\.config\MATHIR\mathir_mcp\bin\"
 
 ## 8. File map (what goes where)
 
-```
-D:\SECRET_PROJECT\MATHIR\                                      ← repo source of truth (git)
-  ├─ CHANGELOG.md                                              ← top-level changelog
+<REPO_ROOT>\                                             ← repository source of truth (git)
+  ├─ CHANGELOG.md                                         ← top-level changelog
   └─ docs\
-      └─ CODEX_INTEGRATION.md                                  ← this file
+      └─ CODEX_INTEGRATION.md                             ← this file
 
-D:\SECRET_PROJECT\MATHIR\mathir_mcp\                           ← daemon source
-  ├─ CHANGELOG.md                                              ← sub-component changelog (also got the Unreleased entry)
+<REPO_ROOT>\mathir_mcp\                                  ← daemon source
+  ├─ CHANGELOG.md                                         ← sub-component changelog
   └─ docs\troubleshooting\
-      └─ codex-mcp-tools-invisible-three-layers.md             ← 3-layer failure walk-through
+      └─ codex-mcp-tools-invisible-three-layers.md        ← 3-layer failure walk-through
 
-C:\Users\princ\.codex\                                         ← Codex config dir
-  ├─ config.toml                                               ← MODIFIED: [mcp_servers.mathir], [shell_environment_policy.set]
-  ├─ config.toml.bak.codex-mcp-fix-20260731                    ← backup of pre-fix config
-  ├─ config.toml.bak.codex-mcp-fix-20260731-pre-python         ← backup of post-`~`-fix / pre-python-fix
-  └─ hooks.json                                                ← UserPromptSubmit → claude_code_hook.py (works out-of-box)
+~/.codex/                                                 ← Codex config dir
+  ├─ config.toml                                           ← [mcp_servers.mathir] and proxy env
+  └─ hooks.json                                            ← UserPromptSubmit → claude_code_hook.py
 
-C:\Users\princ\.config\MATHIR\                                 ← deployed install
+<MATHIR_HOME>\                                            ← deployed install
   ├─ mathir_mcp\mathir_lib\
-  │   ├─ mathir_server.py                                      ← daemon (port 7338)
-  │   ├─ mathir_mcp_server.py                                  ← stdio MCP server (line 1490: mcp.run(show_banner=False))
-  │   └─ mathir_proxy.py                                       ← transparent proxy (port 7339)
+  │   ├─ mathir_server.py                                  ← daemon (port 7338)
+  │   ├─ mathir_mcp_server.py                              ← stdio MCP server
+  │   └─ mathir_proxy.py                                   ← transparent proxy (port 7339)
   └─ mathir_mcp\bin\
-      ├─ auto_start.bat                                        ← launches daemon + proxy (target=api.openai.com for Codex)
-      ├─ auto_start_healthcheck.ps1                            ← 5-minute healthcheck
-      └─ claude_code_hook.py                                   ← shared with Claude Code hook
+      ├─ auto_start.bat                                    ← launches daemon + proxy
+      ├─ auto_start_healthcheck.ps1                        ← 5-minute healthcheck
+      └─ claude_code_hook.py                               ← shared with Claude Code hook
 
-C:\Users\princ\.config\MATHIR\config\mathir.json               ← daemon's runtime config (the `~/.config/MATHIR/config/mathir.json` path the daemon ACTUALLY reads — NOT `mathir_mcp/config/mathir.json`; this is a known trap, see guardrail `guardrail-real-runtime-config-path`)
+<MATHIR_HOME>\config\mathir.json                           ← daemon runtime config
 ```
 
 ---
@@ -225,9 +222,9 @@ If the MCP server, hook, or proxy isn't visible to Codex, walk through this ladd
 
 **Symptom**: `mcp__mathir__*` tools NEVER appear, even after full Codex restart. No error in Codex UI.
 
-**Root cause** (verified 2026-07-31): Codex's MCP spawn does not shell-expand `~`. Python's `os.path.expanduser()` only works for paths *inside* Python, not for env vars at startup. `PYTHONPATH='~/.config/...'` evaluates to `D:\path\~\.config\...` and `from mathir_paths import CONFIG_PATH` raises `ModuleNotFoundError`. Server exits silently before `tools/list`.
+**Root cause** (verified 2026-07-31): Codex's MCP spawn does not shell-expand `~`. Python's `os.path.expanduser()` only works for paths *inside* Python, not for env vars at startup. `PYTHONPATH='~/.config/...'` stays unresolved and `from mathir_paths import CONFIG_PATH` raises `ModuleNotFoundError`. Server exits silently before `tools/list`.
 
-**Fix**: use absolute `C:\Users\princ\...` paths in every `[mcp_servers.mathir.env]` value.
+**Fix**: use absolute paths in every `[mcp_servers.mathir.env]` value. Replace `<MATHIR_HOME>` and `<ABSOLUTE_PYTHON_EXE>` in section 3 with real paths on the target machine.
 
 ### Layer 2: `python` not in PATH for Codex's child process
 
@@ -235,7 +232,7 @@ If the MCP server, hook, or proxy isn't visible to Codex, walk through this ladd
 
 **Root cause**: Codex (Electron) does not always inherit the user's shell `PATH` for MCP child processes. `command = "python"` may resolve to nothing.
 
-**Fix**: `command = "C:\\Users\\princ\\miniconda3\\python.exe"` (or wherever your Python lives — verify with `where.exe python`).
+**Fix**: set `command = "<ABSOLUTE_PYTHON_EXE>"` (or wherever your Python lives — verify with `where.exe python`).
 
 ### Layer 3: FastMCP banner corrupts JSON-RPC on stdout
 
@@ -259,11 +256,11 @@ probe='{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion"
 {"jsonrpc":"2.0","id":2,"method":"tools/list"}'
 
 echo "$probe" | \
-  PYTHONPATH='C:\Users\princ\.config\MATHIR\mathir_mcp\mathir_lib' \
+  PYTHONPATH='<MATHIR_HOME>/mathir_mcp/mathir_lib' \
   MATHIR_DAEMON_URL='http://127.0.0.1:7338' \
-  MATHIR_CONFIG='C:\Users\princ\.config\MATHIR\config\mathir.json' \
-  "C:\Users\princ\miniconda3\python.exe" \
-    "C:\Users\princ\.config\MATHIR\mathir_mcp\mathir_lib\mathir_mcp_server.py"
+  MATHIR_CONFIG='<MATHIR_HOME>/config/mathir.json' \
+  "<ABSOLUTE_PYTHON_EXE>" \
+    "<MATHIR_HOME>/mathir_mcp/mathir_lib/mathir_mcp_server.py"
 ```
 
 Expected: a single-line JSON response containing `"name":"memory_recall"` (and 26 more). If you see a colored banner first, layer 3 is still broken. If you see `"error":"ModuleNotFoundError"` or import errors, layer 1 or 2.
@@ -293,11 +290,11 @@ If TOML fails to parse, restore from one of the `*.bak` files in `~/.codex/` or 
 
 ## 11. Related docs in this repo
 
-- [`mathir_mcp/docs/troubleshooting/codex-mcp-tools-invisible-three-layers.md`](mathir_mcp/docs/troubleshooting/codex-mcp-tools-invisible-three-layers.md) — the same three-layer walk-through, more incident-narrative style.
-- [`mathir_mcp/INSTALL_FOR_AGENT/INSTALL_WINDOWS.md`](mathir_mcp/INSTALL_FOR_AGENT/INSTALL_WINDOWS.md) — full daemon install for Windows (prerequisite for this guide).
-- [`mathir_mcp/INSTALL_FOR_AGENT/INSTALL_LINUX.md`](mathir_mcp/INSTALL_FOR_AGENT/INSTALL_LINUX.md), [`INSTALL_MACOS.md`](mathir_mcp/INSTALL_FOR_AGENT/INSTALL_MACOS.md) — same for Linux/macOS.
-- [`mathir_mcp/README.md`](mathir_mcp/README.md) — daemon + MCP server overview, all 27 tools documented.
-- [`README.md`](README.md) — top-level (universal architecture across all tools).
+- [`mathir_mcp/docs/troubleshooting/codex-mcp-tools-invisible-three-layers.md`](../mathir_mcp/docs/troubleshooting/codex-mcp-tools-invisible-three-layers.md) — the same three-layer walk-through, more incident-narrative style.
+- [`mathir_mcp/INSTALL_FOR_AGENT/INSTALL_WINDOWS.md`](../mathir_mcp/INSTALL_FOR_AGENT/INSTALL_WINDOWS.md) — full daemon install for Windows (prerequisite for this guide).
+- [`mathir_mcp/INSTALL_FOR_AGENT/INSTALL_LINUX.md`](../mathir_mcp/INSTALL_FOR_AGENT/INSTALL_LINUX.md), [`INSTALL_MACOS.md`](../mathir_mcp/INSTALL_FOR_AGENT/INSTALL_MACOS.md) — same for Linux/macOS.
+- [`mathir_mcp/README.md`](../mathir_mcp/README.md) — daemon + MCP server overview, all 27 tools documented.
+- [`README.md`](../README.md) — top-level (universal architecture across all tools).
 
 ---
 

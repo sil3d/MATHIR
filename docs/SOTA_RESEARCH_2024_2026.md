@@ -7,7 +7,7 @@ _by @background-researcher · 2026-06-05_
 > This document is the source of truth for which systems MATHIR must beat and how
 > to install them.
 
-> **Note (2026-07-05):** Research methodology and BEIR comparison framework remain valid for MATHIR v8.9.4. The headline critique — that MATHIR's 45.7% is **not comparable** to BEIR nDCG@10 — stands unchanged. New since v8.5: 6-tier memory (incl. guardrail), God Mode orchestration. These are complementary features, not SOTA-claim shifts.
+> **Note (2026-09-03):** Research methodology and BEIR comparison framework remain valid for MATHIR v8.9.8. The headline critique — that MATHIR's 45.7% is **not comparable** to BEIR nDCG@10 — stands unchanged. New since v8.5: 6-tier memory (including guardrails), God Mode orchestration, bounded injection, canonical project DB routing, and adaptive anomaly warmup. These are complementary features, not SOTA-claim shifts.
 
 ---
 

@@ -112,8 +112,8 @@ Model VRAM requirements:
 │            mathir_server.py             │
 │         (persistent process)            │
 ├─────────────────────────────────────────┤
-│  TCP Socket (127.0.0.1:7338)           │
-│  JSON-RPC protocol                     │
+│  HTTP API (127.0.0.1:7338)               │
+│  /health + /api/context + memory routes  │
 ├─────────────────────────────────────────┤
 │  SentenceTransformer (CUDA)            │
 │  ├── intfloat/multilingual-e5-small (default, retrieval-trained) │

@@ -18,7 +18,7 @@ This report documents the retrieval-quality and latency comparison of six config
 
 | Parameter                | Value                                                        |
 |--------------------------|--------------------------------------------------------------|
-| PDF source               | `D:\COURS\Fluid Mechanics 2\White_2011_7ed_Fluid-Mechanics.pdf` (885 pages, 7th ed., 2011) |
+| PDF source               | `<SOURCE_PDF>` (885 pages, 7th ed., 2011)                  |
 | Chunking strategy        | Sentence-boundary sliding window, target ≈ 133 words/chunk   |
 | Number of chunks         | 200                                                           |
 | Embedding model          | `sentence-transformers/all-MiniLM-L6-v2` (384-dim, normalized) |
@@ -257,22 +257,22 @@ All raw measurements are persisted as JSON sidecars. Re-running the benchmarks r
 ### 11.2 Run the two-way comparison (FAISS vs Approach D)
 
 ```bash
-cd D:/SECRET_PROJECT/MATHIR
+cd <REPO_ROOT>
 python benchmarks/approach_d_vs_faiss.py
 # Optional: change corpus size and query count
 python benchmarks/approach_d_vs_faiss.py --chunks 300 --queries 100
 ```
 
-Output: console table + sidecar `D:/SECRET_PROJECT/MATHIR/approach_d_vs_faiss_results.json`. Schema matches §3 and §4 above.
+Output: console table + sidecar `<REPO_ROOT>/approach_d_vs_faiss_results.json`. Schema matches §3 and §4 above.
 
 ### 11.3 Run the six-way comparison (FAISS + V7 + A, B, C, D)
 
 ```bash
-cd D:/SECRET_PROJECT/MATHIR
+cd <REPO_ROOT>
 python benchmarks/compare_all_approaches.py
 ```
 
-Output: console table + sidecar `D:/SECRET_PROJECT/MATHIR/compare_all_approaches_results.json`. Schema matches §3 above.
+Output: console table + sidecar `<REPO_ROOT>/compare_all_approaches_results.json`. Schema matches §3 above.
 
 ### 11.4 Inputs that can be varied
 
@@ -289,13 +289,13 @@ Output: console table + sidecar `D:/SECRET_PROJECT/MATHIR/compare_all_approaches
 
 | Purpose                                      | Path                                                                        |
 |----------------------------------------------|-----------------------------------------------------------------------------|
-| Headline benchmark (FAISS vs D)              | `D:/SECRET_PROJECT/MATHIR/benchmarks/approach_d_vs_faiss.py`                |
-| Six-way comparison                           | `D:/SECRET_PROJECT/MATHIR/benchmarks/compare_all_approaches.py`             |
-| Raw results, two-way                         | `D:/SECRET_PROJECT/MATHIR/approach_d_vs_faiss_results.json`                 |
-| Raw results, six-way                         | `D:/SECRET_PROJECT/MATHIR/compare_all_approaches_results.json`              |
-| Source PDF (885 pages)                       | `D:\COURS\Fluid Mechanics 2\White_2011_7ed_Fluid-Mechanics.pdf`             |
-| This report                                  | `D:/SECRET_PROJECT/MATHIR/docs/RETRIEVAL_RESEARCH_RESULTS.md`               |
-| Parent research context                      | `D:/SECRET_PROJECT/MATHIR/docs/V7_PAPER.md`                                 |
+| Headline benchmark (FAISS vs D)              | `<REPO_ROOT>/benchmarks/approach_d_vs_faiss.py`                |
+| Six-way comparison                           | `<REPO_ROOT>/benchmarks/compare_all_approaches.py`             |
+| Raw results, two-way                         | `<REPO_ROOT>/approach_d_vs_faiss_results.json`                 |
+| Raw results, six-way                         | `<REPO_ROOT>/compare_all_approaches_results.json`              |
+| Source PDF (885 pages)                       | `<SOURCE_PDF>`                                                  |
+| This report                                  | `<REPO_ROOT>/docs/RETRIEVAL_RESEARCH_RESULTS.md`               |
+| Parent research context                      | `<REPO_ROOT>/docs/V7_PAPER.md`                                 |
 
 ### 11.6 Expected runtime
 
@@ -383,4 +383,4 @@ The V7.1 research found that Approach D is the quality king (45.7%, +14.1pp over
 
 ---
 
-*End of report. For theoretical background on the projection, the Ebbinghaus memory, and the proof of the compression bound, see `D:/SECRET_PROJECT/MATHIR/docs/THEORY_V7.md` and `D:/SECRET_PROJECT/MATHIR/docs/MATHIR_Preuves_Mathematiques.tex`.*
+*End of report. For theoretical background on the projection, the Ebbinghaus memory, and the proof of the compression bound, see `<REPO_ROOT>/docs/THEORY_V7.md` and `<REPO_ROOT>/docs/MATHIR_Preuves_Mathematiques.tex`.*

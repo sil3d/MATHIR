@@ -8,7 +8,7 @@
 
 1. [Fundamentals: What is MATHIR?](#1-fundamentals)
 2. [Architecture vs Model](#2-architecture-vs-model)
-3. [Version Evolution (V1-V8.9.0)](#3-versions)
+3. [Version Evolution (V1-V8.9.8)](#3-versions)
 4. [Memory Tiers (6-tier hierarchical)](#4-memory-tiers)
 5. [Theoretical Foundations (6 theorems)](#5-theorems)
 6. [V7 New Algorithms (8 novel)](#6-v7-algorithms)
@@ -34,7 +34,7 @@
 **A:** MATHIR (Memory-Augmented Tensor Hybrid with Intelligent Routing) is a **plug-and-play hierarchical memory layer** that gives any LLM the ability to learn, remember, and adapt in real-time on edge hardware.
 
 ### Q1.2: What problem does MATHIR solve?
-**A:** LLMs are **amnesiac** — they forget everything between sessions, can't learn from experience, and can't detect anomalies. Existing solutions (vector databases, RAG, long context) all **store** information but **don't learn** from it. MATHIR solves this by maintaining five memory tiers that evolve in real-time.
+**A:** LLMs are **amnesiac** — they forget everything between sessions, can't learn from experience, and can't detect anomalies. Existing solutions (vector databases, RAG, long context) all **store** information but **don't learn** from it. MATHIR maintains five adaptive memory tiers plus a push-based guardrail tier that evolves in real-time.
 
 ### Q1.3: What is the difference between MATHIR and a vector database?
 **A:**
@@ -43,7 +43,7 @@
 | Stores embeddings | ✅ | ✅ |
 | Online learning | ❌ | ✅ |
 | Anomaly detection | ❌ | ✅ (NP-optimal Mahalanobis) |
-| Hierarchical memory | ❌ | ✅ (5 temporal tiers) |
+| Hierarchical memory | ❌ | ✅ (five adaptive tiers + guardrail tier) |
 | Spaced repetition forgetting | ❌ | ✅ (Ebbinghaus) |
 | Adaptive allocation | ❌ | ✅ (KL-constrained router) |
 
@@ -97,7 +97,7 @@ MATHIR is the **Architecture + Framework** — like "Transformer + HuggingFace" 
 
 ---
 
-## 3. Version Evolution (V1 → V8.9.4) {#3-versions}
+## 3. Version Evolution (V1 → V8.9.8) {#3-versions}
 
 ### Q3.1: What is the history of MATHIR versions?
 **A:**
@@ -119,7 +119,8 @@ MATHIR is the **Architecture + Framework** — like "Transformer + HuggingFace" 
 | V8.6.1 | Portable paths, cross-platform install, DB routing backward-compat | Supported |
 | **V8.7.0** | **3-layer auto-cache (L1 embedding LRU + L2 recall TTL + L3 session pre-warm), 122 tests** | Supported |
 | **V8.9.0** | **Guardrail tier (6th tier, push-based always-active rules)** | Supported |
-| **V8.9.4** | **Self-healing daemon + universal injection proxy (Anthropic + OpenAI-compatible, ~30 providers)** | **Current latest** |
+| **V8.9.4** | **Self-healing daemon + universal injection proxy (Anthropic + OpenAI-compatible, ~30 providers)** | Supported |
+| **V8.9.8** | **Reliability hardening: 50,000-character injection cap, canonical named-project DB routing, adaptive anomaly warmup, bounded graph maintenance, input caps, and injection cooldown** | **Current** |
 
 ### Q3.2: What's the difference between V6 and V7?
 **A:** V7 adds:
@@ -734,7 +735,7 @@ memories = plugin.recall(query, k=5)
 
 | Tier | Mechanism | Agents | Guarantee |
 |---|---|---|---|
-| **A — Plugin auto-inject** | `mathir-auto-inject.ts` hooks `session.started` + `experimental.chat.system.transform` | opencode, mimocode | TRUE auto-injection — agent doesn't need to remember to recall |
+| **A — Plugin auto-inject** | `mathir-auto-inject.ts` hooks `experimental.chat.system.transform` with a `chat.message` fallback | opencode, mimocode | TRUE auto-injection — agent doesn't need to remember to recall |
 | **B — Instructions + MCP** | MCP server + `GLOBAL_INSTRUCTIONS.md` injected into the agent's instructions path | claude-code, cursor, cline, zcode, codex, etc. (14 agents) | SOFT — agent must comply with the instruction to call `memory_session_start` |
 | **C — MCP only** | MCP server registered, no behavioral prompt | windsurf, gemini-cli, kilo-code, qwen-code, kiro-ide, warp, trae, crush, etc. (34 agents) | NONE — no behavioral prompt to trigger recall |
 
@@ -749,7 +750,7 @@ memories = plugin.recall(query, k=5)
 export ANTHROPIC_BASE_URL=http://127.0.0.1:7339        # Claude Code etc. -- no /v1
 export OPENAI_BASE_URL=http://127.0.0.1:7339/v1         # OpenAI-compatible tools -- /v1 required
 ```
-As of v8.9.4 the proxy speaks both Anthropic's native `/v1/messages` and OpenAI-compatible `/v1/chat/completions` (~30 allowlisted providers + any local model, see `docs/BRAIN_ARCHITECTURE.md`). It intercepts every call, queries the daemon at `/api/context`, and prepends `<mathir-auto-injection>` to the system prompt — silently, on every call. Works for any agent that redirects its baseUrl (Claude Code, Cursor, Cline, Continue, Codex, Gemini, etc.).
+As of v8.9.8 the proxy speaks both Anthropic's native `/v1/messages` and OpenAI-compatible `/v1/chat/completions` (~30 allowlisted providers + any local model, see `docs/BRAIN_ARCHITECTURE.md`). It intercepts every call, queries the daemon at `/api/context`, and injects `<mathir-auto-injection>` into the request's system instructions — silently, on every supported call. Works for any agent that redirects its baseUrl (Claude Code, Cursor, Cline, Continue, Codex, Gemini, etc.).
 
 **Escape hatch 2 — `AGENTS.md` at repo root:**
 26+ agents (Aider, Amp, Claude Code, Codex, Cursor, Devin, Factory, Goose, JetBrains Junie, Jules, OpenCode, VS Code Copilot, Warp, Zed, etc. — see [agents.md](https://agents.md)) auto-read `AGENTS.md` at the project root. MATHIR ships a template at `mathir_mcp/opencode_templates/AGENTS.md` that instructs the agent to call `memory_session_start` on first turn + `memory_context` before each task. Copy it to your project:
@@ -772,20 +773,19 @@ Both are auto-started together by `mathir_daemon_startup.bat` in the Windows Sta
 
 ### Q17.4: How does MATHIR know which project's memory to read/write?
 
-**A:** Per-project DB routing (fixed in v8.5.1). Each project gets its own `.mathir/mathir.db`:
+**A:** Per-project DB routing. Every request SHOULD include both `project` and `cwd`. A named project always resolves to its canonical global DB:
 
 | Project | DB path |
 |---|---|
-| `my-project/` (example) | `my-project/.mathir/mathir.db` |
-| `mathir_mcp/` (installer) | `~/.config/MATHIR/mathir_mcp/.mathir/mathir.db` |
-| Future project | `<project>/.mathir/mathir.db` (auto-created) |
+| `my-project` (example) | `~/.config/MATHIR/data/projects/my-project/mathir.db` |
+| unnamed request | `<cwd>/.mathir/mathir.db` |
 
 **Routing flow:**
-1. `mathir_mcp_server.py` (MCP bridge) always injects `project` (CWD basename) + `cwd` (Path.cwd()) into every daemon HTTP request.
-2. `mathir_server.py` `memory_save` endpoint calls `_resolve_db(project=params.get('project'), cwd=params.get('cwd'))`.
-3. `_resolve_db` returns `<cwd>/.mathir/mathir.db` if it exists, else the canonical `<MATHIR_HOME>/data/projects/<project>/mathir.db`.
+1. `mathir_mcp_server.py` (MCP bridge) injects `project` (CWD basename) + `cwd` (`Path.cwd()`) into daemon HTTP requests.
+2. `mathir_server.py` calls `_resolve_db(project=params.get('project'), cwd=params.get('cwd'))`.
+3. `_resolve_db` uses the canonical global path when `project` is present; unnamed calls remain cwd-local.
 
-Before the v8.5.1 fix, the daemon ignored the agent's CWD and always wrote to its own `.mathir/` directory. This made every non-mathir_mcp project effectively "memory-dead" — recalls returned global data instead of project-specific context.
+This prevents a caller's working directory from creating a second database for the same named project. The daemon's `/api/context` response also reports the selected DB path for diagnostics.
 
 ### Q17.5: How does the daemon know when MATHIR needs a schema migration?
 
@@ -800,7 +800,7 @@ So the agent sees the warning on every interaction without having to read daemon
 
 ### Q17.6: How many MCP tools does MATHIR have?
 
-**A:** **27 MCP tools** as of v8.9.1+ (current: v8.9.4). The count has grown over time: 20 in v8.5.0, 23 in v8.5.1 (added `memory_by_path`, `memory_recall_quality`, `memory_incoming_links`), 25 in v8.8.0 (added `mathir_god_orchestre`, `mathir_god_agent`), 26 in v8.9.0 (added `memory_list_guardrails`), 27 in v8.9.1 (`audit_immunological` had been missing from the count).
+**A:** **27 MCP tools** as of v8.9.8 (current). The count has grown over time: 20 in v8.5.0, 23 in v8.5.1 (added `memory_by_path`, `memory_recall_quality`, `memory_incoming_links`), 25 in v8.8.0 (added `mathir_god_orchestre`, `mathir_god_agent`), 26 in v8.9.0 (added `memory_list_guardrails`), 27 in v8.9.1 (`audit_immunological` had been missing from the count).
 
 ### Q17.7: How is MATHIR's HTTP daemon different from raw TCP?
 

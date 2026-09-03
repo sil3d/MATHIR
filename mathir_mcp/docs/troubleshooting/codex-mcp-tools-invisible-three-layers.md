@@ -25,17 +25,17 @@ works for paths encountered *inside* Python, not for env vars at startup.
 $ PYTHONPATH='~/.config/MATHIR/mathir_mcp/mathir_lib' python -c \
     "from mathir_paths import CONFIG_PATH"
 ModuleNotFoundError: No module named 'mathir_paths'
-# Python interpreted it as relative to CWD, joined → D:\path\~\.config\...
+# Python interpreted it as relative to CWD, joined with an unresolved user-home path.
 
-$ PYTHONPATH='C:\\Users\\princ\\.config\\MATHIR\\mathir_mcp\\mathir_lib' \
+$ PYTHONPATH='<ABSOLUTE_MATHIR_HOME>/mathir_mcp/mathir_lib' \
     python -c "from mathir_paths import CONFIG_PATH"
-OK — CONFIG_PATH = C:\Users\princ\.config\MATHIR\config\mathir.json
+OK — CONFIG_PATH resolves to <ABSOLUTE_MATHIR_HOME>/config/mathir.json
 ```
 
 **Fix**: replace all `~/.config/MATHIR/...` paths in `~/.codex/config.toml`
-`[mcp_servers.mathir.env]` block with absolute `C:\Users\princ\...` paths.
-Use escaped backslashes in TOML double-quoted strings:
-`"C:\\\\Users\\\\princ\\\\..."`.
+`[mcp_servers.mathir.env]` with absolute paths to the deployed MATHIR tree.
+Use escaped backslashes in TOML double-quoted strings on Windows.
+`<ABSOLUTE_MATHIR_HOME>` is a placeholder, not a literal path.
 
 ---
 
@@ -46,10 +46,10 @@ Use escaped backslashes in TOML double-quoted strings:
 **Cause**: Codex (Electron) doesn't inherit the user's PATH for MCP
 subprocesses the same way cmd does. `command = "python"` fails to resolve.
 
-**Fix**: use absolute Python path:
+**Fix**: use an absolute Python path:
 ```toml
-command = "C:\\Users\\princ\\miniconda3\\python.exe"
-args = ["C:\\Users\\princ\\.config\\MATHIR\\mathir_mcp\\mathir_lib\\mathir_mcp_server.py"]
+command = "<ABSOLUTE_PYTHON_EXE>"
+args = ["<ABSOLUTE_MATHIR_HOME>/mathir_mcp/mathir_lib/mathir_mcp_server.py"]
 startup_timeout_sec = 30
 ```
 
@@ -99,8 +99,8 @@ visible on stderr.
 With all three fixes applied:
 1. Run server with the exact command Codex uses:
    ```bash
-   C:\Users\princ\miniconda3\python.exe \
-       C:\Users\princ\.config\MATHIR\mathir_mcp\mathir_lib\mathir_mcp_server.py \
+   <ABSOLUTE_PYTHON_EXE> \
+       <ABSOLUTE_MATHIR_HOME>/mathir_mcp/mathir_lib/mathir_mcp_server.py \
        < initialize.json + tools/list.json > response.json
    ```
    Returns 27 tools, zero stdout banner, valid JSON-RPC.

@@ -3,7 +3,7 @@
 ## What Is This?
 
 A real-time web dashboard that visualizes your MATHIR neural memory system:
-- 5-tier memory breakdown (working, episodic, semantic, procedural, immunological)
+- 6-tier memory breakdown (working, episodic, semantic, procedural, guardrail, immunological)
 - Per-agent statistics
 - Memory creation timeline
 - Router weight visualization

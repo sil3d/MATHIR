@@ -1568,7 +1568,7 @@ Several directions remain for future research:
 
 All code, tests, and benchmark scripts are available at the project repository:
 
-- **Code:** `D:/SECRET_PROJECT/MATHIR/`
+- **Code:** `<REPO_ROOT>/`
 - **Test scripts:** `tests/test_hybrid.py`, `tests/test_raw_embedding.py`, `tests/test_ensemble.py`, `tests/test_faiss_memory.py`
 - **Benchmark scripts:** `benchmarks/compare_all_approaches.py`, `benchmarks/approach_d_vs_faiss.py`
 - **Results:** `compare_all_approaches_results.json`, `approach_d_vs_faiss_results.json`, `v6_vs_v7_results.json`
@@ -1578,7 +1578,7 @@ All code, tests, and benchmark scripts are available at the project repository:
 To reproduce the results:
 
 ```bash
-cd D:/SECRET_PROJECT/MATHIR
+cd <REPO_ROOT>
 pip install -e .
 pip install sentence-transformers rank_bm25 faiss-cpu PyMuPDF usearch
 python benchmarks/compare_all_approaches.py --chunks 200 --queries 50
@@ -2379,7 +2379,7 @@ If you use MATHIR V8.7.0 in your research, please cite this paper:
   year = {2026},
   month = {June},
   howpublished = {Master's Research Paper},
-  note = {Available at: D:/SECRET_PROJECT/MATHIR/docs/MASTER\_RESEARCH\_PAPER.md}
+  note = {Available at: <REPO_ROOT>/docs/MASTER\_RESEARCH\_PAPER.md}
 }
 ```
 

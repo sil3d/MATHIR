@@ -6,10 +6,10 @@
 **Affiliation:** MATHIR Project, Independent Master's Research
 **Original analysis:** June 2, 2026
 **Project Version (original):** MATHIR V8.4.1 (HybridSearch + full integration)
-**Current implementation:** MATHIR v8.9.4 (6 memory tiers + guardrail tier + God Mode orchestration; see CHANGELOG)
+**Current implementation:** MATHIR v8.9.8 (6 memory tiers including guardrail + God Mode orchestration; see CHANGELOG)
 **Domain:** Memory-Augmented LLM Systems, Edge Deployment, Safety-Critical AI
 
-> **Note (2026-07-05):** The theorems, benchmarks, and architectural arguments below remain valid for the current v8.9.4 implementation. The tier count has been corrected from "seven" to **six** (working_memory, episodic, semantic, procedural, immunological, guardrail — see [06_MULTIMODAL_MEMORY_GUIDE.md](../06_MULTIMODAL_MEMORY_GUIDE.md#1-tldr)). The underlying hybrid retrieval (FAISS L1 + MATHIR L2 reranker) is unchanged.
+> **Note (2026-09-03):** The benchmark tables below are historical measurements from the original comparison harness, not current latency or throughput guarantees. The tier count is **six** (working_memory, episodic, semantic, procedural, immunological, guardrail). Current runtime reliability details — HTTP transport, canonical project DB routing, bounded injection, and maintenance limits — are documented in [DAEMON.md](../mathir_mcp/docs/DAEMON.md).
 
 ---
 
@@ -93,13 +93,13 @@ The two architectures under comparison share the same goal — augment an LLM wi
 └────────────────────────────────────────────────────────────────┘
 ```
 
-**Properties.** Seven-tier hierarchical memory with a learnable router. Online learning: semantic prototypes shift via Robbins-Monro updates; episodic keys evolve; the immunological covariance $\Sigma$ tracks the running distribution. Hybrid retrieval: BM25 (lexical) + dense (semantic) + cross-encoder (interactive) → 45.7% top-1 overlap on a real textbook corpus, beating FAISS by 14.1 percentage points. Anomaly detection: Theorem 4 certifies the Mahalanobis detector as NP-optimal for Gaussian normal data. A 10 000-entry LRU result cache short-circuits the BM25 + CE stages on conversational follow-ups, dropping median latency from 494 ms to 6 ms.
+**Properties.** Six-tier hierarchical memory with a learnable router across the five adaptive tiers; guardrail rules bypass the router and are injected unconditionally. The benchmark's hybrid retrieval combines BM25, dense retrieval, and cross-encoder scoring. Its latency and quality figures are retained as reproducible historical results, not production SLOs.
 
 ### 2.3 Side-by-side
 
 | Property | VectorDB (FAISS) | MATHIR v8.5 |
 |---|---|---|
-| Topology | Flat | 7-tier hierarchy |
+| Topology | Flat | Six-tier hierarchy |
 | Learning | None (append-only) | Online (Robbins-Monro, EMA, KL) |
 | Retrieval | Dense cosine / L2 only | BM25 + dense + cross-encoder |
 | Anomaly detection | None | Mahalanobis (Theorem 4, NP-optimal) |
@@ -414,7 +414,7 @@ MATHIR is **slower on the cold path** (494 ms median for Approach D vs 0.05 ms f
 ## 10. Reproducibility Appendix
 
 ```bash
-# From the project root (D:/SECRET_PROJECT/MATHIR)
+# From the project root (`<REPO_ROOT>`)
 
 # v8.5 master retrieval comparison (5 systems × 50 queries × 200 chunks)
 python benchmarks/compare_all_approaches.py

@@ -4,7 +4,7 @@ Papers cited in the MATHIR codebase, grouped by algorithm/feature.
 
 ---
 
-## 3-Layer Auto-Cache (v8.7.0)
+## 3-Layer Auto-Cache and Reliability Hardening (v8.9.8)
 
 ### L1 Embedding Cache (LRU)
 
@@ -85,10 +85,10 @@ Papers cited in the MATHIR codebase, grouped by algorithm/feature.
 ## Memory-Augmented LLMs (Related Work)
 
 - **Zhong, W., Guo, L., Gao, Q., Ye, H., & Wang, Y. (2024).** "MemoryBank: Enhancing Large Language Models with Long-Term Memory." *Proceedings of the AAAI Conference on Artificial Intelligence*, 38(17), pp. 19724-19731. DOI: `10.1609/aaai.v38i17.29946`
-  - Implements Ebbinghaus forgetting curve for LLM memory. Closest published system to MATHIR's decay mechanism. MATHIR extends this with 5-tier promotion, link graphs, and anomaly detection.
+  - Implements Ebbinghaus forgetting curve for LLM memory. Closest published system to MATHIR's decay mechanism. MATHIR extends this with five adaptive tiers, a push-based guardrail tier, link graphs, and anomaly detection.
 
 - **Packer, C., Wooders, S., Lin, K., Fang, V., Patil, S., Stoica, I., & Gonzalez, J. (2024).** "MemGPT: Towards LLMs as Operating Systems." *arXiv preprint arXiv:2310.08560*.
-  - Virtual memory management for LLM context (paging between main context and external storage). MATHIR's tiered architecture (working_memory -> episodic -> semantic -> procedural) is an analogous multi-level memory hierarchy.
+  - Virtual memory management for LLM context (paging between main context and external storage). MATHIR's five adaptive tiers form an analogous multi-level memory hierarchy; guardrails intentionally bypass adaptive routing.
 
 - **Graves, A., Wayne, G., & Danihelka, I. (2014).** "Neural Turing Machines." *arXiv preprint arXiv:1410.5401*.
   - Early work on external memory for neural networks with read/write heads. Foundational concept for memory-augmented AI systems.

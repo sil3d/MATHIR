@@ -2,7 +2,7 @@
 
 **Does MATHIR accept video, audio, text from an LLM? How does it store data as a memory?**
 
-*Master's-thesis-grade technical reference · MATHIR V8.9.2 · 2026-07*
+*Master's-thesis-grade technical reference · MATHIR v8.9.8 · 2026-09*
 
 ---
 
@@ -75,16 +75,18 @@ MATHIR is a **memory layer for LLMs that operates on numerical embeddings**, not
                   │  └──────────┬────────────┘  │
                   │             ▼                │
                   │  ┌───────────────────────┐  │
-                   │  │ 5-Tier Memory          │  │
-                  │  │  • Working   (64)      │  │   circular buffer
-                  │  │  • Episodic  (1000)    │  │   key-value
-                  │  │  • Semantic  (256)     │  │   online k-means
-                  │  │  • Immune    (100)     │  │   Mahalanobis
+                  │  │ 6-Tier Memory         │  │
+                  │  │  • Working   (64)     │  │   circular buffer
+                  │  │  • Episodic  (1000)   │  │   key-value
+                  │  │  • Semantic  (256)    │  │   online k-means
+                  │  │  • Procedural (128)   │  │   skills/patterns
+                  │  │  • Immune    (100)    │  │   Mahalanobis
+                  │  │  • Guardrail (50/proj)│  │   push-based, no decay
                   │  └──────────┬────────────┘  │
                   │             ▼                │
                   │  ┌───────────────────────┐  │
-                  │  │ router (4 logits)      │  │   softmax → weights
-                  │  │ reconstructor          │  │   self-supervised
+                  │  │ router (5 logits)     │  │   guardrail bypasses router
+                  │  │ reconstructor         │  │   self-supervised
                   │  └──────────┬────────────┘  │
                   │             ▼                │
                   │  output_proj  272 → D       │

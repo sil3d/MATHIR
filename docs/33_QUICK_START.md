@@ -1,4 +1,4 @@
-# MATHIR — Quick Start Guide (v8.9.4)
+# MATHIR — Quick Start Guide (v8.9.8)
 
 **Get MATHIR running in 3 minutes.**
 
@@ -27,7 +27,7 @@ pip install -e .
 mathir-server
 ```
 
-The daemon starts on `http://127.0.0.1:7338`. The embedder model loads on first request (~2-5s cold, <1ms warm).
+The daemon starts on `http://127.0.0.1:7338`. The embedder model loads on first request; subsequent calls reuse the resident model. Named projects resolve to `~/.config/MATHIR/data/projects/<project>/mathir.db`.
 
 ---
 
@@ -62,12 +62,12 @@ curl http://127.0.0.1:7338/health
 # Save a memory
 curl -X POST http://127.0.0.1:7338/api/memory/save \
   -H "Content-Type: application/json" \
-  -d '{"content": "MATHIR is working!", "agent": "test", "block_type": "episodic", "label": "test"}'
+  -d '{"content": "MATHIR is working!", "agent": "test", "block_type": "episodic", "label": "test", "project": "my-project", "cwd": "."}'
 
 # Recall
 curl -X POST http://127.0.0.1:7338/api/memory/recall \
   -H "Content-Type: application/json" \
-  -d '{"query": "MATHIR", "k": 3}'
+  -d '{"query": "MATHIR", "k": 3, "project": "my-project", "cwd": "."}'
 
 # Cache stats
 curl http://127.0.0.1:7338/api/cache/stats
@@ -88,13 +88,17 @@ requests.post(f"{DAEMON}/api/memory/save", json={
     "agent": "my-app",
     "block_type": "episodic",
     "label": "user-pref",
-    "priority": 5
+    "priority": 5,
+    "project": "my-project",
+    "cwd": ".",
 })
 
 # Recall
 results = requests.post(f"{DAEMON}/api/memory/recall", json={
     "query": "user preferences",
-    "k": 5
+    "k": 5,
+    "project": "my-project",
+    "cwd": ".",
 }).json()
 
 for mem in results["memories"]:
@@ -143,7 +147,7 @@ launchctl load -w ~/Library/LaunchAgents/com.mathir.daemon.plist
 | INT8 quantization | 4x embedding compression, zero recall loss |
 | Cross-encoder reranking | +20pp quality on retrieval |
 | Hybrid search | Vector + BM25 + RRF fusion |
-| Per-project memory | Each project gets its own `.mathir/mathir.db` |
+| **Per-project memory** | Named projects use `~/.config/MATHIR/data/projects/<project>/mathir.db`; unnamed calls may use cwd-local `.mathir/mathir.db` |
 | Cross-agent sharing | Claude, MiMo, OpenCode share the same daemon |
 | Online learning | Memory evolves as you use it |
 | Anomaly detection | Mahalanobis distance (NP-optimal) |
@@ -165,7 +169,7 @@ The first request downloads the embedding model (~80MB). Subsequent requests are
 Make sure the daemon is running: `curl http://127.0.0.1:7338/health`
 
 ### Legacy training scripts (train.bat, dashboard.bat)
-These were part of MATHIR v1-v5 (autonomous driving research). The current system (v8.9.0) is a daemon-based MCP server — no training scripts needed.
+These were part of MATHIR v1-v5 (autonomous driving research). The current system (v8.9.8) is a daemon-based MCP server — no training scripts needed.
 
 ---
 

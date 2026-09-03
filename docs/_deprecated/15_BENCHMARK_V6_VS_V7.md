@@ -119,14 +119,14 @@ benchmark re-run.
 ## How to reproduce
 
 ```bash
-# From the project root (D:/SECRET_PROJECT/MATHIR)
+# From the project root (`<REPO_ROOT>`)
 python benchmarks/v6_vs_v7.py                        # stdout only
 python benchmarks/v6_vs_v7.py --output results.json  # also save JSON
 python benchmarks/v6_vs_v7.py --embedding-dim 4096 --iters 200
 ```
 
 After running with `--output`, the JSON sidecar is at
-`D:/SECRET_PROJECT/MATHIR/results.json`. Re-run the benchmark any time
+`<REPO_ROOT>/results.json`. Re-run the benchmark any time
 the V7 plugin is updated; the JSON will be overwritten.
 
 ### Re-running after `MATHIRPluginV7` lands

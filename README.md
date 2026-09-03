@@ -17,7 +17,7 @@
 
 <br/>
 
-> **🧠 v8.9.8** — **Unified global instructions + completed injection channels.** DB hygiene is now enforced in every injected prompt (dedupe before save, repair broken memories, end-of-session housekeeping); OMP and Claude Code hooks gained God Mode relay/registration + the hygiene block, matching OpenCode. [God Mode](docs/GOD_MODE.md) · [Client Bridge](mathir_mcp/bin/god/PROTOCOL.md) · [CHANGELOG](mathir_mcp/CHANGELOG.md)
+> **🧠 v8.9.8 + reliability hardening** — **Unified global instructions, bounded injection, and database hygiene.** The current daemon also enforces a 50,000-character context budget, canonical project DB routing, adaptive anomaly warmup, and bounded link/consolidation work. [God Mode](docs/GOD_MODE.md) · [Client Bridge](mathir_mcp/bin/god/PROTOCOL.md) · [CHANGELOG](mathir_mcp/CHANGELOG.md)
 
 <br/>
 
@@ -25,7 +25,7 @@
 [![PyTorch 2.0+](https://img.shields.io/badge/PyTorch-2.0+-EE4C2C?logo=pytorch&logoColor=white)](https://pytorch.org)
 [![MIT](https://img.shields.io/badge/License-MIT-22c55e)](LICENSE)
 [![v8.9.8](https://img.shields.io/badge/Version-v8.9.8-6366f1)](mathir_mcp/CHANGELOG.md)
-[![98 tests](https://img.shields.io/badge/Tests-98%20passed-22c55e)](#-tests--benchmarks)
+[![Targeted tests](https://img.shields.io/badge/Tests-targeted%20checks%20passing-22c55e)](#-tests--benchmarks)
 
 </div>
 
@@ -145,9 +145,19 @@ Full guide: **[docs/GOD_MODE.md](docs/GOD_MODE.md)**
 
 ---
 
-## 🆕 Recent Highlights (v8.6.0 → v8.9.8)
+## 🆕 Recent Highlights (v8.6.0 → current)
 
-27 MCP tools. 22 algorithms. INT8 quantization. Cross-encoder reranking. Multi-agent benchmark. Self-healing daemon + universal injection proxy. Autonomous memory maintenance + headless god-mode workers (see banner above for the latest, v8.9.8). v8.9.8: unified global instructions with enforced DB hygiene (dedupe, repair, housekeeping) + OMP/Claude Code hooks completed with God Mode relay and the hygiene block.
+27 MCP tools. 22 algorithms. INT8 quantization. Cross-encoder reranking. Multi-agent benchmark. Self-healing daemon + universal injection proxy. Autonomous memory maintenance + headless god-mode workers. Current reliability hardening bounds injected context, prevents detached-daemon tqdm crashes, adapts anomaly baselines, and routes named projects to one canonical database.
+
+**Runtime migration note (v8.9.8):** Named requests now resolve to
+`~/.config/MATHIR/data/projects/<project>/mathir.db`; they no longer create a
+second cwd-local DB for the same project. Legacy schemas remain detectable via
+`/health` and are migrated with
+`python -m mathir_mcp.mathir_lib.mathir_migrate --dry-run` followed by
+`--apply` (the command creates a `.legacy.bak` backup).
+`/api/context` is the injection boundary: pass `task`, `project`, and `cwd`;
+the response carries a hard 50,000-character context budget and explicit
+truncation metadata.
 
 **INT8 quantization** — embedding storage reduced 4x (float32 → int8), zero recall loss. 410 DBs migrated: 1.9 GB → 825 MB.
 **Cross-encoder reranking** — `ms-marco-MiniLM-L-6-v2` second-pass scoring: +20pp hit@10 on natural-language queries.
@@ -198,9 +208,9 @@ MATHIR has **2 long-running processes** + **1 cross-tool instruction file**:
 
 | Tier | Mechanism | Agents | Coverage |
 |---|---|---|---|
-| **A — Plugin auto-inject** | `mathir-auto-inject.ts` hooks `session.started` + `experimental.chat.system.transform` — no agent cooperation needed | opencode, mimocode | TRUE auto-inject |
-| **B — Instructions + MCP** | MCP server registered + `GLOBAL_INSTRUCTIONS.md` injected. Agent must follow the advisory instruction to call `memory_session_start` — **or upgrade to the proxy below for a hard guarantee (v8.9.4+)** | claude-code, cursor, cline, zcode, codex, etc. (14 agents) | SOFT — agent must comply, unless proxied |
-| **C — Universal proxy** | Point `ANTHROPIC_BASE_URL` or `OPENAI_BASE_URL` at the proxy (port 7339) — no MCP, no agent cooperation, works identically for every tool pointed at it | Any tool with a custom-base-URL setting: windsurf, gemini-cli, kilo, qwen, kiro-ide, warp, trae, crush, claude-code, codex, local models (Ollama/llama.cpp), etc. | HARD — set `ANTHROPIC_BASE_URL=http://127.0.0.1:7339` for Anthropic-native tools (no `/v1` — matches the Anthropic SDK's own base-URL convention), or `OPENAI_BASE_URL=http://127.0.0.1:7339/v1` for OpenAI-compatible tools (`/v1` required — matches the OpenAI SDK's default) |
+| **A — Plugin auto-inject** | `mathir-auto-inject.ts` hooks `experimental.chat.system.transform` with a `chat.message` fallback — no agent cooperation needed | opencode, mimocode | TRUE auto-inject |
+| **B — Instructions + MCP** | MCP server registered + `GLOBAL_INSTRUCTIONS.md` injected. Agent must follow the advisory instruction to call `memory_session_start` — **or upgrade to the proxy below for a hard guarantee (v8.9.8+)** | claude-code, cursor, cline, zcode, codex, etc. (14 agents) | SOFT — agent must comply, unless proxied |
+| **C — Universal proxy** | Point `ANTHROPIC_BASE_URL` or `OPENAI_BASE_URL` at the proxy (port 7339) — no MCP, no agent cooperation, works identically for every tool pointed at it | Any tool with a custom-base-URL setting: windsurf, gemini-cli, kilo, qwen, kiro-ide, warp, trae, crush, claude-code, codex, local models (Ollama/llama.cpp), etc. | HARD — set `ANTHROPIC_BASE_URL=http://127.0.0.1:7339` for Anthropic-native tools (no `/v1` — matches the Anthropic SDK's own base-URL convention), or `OPENAI_BASE_URL=http://127.0.0.1:7339/v1` for OpenAI-compatible tools (`/v1` required) |
 
 **Additional escape hatch — `AGENTS.md` at your project root:** read automatically by 26+ agents (Aider, Amp, Claude Code, Codex, Cursor, Devin, Factory, Goose, JetBrains Junie, Jules, OpenCode, VS Code Copilot, Warp, Zed, etc. — real open standard, [agents.md](https://agents.md), 60,000+ projects as of Dec 2025). Instructs the agent to call `memory_session_start` on first turn + `memory_context` before each task — a soft guarantee like tier B, but works even for agents not in the tier table above.
 ```bash
@@ -365,7 +375,7 @@ Install: `pip install -e ./mathir_mcp`
 |---|---|
 | **[mathir_mcp/README.md](mathir_mcp/README.md)** | Install, MCP setup, all 27 tools |
 | **[mathir_mcp/INSTALL_FOR_AGENT/AGENT.md](mathir_mcp/INSTALL_FOR_AGENT/AGENT.md)** | Per-agent MCP config (50+ agents) |
-| **[mathir_mcp/docs/DAEMON.md](mathir_mcp/docs/DAEMON.md)** | Daemon HTTP API + JSON-RPC protocol |
+| **[mathir_mcp/docs/DAEMON.md](mathir_mcp/docs/DAEMON.md)** | Current daemon HTTP API, context budget, DB routing, and legacy JSON-RPC migration note |
 | **[mathir_mcp/docs/DIMENSIONS.md](mathir_mcp/docs/DIMENSIONS.md)** | Embedding model selection |
 | **[mathir_mcp/docs/DASHBOARD_GUIDE.md](mathir_mcp/docs/DASHBOARD_GUIDE.md)** | Stats dashboard setup |
 | **[docs/GOD_MODE.md](docs/GOD_MODE.md)** | God Mode — multi-agent orchestration guide |

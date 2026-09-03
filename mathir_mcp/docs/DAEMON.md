@@ -1,27 +1,39 @@
-# Daemon Architecture (v8.9.4)
+# Daemon Architecture (v8.9.8)
 
-> **⚠ Protocol section below is stale (pre-v8.5.0).** The daemon has been
-> **HTTP (Flask + Waitress), not raw TCP JSON-RPC**, since the v8.5.0
-> rewrite — `mathir_lib/mathir_server.py` is the canonical server; the TCP
-> daemon was retired because raw sockets were fragile (pipe-buffer
-> crashes, no error framing) and every client (MCP bridge, hooks, the
-> universal proxy) speaks HTTP. The JSON-RPC examples below describe a
-> protocol that no longer runs — kept for historical reference pending a
-> full rewrite, not as a current API reference. For the real HTTP surface,
-> read `mathir_server.py`'s Flask routes directly (`/api/context`,
-> `/api/memory/*`, `/health`, etc.) or `mathir_client.py`, which already
-> targets HTTP.
->
-> Also as of v8.9.4: there's a second server-side component,
-> `mathir_lib/mathir_proxy.py` (port 7339) — a reverse proxy that sits in
-> front of the real LLM API (Anthropic or any OpenAI-compatible provider)
-> and injects live MATHIR context into every request before forwarding.
-> It's the recommended way to give any tool MATHIR context (point
-> `ANTHROPIC_BASE_URL`/`OPENAI_BASE_URL` at it) — see
-> `docs/BRAIN_ARCHITECTURE.md` and the proxy's own module docstring.
-> Both the daemon and the proxy are self-healing on all 3 OSes as of
-> v8.9.4 (systemd/launchd native restart, Windows Task Scheduler
-> healthcheck every 5 min).
+> **Current transport:** the daemon is **HTTP (Flask + Waitress)** on
+> `127.0.0.1:7338`. The raw TCP/JSON-RPC protocol from v1–v8.4 is retired.
+> The historical examples below are retained only as migration reference; they
+> are not a supported runtime interface.
+
+The canonical implementation is `mathir_lib/mathir_server.py`. All HTTP
+routes resolve the database through the request's `project` and `cwd`
+parameters. Named projects use the canonical
+`~/.config/MATHIR/data/projects/<project>/mathir.db` path; unnamed calls may
+use a cwd-local `.mathir/mathir.db`.
+
+The optional universal proxy,
+`mathir_lib/mathir_proxy.py` on port `7339`, injects live context into
+Anthropic `/v1/messages` and OpenAI-compatible `/v1/chat/completions` requests.
+The daemon and proxy are self-healed by the platform launchers.
+
+## Current HTTP contract
+
+| Endpoint | Method | Purpose |
+|---|---|---|
+| `/health` | GET | Service, model, schema, and version status |
+| `/api/context` | GET/POST | Guardrails plus relevant memories for injection |
+| `/api/memory/*` | POST (some GET) | Memory CRUD, recall, lifecycle, and diagnostics |
+| `/api/cache/stats` | GET | L1/L2/L3 cache metrics |
+
+`/api/context` requires a `task` and SHOULD include both `project` and `cwd`.
+Its injected `context` field has a hard 50,000-character budget; guardrails
+claim the first 70% in priority order and lower-priority content is truncated
+with explicit response metadata. Guardrail loading failures are logged rather
+than silently ignored.
+
+Input limits are enforced at both HTTP and MCP boundaries: content 100,000
+characters, query 5,000, label 200, and agent 100 by default. `MCP_INPUT_MAX`
+is a bounded multiplier for MCP clients.
 
 ## What the Daemon Does
 
