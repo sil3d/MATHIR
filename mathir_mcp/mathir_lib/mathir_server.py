@@ -222,24 +222,45 @@ def _get_vec_mem(db_path, dim):
 def _resolve_db(project: str = None, cwd: str = None):
     """Resolve VecMemory + embedder. Returns (vec_mem, db_path, embedder) or raises.
 
-    A named project always resolves to its canonical global database under
-    ``MATHIR_HOME/data/projects/<project>/mathir.db``. This prevents a caller's
-    working directory from creating a second database for the same project.
-    Unnamed calls remain cwd-local because cwd is their only project identity.
+    FIX (2026-09-05): a caller's working directory is authoritative for the
+    database FILE location whenever an existing per-project database is
+    already sitting there (``<cwd>/.mathir/mathir.db``) -- this restores the
+    intended "MATHIR data lives inside the project's own folder" contract.
+    Previously, supplying BOTH ``project`` and ``cwd`` unconditionally
+    redirected to the global ``MATHIR_HOME/data/projects/<project>/`` path
+    even when a populated local database already existed for that exact
+    project, silently forking a second, empty database and orphaning the
+    caller's real history (observed: Mycerise_V2_Taur accumulated 5793
+    memories locally while a parallel global db held only 17 stragglers).
+
+    Resolution order when ``cwd`` is given:
+      1. ``<cwd>/.mathir/mathir.db`` if it already exists -- always wins.
+      2. Else, if ``project`` is given and its global database already has
+         data, use that (preserves history for callers that never had a
+         local db, e.g. installed apps with no meaningful project cwd).
+      3. Else, create a fresh local ``<cwd>/.mathir/mathir.db`` -- new
+         projects default to living inside their own folder going forward.
+
+    Unnamed calls (no ``project``) remain purely cwd-local, unchanged.
+    Calls with ``project`` and no ``cwd`` remain purely global, unchanged.
     """
     dim = get_embedder_dim()
     db_path = None
     if cwd:
         cwd_path = Path(cwd)
         local_db = cwd_path / ".mathir" / "mathir.db"
-        if project:
+        if local_db.exists():
+            db_path = local_db
+        elif project:
             home = Path(os.environ.get(
                 "MATHIR_HOME", str(Path.home() / ".config" / "MATHIR")
             )).expanduser()
-            db_path = home / "data" / "projects" / project / "mathir.db"
-            db_path.parent.mkdir(parents=True, exist_ok=True)
-        elif local_db.exists():
-            db_path = local_db
+            global_db = home / "data" / "projects" / project / "mathir.db"
+            if global_db.exists():
+                db_path = global_db
+            else:
+                local_db.parent.mkdir(parents=True, exist_ok=True)
+                db_path = local_db
         else:
             local_db.parent.mkdir(parents=True, exist_ok=True)
             db_path = local_db
@@ -374,25 +395,7 @@ def _add_cors_headers(resp):
     if origin == "*" or any(origin.startswith(a) for a in allowed):
         resp.headers["Access-Control-Allow-Origin"] = origin if origin != "*" else "*"
         resp.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-        resp.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
-        resp.headers["Access-Control-Max-Age"] = "3600"
     return resp
-
-
-@app.route("/<path:any_path>", methods=["OPTIONS"])
-def _cors_preflight(any_path):
-    """Handle CORS preflight for all routes."""
-    return ("", 204)
-
-# ---------------------------------------------------------------------------
-# Dashboard routes (from mathir_stats_server.py)
-# ---------------------------------------------------------------------------
-
-_HTML_PATH = _HERE / "mathir_dashboard.html"
-_PROJECTS_DIR = Path(os.environ.get("MATHIR_PROJECTS_DIR", str(_P_PROJECTS)))
-_LEGACY_DB = Path(os.environ.get("MATHIR_DB", str(_P_DB)))
-_CONFIG_PATH = Path(os.environ.get("MATHIR_CONFIG", str(_P_CONFIG)))
-_REGISTRY_PATH = Path(os.environ.get("MATHIR_REGISTRY", str(_P_REGISTRY)))
 
 
 def _get_project_db(project_name=None):
@@ -401,6 +404,18 @@ def _get_project_db(project_name=None):
         if _LEGACY_DB.exists():
             return _sql.connect(str(_LEGACY_DB))
         return None
+    # FIX (2026-09-05): checked the (currently unpopulated) registry only,
+    # so /api/stats and /api/memories for any real project reported "No
+    # database found" even though _resolve_db had already created and
+    # populated MATHIR_HOME/data/projects/<project>/mathir.db for that
+    # exact project. Check the canonical path first -- same convention
+    # _resolve_db and get_project_db_path use -- before the registry.
+    home = Path(os.environ.get(
+        "MATHIR_HOME", str(Path.home() / ".config" / "MATHIR")
+    )).expanduser()
+    named_db = home / "data" / "projects" / project_name / "mathir.db"
+    if named_db.exists():
+        return _sql.connect(str(named_db))
     if _REGISTRY_PATH.exists():
         try:
             with open(_REGISTRY_PATH) as f:
@@ -417,6 +432,7 @@ def _get_project_db(project_name=None):
             # apart from the daemon log.
             log.warning("_get_project_db: registry read failed for %r: %s", project_name, exc)
     return None
+
 
 
 def _list_projects():
@@ -967,13 +983,26 @@ def memory_save():
                 # old DB). Falls through with tier_override=None.
                 pass
 
+        # FIX (2026-09-05): get_project_name() falls back to the DAEMON
+        # PROCESS's own ambient Path.cwd() -- meaningless (and observed
+        # live as "System32") for a long-running background daemon whose
+        # launch directory has nothing to do with the caller's project.
+        # When the caller gave a `cwd` but no explicit `project`, label the
+        # memory with that cwd's own folder name instead -- it matches the
+        # actual `.mathir/mathir.db` the memory is being written into.
+        _req_cwd = params.get('cwd')
+        _project_label = (
+            params.get('project')
+            or (Path(_req_cwd).name if _req_cwd else None)
+            or get_project_name()
+        )
         metadata = {
             'agent': params.get('agent', 'unknown'),
             'block_type': block_type,
             'label': params.get('label', ''),
             'priority': params.get('priority', 5),
             'content': content,
-            'project': params.get('project') or get_project_name(),
+            'project': _project_label,
             'risk_warnings': risk_warnings if risk_warnings else None,
             # memory_by_path documents filtering on this field, but nothing
             # ever populated it -- verified live, 2026-07-21: every saved

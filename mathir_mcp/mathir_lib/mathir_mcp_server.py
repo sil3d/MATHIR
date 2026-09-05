@@ -108,7 +108,28 @@ def get_project_name() -> str:
 
 
 def get_project_db_path(project: str = None) -> Optional[Path]:
-    """Resolve DB path for project — matches original v2 logic."""
+    """Resolve DB path for project — matches original v2 logic.
+
+    FIX (2026-09-05): `project` was accepted but never consulted for path
+    resolution -- every call, regardless of the name requested, fell
+    through to CWD/registry/most-recently-modified auto-detection, which
+    could silently return a DIFFERENT project's database (cross-project
+    leak risk). An explicit `project` now takes priority and is checked
+    against the same canonical layout `_resolve_db` uses in
+    mathir_server.py (``MATHIR_HOME/data/projects/<project>/mathir.db``,
+    no nested ``.mathir/``) before falling back to CWD auto-detection.
+    The registry/most-recent-DB fallbacks below are also filtered to the
+    requested project name when one was given, instead of returning
+    whichever OTHER project happened to be used most recently.
+    """
+    if project:
+        home = Path(os.environ.get(
+            "MATHIR_HOME", str(Path.home() / ".config" / "MATHIR")
+        )).expanduser()
+        named_db = home / "data" / "projects" / project / "mathir.db"
+        if named_db.exists():
+            return named_db
+
     # 1. CWD — prefer the project's own DB if it exists
     cwd_db = Path.cwd() / ".mathir" / "mathir.db"
     if cwd_db.exists():
@@ -145,11 +166,13 @@ def get_project_db_path(project: str = None) -> Optional[Path]:
                 # CWD matches a known project but its DB doesn't exist yet —
                 # fall through so we create one for the project root (not cwd).
                 return cwd_db
-            # 2b. Fallback: most-recently-used DB that exists
+            # 2b. Fallback: most-recently-used DB that exists -- filtered to
+            # the requested project name when one was given.
             candidates = [
                 (Path(info.get("db_path", "")), info.get("last_used", ""))
-                for info in projects.values()
-                if Path(info.get("db_path", "")).exists()
+                for name, info in projects.items()
+                if (project is None or name == project)
+                and Path(info.get("db_path", "")).exists()
             ]
             if candidates:
                 candidates.sort(key=lambda x: x[1], reverse=True)
@@ -157,13 +180,18 @@ def get_project_db_path(project: str = None) -> Optional[Path]:
         except Exception:
             pass
 
-    # 3. Projects dir — most recently modified
+    # 3. Projects dir — most recently modified, filtered to the requested
+    #    project name when one was given. Checks both the canonical
+    #    <project>/mathir.db layout (matches _resolve_db) and the legacy
+    #    <project>/.mathir/mathir.db layout for backward compatibility.
     if PROJECTS_DIR.exists():
         candidates = []
         for proj_dir in PROJECTS_DIR.iterdir():
-            db = proj_dir / ".mathir" / "mathir.db"
-            if db.exists():
-                candidates.append((db.stat().st_mtime, db))
+            if project is not None and proj_dir.name != project:
+                continue
+            for db in (proj_dir / "mathir.db", proj_dir / ".mathir" / "mathir.db"):
+                if db.exists():
+                    candidates.append((db.stat().st_mtime, db))
         if candidates:
             candidates.sort(reverse=True)
             return candidates[0][1]
